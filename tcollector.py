@@ -384,6 +384,9 @@ def populate_collectors(coldir):
         interval = int(interval)
 
         for colname in os.listdir('%s/%d' % (coldir, interval)):
+            if colname.startswith('.'):
+                continue
+
             filename = '%s/%d/%s' % (coldir, interval, colname)
             if os.path.isfile(filename):
                 mtime = os.path.getmtime(filename)
