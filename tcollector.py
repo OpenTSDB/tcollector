@@ -40,9 +40,10 @@ GENERATION = 0
 LOG = logging.getLogger('tcollector')
 COLLECTORS = {}
 OUTQ = []
+TSD = None
 
 
-class Collector:
+class Collector(object):
     """A Collector is a script that is run that gathers some data and prints it out in
        standard TSD format on STDOUT.  This class maintains all of the state information
        for a given collector and gives us utility methods for working with it."""
@@ -85,7 +86,9 @@ def main(argv):
             assert False, 'Tag "%s" already declared.' % k
         tags[k] = v
 
-    # ensure we got a host tag or fake one
+    # tsdb does not require a host tag, but we do.  we are always running on a
+    # host.  FIXME: we should make it so that collectors may request to set their
+    # own host tag, or not set one.
     if not 'host' in tags:
         tags['host'] = socket.gethostname()
         LOG.warning('Tag "host" not specified, defaulting to %s.', tags['host'])
@@ -95,13 +98,8 @@ def main(argv):
 
     # gracefully handle death for normal termination paths and abnormal
     atexit.register(shutdown)
-    for sig in (signal.SIGTERM, signal.SIGINT, signal.SIGPIPE):
+    for sig in (signal.SIGTERM, signal.SIGINT):
         signal.signal(sig, shutdown_signal)
-
-    # create global socket for sending data to tsd
-    # FIXME: need to handle when tsd goes away, buffer to memory or disk?
-    tsd = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    tsd.connect((options.host, options.port))
 
     # startup complete
     LOG.info('startup complete')
@@ -113,15 +111,14 @@ def main(argv):
         read_children()
         reap_children()
         spawn_children()
-        send_to_tsdb(tsd, tagstr)
+        send_to_tsd(options, tagstr)
         time.sleep(1)
 
 
 def all_collectors():
     """Generator to return all collectors."""
 
-    for colname in COLLECTORS:
-        yield COLLECTORS[colname]
+    return COLLECTORS.itervalues()
 
 
 # collectors that are not marked dead
@@ -169,12 +166,34 @@ def shutdown():
     sys.exit(1)
 
 
-def send_to_tsdb(tsd, tagstr):
-    """Sends outstanding data to the tsd in one operation."""
+def connect_to_tsd(options):
+    """Safely connect to the TSD."""
 
-    global OUTQ
+    global TSD
+
+    try:
+        TSD = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        TSD.settimeout(15)
+        TSD.connect((options.host, options.port))
+    except socket.error, msg:
+        LOG.error('failed to connect to %s:%d: %s', options.host, options.port, msg)
+        TSD.close()
+        TSD = None
+
+
+def send_to_tsd(options, tagstr):
+    """Sends outstanding data to the TSD in one operation."""
+
+    global OUTQ, TSD
     if len(OUTQ) == 0:
         return
+
+    # if our TSD socket isn't built, do that now.  if we can't connect, make sure
+    # we don't continue to the path below.
+    if TSD is None:
+        connect_to_tsd(options)
+        if TSD is None:
+            return
 
     out = ''
     for line in OUTQ:
@@ -182,8 +201,14 @@ def send_to_tsdb(tsd, tagstr):
         out += line + '\n'
         LOG.debug('SENDING: %s' % line)
 
-    tsd.send(out)
-    OUTQ = []
+    # try sending our data.  if an exception occurs, just error and try sending
+    # again next time.
+    try:
+        TSD.sendall(out)
+        OUTQ = []
+    except socket.error, msg:
+        LOG.error('failed to send data: %s', msg)
+        TSD = None
 
 
 def read_children():
@@ -193,6 +218,18 @@ def read_children():
 
     now = int(time.time())
     for col in all_living_collectors():
+        # now read stderr for log messages
+        try:
+            out = col.proc.stderr.read()
+        except IOError, (err, msg):
+            if err == errno.EAGAIN:
+                continue
+            raise
+        if out:
+            LOG.debug('reading %s got %d bytes on stderr', col.name, len(out))
+            for line in out.splitlines():
+                LOG.warning('%s: %s', col.name, line)
+
         # FIXME: this should take the read data and append it onto a buffer and then
         # we should pull off complete lines from the front of the buffer.  right now,
         # the following code doesn't handle a situation where we get a partial line in
@@ -205,10 +242,9 @@ def read_children():
             raise
         if not out:
             continue
-
-        LOG.debug('reading %s got %d bytes', col.name, len(out))
+        LOG.debug('read %s got %d bytes', col.name, len(out))
         for line in out.splitlines():
-            if re.match('^\S+\s+\d+\s+\S+(\s+\S+=\S+)*$', line) is None:
+            if re.match('^[-_.a-z0-9]+\s+\d+\s+\S+?(\s+[-_.a-z0-9]+=[-_.a-z0-9]+)*$', line) is None:
                 LOG.warning('%s sent invalid data: %s', col.name, line)
             else:
                 OUTQ.append(line)
@@ -228,17 +264,16 @@ def reap_children():
             continue
         col.proc = None
 
-        # child terminated for some reason
-        LOG.info('collector %s terminated after %d seconds with status code %d',
-                col.name, now - col.lastspawn, status)
-
-        # special, if a script exits with status 13, then we remove it from the
-        # list.  this is used so we don't run varnish monitoring scripts on machines
-        # that don't have varnish, f.ex.
+        # behavior based on status.  a code 0 is normal termination, code 13 is used
+        # to indicate that we don't want to restart this collector.  any other status
+        # code is an error and is logged.
         if status == 13:
-            LOG.info('removing %s from the list of collectors by request', col.name)
+            LOG.info('removing %s from the list of collectors (by request)', col.name)
             col.dead = True
         else:
+            if status != 0:
+                LOG.warning('collector %s terminated after %d seconds with status code %d',
+                        col.name, now - col.lastspawn, status)
             reset_collector(col.interval, col.name, col.filename, col.mtime, col.lastspawn)
 
 
@@ -368,7 +403,8 @@ def populate_collectors(coldir):
 
                     # we have to increase the generation or we will kill this script again
                     col.generation = GENERATION
-                    if col.proc is not None and col.interval == 0 and col.mtime < mtime:
+                    if col.proc is not None and not col.interval and col.mtime < mtime:
+                        LOG.info('%s has been updated on disk, respawning', col.name)
                         col.mtime = mtime
                         kill(col.proc)
                 else:
