@@ -313,6 +313,10 @@ def send_to_tsd(options, tagstr):
         OUTQ = []
     except socket.error, msg:
         LOG.error('failed to send data: %s', msg)
+        try:
+            TSD.close()
+        except socket.error:
+            pass
         TSD = None
 
 
@@ -353,9 +357,17 @@ def read_children():
             line = col.buffer[0:idx].strip()
             col.buffer = col.buffer[idx+1:]
 
-            if re.match('^[-_.a-z0-9]+\s+\d+\s+\S+?(\s+[-_.a-z0-9]+=[-_.a-z0-9]+)*$', line) is None:
+            parsed = re.match('^([-_.a-z0-9]+)\s+\d+\s+(\S+?)(\s+[-_.a-z0-9]+=[-_.a-z0-9]+)*$', line)
+            if parsed is None:
                 LOG.warning('%s sent invalid data: %s', col.name, line)
             else:
+                # de-dupe detection... this reduces the noise we send to the TSD so we
+                # don't store data points that don't change.  this is a hack, as it can be
+                # defeated by sending tags in different orders... but that's probably OK
+                key = parsed.group(1) + ' ' + str(parsed.group(3))
+                if key in col.values and col.values[key] == parsed.group(2):
+                    continue
+                col.values[key] = parsed.group(2)
                 OUTQ.append(line)
 
 
@@ -474,6 +486,7 @@ def reset_collector(interval, colname, filename, mtime=0, lastspawn=0):
     col.mtime = mtime
     col.generation = GENERATION
     col.buffer = ""
+    col.values = {}
 
     COLLECTORS[colname] = col
 
