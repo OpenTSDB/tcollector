@@ -321,7 +321,6 @@ def read_children():
        that they have sent via STDOUT.  This is where we do any special processing of
        the client data such as commands or special arguments."""
 
-    now = int(time.time())
     for col in all_living_collectors():
         # now read stderr for log messages
         try:
@@ -335,20 +334,25 @@ def read_children():
             for line in out.splitlines():
                 LOG.warning('%s: %s', col.name, line)
 
-        # FIXME: this should take the read data and append it onto a buffer and then
-        # we should pull off complete lines from the front of the buffer.  right now,
-        # the following code doesn't handle a situation where we get a partial line in
-        # the read.
+        # we have to use a buffer because sometimes the collectors will write out a bunch
+        # of data points at one time and we get some weird sized chunk
         try:
-            out = col.proc.stdout.read()
+            col.buffer += col.proc.stdout.read()
         except IOError, (err, msg):
             if err == errno.EAGAIN:
                 continue
             raise
-        if not out:
-            continue
-        LOG.debug('read %s got %d bytes', col.name, len(out))
-        for line in out.splitlines():
+        LOG.debug('reading %s, buffer now %d bytes', col.name, len(col.buffer))
+
+        while col.buffer:
+            idx = col.buffer.find('\n')
+            if idx == -1:
+                break
+
+            # one full line is now found and we can pull it out of the buffer
+            line = col.buffer[0:idx].strip()
+            col.buffer = col.buffer[idx+1:]
+
             if re.match('^[-_.a-z0-9]+\s+\d+\s+\S+?(\s+[-_.a-z0-9]+=[-_.a-z0-9]+)*$', line) is None:
                 LOG.warning('%s sent invalid data: %s', col.name, line)
             else:
@@ -375,10 +379,11 @@ def reap_children():
         if status == 13:
             LOG.info('removing %s from the list of collectors (by request)', col.name)
             col.dead = True
+        elif status != 0:
+            LOG.warning('collector %s terminated after %d seconds with status code %d, marking dead',
+                    col.name, now - col.lastspawn, status)
+            col.dead = True
         else:
-            if status != 0:
-                LOG.warning('collector %s terminated after %d seconds with status code %d',
-                        col.name, now - col.lastspawn, status)
             reset_collector(col.interval, col.name, col.filename, col.mtime, col.lastspawn)
 
 
@@ -468,6 +473,7 @@ def reset_collector(interval, colname, filename, mtime=0, lastspawn=0):
     col.dead = False
     col.mtime = mtime
     col.generation = GENERATION
+    col.buffer = ""
 
     COLLECTORS[colname] = col
 
