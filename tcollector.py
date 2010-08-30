@@ -365,9 +365,19 @@ def read_children():
                 # don't store data points that don't change.  this is a hack, as it can be
                 # defeated by sending tags in different orders... but that's probably OK
                 key = parsed.group(1) + ' ' + str(parsed.group(3))
-                if key in col.values and col.values[key] == parsed.group(2):
-                    continue
-                col.values[key] = parsed.group(2)
+                if key in col.values:
+                    if col.values[key][0] == parsed.group(2):
+                        col.values[key] = (parsed.group(2), 1, line)
+                        continue
+
+                    # we might have to append two lines if the value has been the same for a while
+                    # and we've skipped one or more values.  we need to replay the last value
+                    # we skipped so the jumps in our graph are accurate.
+                    if col.values[key][1]:
+                        OUTQ.append(col.values[key][2])
+
+                # now we can reset for the next pass and send the line we actually want to send
+                col.values[key] = (parsed.group(2), 0, line)
                 OUTQ.append(line)
 
 
