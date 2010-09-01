@@ -48,7 +48,19 @@ class Collector(object):
        standard TSD format on STDOUT.  This class maintains all of the state information
        for a given collector and gives us utility methods for working with it."""
 
-    pass
+    def __init__(self, colname, interval, filename, mtime=0, lastspawn=0):
+        self.name = colname
+        self.interval = interval
+        self.filename = filename
+        self.lastspawn = lastspawn
+        self.proc = None
+        self.nextkill = 0
+        self.killstate = 0
+        self.dead = False
+        self.mtime = mtime
+        self.generation = GENERATION
+        self.buffer = ""
+        self.values = {}
 
 
 def main(argv):
@@ -63,8 +75,12 @@ def main(argv):
     parser = OptionParser(description='Manages collectors which gather data and report back.')
     parser.add_option('-c', '--collector-dir', dest='cdir', default='./collectors', metavar='DIR',
             help='Directory where the collectors are located.')
+    parser.add_option('-d', '--dry-run', dest='dryrun', action='store_true', default=False,
+            help='Don\'t actually send anything to the TSD, just print the datapoints.')
     parser.add_option('-H', '--host', dest='host', default='localhost', metavar='HOST',
             help='Hostname to use to connect to the TSD.')
+    parser.add_option('-s', '--stdin', dest='stdin', action='store_true', default=False,
+            help='Run once, read and dedup data points from stdin.')
     parser.add_option('-p', '--port', dest='port', type='int', default=4242, metavar='PORT',
             help='Port to connect to the TSD instance on.')
     parser.add_option('-v', dest='verbosity', action='count', default=0,
@@ -95,12 +111,15 @@ def main(argv):
     # tsdb does not require a host tag, but we do.  we are always running on a
     # host.  FIXME: we should make it so that collectors may request to set their
     # own host tag, or not set one.
-    if not 'host' in tags:
+    if not 'host' in tags and not options.stdin:
         tags['host'] = socket.gethostname()
         LOG.warning('Tag "host" not specified, defaulting to %s.', tags['host'])
 
     # prebuild the tag string from our tags dict
-    tagstr = ' ' + ' '.join('%s=%s' % (k, v) for k, v in tags.iteritems())
+    if tags:
+        tags = ' ' + ' '.join('%s=%s' % (k, v) for k, v in tags.iteritems())
+    else:
+        tags = ''
 
     # gracefully handle death for normal termination paths and abnormal
     atexit.register(shutdown)
@@ -109,6 +128,8 @@ def main(argv):
 
     # startup complete
     LOG.info('startup complete')
+    if options.stdin:
+        return run_once(options, tags)
 
     # main loop to handle all of our jobs
     # FIXME: there are more efficient ways of doing this than just looping every second
@@ -120,7 +141,7 @@ def main(argv):
         read_children()
         reap_children()
         spawn_children()
-        send_to_tsd(options, tagstr)
+        send_to_tsd(options, tags)
         time.sleep(1)
 
 
@@ -220,6 +241,18 @@ def reload_changed_config_modules(modules, options, tags):
     return changed
 
 
+def run_once(options, tags):
+    """Run once, read data points from stdin, dedup them and send them to
+       the TSD."""
+    col = Collector("stdin", 0, "<stdin>")
+    for line in sys.stdin:
+        line = line.strip()
+        parse_line(col, line)
+        if len(OUTQ) > 1024:  # Flush what we have every once in a while.
+            send_to_tsd(options, tags)
+    send_to_tsd(options, tags)
+
+
 def all_collectors():
     """Generator to return all collectors."""
 
@@ -309,7 +342,10 @@ def send_to_tsd(options, tagstr):
     # try sending our data.  if an exception occurs, just error and try sending
     # again next time.
     try:
-        TSD.sendall(out)
+        if options.dryrun:
+            print out,
+        else:
+            TSD.sendall(out)
         OUTQ = []
     except socket.error, msg:
         LOG.error('failed to send data: %s', msg)
@@ -356,29 +392,39 @@ def read_children():
             # one full line is now found and we can pull it out of the buffer
             line = col.buffer[0:idx].strip()
             col.buffer = col.buffer[idx+1:]
+            parse_line(col, line)
 
-            parsed = re.match('^([-_.a-z0-9]+)\s+\d+\s+(\S+?)(\s+[-_.a-z0-9]+=[-_.a-z0-9]+)*$', line)
-            if parsed is None:
-                LOG.warning('%s sent invalid data: %s', col.name, line)
-            else:
-                # de-dupe detection... this reduces the noise we send to the TSD so we
-                # don't store data points that don't change.  this is a hack, as it can be
-                # defeated by sending tags in different orders... but that's probably OK
-                key = parsed.group(1) + ' ' + str(parsed.group(3))
-                if key in col.values:
-                    if col.values[key][0] == parsed.group(2):
-                        col.values[key] = (parsed.group(2), 1, line)
-                        continue
 
-                    # we might have to append two lines if the value has been the same for a while
-                    # and we've skipped one or more values.  we need to replay the last value
-                    # we skipped so the jumps in our graph are accurate.
-                    if col.values[key][1]:
-                        OUTQ.append(col.values[key][2])
+def parse_line(collector, line):
+    """Parses the given line and appends the result to the global queue."""
 
-                # now we can reset for the next pass and send the line we actually want to send
-                col.values[key] = (parsed.group(2), 0, line)
-                OUTQ.append(line)
+    parsed = re.match('^([-_.a-zA-Z0-9]+)\s+'  # Metric name.
+                      '\d+\s+'                 # Timestamp.
+                      '(\S+?)'                 # Value (int or float).
+                      '((?:\s+[-_.a-zA-Z0-9]+=[-_.a-zA-Z0-9]+)*)$', line)  # Tags.
+    if parsed is None:
+        LOG.warning('%s sent invalid data: %s', collector.name, line)
+        return
+    metric, value, tags = parsed.groups()
+    # De-dupe detection...  This reduces the noise we send to the TSD so
+    # we don't store data points that don't change.  This is a hack, as
+    # it can be defeated by sending tags in different orders...  But that's
+    # probably OK.
+    key = (metric, tags)
+    if key in collector.values:
+        if collector.values[key][0] == value:
+            collector.values[key] = (value, True, line)
+            return
+
+        # we might have to append two lines if the value has been the same for a while
+        # and we've skipped one or more values.  we need to replay the last value
+        # we skipped so the jumps in our graph are accurate.
+        if collector.values[key][1]:
+            OUTQ.append(collector.values[key][2])
+
+    # now we can reset for the next pass and send the line we actually want to send
+    collector.values[key] = (value, False, line)
+    OUTQ.append(line)
 
 
 def reap_children():
@@ -480,23 +526,13 @@ def reset_collector(interval, colname, filename, mtime=0, lastspawn=0):
     if colname in COLLECTORS:
         col = COLLECTORS[colname]
         if col.proc is not None:
-            LOG.error('%s still has a process (pid=%d) and is being reset, terminating',
-                      col.name, col.proc.pid)
+            LOG.error('%s still has a process (pid=%d) and is being reset,'
+                      ' terminating', col.name, col.proc.pid)
             kill(col.proc)
 
-    col = Collector()
-    col.name = colname
-    col.interval = interval
-    col.filename = filename
-    col.lastspawn = lastspawn
-    col.proc = None
-    col.nextkill = 0
-    col.killstate = 0
-    col.dead = False
-    col.mtime = mtime
-    col.generation = GENERATION
-    col.buffer = ""
-    col.values = {}
+    col = Collector(colname, interval, filename,
+                    mtime=mtime,
+                    lastspawn=lastspawn)
 
     COLLECTORS[colname] = col
 
