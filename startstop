@@ -1,0 +1,25 @@
+#!/bin/bash
+
+# Semi Universal start-stop script
+
+HOSTNAME=$(hostname)
+PIDFILE=/var/run/tcollector.pid
+PROG=/var/operations/tcollector/tcollector.py
+ARGS="-c /var/operations/tcollector/collectors -H tsd.sv4.stumble.net -t host=$HOSTNAME -P $PIDFILE"
+
+if [[ -x /sbin/start-stop-daemon ]]; then # Debian
+    case $1 in
+        start) start-stop-daemon --background --verbose --pidfile $PIDFILE --exec $PROG --start $PROG -- $ARGS
+            ;;
+        stop) start-stop-daemon  --verbose --stop --pidfile $PIDFILE --startas $PROG
+            ;;
+    esac
+elif [[ -f /etc/init.d/functions ]]; then # Centos
+    . /etc/init.d/functions
+    case $1 in
+        start) daemon --pidfile $PIDFILE "$PROG $ARGS &"
+            ;;
+        stop) killproc -p $PIDFILE $PROG
+            ;;
+    esac
+fi

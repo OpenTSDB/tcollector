@@ -87,10 +87,15 @@ def main(argv):
             help='Verbose mode.  Specify twice for debugging output.')
     parser.add_option('-t', '--tag', dest='tags', action='append', default=[], metavar='TAG',
             help='Tags to append to all timeseries we send, e.g.: -t TAG=VALUE -t TAG2=VALUE')
+    parser.add_option('-P', '--pidfile', dest='pidfile', default='/var/run/tcollector.pid',
+            metavar='FILE', help='Write our pidfile')
     (options, args) = parser.parse_args(args=argv[1:])
 
     if options.verbosity > 1:
         LOG.setLevel(logging.DEBUG)  # up our level
+
+    if options.pidfile:
+        write_pid(options.pidfile)
 
     # validate everything
     tags = {}
@@ -239,6 +244,15 @@ def reload_changed_config_modules(modules, options, tags):
             changed = True
 
     return changed
+
+
+def write_pid(pidfile):
+    """Write our pid to a pidfile."""
+    f = open(pidfile, "w")
+    try:
+        f.write(str(os.getpid()))
+    finally:
+        f.close()
 
 
 def run_once(options, tags):
