@@ -55,17 +55,18 @@ def main():
             m = re.match("(\w+)\s+(.*)", line)
             if m:
                 if m.group(1) == "cpu":
-                    (c_user,c_nice,c_system,c_idle,c_iowait,c_irq,c_softirq,
-                     c_guest,c_guest_nice)=m.group(2).split()
-                    print "proc.stat.cpu.user %d %s" % (ts, c_user)
-                    print "proc.stat.cpu.nice %d %s" % (ts, c_nice)
-                    print "proc.stat.cpu.system %d %s" % (ts, c_system)
-                    print "proc.stat.cpu.idle %d %s" % (ts, c_idle)
-                    print "proc.stat.cpu.iowait %d %s" % (ts, c_iowait)
-                    print "proc.stat.cpu.irq %d %s" % (ts, c_irq)
-                    print "proc.stat.cpu.softirq %d %s" % (ts, c_softirq)
-                    print "proc.stat.cpu.guest %d %s" % (ts, c_guest)
-                    print "proc.stat.cpu.guest_nice %d %s" % (ts, c_guest_nice)
+                    l = m.group(2).split()
+                    print "proc.stat.cpu.user %d %s" % (ts, l[0])
+                    print "proc.stat.cpu.nice %d %s" % (ts, l[1])
+                    print "proc.stat.cpu.system %d %s" % (ts, l[2])
+                    print "proc.stat.cpu.idle %d %s" % (ts, l[3])
+                    print "proc.stat.cpu.iowait %d %s" % (ts, l[4])
+                    print "proc.stat.cpu.irq %d %s" % (ts, l[5])
+                    print "proc.stat.cpu.softirq %d %s" % (ts, l[6])
+                    if len(l) > 7:  # really old kernels don't have this field
+                        print "proc.stat.cpu.guest %d %s" % (ts, l[7])
+                        if len(l) > 8:  # old kernels don't have this field
+                            print "proc.stat.cpu.guest_nice %d %s" % (ts, l[8])
                 elif m.group(1) == "intr":
                     print "proc.stat.%s %d %s" % (m.group(1), ts, m.group(2).split()[0])
                 elif m.group(1) == "ctxt":
