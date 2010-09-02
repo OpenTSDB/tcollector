@@ -5,21 +5,75 @@
 HOSTNAME=$(hostname)
 PIDFILE=/var/run/tcollector.pid
 PROG=/var/operations/tcollector/tcollector.py
+LOG=/var/log/tcollector.log
 ARGS="-c /var/operations/tcollector/collectors -H tsd.sv4.stumble.net -t host=$HOSTNAME -P $PIDFILE"
 
-if [[ -x /sbin/start-stop-daemon ]]; then # Debian
-    case $1 in
-        start) start-stop-daemon --background --verbose --pidfile $PIDFILE --exec $PROG --start $PROG -- $ARGS
-            ;;
-        stop) start-stop-daemon  --verbose --stop --pidfile $PIDFILE --startas $PROG
-            ;;
-    esac
-elif [[ -f /etc/init.d/functions ]]; then # Centos
-    . /etc/init.d/functions
-    case $1 in
-        start) daemon --pidfile $PIDFILE "$PROG $ARGS &"
-            ;;
-        stop) killproc -p $PIDFILE $PROG
-            ;;
-    esac
-fi
+which_python () {
+    if [[ -x /usr/bin/python2.6 ]]; then
+        echo "/usr/bin/python2.6"
+        return
+    fi
+    if [[ -x /usr/bin/python2.5 ]]; then
+        echo "/usr/bin/python2.5"
+        return
+    fi
+    if [[ -x /usr/bin/python ]]; then
+        echo "/usr/bin/python"
+        return
+    fi
+    echo >&2 "Python is not installed"
+    exit 1
+}
+
+PYTHON=$(which_python)
+
+start () {
+    echo "Starting $PROG"
+    $PYTHON $PROG $ARGS >> $LOG 2>&1 &
+}
+
+stop () {
+    echo "Stopping $PROG"
+    if [[ -r "$PIDFILE" ]]; then
+        PID=$(< "$PIDFILE")
+        kill $PID
+        sleep 1
+    fi
+    # Check also for instances not started with a pidfile
+    # include only python processes
+    pgrep -f "/usr/bin/python.* $PROG" |grep -vw "$PID" | xargs -r kill
+}
+
+status () {
+    if [[ -r "$PIDFILE" ]]; then
+        if kill -0 $(< $PIDFILE) 2>/dev/null; then
+            echo "$PROG" running
+            return 0
+        fi
+    fi
+    if [[ -n $(pgrep -f "/usr/bin/python.* $PROG") ]]; then
+        echo "$PROG" running
+        return 0
+    fi
+    return 1
+}
+
+
+case $1 in
+    start)  status || start
+        ;;
+    restart)
+            stop
+            while status; do
+                echo "Waiting for $PROG to die.."
+                sleep 1
+                stop
+            done
+            start
+        ;;
+    stop) stop
+        ;;
+    status) status
+            exit $?
+        ;;
+esac
