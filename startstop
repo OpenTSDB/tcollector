@@ -4,9 +4,9 @@
 
 HOSTNAME=$(hostname)
 PIDFILE=/var/run/tcollector.pid
-PROG=/var/operations/tcollector/tcollector.py
+PROG=/usr/local/tcollector/tcollector.py
 LOG=/var/log/tcollector.log
-ARGS="-c /var/operations/tcollector/collectors -H tsd.sv4.stumble.net -t host=$HOSTNAME -P $PIDFILE"
+ARGS="-c /usr/local/tcollector/collectors -H tsd.sv4.stumble.net -t host=$HOSTNAME -P $PIDFILE"
 
 which_python () {
     if [[ -x /usr/bin/python2.6 ]]; then
