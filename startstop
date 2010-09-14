@@ -41,7 +41,7 @@ stop () {
     fi
     # Check also for instances not started with a pidfile
     # include only python processes
-    pgrep -f "/usr/bin/python.* $PROG" |grep -vw "$PID" | xargs -r kill
+    pgrep -f "/usr/bin/python.* $PROG -c" |grep -vw "$PID" | xargs -r kill
 }
 
 status () {
@@ -51,7 +51,7 @@ status () {
             return 0
         fi
     fi
-    if [[ -n $(pgrep -f "/usr/bin/python.* $PROG") ]]; then
+    if [[ -n $(pgrep -f "/usr/bin/python.* $PROG -c") ]]; then
         echo "$PROG" running
         return 0
     fi
