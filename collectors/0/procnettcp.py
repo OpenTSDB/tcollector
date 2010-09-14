@@ -117,6 +117,27 @@ tcpstate = { "01": "established",
             }
 
 
+def isPublicIP(ipstr):
+    """
+    Take a /proc/net/tcp encoded src or dest string
+    Return True if it is coming from public IP space
+    (i.e. is not RFC1918, loopback, or broadcast).
+    This string is the hex ip:port of the connection.
+    (ip is reversed)
+    """
+    ip, port = ipstr.split(":")
+    ip = int(ip, 16)
+    byte1 = ip & 0xFF
+    byte2 = (ip >> 8) & 0xFF
+    if byte1 in (10, 0, 127):
+        return False
+    if byte1 == 172 and byte2 > 16:
+        return False
+    if byte1 == 192 and byte2 == 168:
+        return False
+    return True
+
+
 def main():
     interval = 60
 
@@ -155,9 +176,16 @@ def main():
                 service = ports.get(srcport, "other")
                 service = ports.get(dstport, service)
 
+                if isPublicIP(dst) or isPublicIP(src):
+                    endpoint = "external"
+                else:
+                    endpoint = "internal"
+
+
                 user = uids.get(uid, "other")
 
-                key = "state=" + tcpstate[st] + " service=" + service + " user=" + user
+                key = "state=" + tcpstate[st] + " endpoint=" + endpoint + \
+                      " service=" + service + " user=" + user
                 if key in tcpcounter:
                     tcpcounter[key] += 1
                 else:
@@ -168,11 +196,13 @@ def main():
         for st in tcpstate.keys():
             for service in services + ("other",):
                 for user in users + ("other",):
-                    key = "state=" + tcpstate[st] + " service=" + service + " user=" + user
-                    if key in tcpcounter:
-                        print "proc.net.tcp", ts, tcpcounter[key], key
-                    else:
-                        print "proc.net.tcp", ts, "0", key
+                    for endpoint in ("internal", "external"):
+                        key = ("state=" + tcpstate[st] + " endpoint=" + endpoint
+                               + " service=" + service + " user=" + user)
+                        if key in tcpcounter:
+                            print "proc.net.tcp", ts, tcpcounter[key], key
+                        else:
+                            print "proc.net.tcp", ts, "0", key
 
         sys.stdout.flush()
         time.sleep(interval)
