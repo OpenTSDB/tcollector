@@ -26,21 +26,21 @@ import fcntl
 import logging
 import os
 import platform
+import random
 import re
 import signal
 import socket
 import subprocess
 import sys
+import threading
 import time
 from optparse import OptionParser
 
 
 # global variables.
+COLLECTORS = {}
 GENERATION = 0
 LOG = logging.getLogger('tcollector')
-COLLECTORS = {}
-OUTQ = []
-TSD = None
 
 
 class Collector(object):
@@ -49,6 +49,8 @@ class Collector(object):
        for a given collector and gives us utility methods for working with it."""
 
     def __init__(self, colname, interval, filename, mtime=0, lastspawn=0):
+        """Construct a new Collector.  This also installs the new collector into the global
+           dictionary that stores all of the collectors."""
         self.name = colname
         self.interval = interval
         self.filename = filename
@@ -60,7 +62,295 @@ class Collector(object):
         self.mtime = mtime
         self.generation = GENERATION
         self.buffer = ""
+        self.datalines = []
         self.values = {}
+
+        # store us in the global list and initiate a kill for anybody with our name that
+        # happens to still be hanging around
+        if colname in COLLECTORS:
+            col = COLLECTORS[colname]
+            if col.proc is not None:
+                LOG.error('%s still has a process (pid=%d) and is being reset,'
+                          ' terminating', col.name, col.proc.pid)
+                kill(col.proc)
+
+        COLLECTORS[colname] = self
+
+    def read(self):
+        """Read bytes from our subprocess and store them in our temporary line storage
+           buffer.  This needs to be non-blocking."""
+
+        # now read stderr for log messages, we could buffer here but since we're just
+        # logging the messages, I don't care to
+        try:
+            out = self.proc.stderr.read()
+            if out:
+                LOG.debug('reading %s got %d bytes on stderr', self.name, len(out))
+                for line in out.splitlines():
+                    LOG.warning('%s: %s', self.name, line)
+        except IOError, (err, msg):
+            if err != errno.EAGAIN:
+                raise
+
+        # we have to use a buffer because sometimes the collectors will write out a bunch
+        # of data points at one time and we get some weird sized chunk.  This read call
+        # is non-blocking.
+        try:
+            self.buffer += self.proc.stdout.read()
+        except IOError, (err, msg):
+            if err != errno.EAGAIN:
+                raise
+        if len(self.buffer):
+            LOG.debug('reading %s, buffer now %d bytes', self.name, len(self.buffer))
+
+        # iterate for each line we have
+        while self.buffer:
+            idx = self.buffer.find('\n')
+            if idx == -1:
+                break
+
+            # one full line is now found and we can pull it out of the buffer
+            line = self.buffer[0:idx].strip()
+            if line:
+                self.datalines.append(line)
+            self.buffer = self.buffer[idx+1:]
+
+    def collect(self):
+        """Reads input from the collector and returns the lines up to whomever is calling us.
+           This is a generator that returns a line as it becomes available."""
+
+        while True:
+            self.read()
+            if not len(self.datalines):
+                break
+            for line in self.datalines:
+                yield line
+            self.datalines = []
+
+
+class StdinCollector(Collector):
+    """A StdinCollector simply reads from STDIN and provides the data.  This collector
+       helps ensure we are always reading so that we don't block and presents a uniform
+       interface for the ReaderThread."""
+
+    def __init__(self, options, modules, sender, tags):
+        Collector.__init__(self, 'stdin', 0, '<stdin>')
+        self.options = options
+        self.modules = modules
+        self.sender = sender
+        self.tags = tags
+
+    def read(self):
+        """Read lines from STDIN and store them.  We allow this to be blocking because
+           there should only ever be one StdinCollector and if we're using it that means
+           we have no normal collectors (can't do both) so the ReaderThread is only
+           serving us and we're allowed to block it."""
+
+        ts = int(time.time())
+        for line in sys.stdin:
+            self.datalines.append(line)
+            newts = int(time.time())
+            if newts > ts + 15:
+                reload_changed_config_modules(self.modules, self.options,
+                                              self.sender, self.tags)
+                newts = ts
+
+
+class ReaderThread(threading.Thread):
+    """The main ReaderThread is responsible for reading from the collectors and
+       assuring that we always read from the input no matter what is going on with the
+       output process.  This ensures we don't block."""
+
+    def __init__(self):
+        threading.Thread.__init__(self)
+
+        self.outq = []
+        self.tempq = []
+        self.outqlock = threading.Lock()
+        self.ready = threading.Event()
+
+    def run(self):
+        """Main loop for this thread.  Just reads from collectors, does our input processing and
+           de-duping, and puts the data into the global queue."""
+
+        LOG.debug("ReaderThread up and running")
+
+        # we loop every second for now.  ideally we'll setup some select or other
+        # thing to wait for input on our children, while breaking out every once in a
+        # while to setup selects on new children.
+        while True:
+            # this should be entirely non-blocking and go fast
+            for col in all_living_collectors():
+                for line in col.collect():
+                    self.process_line(col, line)
+
+                    # every once in a while, break out.  this ensures that we don't read
+                    # forever on a collector that is trying its best to spam us (like a
+                    # stdin collector piping from a file)
+                    if len(self.tempq) > 1024:
+                        break
+
+            # if we have lines, get the log and copy them
+            if len(self.tempq):
+                with self.outqlock:
+                    for line in self.tempq:
+                        self.outq.append(line)
+                    LOG.debug('ReaderThread.outq now has %d lines', len(self.outq))
+                self.tempq = []
+                self.ready.set()
+                continue
+            else:
+                self.ready.clear()
+
+            # and here is the loop that we really should get rid of, this just prevents
+            # us from spinning right now
+            time.sleep(1)
+
+    def process_line(self, col, line):
+        """Parses the given line and appends the result to the internal queue."""
+
+        parsed = re.match('^([-_.a-zA-Z0-9]+)\s+'  # Metric name.
+                          '\d+\s+'                 # Timestamp.
+                          '(\S+?)'                 # Value (int or float).
+                          '((?:\s+[-_.a-zA-Z0-9]+=[-_.a-zA-Z0-9]+)*)$', line)  # Tags.
+        if parsed is None:
+            LOG.warning('%s sent invalid data: %s', col.name, line)
+            return
+        metric, value, tags = parsed.groups()
+
+        # De-dupe detection...  This reduces the noise we send to the TSD so
+        # we don't store data points that don't change.  This is a hack, as
+        # it can be defeated by sending tags in different orders...  But that's
+        # probably OK.
+        key = (metric, tags)
+        if key in col.values:
+            if col.values[key][0] == value:
+                col.values[key] = (value, True, line)
+                return
+
+            # we might have to append two lines if the value has been the same for a while
+            # and we've skipped one or more values.  we need to replay the last value
+            # we skipped so the jumps in our graph are accurate.
+            if col.values[key][1]:
+                self.tempq.append(col.values[key][2])
+
+        # now we can reset for the next pass and send the line we actually want to send
+        col.values[key] = (value, False, line)
+        self.tempq.append(line)
+
+
+class SenderThread(threading.Thread):
+    """The SenderThread is responsible for maintaining a connection to the TSD and sending
+       the data we're getting over to it.  This thread is also responsible for doing any
+       sort of emergency buffering we might need to do if we can't establish a connection
+       and we need to spool to disk.  That isn't implemented yet."""
+
+    def __init__(self, reader, dryrun, host, port, tags):
+        threading.Thread.__init__(self)
+
+        self.dryrun = dryrun
+        self.host = host
+        self.port = port
+        self.reader = reader
+        self.tagstr = tags
+        self.tsd = None
+        self.outq = []
+
+    def run(self):
+        """Main loop.  This just blocks on the ReaderThread to have data for us and when
+           it has data we try to send it."""
+
+        while True:
+            self.reader.ready.wait()
+            self.maintain_conn()
+            with self.reader.outqlock:
+                for line in self.reader.outq:
+                    self.outq.append(line)
+                self.reader.outq = []
+            self.send_data()
+
+    def verify_conn(self):
+        if self.tsd is None:
+            return False
+
+        # we use the version command as it is very low effort for the TSD to respond
+        self.tsd.sendall('version\n')
+        while True:
+            # try to read as much data as we can.  at some point this is going to
+            # block, but we have set the timeout low when we made the connection
+            try:
+                buf = self.tsd.recv(4096)
+            except socket.error, msg:
+                self.tsd = None
+                return False
+
+            # if we get data
+            if len(buf):
+                if len(buf) < 4096:
+                    break
+            else:
+                self.tsd = None
+                return False
+        return False
+
+    def maintain_conn(self):
+        """Safely connect to the TSD and ensure that it's up and running and that we're not
+           talking to a ghost connection (no response)."""
+
+        # dry runs are always good
+        if self.dryrun:
+            return
+
+        # connection didn't verify, so create a new one.  we might be in this method for
+        # a long time while we sort this out.
+        try_delay = 1
+        while True:
+            if self.verify_conn():
+                return
+
+            # increase the try delay by some amount and some random value, in case
+            # the TSD is down for a while.  delay at most approximately 10 minutes.
+            try_delay *= 1 + random.random()
+            if try_delay > 600:
+                try_delay *= 0.5
+            LOG.debug('SenderThread blocking %0.2f seconds', try_delay)
+            time.sleep(try_delay)
+
+            # now actually try the connection
+            try:
+                self.tsd = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                self.tsd.settimeout(5)
+                self.tsd.connect((self.host, self.port))
+            except socket.error, msg:
+                LOG.error('failed to connect to %s:%d: %s', self.host, self.port, msg)
+                self.tsd.close()
+                self.tsd = None
+
+    def send_data(self):
+        """Sends outstanding data to the TSD in one operation."""
+
+        # construct the output string
+        out = ''
+        for line in self.outq:
+            line = 'put ' + line + self.tagstr
+            out += line + '\n'
+            LOG.debug('SENDING: %s' % line)
+
+        # try sending our data.  if an exception occurs, just error and try sending
+        # again next time.
+        try:
+            if self.dryrun:
+                print out
+            else:
+                self.tsd.sendall(out)
+            self.outq = []
+        except socket.error, msg:
+            LOG.error('failed to send data: %s', msg)
+            try:
+                self.tsd.close()
+            except socket.error:
+                pass
+            self.tsd = None
 
 
 def main(argv):
@@ -121,33 +411,45 @@ def main(argv):
         LOG.warning('Tag "host" not specified, defaulting to %s.', tags['host'])
 
     # prebuild the tag string from our tags dict
+    tagstr = ''
     if tags:
-        tags = ' ' + ' '.join('%s=%s' % (k, v) for k, v in tags.iteritems())
-    else:
-        tags = ''
+        tagstr = ' '.join('%s=%s' % (k, v) for k, v in tags.iteritems())
+        tagstr = ' ' + tagstr.strip()
 
     # gracefully handle death for normal termination paths and abnormal
     atexit.register(shutdown)
     for sig in (signal.SIGTERM, signal.SIGINT):
         signal.signal(sig, shutdown_signal)
 
-    # startup complete
-    LOG.info('startup complete')
-    if options.stdin:
-        return run_once(options, tags)
+    # at this point we're ready to start processing, so start the ReaderThread so we can
+    # have it running and pulling in data for us
+    rdr = ReaderThread()
+    rdr.start()
 
-    # main loop to handle all of our jobs
-    # FIXME: there are more efficient ways of doing this than just looping every second
+    # and setup the sender to start writing out to the tsd
+    sender = SenderThread(rdr, options.dryrun, options.host, options.port,
+                          tagstr)
+    sender.start()
+    LOG.info('thread startup complete')
+
+    # if we're in stdin mode, build a stdin collector and just join on the reader thread
+    # since there's nothing else for us to do here
+    if options.stdin:
+        StdinCollector(options, modules, sender, tags)
+        rdr.join()
+    else:
+        main_loop(options, modules, sender, tags)
+
+
+def main_loop(options, modules, sender, tags):
+    """The main loop of the program that runs when we're not in stdin mode."""
+
     while True:
         populate_collectors(options.cdir)
-        if reload_changed_config_modules(modules, options, tags):
-            tagstr = ' ' + ' '.join('%s=%s' % (k, v)
-                                    for k, v in tags.iteritems())
-        read_children()
+        reload_changed_config_modules(modules, options, sender, tags)
         reap_children()
         spawn_children()
-        send_to_tsd(options, tags)
-        time.sleep(1)
+        time.sleep(15)
 
 
 def list_config_modules(etcdir):
@@ -203,7 +505,7 @@ def load_config_module(name, options, tags):
     return module
 
 
-def reload_changed_config_modules(modules, options, tags):
+def reload_changed_config_modules(modules, options, sender, tags):
     """Reloads any changed modules from the 'etc' directory.
 
     Args:
@@ -243,6 +545,9 @@ def reload_changed_config_modules(modules, options, tags):
             modules[path] = (module, os.path.getmtime(path))
             changed = True
 
+    if changed:
+        sender.tagstr = ' ' + ' '.join('%s=%s' % (k, v)
+                                       for k, v in tags.iteritems())
     return changed
 
 
@@ -253,18 +558,6 @@ def write_pid(pidfile):
         f.write(str(os.getpid()))
     finally:
         f.close()
-
-
-def run_once(options, tags):
-    """Run once, read data points from stdin, dedup them and send them to
-       the TSD."""
-    col = Collector("stdin", 0, "<stdin>")
-    for line in sys.stdin:
-        line = line.strip()
-        parse_line(col, line)
-        if len(OUTQ) > 1024:  # Flush what we have every once in a while.
-            send_to_tsd(options, tags)
-    send_to_tsd(options, tags)
 
 
 def all_collectors():
@@ -318,129 +611,6 @@ def shutdown():
     sys.exit(1)
 
 
-def connect_to_tsd(options):
-    """Safely connect to the TSD."""
-
-    global TSD
-
-    try:
-        TSD = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        TSD.settimeout(15)
-        TSD.connect((options.host, options.port))
-    except socket.error, msg:
-        LOG.error('failed to connect to %s:%d: %s', options.host, options.port, msg)
-        TSD.close()
-        TSD = None
-
-
-def send_to_tsd(options, tagstr):
-    """Sends outstanding data to the TSD in one operation."""
-
-    global OUTQ, TSD
-    if len(OUTQ) == 0:
-        return
-
-    # if our TSD socket isn't built, do that now.  if we can't connect, make sure
-    # we don't continue to the path below.
-    if TSD is None:
-        connect_to_tsd(options)
-        if TSD is None:
-            return
-
-    out = ''
-    for line in OUTQ:
-        line = 'put ' + line + tagstr
-        out += line + '\n'
-        LOG.debug('SENDING: %s' % line)
-
-    # try sending our data.  if an exception occurs, just error and try sending
-    # again next time.
-    try:
-        if options.dryrun:
-            print out,
-        else:
-            TSD.sendall(out)
-        OUTQ = []
-    except socket.error, msg:
-        LOG.error('failed to send data: %s', msg)
-        try:
-            TSD.close()
-        except socket.error:
-            pass
-        TSD = None
-
-
-def read_children():
-    """Iterates over all of our children with processes and reads and handles data
-       that they have sent via STDOUT.  This is where we do any special processing of
-       the client data such as commands or special arguments."""
-
-    for col in all_living_collectors():
-        # now read stderr for log messages
-        try:
-            out = col.proc.stderr.read()
-        except IOError, (err, msg):
-            if err == errno.EAGAIN:
-                continue
-            raise
-        if out:
-            LOG.debug('reading %s got %d bytes on stderr', col.name, len(out))
-            for line in out.splitlines():
-                LOG.warning('%s: %s', col.name, line)
-
-        # we have to use a buffer because sometimes the collectors will write out a bunch
-        # of data points at one time and we get some weird sized chunk
-        try:
-            col.buffer += col.proc.stdout.read()
-        except IOError, (err, msg):
-            if err == errno.EAGAIN:
-                continue
-            raise
-        LOG.debug('reading %s, buffer now %d bytes', col.name, len(col.buffer))
-
-        while col.buffer:
-            idx = col.buffer.find('\n')
-            if idx == -1:
-                break
-
-            # one full line is now found and we can pull it out of the buffer
-            line = col.buffer[0:idx].strip()
-            col.buffer = col.buffer[idx+1:]
-            parse_line(col, line)
-
-
-def parse_line(collector, line):
-    """Parses the given line and appends the result to the global queue."""
-
-    parsed = re.match('^([-_.a-zA-Z0-9]+)\s+'  # Metric name.
-                      '\d+\s+'                 # Timestamp.
-                      '(\S+?)'                 # Value (int or float).
-                      '((?:\s+[-_.a-zA-Z0-9]+=[-_.a-zA-Z0-9]+)*)$', line)  # Tags.
-    if parsed is None:
-        LOG.warning('%s sent invalid data: %s', collector.name, line)
-        return
-    metric, value, tags = parsed.groups()
-    # De-dupe detection...  This reduces the noise we send to the TSD so
-    # we don't store data points that don't change.  This is a hack, as
-    # it can be defeated by sending tags in different orders...  But that's
-    # probably OK.
-    key = (metric, tags)
-    if key in collector.values:
-        if collector.values[key][0] == value:
-            collector.values[key] = (value, True, line)
-            return
-
-        # we might have to append two lines if the value has been the same for a while
-        # and we've skipped one or more values.  we need to replay the last value
-        # we skipped so the jumps in our graph are accurate.
-        if collector.values[key][1]:
-            OUTQ.append(collector.values[key][2])
-
-    # now we can reset for the next pass and send the line we actually want to send
-    collector.values[key] = (value, False, line)
-    OUTQ.append(line)
-
-
 def reap_children():
     """When a child process dies, we have to determine why it died and whether or not
        we need to restart it.  This method manages that logic."""
@@ -466,7 +636,7 @@ def reap_children():
                     col.name, now - col.lastspawn, status)
             col.dead = True
         else:
-            reset_collector(col.interval, col.name, col.filename, col.mtime, col.lastspawn)
+            Collector(col.name, col.interval, col.filename, col.mtime, col.lastspawn)
 
 
 def set_nonblocking(fd):
@@ -532,25 +702,6 @@ def spawn_children():
                 col.nextkill = now + 300
 
 
-def reset_collector(interval, colname, filename, mtime=0, lastspawn=0):
-    """Builds a new Collector object.  If one already exists with the given name, this
-       will terminate it and then rebuild it."""
-
-    # if this collector already exists, then make sure we kill it
-    if colname in COLLECTORS:
-        col = COLLECTORS[colname]
-        if col.proc is not None:
-            LOG.error('%s still has a process (pid=%d) and is being reset,'
-                      ' terminating', col.name, col.proc.pid)
-            kill(col.proc)
-
-    col = Collector(colname, interval, filename,
-                    mtime=mtime,
-                    lastspawn=lastspawn)
-
-    COLLECTORS[colname] = col
-
-
 def populate_collectors(coldir):
     """Maintains our internal list of valid collectors.  This walks the collector
        directory and looks for files.  In subsequent calls, this also looks for
@@ -595,7 +746,7 @@ def populate_collectors(coldir):
                         col.mtime = mtime
                         kill(col.proc)
                 else:
-                    reset_collector(interval, colname, filename, mtime)
+                    Collector(colname, interval, filename, mtime)
 
     # now iterate over everybody and look for old generations
     to_delete = []
