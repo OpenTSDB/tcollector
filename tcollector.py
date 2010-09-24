@@ -212,13 +212,13 @@ class ReaderThread(threading.Thread):
         """Parses the given line and appends the result to the internal queue."""
 
         parsed = re.match('^([-_.a-zA-Z0-9]+)\s+'  # Metric name.
-                          '\d+\s+'                 # Timestamp.
+                          '(\d+)\s+'                 # Timestamp.
                           '(\S+?)'                 # Value (int or float).
                           '((?:\s+[-_.a-zA-Z0-9]+=[-_.a-zA-Z0-9]+)*)$', line)  # Tags.
         if parsed is None:
             LOG.warning('%s sent invalid data: %s', col.name, line)
             return
-        metric, value, tags = parsed.groups()
+        metric, timestamp, value, tags = parsed.groups()
 
         # De-dupe detection...  This reduces the noise we send to the TSD so
         # we don't store data points that don't change.  This is a hack, as
@@ -226,8 +226,15 @@ class ReaderThread(threading.Thread):
         # probably OK.
         key = (metric, tags)
         if key in col.values:
+            # if the timestamp didn't do what we expected, ignore this value
+            if timestamp <= col.values[key][3]:
+                LOG.error("Timestamp unexpected: metric=%s %s, old_ts=%d, new_ts=%d.",
+                        metric, tags, col.values[key][3], timestamp)
+                return
+
+            # if this data point is repeated, store it but don't send
             if col.values[key][0] == value:
-                col.values[key] = (value, True, line)
+                col.values[key] = (value, True, line, timestamp)
                 return
 
             # we might have to append two lines if the value has been the same for a while
@@ -237,7 +244,7 @@ class ReaderThread(threading.Thread):
                 self.tempq.append(col.values[key][2])
 
         # now we can reset for the next pass and send the line we actually want to send
-        col.values[key] = (value, False, line)
+        col.values[key] = (value, False, line, timestamp)
         self.tempq.append(line)
 
 
@@ -293,7 +300,7 @@ class SenderThread(threading.Thread):
             else:
                 self.tsd = None
                 return False
-        return False
+        return True
 
     def maintain_conn(self):
         """Safely connect to the TSD and ensure that it's up and running and that we're not
@@ -353,6 +360,9 @@ class SenderThread(threading.Thread):
             except socket.error:
                 pass
             self.tsd = None
+
+        # FIXME: we should be reading the result at some point to drain the packets
+        # out of the kernel's queue
 
 
 def main(argv):
