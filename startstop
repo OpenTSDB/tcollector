@@ -36,7 +36,7 @@ stop () {
     echo "Stopping $PROG"
     if [[ -r "$PIDFILE" ]]; then
         PID=$(< "$PIDFILE")
-        kill $PID
+        kill $1 $PID
         sleep 1
     fi
     # Check also for instances not started with a pidfile
@@ -64,10 +64,17 @@ case $1 in
         ;;
     restart)
             stop
+            try=1
+            sleep 1
             while status; do
+                try=$((try + 1))
+                if [[ $try -gt 3 ]]; then
+                    stop -9
+                else
+                    stop
+                fi
                 echo "Waiting for $PROG to die.."
-                sleep 1
-                stop
+                sleep 5
             done
             start
         ;;
