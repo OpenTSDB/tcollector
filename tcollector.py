@@ -123,11 +123,8 @@ class Collector(object):
 
         while True:
             self.read()
-            if not len(self.datalines):
-                break
-            for line in self.datalines:
-                yield line
-            self.datalines = []
+            while len(self.datalines):
+                yield self.datalines.pop(0)
 
 
 class StdinCollector(Collector):
