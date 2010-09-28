@@ -25,33 +25,34 @@ import re
 def main():
     interval = 15
 
+    f_meminfo = open("/proc/meminfo", "r")
+    f_vmstat = open("/proc/vmstat", "r")
+    f_stat = open("/proc/stat", "r")
+    f_loadavg = open("/proc/loadavg", "r")
+
     while True:
         # proc.meminfo
-        f = open("/proc/meminfo", "r")
+        f_meminfo.seek(0)
         ts = int(time.time())
-        for line in f:
+        for line in f_meminfo:
             m = re.match("(\w+):\s+(\d+)", line)
             if m:
-                print "proc.meminfo.%s %d %s" % (m.group(1).lower(), ts,
-                                                 m.group(2))
-        f.close()
+                print "proc.meminfo.%s %d %s" % (m.group(1).lower(), ts, m.group(2))
 
         # proc.vmstat
-        f = open("/proc/vmstat", "r")
+        f_vmstat.seek(0)
         ts = int(time.time())
-        for line in f:
+        for line in f_vmstat:
             m = re.match("(\w+)\s+(\d+)", line)
             if m:
                 if m.group(1) in ("pgpgin", "pgpgout", "pswpin",
                                   "pswpout", "pgfault", "pgmajfault"):
                     print "proc.vmstat.%s %d %s" % (m.group(1), ts, m.group(2))
 
-        f.close()
-
         # proc.stat
-        f = open("/proc/stat", "r")
+        f_stat.seek(0)
         ts = int(time.time())
-        for line in f:
+        for line in f_stat:
             m = re.match("(\w+)\s+(.*)", line)
             if m:
                 if m.group(1) == "cpu":
@@ -71,10 +72,19 @@ def main():
                     print "proc.stat.%s %d %s" % (m.group(1), ts, m.group(2).split()[0])
                 elif m.group(1) == "ctxt":
                     print "proc.stat.%s %d %s" % (m.group(1), ts, m.group(2))
-        f.close()
+
+        f_loadavg.seek(0)
+        ts = int(time.time())
+        for line in f_loadavg:
+            m = re.match("(\S+)\s+(\S+)\s+(\S+)\s+(\d+)/(\d+)\s+", line)
+            if m:
+                print "proc.loadavg.1min %d %s" % (ts, m.group(1))
+                print "proc.loadavg.5min %d %s" % (ts, m.group(2))
+                print "proc.loadavg.15min %d %s" % (ts, m.group(3))
+                print "proc.loadavg.runnable %d %s" % (ts, m.group(4))
+                print "proc.loadavg.total_procs %d %s" % (ts, m.group(5))
 
         time.sleep(interval)
-
 
 if __name__ == "__main__":
     main()

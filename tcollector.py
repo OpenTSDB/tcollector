@@ -150,9 +150,9 @@ class StdinCollector(Collector):
             self.datalines.append(line)
             newts = int(time.time())
             if newts > ts + 15:
-                reload_changed_config_modules(self.modules, self.options,
-                                              self.sender, self.tags)
-                newts = ts
+                reload_changed_config_modules(modules, options, self.sender,
+                                              tags)
+                ts = newts
 
 
 class ReaderThread(threading.Thread):
@@ -557,6 +557,7 @@ def reload_changed_config_modules(modules, options, sender, tags):
     if changed:
         sender.tagstr = ' ' + ' '.join('%s=%s' % (k, v)
                                        for k, v in tags.iteritems())
+        sender.tagstr = sender.tagstr.strip()
     return changed
 
 
