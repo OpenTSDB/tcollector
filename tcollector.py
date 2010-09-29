@@ -121,8 +121,10 @@ class Collector(object):
         """Reads input from the collector and returns the lines up to whomever is calling us.
            This is a generator that returns a line as it becomes available."""
 
-        while True:
+        while self.proc is not None:
             self.read()
+            if not len(self.datalines):
+                return
             while len(self.datalines):
                 yield self.datalines.pop(0)
 
