@@ -84,6 +84,7 @@ def main():
                 print "proc.loadavg.runnable %d %s" % (ts, m.group(4))
                 print "proc.loadavg.total_procs %d %s" % (ts, m.group(5))
 
+        sys.stdout.flush()
         time.sleep(interval)
 
 if __name__ == "__main__":

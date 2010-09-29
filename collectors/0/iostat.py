@@ -129,6 +129,7 @@ def main():
                 print >>sys.stderr, "Cannot parse /proc/diskstats line: ", line
                 continue
 
+        sys.stdout.flush()
         time.sleep(interval)
 
         if ts > refresh:
