@@ -196,7 +196,16 @@ class ReaderThread(threading.Thread):
                 with self.outqlock:
                     for line in self.tempq:
                         self.outq.append(line)
+
+                    # if we now have more lines than we care to, we need to start dropping older
+                    # ones... this is unfortunate but it's better than bloating forever.
+                    # FIXME: spool to disk or some other storage mechanism so we don't lose them?
+                    if len(self.outq) > 100000:
+                        LOG.error('outbound queue trimmed down from %d lines', len(self.outq))
+                        self.outq = self.outq[-100000:]
+
                     LOG.debug('ReaderThread.outq now has %d lines', len(self.outq))
+
                 self.tempq = []
                 self.ready.set()
                 continue
