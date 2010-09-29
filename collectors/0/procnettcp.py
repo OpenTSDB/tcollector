@@ -54,67 +54,68 @@ import time
 import socket
 import pwd
 
-users = ("root", "www-data", "mysql")
+USERS = ("root", "www-data", "mysql")
 
 # Note if a service runs on multiple ports and you
 # want to collectively map them up to a single service,
 # just give them the same name below
 
-ports = { 80: "http",
-          443: "https",
-          3001: "http-varnish",
-          3002: "http-varnish",
-          3003: "http-varnish",
-          3004: "http-varnish",
-          3005: "http-varnish",
-          3006: "http-varnish",
-          3007: "http-varnish",
-          3008: "http-varnish",
-          3009: "http-varnish",
-          3010: "http-varnish",
-          3011: "http-varnish",
-          3012: "http-varnish",
-          3013: "http-varnish",
-          3014: "http-varnish",
-          3306: "mysql",
-          3564: "mysql",
-          9000: "namenode",
-          9090: "thriftserver",
-          11211: "memcache",
-          11212: "memcache",
-          11213: "memcache",
-          11214: "memcache",
-          11215: "memcache",
-          11216: "memcache",
-          11217: "memcache",
-          11218: "memcache",
-          11219: "memcache",
-          11220: "memcache",
-          11221: "memcache",
-          11222: "memcache",
-          11223: "memcache",
-          11224: "memcache",
-          11225: "memcache",
-          11226: "memcache",
-          50020: "datanode",
-          60020: "hregionserver",
-        }
+PORTS = {
+    80: "http",
+    443: "https",
+    3001: "http-varnish",
+    3002: "http-varnish",
+    3003: "http-varnish",
+    3004: "http-varnish",
+    3005: "http-varnish",
+    3006: "http-varnish",
+    3007: "http-varnish",
+    3008: "http-varnish",
+    3009: "http-varnish",
+    3010: "http-varnish",
+    3011: "http-varnish",
+    3012: "http-varnish",
+    3013: "http-varnish",
+    3014: "http-varnish",
+    3306: "mysql",
+    3564: "mysql",
+    9000: "namenode",
+    9090: "thriftserver",
+    11211: "memcache",
+    11212: "memcache",
+    11213: "memcache",
+    11214: "memcache",
+    11215: "memcache",
+    11216: "memcache",
+    11217: "memcache",
+    11218: "memcache",
+    11219: "memcache",
+    11220: "memcache",
+    11221: "memcache",
+    11222: "memcache",
+    11223: "memcache",
+    11224: "memcache",
+    11225: "memcache",
+    11226: "memcache",
+    50020: "datanode",
+    60020: "hregionserver",
+    }
 
-services = tuple(set(ports.itervalues()))
+SERVICES = tuple(set(PORTS.itervalues()))
 
-
-tcpstate = { "01": "established",
-             "02": "syn_sent",
-             "03": "syn_recv",
-             "04": "fin_wait1",
-             "05": "fin_wait2",
-             "06": "time_wait",
-             "07": "close",
-             "08": "close_wait",
-             "09": "last_ack",
-             "0A": "listen",
-             "0B": "closing",
-            }
+TCPSTATES = {
+    "01": "established",
+    "02": "syn_sent",
+    "03": "syn_recv",
+    "04": "fin_wait1",
+    "05": "fin_wait2",
+    "06": "time_wait",
+    "07": "close",
+    "08": "close_wait",
+    "09": "last_ack",
+    "0A": "listen",
+    "0B": "closing",
+    }
 
 
 def isPublicIP(ipstr):
@@ -145,7 +146,7 @@ def main():
 
     # resolve the list of users to match on into UIDs
     uids = {}
-    for user in users:
+    for user in USERS:
         try:
             uids[str(pwd.getpwnam(user)[2])] = user
         except KeyError:
@@ -173,8 +174,8 @@ def main():
                 ip, dstport = dst.split(":")
                 srcport = int(srcport, 16)
                 dstport = int(dstport, 16)
-                service = ports.get(srcport, "other")
-                service = ports.get(dstport, service)
+                service = PORTS.get(srcport, "other")
+                service = PORTS.get(dstport, service)
 
                 if isPublicIP(dst) or isPublicIP(src):
                     endpoint = "external"
@@ -184,7 +185,7 @@ def main():
 
                 user = uids.get(uid, "other")
 
-                key = "state=" + tcpstate[st] + " endpoint=" + endpoint + \
+                key = "state=" + TCPSTATES[st] + " endpoint=" + endpoint + \
                       " service=" + service + " user=" + user
                 if key in tcpcounter:
                     tcpcounter[key] += 1
@@ -193,11 +194,11 @@ def main():
             f.close()
 
         # output the counters
-        for st in tcpstate.keys():
-            for service in services + ("other",):
-                for user in users + ("other",):
+        for st in TCPSTATES:
+            for service in SERVICES + ("other",):
+                for user in USERS + ("other",):
                     for endpoint in ("internal", "external"):
-                        key = ("state=" + tcpstate[st] + " endpoint=" + endpoint
+                        key = ("state=" + TCPSTATES[st] + " endpoint=" + endpoint
                                + " service=" + service + " user=" + user)
                         if key in tcpcounter:
                             print "proc.net.tcp", ts, tcpcounter[key], key
