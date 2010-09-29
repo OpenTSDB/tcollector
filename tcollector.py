@@ -291,7 +291,12 @@ class SenderThread(threading.Thread):
             return False
 
         # we use the version command as it is very low effort for the TSD to respond
-        self.tsd.sendall('version\n')
+        try:
+            self.tsd.sendall('version\n')
+        except socket.error, msg:
+            self.tsd = None
+            return False
+
         while True:
             # try to read as much data as we can.  at some point this is going to
             # block, but we have set the timeout low when we made the connection
