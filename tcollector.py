@@ -341,7 +341,7 @@ class SenderThread(threading.Thread):
             # now actually try the connection
             try:
                 self.tsd = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                self.tsd.settimeout(5)
+                self.tsd.settimeout(15)
                 self.tsd.connect((self.host, self.port))
             except socket.error, msg:
                 LOG.error('failed to connect to %s:%d: %s', self.host, self.port, msg)
