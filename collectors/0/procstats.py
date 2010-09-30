@@ -82,7 +82,7 @@ def main():
                 print "proc.loadavg.5min %d %s" % (ts, m.group(2))
                 print "proc.loadavg.15min %d %s" % (ts, m.group(3))
                 print "proc.loadavg.runnable %d %s" % (ts, m.group(4))
-                print "proc.loadavg.total_procs %d %s" % (ts, m.group(5))
+                print "proc.loadavg.total_threads %d %s" % (ts, m.group(5))
 
         sys.stdout.flush()
         time.sleep(interval)
