@@ -66,6 +66,9 @@ class Collector(object):
         self.buffer = ""
         self.datalines = []
         self.values = {}
+        self.lines_sent = 0
+        self.lines_received = 0
+        self.lines_invalid = 0
 
         # store us in the global list and initiate a kill for anybody with our name that
         # happens to still be hanging around
@@ -169,6 +172,8 @@ class ReaderThread(threading.Thread):
         self.tempq = []
         self.outqlock = threading.Lock()
         self.ready = threading.Event()
+        self.lines_collected = 0
+        self.lines_dropped = 0
 
     def run(self):
         """Main loop for this thread.  Just reads from collectors, does our input processing and
@@ -194,6 +199,7 @@ class ReaderThread(threading.Thread):
             # if we have lines, get the log and copy them
             if len(self.tempq):
                 with self.outqlock:
+                    self.lines_collected += len(self.tempq)
                     for line in self.tempq:
                         self.outq.append(line)
 
@@ -202,6 +208,7 @@ class ReaderThread(threading.Thread):
                     # FIXME: spool to disk or some other storage mechanism so we don't lose them?
                     if len(self.outq) > 100000:
                         LOG.error('outbound queue trimmed down from %d lines', len(self.outq))
+                        self.lines_dropped += len(self.outq) - 100000
                         self.outq = self.outq[-100000:]
 
                     LOG.debug('ReaderThread.outq now has %d lines', len(self.outq))
@@ -219,12 +226,14 @@ class ReaderThread(threading.Thread):
     def process_line(self, col, line):
         """Parses the given line and appends the result to the internal queue."""
 
+        col.lines_received += 1
         parsed = re.match('^([-_.a-zA-Z0-9]+)\s+'  # Metric name.
-                          '(\d+)\s+'                 # Timestamp.
+                          '(\d+)\s+'               # Timestamp.
                           '(\S+?)'                 # Value (int or float).
                           '((?:\s+[-_.a-zA-Z0-9]+=[-_.a-zA-Z0-9]+)*)$', line)  # Tags.
         if parsed is None:
             LOG.warning('%s sent invalid data: %s', col.name, line)
+            col.lines_invalid += 1
             return
         metric, timestamp, value, tags = parsed.groups()
 
@@ -249,10 +258,12 @@ class ReaderThread(threading.Thread):
             # and we've skipped one or more values.  we need to replay the last value
             # we skipped so the jumps in our graph are accurate.
             if col.values[key][1]:
+                col.lines_sent += 1
                 self.tempq.append(col.values[key][2])
 
         # now we can reset for the next pass and send the line we actually want to send
         col.values[key] = (value, False, line, timestamp)
+        col.lines_sent += 1
         self.tempq.append(line)
 
 
@@ -271,6 +282,7 @@ class SenderThread(threading.Thread):
         self.reader = reader
         self.tagstr = tags
         self.tsd = None
+        self.last_verify = 0
         self.outq = []
 
     def run(self):
@@ -290,7 +302,12 @@ class SenderThread(threading.Thread):
         if self.tsd is None:
             return False
 
+        # if the last verification was less than a minute ago, don't re-verify
+        if self.last_verify > time.time() - 60:
+            return True
+
         # we use the version command as it is very low effort for the TSD to respond
+        LOG.debug('verifying our TSD connection is alive')
         try:
             self.tsd.sendall('version\n')
         except socket.error, msg:
@@ -306,13 +323,32 @@ class SenderThread(threading.Thread):
                 self.tsd = None
                 return False
 
-            # if we get data
+            # if we get data... then everything looks good
             if len(buf):
+                # and if everything is good, send out our meta stats.  this helps to see
+                # what is going on with the tcollector
                 if len(buf) < 4096:
+                    strs = [
+                            ('reader.lines_collected', '', self.reader.lines_collected),
+                            ('reader.lines_dropped', '', self.reader.lines_dropped)
+                           ]
+
+                    for col in all_living_collectors():
+                        strs.append(('collector.lines_sent', 'collector=' + col.name, col.lines_sent))
+                        strs.append(('collector.lines_received', 'collector=' + col.name, col.lines_received))
+                        strs.append(('collector.lines_invalid', 'collector=' + col.name, col.lines_invalid))
+
+                    ts = int(time.time())
+                    strout = ["tcollector.%s %d %d %s" % (x[0], ts, x[2], x[1]) for x in strs]
+                    for str in strout:
+                        self.outq.append(str)
                     break
             else:
                 self.tsd = None
                 return False
+
+        # if we get here, we assume the connection is good
+        self.last_verify = time.time()
         return True
 
     def maintain_conn(self):
