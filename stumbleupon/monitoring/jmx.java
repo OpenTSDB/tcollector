@@ -31,6 +31,7 @@ import javax.management.MBeanInfo;
 import javax.management.MBeanNotificationInfo;
 import javax.management.MBeanOperationInfo;
 import javax.management.MBeanServerConnection;
+import javax.management.MalformedObjectNameException;
 import javax.management.ObjectName;
 import javax.management.remote.JMXConnector;
 import javax.management.remote.JMXConnectorFactory;
@@ -83,19 +84,61 @@ final class jmx {
     try {
       final MBeanServerConnection mbsc = connection.getMBeanServerConnection();
       if (args.length == 1) {
-        listMBeans(mbsc);
+        for (final ObjectName mbean : listMBeans(mbsc)) {
+          System.out.println(mbean);
+        }
         return;
       }
-      final ObjectName object = new ObjectName(args[1]);
-      final MBeanInfo mbean = mbsc.getMBeanInfo(object);
-      final Pattern wanted = args.length == 2 ? null : Pattern.compile(args[2]);
-      for (final MBeanAttributeInfo attr : mbean.getAttributes()) {
-        if (wanted == null || wanted.matcher(attr.getName()).find()) {
-          dumpMBean(mbsc, object, attr);
+
+      final ArrayList<ObjectName> objects = selectMBeans(args[1], mbsc);
+      if (objects.isEmpty()) {
+        System.err.println("No MBean matched " + args[1] + " in " + jvm.name());
+        System.exit(1);
+        return;
+      }
+      final boolean multiple = objects.size() > 1;
+      boolean found = false;
+      for (final ObjectName object : objects) {
+        final MBeanInfo mbean = mbsc.getMBeanInfo(object);
+        final Pattern wanted = args.length == 2 ? null : compile_re(args[2]);
+        for (final MBeanAttributeInfo attr : mbean.getAttributes()) {
+          if (wanted == null || wanted.matcher(attr.getName()).find()) {
+            dumpMBean(mbsc, object, attr);
+            found = true;
+          }
         }
+      }
+      if (!found) {
+        System.err.println("No attribute of " + objects + " matched "
+                           + args[2] + " in " + jvm.name());
+        System.exit(1);
+        return;
       }
     } finally {
       connection.close();
+    }
+  }
+
+  private static ArrayList<ObjectName> selectMBeans(final String selector,
+                                                    final MBeanServerConnection mbsc) throws IOException {
+    ObjectName object = null;
+    Pattern object_re = null;
+    try {
+      object = new ObjectName(selector);
+      final ArrayList<ObjectName> mbeans = new ArrayList<ObjectName>(1);
+      mbeans.add(object);
+      return mbeans;
+    } catch (MalformedObjectNameException e) {
+      object_re = compile_re(selector);
+      final ArrayList<ObjectName> mbeans = new ArrayList<ObjectName>();
+      final Iterator<ObjectName> it = listMBeans(mbsc).iterator();
+      while (it.hasNext()) {
+        final ObjectName o = it.next();
+        if (object_re.matcher(o.toString()).find()) {
+          mbeans.add(o);
+        }
+      }
+      return mbeans;
     }
   }
 
@@ -115,15 +158,23 @@ final class jmx {
     System.out.println(name + "\t" + value);
   }
 
-  private static void listMBeans(final MBeanServerConnection mbsc) throws IOException {
+  private static ArrayList<ObjectName> listMBeans(final MBeanServerConnection mbsc) throws IOException {
     ArrayList<ObjectName> mbeans = new ArrayList<ObjectName>(mbsc.queryNames(null, null));
     Collections.sort(mbeans, new Comparator<ObjectName>() {
       public int compare(final ObjectName a, final ObjectName b) {
         return a.toString().compareTo(b.toString());
       }
     });
-    for (final ObjectName mbean : mbeans) {
-      System.out.println(mbean);
+    return mbeans;
+  }
+
+  private static Pattern compile_re(final String re) {
+    try {
+      return Pattern.compile(re);
+    } catch (PatternSyntaxException e) {
+      System.err.println("Invalid regexp: " + re + ", " + e.getMessage());
+      System.exit(1);
+      throw new AssertionError("Should never be here");
     }
   }
 
@@ -146,7 +197,7 @@ final class jmx {
     }
     if (error == null) {
       try {
-        final Pattern p = Pattern.compile(selector);
+        final Pattern p = compile_re(selector);
         final ArrayList<JVM> matches = new ArrayList<JVM>(2);
         for (final JVM jvm : vms.values()) {
           if (p.matcher(jvm.name()).find()) {
