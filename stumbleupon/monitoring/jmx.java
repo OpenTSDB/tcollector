@@ -65,6 +65,7 @@ final class jmx {
                          + "  jmx <JVM> <MBean> <attr>  Prints the matching attributes of this MBean.\n"
                          + "Other flags you can pass:\n"
                          + "  --long                    Print a longer but more explicit output for each value.\n"
+                         + "  --timestamp               Print a timestamp at the beginning of each line.\n"
                          + "  --watch N                 Reprint the output every N seconds.");
   }
 
@@ -84,6 +85,7 @@ final class jmx {
     int current_arg = 0;
     int watch = 0;
     boolean long_output = false;
+    boolean print_timestamps = false;
     while (true) {
       if ("--watch".equals(args[current_arg])) {
         current_arg++;
@@ -99,6 +101,9 @@ final class jmx {
         current_arg++;
       } else if ("--long".equals(args[current_arg])) {
         long_output = true;
+        current_arg++;
+      } else if ("--timestamp".equals(args[current_arg])) {
+        print_timestamps = true;
         current_arg++;
       } else {
         break;
@@ -137,7 +142,7 @@ final class jmx {
           final Pattern wanted = args.length == 2 ? null : compile_re(args[current_arg]);
           for (final MBeanAttributeInfo attr : mbean.getAttributes()) {
             if (wanted == null || wanted.matcher(attr.getName()).find()) {
-              dumpMBean(long_output, mbsc, object, attr);
+              dumpMBean(long_output, print_timestamps, mbsc, object, attr);
               found = true;
             }
           }
@@ -178,12 +183,17 @@ final class jmx {
   }
 
   private static void dumpMBean(final boolean long_output,
+                                final boolean print_timestamps,
                                 final MBeanServerConnection mbsc,
                                 final ObjectName object,
                                 final MBeanAttributeInfo attr) throws Exception {
+    final StringBuilder buf = new StringBuilder();
     final String name = attr.getName();
     Object value = mbsc.getAttribute(object, name);
-    final StringBuilder buf = new StringBuilder();
+    final long timestamp = System.currentTimeMillis() / 1000;
+    if (print_timestamps) {
+      buf.append(timestamp).append('\t');
+    }
     if (value instanceof Object[]) {
       for (final Object o : (Object[]) value) {
         buf.append(o).append('\t');
