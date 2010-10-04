@@ -62,7 +62,10 @@ final class jmx {
                          + "  jmx -l                    Lists all reachable VMs.\n"
                          + "  jmx <JVM>                 Lists all MBeans for this JVM (PID or regexp).\n"
                          + "  jmx <JVM> <MBean>         Prints all the attributes of this MBean.\n"
-                         + "  jmx <JVM> <MBean> <attr>  Prints the matching attributes of this MBean.");
+                         + "  jmx <JVM> <MBean> <attr>  Prints the matching attributes of this MBean.\n"
+                         + "Other flags you can pass:\n"
+                         + "  --long                    Print a longer but more explicit output for each value.\n"
+                         + "  --watch N                 Reprint the output every N seconds.");
   }
 
   private static void fatal(final String errmsg) {
@@ -78,13 +81,37 @@ final class jmx {
       return;
     }
 
+    int current_arg = 0;
+    int watch = 0;
+    boolean long_output = false;
+    while (true) {
+      if ("--watch".equals(args[current_arg])) {
+        current_arg++;
+        try {
+          watch = Integer.parseInt(args[current_arg]);
+        } catch (NumberFormatException e) {
+          fatal("Invalid value for --watch: " + e.getMessage());
+          return;
+        }
+        if (watch < 1) {
+          fatal("Invalid value for --watch: " + watch);
+        }
+        current_arg++;
+      } else if ("--long".equals(args[current_arg])) {
+        long_output = true;
+        current_arg++;
+      } else {
+        break;
+      }
+    }
+
     HashMap<Integer, JVM> vms = getJVMs();
-    if ("-l".equals(args[0])) {
+    if ("-l".equals(args[current_arg])) {
       printVmList(vms.values());
       return;
     }
 
-    final JVM jvm = selectJVM(args[0], vms);
+    final JVM jvm = selectJVM(args[current_arg++], vms);
     vms = null;
     final JMXConnector connection = JMXConnectorFactory.connect(jvm.jmxUrl());
     try {
@@ -96,28 +123,32 @@ final class jmx {
         return;
       }
 
-      final ArrayList<ObjectName> objects = selectMBeans(args[1], mbsc);
-      if (objects.isEmpty()) {
-        fatal("No MBean matched " + args[1] + " in " + jvm.name());
-        return;
-      }
-      final boolean multiple = objects.size() > 1;
-      boolean found = false;
-      for (final ObjectName object : objects) {
-        final MBeanInfo mbean = mbsc.getMBeanInfo(object);
-        final Pattern wanted = args.length == 2 ? null : compile_re(args[2]);
-        for (final MBeanAttributeInfo attr : mbean.getAttributes()) {
-          if (wanted == null || wanted.matcher(attr.getName()).find()) {
-            dumpMBean(mbsc, object, attr);
-            found = true;
+      final ArrayList<ObjectName> objects = selectMBeans(args[current_arg], mbsc);
+      current_arg++;
+      do {
+        if (objects.isEmpty()) {
+          fatal("No MBean matched " + args[current_arg] + " in " + jvm.name());
+          return;
+        }
+        final boolean multiple = objects.size() > 1;
+        boolean found = false;
+        for (final ObjectName object : objects) {
+          final MBeanInfo mbean = mbsc.getMBeanInfo(object);
+          final Pattern wanted = args.length == 2 ? null : compile_re(args[current_arg]);
+          for (final MBeanAttributeInfo attr : mbean.getAttributes()) {
+            if (wanted == null || wanted.matcher(attr.getName()).find()) {
+              dumpMBean(long_output, mbsc, object, attr);
+              found = true;
+            }
           }
         }
-      }
-      if (!found) {
-        fatal("No attribute of " + objects + " matched "
-              + args[2] + " in " + jvm.name());
-        return;
-      }
+        if (!found) {
+          fatal("No attribute of " + objects + " matched "
+                + args[current_arg] + " in " + jvm.name());
+          return;
+        }
+        Thread.sleep(watch * 1000);
+      } while (watch > 0);
     } finally {
       connection.close();
     }
@@ -146,20 +177,26 @@ final class jmx {
     }
   }
 
-  private static void dumpMBean(final MBeanServerConnection mbsc,
+  private static void dumpMBean(final boolean long_output,
+                                final MBeanServerConnection mbsc,
                                 final ObjectName object,
                                 final MBeanAttributeInfo attr) throws Exception {
     final String name = attr.getName();
     Object value = mbsc.getAttribute(object, name);
+    final StringBuilder buf = new StringBuilder();
     if (value instanceof Object[]) {
-      final StringBuilder buf = new StringBuilder();
       for (final Object o : (Object[]) value) {
         buf.append(o).append('\t');
       }
       buf.setLength(buf.length() - 1);
-      value = buf.toString();
+    } else {
+      buf.append(name).append('\t');
     }
-    System.out.println(name + "\t" + value);
+    buf.append(value);
+    if (long_output) {
+      buf.append('\t').append(object);
+    }
+    System.out.println(buf);
   }
 
   private static ArrayList<ObjectName> listMBeans(final MBeanServerConnection mbsc) throws IOException {
