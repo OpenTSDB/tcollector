@@ -129,13 +129,13 @@ final class jmx {
       }
 
       final ArrayList<ObjectName> objects = selectMBeans(args[current_arg], mbsc);
+      if (objects.isEmpty()) {
+        fatal("No MBean matched " + args[current_arg] + " in " + jvm.name());
+        return;
+      }
+      final boolean multiple = objects.size() > 1;
       current_arg++;
       do {
-        if (objects.isEmpty()) {
-          fatal("No MBean matched " + args[current_arg] + " in " + jvm.name());
-          return;
-        }
-        final boolean multiple = objects.size() > 1;
         boolean found = false;
         for (final ObjectName object : objects) {
           final MBeanInfo mbean = mbsc.getMBeanInfo(object);
@@ -152,6 +152,7 @@ final class jmx {
                 + args[current_arg] + " in " + jvm.name());
           return;
         }
+        System.out.flush();
         Thread.sleep(watch * 1000);
       } while (watch > 0);
     } finally {
@@ -206,7 +207,8 @@ final class jmx {
     if (long_output) {
       buf.append('\t').append(object);
     }
-    System.out.println(buf);
+    buf.append('\n');
+    System.out.print(buf);
   }
 
   private static ArrayList<ObjectName> listMBeans(final MBeanServerConnection mbsc) throws IOException {
