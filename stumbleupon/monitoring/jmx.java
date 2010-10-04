@@ -65,6 +65,12 @@ final class jmx {
                          + "  jmx <JVM> <MBean> <attr>  Prints the matching attributes of this MBean.");
   }
 
+  private static void fatal(final String errmsg) {
+    System.err.println(errmsg);
+    System.exit(1);
+    throw new AssertionError("You should never see this, really.");
+  }
+
   public static void main(final String[] args) throws Exception {
     if (args.length == 0 || "-h".equals(args[0]) || "--help".equals(args[0])) {
       usage();
@@ -92,8 +98,7 @@ final class jmx {
 
       final ArrayList<ObjectName> objects = selectMBeans(args[1], mbsc);
       if (objects.isEmpty()) {
-        System.err.println("No MBean matched " + args[1] + " in " + jvm.name());
-        System.exit(1);
+        fatal("No MBean matched " + args[1] + " in " + jvm.name());
         return;
       }
       final boolean multiple = objects.size() > 1;
@@ -109,9 +114,8 @@ final class jmx {
         }
       }
       if (!found) {
-        System.err.println("No attribute of " + objects + " matched "
-                           + args[2] + " in " + jvm.name());
-        System.exit(1);
+        fatal("No attribute of " + objects + " matched "
+              + args[2] + " in " + jvm.name());
         return;
       }
     } finally {
@@ -172,8 +176,7 @@ final class jmx {
     try {
       return Pattern.compile(re);
     } catch (PatternSyntaxException e) {
-      System.err.println("Invalid regexp: " + re + ", " + e.getMessage());
-      System.exit(1);
+      fatal("Invalid regexp: " + re + ", " + e.getMessage());
       throw new AssertionError("Should never be here");
     }
   }
@@ -237,8 +240,7 @@ final class jmx {
         error = "Unexpected Exception: " + e.getMessage();
       }
     }
-    System.err.println(error);
-    System.exit(1);
+    fatal(error);
     return null;
   }
 
