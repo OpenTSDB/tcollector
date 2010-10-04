@@ -96,17 +96,24 @@ class Collector(object):
         except IOError, (err, msg):
             if err != errno.EAGAIN:
                 raise
+        except:
+            LOG.exception('uncaught exception in stderr read')
 
         # we have to use a buffer because sometimes the collectors will write out a bunch
         # of data points at one time and we get some weird sized chunk.  This read call
         # is non-blocking.
         try:
             self.buffer += self.proc.stdout.read()
+            if len(self.buffer):
+                LOG.debug('reading %s, buffer now %d bytes', self.name, len(self.buffer))
         except IOError, (err, msg):
             if err != errno.EAGAIN:
                 raise
-        if len(self.buffer):
-            LOG.debug('reading %s, buffer now %d bytes', self.name, len(self.buffer))
+        except:
+            # sometimes the process goes away in another thread and we don't have it
+            # anymore, so log an error and bail
+            LOG.exception('uncaught exception in stdout read')
+            return
 
         # iterate for each line we have
         while self.buffer:
