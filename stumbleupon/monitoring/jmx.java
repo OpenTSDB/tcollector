@@ -121,7 +121,7 @@ final class jmx {
     final JMXConnector connection = JMXConnectorFactory.connect(jvm.jmxUrl());
     try {
       final MBeanServerConnection mbsc = connection.getMBeanServerConnection();
-      if (args.length == 1) {
+      if (args.length == current_arg) {
         for (final ObjectName mbean : listMBeans(mbsc)) {
           System.out.println(mbean);
         }
@@ -139,7 +139,7 @@ final class jmx {
         boolean found = false;
         for (final ObjectName object : objects) {
           final MBeanInfo mbean = mbsc.getMBeanInfo(object);
-          final Pattern wanted = args.length == 2 ? null : compile_re(args[current_arg]);
+          final Pattern wanted = args.length == current_arg ? null : compile_re(args[current_arg]);
           for (final MBeanAttributeInfo attr : mbean.getAttributes()) {
             if (wanted == null || wanted.matcher(attr.getName()).find()) {
               dumpMBean(long_output, print_timestamps, mbsc, object, attr);
