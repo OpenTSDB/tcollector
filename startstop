@@ -58,25 +58,46 @@ status () {
     return 1
 }
 
+forcerestart () {
+    stop
+    try=1
+    sleep 1
+    while status; do
+        try=$((try + 1))
+        if [[ $try -gt 3 ]]; then
+            stop -9
+        else
+            stop
+        fi
+        echo "Waiting for $PROG to die.."
+        sleep 5
+    done
+    start
+}
 
 case $1 in
     start)  status || start
         ;;
+    force-restart)
+        forcerestart
+        ;;
     restart)
-            stop
-            try=1
-            sleep 1
-            while status; do
-                try=$((try + 1))
-                if [[ $try -gt 3 ]]; then
-                    stop -9
-                else
-                    stop
-                fi
-                echo "Waiting for $PROG to die.."
-                sleep 5
-            done
+        # tcollector already respawns collectors if they
+        # have changed on-disk, and kills old ones/starts
+        # new ones.  The only thing tcollector doesn't do
+        # is restart itself if itself has changed. For a more
+        # graceful restart, just make sure we're running and
+        # restart only if tcollector is newer on disk than
+        # since it started.  This doesn't check for dependencies
+        # like asyncproc.py, but that's ok.
+        if status; then
+            newer=$(find $PROG -newer $PIDFILE | wc -l)
+            if [[ $newer -gt 0 ]]; then
+                forcerestart
+            fi
+        else
             start
+        fi
         ;;
     stop) stop
         ;;
