@@ -271,14 +271,21 @@ final class jmx {
         // Exclude ourselves from the matches.
         System.setProperty(MAGIC_STRING,
                            "LOL Java processes can't get their own PID");
+        final String me = jmx.class.getName();
         final Iterator<JVM> it = matches.iterator();
         while (it.hasNext()) {
           final JVM jvm = it.next();
+          final String name = jvm.name();
+          // Ignore other long running jmx clients too.
+          if (name.contains("--watch") && name.contains(me)) {
+            it.remove();
+            continue;
+          }
           final VirtualMachine vm = VirtualMachine.attach(String.valueOf(jvm.pid()));
           try {
             if (vm.getSystemProperties().containsKey(MAGIC_STRING)) {
               it.remove();
-              break;
+              continue;
             }
           } finally {
             vm.detach();
