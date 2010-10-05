@@ -66,12 +66,18 @@ final class jmx {
                          + "Other flags you can pass:\n"
                          + "  --long                    Print a longer but more explicit output for each value.\n"
                          + "  --timestamp               Print a timestamp at the beginning of each line.\n"
-                         + "  --watch N                 Reprint the output every N seconds.");
+                         + "  --watch N                 Reprint the output every N seconds.\n"
+                         + "Return value:\n"
+                         + "  0: Everything OK.\n"
+                         + "  1: Invalid usage or unexpected error.\n"
+                         + "  2: No JVM matched.\n"
+                         + "  3: No MBean matched.\n"
+                         + "  4: No attribute matched for the MBean(s) selected.");
   }
 
-  private static void fatal(final String errmsg) {
+  private static void fatal(final int rv, final String errmsg) {
     System.err.println(errmsg);
-    System.exit(1);
+    System.exit(rv);
     throw new AssertionError("You should never see this, really.");
   }
 
@@ -86,17 +92,17 @@ final class jmx {
     int watch = 0;
     boolean long_output = false;
     boolean print_timestamps = false;
-    while (true) {
+    while (current_arg < args.length) {
       if ("--watch".equals(args[current_arg])) {
         current_arg++;
         try {
           watch = Integer.parseInt(args[current_arg]);
         } catch (NumberFormatException e) {
-          fatal("Invalid value for --watch: " + e.getMessage());
+          fatal(1, "Invalid value for --watch: " + e.getMessage());
           return;
         }
         if (watch < 1) {
-          fatal("Invalid value for --watch: " + watch);
+          fatal(1, "Invalid value for --watch: " + watch);
         }
         current_arg++;
       } else if ("--long".equals(args[current_arg])) {
@@ -108,6 +114,12 @@ final class jmx {
       } else {
         break;
       }
+    }
+
+    if (current_arg == args.length) {
+      usage();
+      fatal(1, "error: Missing argument (-l or JVM specification).");
+      return;
     }
 
     HashMap<Integer, JVM> vms = getJVMs();
@@ -130,7 +142,7 @@ final class jmx {
 
       final ArrayList<ObjectName> objects = selectMBeans(args[current_arg], mbsc);
       if (objects.isEmpty()) {
-        fatal("No MBean matched " + args[current_arg] + " in " + jvm.name());
+        fatal(3, "No MBean matched " + args[current_arg] + " in " + jvm.name());
         return;
       }
       final boolean multiple = objects.size() > 1;
@@ -148,7 +160,7 @@ final class jmx {
           }
         }
         if (!found) {
-          fatal("No attribute of " + objects + " matched "
+          fatal(4, "No attribute of " + objects + " matched "
                 + args[current_arg] + " in " + jvm.name());
           return;
         }
@@ -225,7 +237,7 @@ final class jmx {
     try {
       return Pattern.compile(re);
     } catch (PatternSyntaxException e) {
-      fatal("Invalid regexp: " + re + ", " + e.getMessage());
+      fatal(1, "Invalid regexp: " + re + ", " + e.getMessage());
       throw new AssertionError("Should never be here");
     }
   }
@@ -289,7 +301,7 @@ final class jmx {
         error = "Unexpected Exception: " + e.getMessage();
       }
     }
-    fatal(error);
+    fatal(2, error);
     return null;
   }
 
