@@ -684,8 +684,8 @@ def reap_children():
     """When a child process dies, we have to determine why it died and whether or not
        we need to restart it.  This method manages that logic."""
 
-    now = int(time.time())
     for col in all_living_collectors():
+        now = int(time.time())
         # FIXME: this is not robust.  the asyncproc module joins on the
         # reader threads when you wait if that process has died.  this can cause
         # slow dying processes to hold up the main loop.  good for now though.
@@ -738,8 +738,8 @@ def spawn_children():
     """Iterates over our defined collectors and performs the logic to determine if we need
        to spawn, kill, or otherwise take some action on them."""
 
-    now = int(time.time())
     for col in all_valid_collectors():
+        now = int(time.time())
         if col.interval == 0:
             if col.proc is None:
                 spawn_collector(col)
