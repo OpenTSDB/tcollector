@@ -504,7 +504,11 @@ def main(argv):
     # since there's nothing else for us to do here
     if options.stdin:
         StdinCollector(options, modules, sender, tags)
-        rdr.join()
+        while True:
+            # Thread.join() is completely blocking and will prevent signal
+            # handlers from running.  So instead we try to join the thread
+            # every second.  This way, signal handlers get a chance to run.
+            rdr.join(1.0)
     else:
         main_loop(options, modules, sender, tags)
 
