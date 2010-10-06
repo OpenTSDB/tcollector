@@ -139,6 +139,16 @@ class Collector(object):
             while len(self.datalines):
                 yield self.datalines.pop(0)
 
+    def shutdown(self):
+
+        try:
+            if self.proc.poll() is None:
+                kill(self.proc)
+                self.proc.wait()
+        except:
+            # we really don't want to die as we're trying to exit gracefully
+            LOG.exception('ignoring uncaught exception while shutting down')
+
 
 class StdinCollector(Collector):
     """A StdinCollector simply reads from STDIN and provides the data.  This collector
@@ -190,6 +200,11 @@ class StdinCollector(Collector):
                 reload_changed_config_modules(modules, options, self.sender,
                                               tags)
                 ts = newts
+
+
+    def shutdown(self):
+
+        pass
 
 
 class ReaderThread(threading.Thread):
@@ -701,14 +716,7 @@ def shutdown():
 
     # tell everyone to die
     for col in all_living_collectors():
-        try:
-            if col.proc.poll() is None:
-                kill(col.proc)
-                col.proc.wait()
-        except:
-            # we really don't want to die as we're trying to exit gracefully
-            LOG.exception('ignoring uncaught exception while shutting down')
-            continue
+        col.shutdown()
 
     LOG.info('exiting')
     sys.exit(1)
