@@ -182,7 +182,7 @@ class StdinCollector(Collector):
                 ALIVE = False
                 break
 
-            line = line.strip()
+            line = line.rstrip()
             if line:
                 self.datalines.append(line)
             newts = int(time.time())
@@ -707,6 +707,7 @@ def shutdown():
                 col.proc.wait()
         except:
             # we really don't want to die as we're trying to exit gracefully
+            LOG.exception('ignoring uncaught exception while shutting down')
             continue
 
     LOG.info('exiting')
