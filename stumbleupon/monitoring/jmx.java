@@ -22,16 +22,15 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
 import javax.management.MBeanAttributeInfo;
 import javax.management.MBeanInfo;
-import javax.management.MBeanNotificationInfo;
-import javax.management.MBeanOperationInfo;
 import javax.management.MBeanServerConnection;
-import javax.management.MalformedObjectNameException;
 import javax.management.ObjectName;
 import javax.management.remote.JMXConnector;
 import javax.management.remote.JMXConnectorFactory;
@@ -63,10 +62,28 @@ final class jmx {
                          + "  jmx <JVM>                 Lists all MBeans for this JVM (PID or regexp).\n"
                          + "  jmx <JVM> <MBean>         Prints all the attributes of this MBean.\n"
                          + "  jmx <JVM> <MBean> <attr>  Prints the matching attributes of this MBean.\n"
+                         + "\n"
+                         + "You can pass multiple <MBean> <attr> pairs to match multiple different\n"
+                         + "attributes for different MBeans.  For example:\n"
+                         + "  jmx --long JConsole Class Count Thread Total Garbage Collection\n"
+                         + "  LoadedClassCount	2808	java.lang:type=ClassLoading\n"
+                         + "  UnloadedClassCount	0	java.lang:type=ClassLoading\n"
+                         + "  TotalLoadedClassCount	2808	java.lang:type=ClassLoading\n"
+                         + "  CollectionCount	0	java.lang:type=GarbageCollector,name=ConcurrentMarkSweep\n"
+                         + "  CollectionTime	0	java.lang:type=GarbageCollector,name=ConcurrentMarkSweep\n"
+                         + "  CollectionCount	1	java.lang:type=GarbageCollector,name=ParNew\n"
+                         + "  CollectionTime	19	java.lang:type=GarbageCollector,name=ParNew\n"
+                         + "  TotalStartedThreadCount	43	java.lang:type=Threading\n"
+                         + "The command above searched for a JVM with `JConsole' in its name, and then searched\n"
+                         + "for MBeans with `Class' in the name and `Count' in the attribute (first 3 matches\n"
+                         + "in this output), MBeans with `Thread' in the name and `Total' in the attribute (last\n"
+                         + "line in the output) and MBeans matching `Garbage' with a `Collection' attribute.\n"
+                         + "\n"
                          + "Other flags you can pass:\n"
                          + "  --long                    Print a longer but more explicit output for each value.\n"
                          + "  --timestamp               Print a timestamp at the beginning of each line.\n"
                          + "  --watch N                 Reprint the output every N seconds.\n"
+                         + "\n"
                          + "Return value:\n"
                          + "  0: Everything OK.\n"
                          + "  1: Invalid usage or unexpected error.\n"
@@ -140,18 +157,17 @@ final class jmx {
         return;
       }
 
-      final ArrayList<ObjectName> objects = selectMBeans(args[current_arg], mbsc);
+      final TreeMap<ObjectName, Pattern> objects = selectMBeans(args, current_arg, mbsc);
       if (objects.isEmpty()) {
-        fatal(3, "No MBean matched " + args[current_arg] + " in " + jvm.name());
+        fatal(3, "No MBean matched your query in " + jvm.name());
         return;
       }
-      final boolean multiple = objects.size() > 1;
-      current_arg++;
       do {
         boolean found = false;
-        for (final ObjectName object : objects) {
+        for (final Map.Entry<ObjectName, Pattern> entry : objects.entrySet()) {
+          final ObjectName object = entry.getKey();
           final MBeanInfo mbean = mbsc.getMBeanInfo(object);
-          final Pattern wanted = args.length == current_arg ? null : compile_re(args[current_arg]);
+          final Pattern wanted = entry.getValue();
           for (final MBeanAttributeInfo attr : mbean.getAttributes()) {
             if (wanted == null || wanted.matcher(attr.getName()).find()) {
               dumpMBean(long_output, print_timestamps, mbsc, object, attr);
@@ -160,8 +176,8 @@ final class jmx {
           }
         }
         if (!found) {
-          fatal(4, "No attribute of " + objects + " matched "
-                + args[current_arg] + " in " + jvm.name());
+          fatal(4, "No attribute of " + objects.keySet()
+                + " matched your query in " + jvm.name());
           return;
         }
         System.out.flush();
@@ -172,27 +188,20 @@ final class jmx {
     }
   }
 
-  private static ArrayList<ObjectName> selectMBeans(final String selector,
-                                                    final MBeanServerConnection mbsc) throws IOException {
-    ObjectName object = null;
-    Pattern object_re = null;
-    try {
-      object = new ObjectName(selector);
-      final ArrayList<ObjectName> mbeans = new ArrayList<ObjectName>(1);
-      mbeans.add(object);
-      return mbeans;
-    } catch (MalformedObjectNameException e) {
-      object_re = compile_re(selector);
-      final ArrayList<ObjectName> mbeans = new ArrayList<ObjectName>();
-      final Iterator<ObjectName> it = listMBeans(mbsc).iterator();
-      while (it.hasNext()) {
-        final ObjectName o = it.next();
+  private static TreeMap<ObjectName, Pattern> selectMBeans(final String[] args,
+                                                           final int current_arg,
+                                                           final MBeanServerConnection mbsc) throws IOException {
+    final TreeMap<ObjectName, Pattern> mbeans = new TreeMap<ObjectName, Pattern>();
+    for (int i = current_arg; i < args.length; i += 2) {
+      final Pattern object_re = compile_re(args[i]);
+      final Pattern attr_re = i + 1 < args.length ? compile_re(args[i + 1]) : null;
+      for (final ObjectName o : listMBeans(mbsc)) {
         if (object_re.matcher(o.toString()).find()) {
-          mbeans.add(o);
+          mbeans.put(o, attr_re);
         }
       }
-      return mbeans;
     }
+    return mbeans;
   }
 
   private static void dumpMBean(final boolean long_output,
