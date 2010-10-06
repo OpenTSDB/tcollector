@@ -32,6 +32,13 @@ CLASSPATH = [
     "/usr/lib/jvm/java-6-sun/lib/tools.jar",
 ]
 
+# We shorten certain strings to avoid excessively long metric names.
+JMX_SERVICE_RENAMING = {
+    "GarbageCollector": "gc",
+    "OperatingSystem": "os",
+    "Threading": "threads",
+}
+
 def drop_privileges():
     try:
         ent = pwd.getpwnam(USER)
@@ -79,8 +86,14 @@ def main(argv):
          "-cp", classpath, "com.stumbleupon.monitoring.jmx",
          "--watch", "10", "--long", "--timestamp",
          "HRegionServer",  # Name of the process.
-         "hadoop"],        # regexp for MBeans to retrieve.
-         stdout=subprocess.PIPE, bufsize=1)
+         # The remaining arguments are pairs (mbean_regexp, attr_regexp).
+         # The first regexp is used to match one or more MBeans, the 2nd
+         # to match one or more attributes of the MBeans matched.
+         "hadoop", "",                     # All HBase / hadoop metrics.
+         "Threading", "Count|Time$",       # Number of threads and CPU time.
+         "OperatingSystem", "OpenFile",    # Number of open files.
+         "GarbageCollector", "Collection", # GC runs and time spent GCing.
+         ], stdout=subprocess.PIPE, bufsize=1)
     try:
         while True:
             line = jmx.stdout.readline()
@@ -126,24 +139,34 @@ def main(argv):
                 metric = "maxTime"
 
             # mbean is of the form "domain:key=value,...,foo=bar"
-            mbean_domain, mbean_properties = mbean.split(":", 1)
-            if mbean_domain != "hadoop":
+            mbean_domain, mbean_properties = mbean.rstrip().split(":", 1)
+            if mbean_domain not in ("hadoop", "java.lang"):
                 print >>sys.stderr, ("Unexpected mbean domain = %r on line %r"
                                      % (mbean_domain, line))
                 continue
             mbean_properties = dict(prop.split("=", 1)
                                     for prop in mbean_properties.split(","))
-            # jmx_service is HBase by default, but we can also have
-            # RegionServer or Replication and such.
-            jmx_service = mbean_properties.get("service", "HBase")
-            if jmx_service == "HBase":
-                jmx_service = "regionserver"
+            if mbean_domain == "hadoop":
+              # jmx_service is HBase by default, but we can also have
+              # RegionServer or Replication and such.
+              jmx_service = mbean_properties.get("service", "HBase")
+              if jmx_service == "HBase":
+                  jmx_service = "regionserver"
+            elif mbean_domain == "java.lang":
+                jmx_service = mbean_properties.pop("type", "jvm")
+                if mbean_properties:
+                    tags += " " + " ".join(k + "=" + v for k, v in
+                                           mbean_properties.iteritems())
             else:
-                jmx_service, repl_count = re.subn("[^a-zA-Z0-9]+", ".", jmx_service)
-                if repl_count:
-                    print >>sys.stderr, ("Warning: found malformed"
-                                         " jmx_service=%r on line=%r"
-                                         % (mbean_properties["service"], line))
+                assert 0, "Should never be here"
+
+            jmx_service = JMX_SERVICE_RENAMING.get(jmx_service, jmx_service)
+            jmx_service, repl_count = re.subn("[^a-zA-Z0-9]+", ".",
+                                              jmx_service)
+            if repl_count:
+                print >>sys.stderr, ("Warning: found malformed"
+                                     " jmx_service=%r on line=%r"
+                                     % (mbean_properties["service"], line))
             metric = jmx_service.lower() + "." + metric
 
             sys.stdout.write("hbase.%s %d %s cluster=%s%s\n"
