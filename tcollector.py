@@ -43,6 +43,7 @@ from optparse import OptionParser
 COLLECTORS = {}
 GENERATION = 0
 LOG = logging.getLogger('tcollector')
+ALIVE = True
 
 
 class Collector(object):
@@ -151,6 +152,15 @@ class StdinCollector(Collector):
         self.sender = sender
         self.tags = tags
 
+        # hack to make this work.  nobody else will rely on self.proc except as a test
+        # in the stdin mode.
+        self.proc = True
+
+        # make stdin a non-blocking file
+        fd = sys.stdin.fileno()
+        fl = fcntl.fcntl(fd, fcntl.F_GETFL)
+        fcntl.fcntl(fd, fcntl.F_SETFL, fl | os.O_NONBLOCK)
+
     def read(self):
         """Read lines from STDIN and store them.  We allow this to be blocking because
            there should only ever be one StdinCollector and if we're using it that means
@@ -158,8 +168,23 @@ class StdinCollector(Collector):
            serving us and we're allowed to block it."""
 
         ts = int(time.time())
-        for line in sys.stdin:
-            self.datalines.append(line)
+        while True:
+            try:
+                line = sys.stdin.readline()
+            except IOError:
+                break
+
+            # The only time that line comes back as empty is when we get an
+            # EOF (blank) from readline.  Every other case at least gives us a
+            # \n, which won't match this condition.
+            if not line:
+                global ALIVE
+                ALIVE = False
+                break
+
+            line = line.strip()
+            if line:
+                self.datalines.append(line)
             newts = int(time.time())
             if newts > ts + 15:
                 reload_changed_config_modules(modules, options, self.sender,
@@ -191,7 +216,7 @@ class ReaderThread(threading.Thread):
         # we loop every second for now.  ideally we'll setup some select or other
         # thing to wait for input on our children, while breaking out every once in a
         # while to setup selects on new children.
-        while True:
+        while ALIVE:
             # this should be entirely non-blocking and go fast
             for col in all_living_collectors():
                 for line in col.collect():
@@ -296,7 +321,7 @@ class SenderThread(threading.Thread):
         """Main loop.  This just blocks on the ReaderThread to have data for us and when
            it has data we try to send it."""
 
-        while True:
+        while ALIVE:
             self.reader.ready.wait()
             self.maintain_conn()
             with self.reader.outqlock:
@@ -504,7 +529,7 @@ def main(argv):
     # since there's nothing else for us to do here
     if options.stdin:
         StdinCollector(options, modules, sender, tags)
-        while True:
+        while ALIVE:
             # Thread.join() is completely blocking and will prevent signal
             # handlers from running.  So instead we try to join the thread
             # every second.  This way, signal handlers get a chance to run.
@@ -676,9 +701,13 @@ def shutdown():
 
     # tell everyone to die
     for col in all_living_collectors():
-        if col.proc.poll() is None:
-            kill(col.proc)
-            col.proc.wait()
+        try:
+            if col.proc.poll() is None:
+                kill(col.proc)
+                col.proc.wait()
+        except:
+            # we really don't want to die as we're trying to exit gracefully
+            continue
 
     LOG.info('exiting')
     sys.exit(1)
