@@ -57,17 +57,17 @@ def main():
             if m:
                 if m.group(1) == "cpu":
                     l = m.group(2).split()
-                    print "proc.stat.cpu.user %d %s" % (ts, l[0])
-                    print "proc.stat.cpu.nice %d %s" % (ts, l[1])
-                    print "proc.stat.cpu.system %d %s" % (ts, l[2])
-                    print "proc.stat.cpu.idle %d %s" % (ts, l[3])
-                    print "proc.stat.cpu.iowait %d %s" % (ts, l[4])
-                    print "proc.stat.cpu.irq %d %s" % (ts, l[5])
-                    print "proc.stat.cpu.softirq %d %s" % (ts, l[6])
+                    print "proc.stat.cpu %d %s type=user" % (ts, l[0])
+                    print "proc.stat.cpu %d %s type=nice" % (ts, l[1])
+                    print "proc.stat.cpu %d %s type=system" % (ts, l[2])
+                    print "proc.stat.cpu %d %s type=idle" % (ts, l[3])
+                    print "proc.stat.cpu %d %s type=iowait" % (ts, l[4])
+                    print "proc.stat.cpu %d %s type=irq" % (ts, l[5])
+                    print "proc.stat.cpu %d %s type=softirq" % (ts, l[6])
                     if len(l) > 7:  # really old kernels don't have this field
-                        print "proc.stat.cpu.guest %d %s" % (ts, l[7])
+                        print "proc.stat.cpu %d %s type=guest" % (ts, l[7])
                         if len(l) > 8:  # old kernels don't have this field
-                            print "proc.stat.cpu.guest_nice %d %s" % (ts, l[8])
+                            print "proc.stat.cpu %d %s type=guest_nice" % (ts, l[8])
                 elif m.group(1) == "intr":
                     print "proc.stat.%s %d %s" % (m.group(1), ts, m.group(2).split()[0])
                 elif m.group(1) == "ctxt":
