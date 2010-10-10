@@ -283,6 +283,7 @@ class ReaderThread(threading.Thread):
             col.lines_invalid += 1
             return
         metric, timestamp, value, tags = parsed.groups()
+        timestamp = int(timestamp)
 
         # De-dupe detection...  This reduces the noise we send to the TSD so
         # we don't store data points that don't change.  This is a hack, as
