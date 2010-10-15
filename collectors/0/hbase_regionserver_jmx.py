@@ -75,7 +75,9 @@ def main(argv):
                               open(HBASE_CONFIG).read(), re.S))
     cluster = sitecfg.get("zookeeper.znode.parent", "/hbase")[1:]
     if cluster == "hbase":
-        if "sv2" in sitecfg.get("hbase.rootdir", ""):  # XXX Don't hardcode sv2
+        if "sv2borg170" in sitecfg.get("hbase.rootdir", ""):  # XXX Don't hardcode sv2
+            cluster = "backup"
+        elif "sv2" in sitecfg.get("hbase.rootdir", ""):  # XXX Don't hardcode sv2
             cluster = "dev"
         else:
             cluster = "prod"
