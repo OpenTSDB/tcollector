@@ -567,12 +567,18 @@ def main(argv):
 def main_loop(options, modules, sender, tags):
     """The main loop of the program that runs when we're not in stdin mode."""
 
+    next_heartbeat = int(time.time() + 600)
     while True:
         populate_collectors(options.cdir)
         reload_changed_config_modules(modules, options, sender, tags)
         reap_children()
         spawn_children()
         time.sleep(15)
+        now = int(time.time())
+        if now >= next_heartbeat:
+            LOG.info('Heartbeat (%d collectors running)'
+                     % sum(1 for col in all_living_collectors()))
+            next_heartbeat = now + 600
 
 
 def list_config_modules(etcdir):
