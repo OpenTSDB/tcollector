@@ -46,14 +46,28 @@ LOG = logging.getLogger('tcollector')
 ALIVE = True
 
 
+def register_collector(collector):
+
+    assert isinstance(collector, Collector), "collector=%r" % (collector,)
+    # store it in the global list and initiate a kill for anybody with the
+    # same name that happens to still be hanging around
+    if collector.name in COLLECTORS:
+        col = COLLECTORS[collector.name]
+        if col.proc is not None:
+            LOG.error('%s still has a process (pid=%d) and is being reset,'
+                      ' terminating', col.name, col.proc.pid)
+            col.shutdown()
+
+    COLLECTORS[collector.name] = collector
+
+
 class Collector(object):
     """A Collector is a script that is run that gathers some data and prints it out in
        standard TSD format on STDOUT.  This class maintains all of the state information
        for a given collector and gives us utility methods for working with it."""
 
     def __init__(self, colname, interval, filename, mtime=0, lastspawn=0):
-        """Construct a new Collector.  This also installs the new collector into the global
-           dictionary that stores all of the collectors."""
+        """Construct a new Collector."""
         self.name = colname
         self.interval = interval
         self.filename = filename
@@ -70,17 +84,6 @@ class Collector(object):
         self.lines_sent = 0
         self.lines_received = 0
         self.lines_invalid = 0
-
-        # store us in the global list and initiate a kill for anybody with our name that
-        # happens to still be hanging around
-        if colname in COLLECTORS:
-            col = COLLECTORS[colname]
-            if col.proc is not None:
-                LOG.error('%s still has a process (pid=%d) and is being reset,'
-                          ' terminating', col.name, col.proc.pid)
-                col.shutdown()
-
-        COLLECTORS[colname] = self
 
     def read(self):
         """Read bytes from our subprocess and store them in our temporary line storage
@@ -551,7 +554,7 @@ def main(argv):
     # if we're in stdin mode, build a stdin collector and just join on the reader thread
     # since there's nothing else for us to do here
     if options.stdin:
-        StdinCollector(options, modules, sender, tags)
+        register_collector(StdinCollector(options, modules, sender, tags))
         while ALIVE:
             # Thread.join() is completely blocking and will prevent signal
             # handlers from running.  So instead we try to join the thread
@@ -755,7 +758,8 @@ def reap_children():
                     col.name, now - col.lastspawn, status)
             col.dead = True
         else:
-            Collector(col.name, col.interval, col.filename, col.mtime, col.lastspawn)
+            register_collector(Collector(col.name, col.interval, col.filename,
+                                         col.mtime, col.lastspawn))
 
 
 def set_nonblocking(fd):
@@ -865,7 +869,8 @@ def populate_collectors(coldir):
                         col.mtime = mtime
                         col.shutdown()
                 else:
-                    Collector(colname, interval, filename, mtime)
+                    register_collector(Collector(colname, interval, filename,
+                                                 mtime))
 
     # now iterate over everybody and look for old generations
     to_delete = []
