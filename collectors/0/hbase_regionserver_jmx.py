@@ -126,6 +126,7 @@ def main(argv):
     do_on_signal(signal.SIGPIPE, kill, jmx)
     do_on_signal(signal.SIGTERM, kill, jmx)
     try:
+        prev_timestamp = 0
         while True:
             line = jmx.stdout.readline()
 
@@ -141,10 +142,14 @@ def main(argv):
                 timestamp = int(timestamp)
                 if timestamp < time.time() - 600:
                     raise ValueError("timestamp too old: %d" % timestamp)
+                if timestamp < prev_timestamp:
+                    raise ValueError("timestamp out of order: prev=%d, new=%d"
+                                     % (prev_timestamp, timestamp))
             except ValueError, e:
                 print >>sys.stderr, ("Invalid timestamp on line: %r -- %s"
                                      % (line, e))
                 continue
+            prev_timestamp = timestamp
 
             tags = ""
             # The JMX metrics have per-request-type metrics like so:
