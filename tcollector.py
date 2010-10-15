@@ -163,7 +163,7 @@ class StdinCollector(Collector):
        interface for the ReaderThread."""
 
     def __init__(self, options, modules, sender, tags):
-        Collector.__init__(self, 'stdin', 0, '<stdin>')
+        super(StdinCollector, self).__init__('stdin', 0, '<stdin>')
         self.options = options
         self.modules = modules
         self.sender = sender
@@ -220,7 +220,7 @@ class ReaderThread(threading.Thread):
        output process.  This ensures we don't block."""
 
     def __init__(self):
-        threading.Thread.__init__(self)
+        super(ReaderThread, self).__init__()
 
         self.outq = []
         self.tempq = []
@@ -329,7 +329,7 @@ class SenderThread(threading.Thread):
        and we need to spool to disk.  That isn't implemented yet."""
 
     def __init__(self, reader, dryrun, host, port, tags):
-        threading.Thread.__init__(self)
+        super(SenderThread, self).__init__()
 
         self.dryrun = dryrun
         self.host = host
