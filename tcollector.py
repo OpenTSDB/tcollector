@@ -78,7 +78,7 @@ class Collector(object):
             if col.proc is not None:
                 LOG.error('%s still has a process (pid=%d) and is being reset,'
                           ' terminating', col.name, col.proc.pid)
-                kill(col.proc)
+                col.shutdown()
 
         COLLECTORS[colname] = self
 
@@ -856,7 +856,7 @@ def populate_collectors(coldir):
                     if col.proc is not None and not col.interval and col.mtime < mtime:
                         LOG.info('%s has been updated on disk, respawning', col.name)
                         col.mtime = mtime
-                        kill(col.proc)
+                        col.shutdown()
                 else:
                     Collector(colname, interval, filename, mtime)
 
@@ -865,8 +865,7 @@ def populate_collectors(coldir):
     for col in all_collectors():
         if col.generation < GENERATION:
             LOG.info('collector %s removed from the filesystem, forgetting', col.name)
-            if col.proc is not None:
-                kill(col.proc)
+            col.shutdown()
             to_delete.append(col.name)
     for name in to_delete:
         del COLLECTORS[name]
