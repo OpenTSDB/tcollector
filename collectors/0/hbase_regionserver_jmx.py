@@ -196,6 +196,28 @@ def main(argv):
             else:
                 assert 0, "Should never be here"
 
+            # Hack.  Right now, the RegionServer is printing stats for its own
+            # replication queue, but when another RegionServer dies, this one
+            # may take over the replication queue of the dead one.  When this
+            # happens, we'll get the same metrics multiple times, because
+            # internally the RegionServer has multiple queues (although only
+            # only one is actively used, the other ones get flushed and
+            # discarded).  The following `if' statement is simply discarding
+            # stats for "recovered" replication queues, because we can't keep
+            # track of them properly in TSDB, because there is no sensible
+            # tag we can use to differentiate queues.
+            if jmx_service == "Replication":
+              attr_name = mbean_properties.get("name", "")
+              # Normally the attribute will look this:
+              #   ReplicationSource for <N>
+              # Where <N> is the ID of the destination cluster.
+              # But when this is the recovered queue of a dead RegionServer:
+              #   ReplicationSource for <N>-<HOST>%2C<PORT>%2C<TIMESTAMP>
+              # Where <HOST>, <PORT> and <TIMESTAMP> relate to the dead RS.
+              # So we discriminate those entries by looking for a dash.
+              if "ReplicationSource" in attr_name and "-" in attr_name:
+                continue
+
             jmx_service = JMX_SERVICE_RENAMING.get(jmx_service, jmx_service)
             jmx_service, repl_count = re.subn("[^a-zA-Z0-9]+", ".",
                                               jmx_service)
