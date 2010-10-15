@@ -15,6 +15,7 @@
 import os
 import pwd
 import re
+import signal
 import subprocess
 import sys
 import time
@@ -51,6 +52,31 @@ def drop_privileges():
 
     os.setgid(ent.pw_gid)
     os.setuid(ent.pw_uid)
+
+
+def kill(proc):
+  """Kills the subprocess given in argument."""
+  # Clean up after ourselves.
+  proc.stdout.close()
+  rv = proc.poll()
+  if rv is None:
+      os.kill(proc.pid, 15)
+      rv = proc.poll()
+      if rv is None:
+          os.kill(proc.pid, 9)  # Bang bang!
+          rv = proc.wait()  # This shouldn't block too long.
+  print >>sys.stderr, "warning: proc exited %d" % rv
+  return rv
+
+
+def do_on_signal(signum, func, *args, **kwargs):
+  """Calls func(*args, **kwargs) before exiting when receiving signum."""
+  def signal_shutdown(signum, frame):
+    print >>sys.stderr, "got signal %d, exiting" % signum
+    func(*args, **kwargs)
+    sys.exit(128 + signum)
+  signal.signal(signum, signal_shutdown)
+
 
 def main(argv):
     drop_privileges()
@@ -96,6 +122,9 @@ def main(argv):
          "OperatingSystem", "OpenFile",    # Number of open files.
          "GarbageCollector", "Collection", # GC runs and time spent GCing.
          ], stdout=subprocess.PIPE, bufsize=1)
+    do_on_signal(signal.SIGINT, kill, jmx)
+    do_on_signal(signal.SIGPIPE, kill, jmx)
+    do_on_signal(signal.SIGTERM, kill, jmx)
     try:
         while True:
             line = jmx.stdout.readline()
@@ -175,16 +204,7 @@ def main(argv):
                              % (metric, timestamp, value, cluster, tags))
             sys.stdout.flush()
     finally:
-        # Clean up after ourselves.
-        jmx.stdout.close()
-        rv = jmx.poll()
-        if rv is None:
-            os.kill(jmx.pid, 15)
-            rv = jmx.poll()
-            if rv is None:
-                os.kill(jmx.pid, 9)  # Bang bang!
-                rv = jmx.wait()  # This shouldn't block too long.
-        print >>sys.stderr, "warning: jmx exited %d" % rv
+        rv = kill(jmx)
         if rv == 2:  # No JVM matched.
             return 13  # Tell the tcollector to not re-spawn us.
         return 0  # Ask the tcollector to re-spawn us immediately.
