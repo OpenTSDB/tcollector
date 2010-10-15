@@ -262,9 +262,10 @@ final class jmx {
         throw new IllegalArgumentException("Invalid PID: " + pid);
       }
       final JVM jvm = vms.get(pid);
-      if (jvm == null) {
-        error = "Couldn't find a JVM with PID " + pid;
+      if (jvm != null) {
+        return jvm;
       }
+      error = "Couldn't find a JVM with PID " + pid;
     } catch (NumberFormatException e) {
       /* Ignore. */
     }
