@@ -144,6 +144,13 @@ class Collector(object):
         try:
             if self.proc.poll() is None:
                 kill(self.proc)
+                for attempt in range(5):
+                    if self.proc.poll() is not None:
+                        return
+                    LOG.info('Waiting %ds for PID %d to exit...'
+                             % (5 - attempt, self.proc.pid))
+                    time.sleep(1)
+                kill(self.proc, signal.SIGKILL)
                 self.proc.wait()
         except:
             # we really don't want to die as we're trying to exit gracefully
