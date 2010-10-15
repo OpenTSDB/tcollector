@@ -301,10 +301,12 @@ class ReaderThread(threading.Thread):
         # probably OK.
         key = (metric, tags)
         if key in col.values:
-            # if the timestamp didn't do what we expected, ignore this value
+            # if the timestamp isn't > than the previous one, ignore this value
             if timestamp <= col.values[key][3]:
-                LOG.error("Timestamp unexpected: metric=%s %s, old_ts=%d, new_ts=%d.",
-                        metric, tags, col.values[key][3], timestamp)
+                LOG.error("Timestamp out of order: metric=%s%s,"
+                          " old_ts=%d >= new_ts=%d - ignoring data point"
+                          " (value=%r, collector=%s)", metric, tags,
+                          col.values[key][3], timestamp, value, col.name)
                 return
 
             # if this data point is repeated, store it but don't send
