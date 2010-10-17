@@ -494,15 +494,15 @@ def main(argv):
             help='Run once, read and dedup data points from stdin.')
     parser.add_option('-p', '--port', dest='port', type='int', default=4242, metavar='PORT',
             help='Port to connect to the TSD instance on.')
-    parser.add_option('-v', dest='verbosity', action='count', default=0,
-            help='Verbose mode.  Specify twice for debugging output.')
+    parser.add_option('-v', dest='verbose', action='store_true', default=False,
+            help='Verbose mode (log debug messages).')
     parser.add_option('-t', '--tag', dest='tags', action='append', default=[], metavar='TAG',
             help='Tags to append to all timeseries we send, e.g.: -t TAG=VALUE -t TAG2=VALUE')
     parser.add_option('-P', '--pidfile', dest='pidfile', default='/var/run/tcollector.pid',
             metavar='FILE', help='Write our pidfile')
     (options, args) = parser.parse_args(args=argv[1:])
 
-    if options.verbosity > 1:
+    if options.verbose:
         LOG.setLevel(logging.DEBUG)  # up our level
 
     if options.pidfile:
