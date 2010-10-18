@@ -167,21 +167,12 @@ class StdinCollector(Collector):
        helps ensure we are always reading so that we don't block and presents a uniform
        interface for the ReaderThread."""
 
-    def __init__(self, options, modules, sender, tags):
+    def __init__(self):
         super(StdinCollector, self).__init__('stdin', 0, '<stdin>')
-        self.options = options
-        self.modules = modules
-        self.sender = sender
-        self.tags = tags
 
         # hack to make this work.  nobody else will rely on self.proc except as a test
         # in the stdin mode.
         self.proc = True
-
-        # make stdin a non-blocking file
-        fd = sys.stdin.fileno()
-        fl = fcntl.fcntl(fd, fcntl.F_GETFL)
-        fcntl.fcntl(fd, fcntl.F_SETFL, fl | os.O_NONBLOCK)
 
     def read(self):
         """Read lines from STDIN and store them.  We allow this to be blocking because
@@ -189,29 +180,12 @@ class StdinCollector(Collector):
            we have no normal collectors (can't do both) so the ReaderThread is only
            serving us and we're allowed to block it."""
 
-        ts = int(time.time())
-        while True:
-            try:
-                line = sys.stdin.readline()
-            except IOError:
-                break
-
-            # The only time that line comes back as empty is when we get an
-            # EOF (blank) from readline.  Every other case at least gives us a
-            # \n, which won't match this condition.
-            if not line:
-                global ALIVE
-                ALIVE = False
-                break
-
-            line = line.rstrip()
-            if line:
-                self.datalines.append(line)
-            newts = int(time.time())
-            if newts > ts + 15:
-                reload_changed_config_modules(modules, options, self.sender,
-                                              tags)
-                ts = newts
+        global ALIVE
+        line = sys.stdin.readline()
+        if line:
+            self.datalines.append(line.rstrip())
+        else:
+            ALIVE = False
 
 
     def shutdown(self):
@@ -481,7 +455,7 @@ def main(argv):
 
     LOG.setLevel(logging.INFO)
     ch = logging.StreamHandler(sys.stdout)
-    ch.setFormatter(logging.Formatter('%(asctime)s %(name)s %(levelname)s: %(message)s'))
+    ch.setFormatter(logging.Formatter('%(asctime)s %(name)s[%(process)d] %(levelname)s: %(message)s'))
     LOG.addHandler(ch)
 
     # get arguments
@@ -553,20 +527,29 @@ def main(argv):
     sender = SenderThread(rdr, options.dryrun, options.host, options.port,
                           tagstr)
     sender.start()
-    LOG.info('thread startup complete')
+    LOG.info('SenderThread startup complete')
 
     # if we're in stdin mode, build a stdin collector and just join on the reader thread
     # since there's nothing else for us to do here
     if options.stdin:
-        register_collector(StdinCollector(options, modules, sender, tags))
-        while ALIVE:
-            # Thread.join() is completely blocking and will prevent signal
-            # handlers from running.  So instead we try to join the thread
-            # every second.  This way, signal handlers get a chance to run.
-            rdr.join(1.0)
+        register_collector(StdinCollector())
+        stdin_loop(options, modules, sender, tags)
     else:
         main_loop(options, modules, sender, tags)
 
+def stdin_loop(options, modules, sender, tags):
+    """The main loop of the program that runs when we are in stdin mode."""
+
+    global ALIVE
+    next_heartbeat = int(time.time() + 600)
+    while ALIVE:
+        time.sleep(15)
+        reload_changed_config_modules(modules, options, sender, tags)
+        now = int(time.time())
+        if now >= next_heartbeat:
+            LOG.info('Heartbeat (%d collectors running)'
+                     % sum(1 for col in all_living_collectors()))
+            next_heartbeat = now + 600
 
 def main_loop(options, modules, sender, tags):
     """The main loop of the program that runs when we're not in stdin mode."""
