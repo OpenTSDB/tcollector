@@ -144,6 +144,8 @@ class Collector(object):
 
     def shutdown(self):
 
+        if not self.proc:
+            return
         try:
             if self.proc.poll() is None:
                 kill(self.proc)
