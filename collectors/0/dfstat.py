@@ -54,6 +54,18 @@ def main():
                 # skip header/blank lines
                 if not line or not l[2].isdigit():
                     continue
+                # Skip mounts/types we don't care about.
+                # Most of this stuff is of type tmpfs, but we don't
+                # want to blacklist all tmpfs since sometimes it's
+                # used for active filesystems (/var/run, /tmp)
+                # that we do want to track.
+                if l[1] in ("debugfs", "devtmpfs"):
+                    continue
+                if l[6] == "/dev":
+                    continue
+                # /dev/shm, /lib/init_rw, /lib/modules, etc
+                if l[6].startswith(("/lib/", "/dev")):
+                    continue
 
                 mount = l[6].replace('/', '_')
                 print ("df.1kblocks.total %d %s mount=%s fstype=%s"
