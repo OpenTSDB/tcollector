@@ -64,7 +64,7 @@ def main():
                 if l[6] == "/dev":
                     continue
                 # /dev/shm, /lib/init_rw, /lib/modules, etc
-                if l[6].startswith(("/lib/", "/dev")):
+                if l[6].startswith(("/lib/", "/dev/")):
                     continue
 
                 mount = l[6].replace('/', '_')
