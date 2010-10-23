@@ -256,6 +256,10 @@ class ReaderThread(threading.Thread):
             # us from spinning right now
             time.sleep(1)
 
+        # We're about to exit from the reader thread.  Let's set our condition
+        # to wake the sender thread and give it a chance to exit too.
+        self.ready.set()
+
     def process_line(self, col, line):
         """Parses the given line and appends the result to the internal queue."""
 
@@ -520,11 +524,11 @@ def main(argv):
 
     # at this point we're ready to start processing, so start the ReaderThread so we can
     # have it running and pulling in data for us
-    rdr = ReaderThread()
-    rdr.start()
+    reader = ReaderThread()
+    reader.start()
 
     # and setup the sender to start writing out to the tsd
-    sender = SenderThread(rdr, options.dryrun, options.host, options.port,
+    sender = SenderThread(reader, options.dryrun, options.host, options.port,
                           tagstr)
     sender.start()
     LOG.info('SenderThread startup complete')
@@ -536,6 +540,10 @@ def main(argv):
         stdin_loop(options, modules, sender, tags)
     else:
         main_loop(options, modules, sender, tags)
+    LOG.debug('Shutting down -- joining the reader thread.')
+    reader.join()
+    LOG.debug('Shutting down -- joining the sender thread.')
+    sender.join()
 
 def stdin_loop(options, modules, sender, tags):
     """The main loop of the program that runs when we are in stdin mode."""
