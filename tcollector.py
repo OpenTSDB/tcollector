@@ -36,6 +36,9 @@ import subprocess
 import sys
 import threading
 import time
+from Queue import Queue
+from Queue import Empty
+from Queue import Full
 from optparse import OptionParser
 
 
@@ -59,6 +62,20 @@ def register_collector(collector):
             col.shutdown()
 
     COLLECTORS[collector.name] = collector
+
+
+class ReaderQueue(Queue):
+    """A Queue for the reader thread"""
+
+    def nput(self, value):
+        """A nonblocking put, that simply logs and discards the value when the
+           queue is full, and returns false if we dropped."""
+        try:
+            self.put(value, False)
+        except Full:
+            LOG.error("DROPPED LINE: %s", value)
+            return False
+        return True
 
 
 class Collector(object):
@@ -164,8 +181,8 @@ class Collector(object):
 
 class StdinCollector(Collector):
     """A StdinCollector simply reads from STDIN and provides the data.  This collector
-       helps ensure we are always reading so that we don't block and presents a uniform
-       interface for the ReaderThread."""
+       presents a uniform interface for the ReaderThread, although unlike a normal
+       collector, read()/collect() will be blocking."""
 
     def __init__(self):
         super(StdinCollector, self).__init__('stdin', 0, '<stdin>')
@@ -176,9 +193,9 @@ class StdinCollector(Collector):
 
     def read(self):
         """Read lines from STDIN and store them.  We allow this to be blocking because
-           there should only ever be one StdinCollector and if we're using it that means
-           we have no normal collectors (can't do both) so the ReaderThread is only
-           serving us and we're allowed to block it."""
+           there should only ever be one StdinCollector and no normal collectors in
+           stdin mode, so the ReaderThread is only serving us and we're allowed to block
+           it."""
 
         global ALIVE
         line = sys.stdin.readline()
@@ -194,23 +211,21 @@ class StdinCollector(Collector):
 
 
 class ReaderThread(threading.Thread):
-    """The main ReaderThread is responsible for reading from the collectors and
-       assuring that we always read from the input no matter what is going on with the
-       output process.  This ensures we don't block."""
+    """The main ReaderThread is responsible for reading from the collectors
+       and assuring that we always read from the input no matter what.
+       All data read is put into the self.readerq Queue, which is
+       consumed by the SenderThread."""
 
     def __init__(self):
         super(ReaderThread, self).__init__()
 
-        self.outq = []
-        self.tempq = []
-        self.outqlock = threading.Lock()
-        self.ready = threading.Event()
+        self.readerq = ReaderQueue(100000)
         self.lines_collected = 0
         self.lines_dropped = 0
 
     def run(self):
         """Main loop for this thread.  Just reads from collectors, does our input processing and
-           de-duping, and puts the data into the global queue."""
+           de-duping, and puts the data into the queue."""
 
         LOG.debug("ReaderThread up and running")
 
@@ -218,50 +233,16 @@ class ReaderThread(threading.Thread):
         # thing to wait for input on our children, while breaking out every once in a
         # while to setup selects on new children.
         while ALIVE:
-            # this should be entirely non-blocking and go fast
             for col in all_living_collectors():
                 for line in col.collect():
                     self.process_line(col, line)
-
-                    # every once in a while, break out.  this ensures that we don't read
-                    # forever on a collector that is trying its best to spam us (like a
-                    # stdin collector piping from a file)
-                    if len(self.tempq) > 1024:
-                        break
-
-            # if we have lines, get the log and copy them
-            if len(self.tempq):
-                with self.outqlock:
-                    self.lines_collected += len(self.tempq)
-                    for line in self.tempq:
-                        self.outq.append(line)
-
-                    # if we now have more lines than we care to, we need to start dropping older
-                    # ones... this is unfortunate but it's better than bloating forever.
-                    # FIXME: spool to disk or some other storage mechanism so we don't lose them?
-                    if len(self.outq) > 100000:
-                        LOG.error('outbound queue trimmed down from %d lines', len(self.outq))
-                        self.lines_dropped += len(self.outq) - 100000
-                        self.outq = self.outq[-100000:]
-
-                    LOG.debug('ReaderThread.outq now has %d lines', len(self.outq))
-
-                self.tempq = []
-                self.ready.set()
-                continue
-            else:
-                self.ready.clear()
 
             # and here is the loop that we really should get rid of, this just prevents
             # us from spinning right now
             time.sleep(1)
 
-        # We're about to exit from the reader thread.  Let's set our condition
-        # to wake the sender thread and give it a chance to exit too.
-        self.ready.set()
-
     def process_line(self, col, line):
-        """Parses the given line and appends the result to the internal queue."""
+        """Parses the given line and appends the result to the reader queue."""
 
         col.lines_received += 1
         parsed = re.match('^([-_.a-zA-Z0-9]+)\s+'  # Metric name.
@@ -299,12 +280,14 @@ class ReaderThread(threading.Thread):
             # we skipped so the jumps in our graph are accurate.
             if col.values[key][1]:
                 col.lines_sent += 1
-                self.tempq.append(col.values[key][2])
+                if not self.readerq.nput(col.values[key][2]):
+                    self.lines_dropped += 1
 
         # now we can reset for the next pass and send the line we actually want to send
         col.values[key] = (value, False, line, timestamp)
         col.lines_sent += 1
-        self.tempq.append(line)
+        if not self.readerq.nput(line):
+            self.lines_dropped += 1
 
 
 class SenderThread(threading.Thread):
@@ -323,19 +306,33 @@ class SenderThread(threading.Thread):
         self.tagstr = tags
         self.tsd = None
         self.last_verify = 0
-        self.outq = []
+        self.sendq = []
 
     def run(self):
-        """Main loop.  This just blocks on the ReaderThread to have data for us and when
-           it has data we try to send it."""
+        """Main loop.  A simple scheduler.  Loop waiting for 5
+           seconds for data on the queue.  If there's no data, just
+           loop and make sure our connection is still open.  If there
+           is data, wait 5 more seconds and grab all of the pending data and
+           send it.  A little better than sending every line as its
+           own packet."""
 
         while ALIVE:
-            self.reader.ready.wait()
             self.maintain_conn()
-            with self.reader.outqlock:
-                for line in self.reader.outq:
-                    self.outq.append(line)
-                self.reader.outq = []
+            try:
+                line = self.reader.readerq.get(True, 5)
+            except Empty:
+                continue
+            self.sendq.append(line)
+            self.reader.readerq.task_done()
+            time.sleep(5)  # Wait for more data
+            while True:
+                try:
+                    line = self.reader.readerq.get(False)
+                except Empty:
+                    break
+                self.sendq.append(line)
+                self.reader.readerq.task_done()
+
             self.send_data()
 
     def verify_conn(self):
@@ -381,7 +378,7 @@ class SenderThread(threading.Thread):
                     ts = int(time.time())
                     strout = ["tcollector.%s %d %d %s" % (x[0], ts, x[2], x[1]) for x in strs]
                     for str in strout:
-                        self.outq.append(str)
+                        self.sendq.append(str)
                     break
             else:
                 self.tsd = None
@@ -425,14 +422,18 @@ class SenderThread(threading.Thread):
                 self.tsd = None
 
     def send_data(self):
-        """Sends outstanding data to the TSD in one operation."""
+        """Sends outstanding data in self.sendq to the TSD in one operation."""
 
         # construct the output string
         out = ''
-        for line in self.outq:
+        for line in self.sendq:
             line = 'put ' + line + self.tagstr
             out += line + '\n'
             LOG.debug('SENDING: %s' % line)
+
+        if not out:
+            LOG.debug('send_data no data?')
+            return
 
         # try sending our data.  if an exception occurs, just error and try sending
         # again next time.
@@ -441,7 +442,7 @@ class SenderThread(threading.Thread):
                 print out
             else:
                 self.tsd.sendall(out)
-            self.outq = []
+            self.sendq = []
         except socket.error, msg:
             LOG.error('failed to send data: %s', msg)
             try:
