@@ -17,20 +17,30 @@
 import os
 import sys
 import time
-import subprocess
 import socket
 import re
 
+sys.path.append(os.path.dirname(sys.argv[0])+"/../etc")
 
 def main():
     interval = 15
 
+    f_uptime = open("/proc/uptime", "r")
     f_meminfo = open("/proc/meminfo", "r")
     f_vmstat = open("/proc/vmstat", "r")
     f_stat = open("/proc/stat", "r")
     f_loadavg = open("/proc/loadavg", "r")
 
     while True:
+        # proc.uptime
+        f_uptime.seek(0)
+        ts = int(time.time())
+        for line in f_uptime:
+            m = re.match("(\S+)\s+(\S+)", line)
+            if m:
+                print "proc.uptime.total %d %s" % (ts, m.group(1))
+                print "proc.uptime.now %d %s" % (ts, m.group(2))
+
         # proc.meminfo
         f_meminfo.seek(0)
         ts = int(time.time())
