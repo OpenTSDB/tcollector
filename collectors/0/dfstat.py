@@ -11,10 +11,9 @@
 # General Public License for more details.  You should have received a copy
 # of the GNU Lesser General Public License along with this program.  If not,
 # see <http://www.gnu.org/licenses/>.
+"""df disk space and inode counts for TSDB """
 #
 # dfstat.py
-#
-# df disk space and inode count statistics
 #
 # df.1kblocks.total      total size of fs
 # df.1kblocks.used       blocks used
@@ -43,59 +42,61 @@ import time
 COLLECTION_INTERVAL = 60  # seconds
 
 def main():
+    """dfstats main loop"""
+
     while True:
         ts = int(time.time())
         # 1kblocks
-        p = subprocess.Popen(["df", "-PlTk"], stdout=subprocess.PIPE)
-        stdout, stderr = p.communicate()
-        if p.returncode == 0:
-            for line in stdout.split("\n"):
-                l = line.split()
+        df_proc = subprocess.Popen(["df", "-PlTk"], stdout=subprocess.PIPE)
+        stdout, _ = df_proc.communicate()
+        if df_proc.returncode == 0:
+            for line in stdout.split("\n"): # pylint: disable=E1103
+                fields = line.split()
                 # skip header/blank lines
-                if not line or not l[2].isdigit():
+                if not line or not fields[2].isdigit():
                     continue
                 # Skip mounts/types we don't care about.
                 # Most of this stuff is of type tmpfs, but we don't
                 # want to blacklist all tmpfs since sometimes it's
                 # used for active filesystems (/var/run, /tmp)
                 # that we do want to track.
-                if l[1] in ("debugfs", "devtmpfs"):
+                if fields[1] in ("debugfs", "devtmpfs"):
                     continue
-                if l[6] == "/dev":
+                if fields[6] == "/dev":
                     continue
                 # /dev/shm, /lib/init_rw, /lib/modules, etc
-                if l[6].startswith(("/lib/", "/dev/")):
+                if fields[6].startswith(("/lib/", "/dev/")):
                     continue
 
-                mount = l[6].replace('/', '_')
+                mount = fields[6].replace('/', '_')
                 print ("df.1kblocks.total %d %s mount=%s fstype=%s"
-                       % (ts, l[2], mount, l[1]))
+                       % (ts, fields[2], mount, fields[1]))
                 print ("df.1kblocks.used %d %s mount=%s fstype=%s"
-                       % (ts, l[3], mount, l[1]))
+                       % (ts, fields[3], mount, fields[1]))
                 print ("df.1kblocks.free %d %s mount=%s fstype=%s"
-                       % (ts, l[4], mount, l[1]))
+                       % (ts, fields[4], mount, fields[1]))
         else:
-            print >>sys.stderr, "df -Pltk returned %r" % p.returncode
+            print >> sys.stderr, "df -Pltk returned %r" % df_proc.returncode
 
         ts = int(time.time())
         # inodes
-        p = subprocess.Popen(["df", "-PlTi"], stdout=subprocess.PIPE)
-        stdout, stderr = p.communicate()
-        if p.returncode == 0:
-            for line in stdout.split("\n"):
-                l = line.split()
-                if not line or not l[2].isdigit():
+        df_proc = subprocess.Popen(["df", "-PlTi"], stdout=subprocess.PIPE)
+        stdout, _ = df_proc.communicate()
+        if df_proc.returncode == 0:
+            for line in stdout.split("\n"): # pylint: disable=E1103
+                fields = line.split()
+                if not line or not fields[2].isdigit():
                     continue
 
-                mount = l[6].replace('/', '_')
+                mount = fields[6].replace('/', '_')
                 print ("df.inodes.total %d %s mount=%s fstype=%s"
-                       % (ts, l[2], mount, l[1]))
+                       % (ts, fields[2], mount, fields[1]))
                 print ("df.inodes.used %d %s mount=%s fstype=%s"
-                       % (ts, l[3], mount, l[1]))
+                       % (ts, fields[3], mount, fields[1]))
                 print ("df.inodes.free %d %s mount=%s fstype=%s"
-                       % (ts, l[4], mount, l[1]))
+                       % (ts, fields[4], mount, fields[1]))
         else:
-            print >>sys.stderr, "df -Plti returned %r" % p.returncode
+            print >> sys.stderr, "df -Plti returned %r" % df_proc.returncode
 
         sys.stdout.flush()
         time.sleep(COLLECTION_INTERVAL)

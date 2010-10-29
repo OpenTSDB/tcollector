@@ -12,7 +12,7 @@
 # of the GNU Lesser General Public License along with this program.  If not,
 # see <http://www.gnu.org/licenses/>.
 #
-# import various stats from /proc into TSDB
+"""import various /proc stats from /proc into TSDB"""
 
 import os
 import sys
@@ -20,10 +20,11 @@ import time
 import socket
 import re
 
-sys.path.append(os.path.dirname(sys.argv[0])+"/../etc")
+COLLECTION_INTERVAL = 15  # seconds
+
 
 def main():
-    interval = 15
+    """procstats main loop"""
 
     f_uptime = open("/proc/uptime", "r")
     f_meminfo = open("/proc/meminfo", "r")
@@ -47,7 +48,8 @@ def main():
         for line in f_meminfo:
             m = re.match("(\w+):\s+(\d+)", line)
             if m:
-                print "proc.meminfo.%s %d %s" % (m.group(1).lower(), ts, m.group(2))
+                print ("proc.meminfo.%s %d %s"
+                        % (m.group(1).lower(), ts, m.group(2)))
 
         # proc.vmstat
         f_vmstat.seek(0)
@@ -66,20 +68,25 @@ def main():
             m = re.match("(\w+)\s+(.*)", line)
             if m:
                 if m.group(1) == "cpu":
-                    l = m.group(2).split()
-                    print "proc.stat.cpu %d %s type=user" % (ts, l[0])
-                    print "proc.stat.cpu %d %s type=nice" % (ts, l[1])
-                    print "proc.stat.cpu %d %s type=system" % (ts, l[2])
-                    print "proc.stat.cpu %d %s type=idle" % (ts, l[3])
-                    print "proc.stat.cpu %d %s type=iowait" % (ts, l[4])
-                    print "proc.stat.cpu %d %s type=irq" % (ts, l[5])
-                    print "proc.stat.cpu %d %s type=softirq" % (ts, l[6])
-                    if len(l) > 7:  # really old kernels don't have this field
-                        print "proc.stat.cpu %d %s type=guest" % (ts, l[7])
-                        if len(l) > 8:  # old kernels don't have this field
-                            print "proc.stat.cpu %d %s type=guest_nice" % (ts, l[8])
+                    fields = m.group(2).split()
+                    print "proc.stat.cpu %d %s type=user" % (ts, fields[0])
+                    print "proc.stat.cpu %d %s type=nice" % (ts, fields[1])
+                    print "proc.stat.cpu %d %s type=system" % (ts, fields[2])
+                    print "proc.stat.cpu %d %s type=idle" % (ts, fields[3])
+                    print "proc.stat.cpu %d %s type=iowait" % (ts, fields[4])
+                    print "proc.stat.cpu %d %s type=irq" % (ts, fields[5])
+                    print "proc.stat.cpu %d %s type=softirq" % (ts, fields[6])
+                    # really old kernels don't have this field
+                    if len(fields) > 7:
+                        print ("proc.stat.cpu %d %s type=guest"
+                               % (ts, fields[7]))
+                        # old kernels don't have this field
+                        if len(fields) > 8:
+                            print ("proc.stat.cpu %d %s type=guest_nice"
+                                   % (ts, fields[8]))
                 elif m.group(1) == "intr":
-                    print "proc.stat.%s %d %s" % (m.group(1), ts, m.group(2).split()[0])
+                    print ("proc.stat.%s %d %s"
+                            % (m.group(1), ts, m.group(2).split()[0]))
                 elif m.group(1) == "ctxt":
                     print "proc.stat.%s %d %s" % (m.group(1), ts, m.group(2))
 
@@ -95,7 +102,7 @@ def main():
                 print "proc.loadavg.total_threads %d %s" % (ts, m.group(5))
 
         sys.stdout.flush()
-        time.sleep(interval)
+        time.sleep(COLLECTION_INTERVAL)
 
 if __name__ == "__main__":
     main()

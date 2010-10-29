@@ -12,7 +12,7 @@
 # of the GNU Lesser General Public License along with this program.  If not,
 # see <http://www.gnu.org/licenses/>.
 #
-# network interface stats
+"""network interface stats for TSDB"""
 
 import os
 import sys
@@ -32,18 +32,19 @@ FIELDS = ("bytes", "packets", "errs", "dropped",
            None, None, None, None,)
 
 def main():
+    """ifstat main loop"""
     interval = 15
 
-    f = open("/proc/net/dev", "r")
+    f_netdev = open("/proc/net/dev", "r")
 
     # We just care about ethN interfaces.  We specifically
     # want to avoid bond interfaces, because interface
     # stats are still kept on the child interfaces when
     # you bond.  By skipping bond we avoid double counting.
     while True:
-        f.seek(0)
+        f_netdev.seek(0)
         ts = int(time.time())
-        for line in f:
+        for line in f_netdev:
             m = re.match("\s+(eth\d+):(.*)", line)
             if not m:
                 continue

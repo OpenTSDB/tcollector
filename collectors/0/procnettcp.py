@@ -11,8 +11,8 @@
 # General Public License for more details.  You should have received a copy
 # of the GNU Lesser General Public License along with this program.  If not,
 # see <http://www.gnu.org/licenses/>.
-#
-# import TCP socket info into TSDB
+
+"""TCP socket state data for TSDB"""
 #
 # Read /proc/net/tcp, which gives netstat -a type
 # data for all TCP sockets.
@@ -53,6 +53,7 @@ import sys
 import time
 import socket
 import pwd
+
 
 USERS = ("root", "www-data", "mysql")
 
@@ -118,7 +119,7 @@ TCPSTATES = {
     }
 
 
-def isPublicIP(ipstr):
+def is_public_ip(ipstr):
     """
     Take a /proc/net/tcp encoded src or dest string
     Return True if it is coming from public IP space
@@ -126,10 +127,10 @@ def isPublicIP(ipstr):
     This string is the hex ip:port of the connection.
     (ip is reversed)
     """
-    ip, port = ipstr.split(":")
-    ip = int(ip, 16)
-    byte1 = ip & 0xFF
-    byte2 = (ip >> 8) & 0xFF
+    addr = ipstr.split(":")[0]
+    addr = int(addr, 16)
+    byte1 = addr & 0xFF
+    byte2 = (addr >> 8) & 0xFF
     if byte1 in (10, 0, 127):
         return False
     if byte1 == 172 and byte2 > 16:
@@ -140,6 +141,7 @@ def isPublicIP(ipstr):
 
 
 def main():
+    """procnettcp main loop"""
     interval = 60
 
     ts = int(time.time())
@@ -153,16 +155,17 @@ def main():
             continue
 
     while True:
-        tcpcounter = {}
+        counter = {}
 
         # if IPv6 is enabled, even IPv4 connections will also
         # appear in tcp6. It has the same format, apart from the
         # address size
-        for file in ("/proc/net/tcp", "/proc/net/tcp6"):
-            f = open(file)
-            for line in f:
+        for procfile in ("/proc/net/tcp", "/proc/net/tcp6"):
+            f_proctcp = open(procfile)
+            for line in f_proctcp:
                 try:
-                    (num, src, dst, st, queue, when, retrans,
+                    # pylint: disable=W0612
+                    (num, src, dst, state, queue, when, retrans,
                      uid, timeout, inode) = line.split(None, 9)
                 except ValueError:  # Malformed line
                     continue
@@ -170,14 +173,14 @@ def main():
                 if num == "sl":  # header
                     continue
 
-                ip, srcport = src.split(":")
-                ip, dstport = dst.split(":")
+                srcport = src.split(":")[1]
+                dstport = dst.split(":")[1]
                 srcport = int(srcport, 16)
                 dstport = int(dstport, 16)
                 service = PORTS.get(srcport, "other")
                 service = PORTS.get(dstport, service)
 
-                if isPublicIP(dst) or isPublicIP(src):
+                if is_public_ip(dst) or is_public_ip(src):
                     endpoint = "external"
                 else:
                     endpoint = "internal"
@@ -185,23 +188,23 @@ def main():
 
                 user = uids.get(uid, "other")
 
-                key = "state=" + TCPSTATES[st] + " endpoint=" + endpoint + \
+                key = "state=" + TCPSTATES[state] + " endpoint=" + endpoint + \
                       " service=" + service + " user=" + user
-                if key in tcpcounter:
-                    tcpcounter[key] += 1
+                if key in counter:
+                    counter[key] += 1
                 else:
-                    tcpcounter[key] = 1
-            f.close()
+                    counter[key] = 1
+            f_proctcp.close()
 
         # output the counters
-        for st in TCPSTATES:
+        for state in TCPSTATES:
             for service in SERVICES + ("other",):
                 for user in USERS + ("other",):
                     for endpoint in ("internal", "external"):
-                        key = ("state=" + TCPSTATES[st] + " endpoint=" + endpoint
-                               + " service=" + service + " user=" + user)
-                        if key in tcpcounter:
-                            print "proc.net.tcp", ts, tcpcounter[key], key
+                        key = ("state=%s endpoint=%s service=%s user=%s"
+                               % (TCPSTATES[state], endpoint, service, user))
+                        if key in counter:
+                            print "proc.net.tcp", ts, counter[key], key
                         else:
                             print "proc.net.tcp", ts, "0", key
 

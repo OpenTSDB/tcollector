@@ -11,8 +11,9 @@
 # General Public License for more details.  You should have received a copy
 # of the GNU Lesser General Public License along with this program.  If not,
 # see <http://www.gnu.org/licenses/>.
-#
-# iostat statistics for TSDB
+
+"""iostat statistics for TSDB"""
+
 # data is from /proc/diskstats
 
 # Calculate disk statistics.  We handle 2.6 kernel output only, both
@@ -43,32 +44,36 @@
 # .read_sectors
 # .write_issued
 # .write_sectors
-# For partitions, these *_issued are counters collected before requests are merged,
-# so aren't the same as *_requests (which is post-merge, which more closely represents
-# represents the actual number of disk transactions).
+# For partitions, these *_issued are counters collected before
+# requests are merged, so aren't the same as *_requests (which is
+# post-merge, which more closely represents represents the actual
+# number of disk transactions).
 
-# Given that diskstats provides both per-disk and per-partition data, for
-# TSDB purposes we want to put them under different metrics (versus the same
-# metric and different tags).  Otherwise, if you look at a given metric, the data
-# for a given box will be double-counted, since a given operation will increment
-# both the disk series and the partition series.  To fix this, we output by-disk
-# data to iostat.disk.* and by-partition data to iostat.part.*.
+# Given that diskstats provides both per-disk and per-partition data,
+# for TSDB purposes we want to put them under different metrics (versus
+# the same metric and different tags).  Otherwise, if you look at a
+# given metric, the data for a given box will be double-counted, since
+# a given operation will increment both the disk series and the
+# partition series.  To fix this, we output by-disk data to iostat.disk.*
+# and by-partition data to iostat.part.*.
 
-# TODO: Add additional tags to map partitions/disks back to mount points/swap so you can
-# (for example) plot just swap partition activity or /var/lib/mysql partition activity no
-# matter which disk/partition this happens to be.  This is nontrivial, especially when
-# you have to handle mapping of /dev/mapper to dm-N, pulling out swap partitions from
-# /proc/swaps, etc.
+# TODO: Add additional tags to map partitions/disks back to mount
+# points/swap so you can (for example) plot just swap partition
+# activity or /var/lib/mysql partition activity no matter which
+# disk/partition this happens to be.  This is nontrivial, especially
+# when you have to handle mapping of /dev/mapper to dm-N, pulling out
+# swap partitions from /proc/swaps, etc.
 
-# TODO: add some generated stats from iostat -x like svctm, await, %util.  These need
-# to pull in cpu idle counters from /proc.
+# TODO: add some generated stats from iostat -x like svctm, await,
+# %util.  These need to pull in cpu idle counters from /proc.
 
 
 import os
-import pwd
 import socket
 import sys
 import time
+
+COLLECTION_INTERVAL = 60  # seconds
 
 FIELDS_DISK = ("read_requests",
                "read_merged",
@@ -91,13 +96,13 @@ FIELDS_PART = ("read_issued",
 
 
 def main():
-    interval = 60
-    f = open("/proc/diskstats", "r")
+    """iostats main loop."""
+    f_diskstats = open("/proc/diskstats", "r")
 
     while True:
-        f.seek(0)
+        f_diskstats.seek(0)
         ts = int(time.time())
-        for line in f:
+        for line in f_diskstats:
             # maj, min, devicename, [list of stats, see above]
             values = line.split(None)
             # shortcut the deduper and just skip disks that
@@ -126,14 +131,11 @@ def main():
                            % (metric, FIELDS_PART[i], ts, values[i+3],
                               values[2]))
             else:
-                print >>sys.stderr, "Cannot parse /proc/diskstats line: ", line
+                print >> sys.stderr, "Cannot parse /proc/diskstats line: ", line
                 continue
 
         sys.stdout.flush()
-        time.sleep(interval)
-
-        if ts > refresh:
-            sys.exit(0)
+        time.sleep(COLLECTION_INTERVAL)
 
 
 
