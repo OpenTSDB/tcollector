@@ -231,10 +231,9 @@ def main(argv):
                              % (metric, timestamp, value, cluster, tags))
             sys.stdout.flush()
     finally:
-        rv = kill(jmx)
-        if rv == 2:  # No JVM matched.
-            return 13  # Tell the tcollector to not re-spawn us.
-        return 0  # Ask the tcollector to re-spawn us immediately.
+        kill(jmx)
+        time.sleep(300)
+        return 0  # Ask the tcollector to re-spawn us.
 
 
 if __name__ == "__main__":
