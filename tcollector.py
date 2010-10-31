@@ -14,8 +14,8 @@
 #
 # tcollector.py
 #
-# Simple manager for collection scripts that run and gather data.  The tcollector
-# gathers the data and sends it to the TSD for storage.
+"""Simple manager for collection scripts that run and gather data.
+   The tcollector gathers the data and sends it to the TSD for storage."""
 #
 # by Mark Smith <msmith@stumbleupon.com>.
 #
@@ -27,7 +27,6 @@ import errno
 import fcntl
 import logging
 import os
-import platform
 import random
 import re
 import signal
@@ -50,6 +49,7 @@ ALIVE = True
 
 
 def register_collector(collector):
+    """Register a collector with the COLLECTORS global"""
 
     assert isinstance(collector, Collector), "collector=%r" % (collector,)
     # store it in the global list and initiate a kill for anybody with the
@@ -79,9 +79,11 @@ class ReaderQueue(Queue):
 
 
 class Collector(object):
-    """A Collector is a script that is run that gathers some data and prints it out in
-       standard TSD format on STDOUT.  This class maintains all of the state information
-       for a given collector and gives us utility methods for working with it."""
+    """A Collector is a script that is run that gathers some data
+       and prints it out in standard TSD format on STDOUT.  This
+       class maintains all of the state information for a given
+       collector and gives us utility methods for working with
+       it."""
 
     def __init__(self, colname, interval, filename, mtime=0, lastspawn=0):
         """Construct a new Collector."""
@@ -103,15 +105,20 @@ class Collector(object):
         self.lines_invalid = 0
 
     def read(self):
-        """Read bytes from our subprocess and store them in our temporary line storage
-           buffer.  This needs to be non-blocking."""
+        """Read bytes from our subprocess and store them in our temporary
+           line storage buffer.  This needs to be non-blocking."""
 
-        # now read stderr for log messages, we could buffer here but since we're just
-        # logging the messages, I don't care to
+        # we have to use a buffer because sometimes the collectors
+        # will write out a bunch of data points at one time and we
+        # get some weird sized chunk.  This read call is non-blocking.
+
+        # now read stderr for log messages, we could buffer here but since
+        # we're just logging the messages, I don't care to
         try:
             out = self.proc.stderr.read()
             if out:
-                LOG.debug('reading %s got %d bytes on stderr', self.name, len(out))
+                LOG.debug('reading %s got %d bytes on stderr',
+                          self.name, len(out))
                 for line in out.splitlines():
                     LOG.warning('%s: %s', self.name, line)
         except IOError, (err, msg):
@@ -120,19 +127,20 @@ class Collector(object):
         except:
             LOG.exception('uncaught exception in stderr read')
 
-        # we have to use a buffer because sometimes the collectors will write out a bunch
-        # of data points at one time and we get some weird sized chunk.  This read call
-        # is non-blocking.
+        # we have to use a buffer because sometimes the collectors will write
+        # out a bunch of data points at one time and we get some weird sized
+        # chunk.  This read call is non-blocking.
         try:
             self.buffer += self.proc.stdout.read()
             if len(self.buffer):
-                LOG.debug('reading %s, buffer now %d bytes', self.name, len(self.buffer))
+                LOG.debug('reading %s, buffer now %d bytes',
+                          self.name, len(self.buffer))
         except IOError, (err, msg):
             if err != errno.EAGAIN:
                 raise
         except:
-            # sometimes the process goes away in another thread and we don't have it
-            # anymore, so log an error and bail
+            # sometimes the process goes away in another thread and we don't
+            # have it anymore, so log an error and bail
             LOG.exception('uncaught exception in stdout read')
             return
 
@@ -149,8 +157,9 @@ class Collector(object):
             self.buffer = self.buffer[idx+1:]
 
     def collect(self):
-        """Reads input from the collector and returns the lines up to whomever is calling us.
-           This is a generator that returns a line as it becomes available."""
+        """Reads input from the collector and returns the lines up to whomever
+           is calling us.  This is a generator that returns a line as it
+           becomes available."""
 
         while self.proc is not None:
             self.read()
@@ -160,6 +169,7 @@ class Collector(object):
                 yield self.datalines.pop(0)
 
     def shutdown(self):
+        """Cleanly shut down the collector"""
 
         if not self.proc:
             return
@@ -180,22 +190,23 @@ class Collector(object):
 
 
 class StdinCollector(Collector):
-    """A StdinCollector simply reads from STDIN and provides the data.  This collector
-       presents a uniform interface for the ReaderThread, although unlike a normal
-       collector, read()/collect() will be blocking."""
+    """A StdinCollector simply reads from STDIN and provides the
+       data.  This collector presents a uniform interface for the
+       ReaderThread, although unlike a normal collector, read()/collect()
+       will be blocking."""
 
     def __init__(self):
         super(StdinCollector, self).__init__('stdin', 0, '<stdin>')
 
-        # hack to make this work.  nobody else will rely on self.proc except as a test
-        # in the stdin mode.
+        # hack to make this work.  nobody else will rely on self.proc
+        # except as a test in the stdin mode.
         self.proc = True
 
     def read(self):
-        """Read lines from STDIN and store them.  We allow this to be blocking because
-           there should only ever be one StdinCollector and no normal collectors in
-           stdin mode, so the ReaderThread is only serving us and we're allowed to block
-           it."""
+        """Read lines from STDIN and store them.  We allow this to
+           be blocking because there should only ever be one
+           StdinCollector and no normal collectors, so the ReaderThread
+           is only serving us and we're allowed to block it."""
 
         global ALIVE
         line = sys.stdin.readline()
@@ -224,21 +235,23 @@ class ReaderThread(threading.Thread):
         self.lines_dropped = 0
 
     def run(self):
-        """Main loop for this thread.  Just reads from collectors, does our input processing and
-           de-duping, and puts the data into the queue."""
+        """Main loop for this thread.  Just reads from collectors,
+           does our input processing and de-duping, and puts the data
+           into the queue."""
 
         LOG.debug("ReaderThread up and running")
 
-        # we loop every second for now.  ideally we'll setup some select or other
-        # thing to wait for input on our children, while breaking out every once in a
-        # while to setup selects on new children.
+        # we loop every second for now.  ideally we'll setup some
+        # select or other thing to wait for input on our children,
+        # while breaking out every once in a while to setup selects
+        # on new children.
         while ALIVE:
             for col in all_living_collectors():
                 for line in col.collect():
                     self.process_line(col, line)
 
-            # and here is the loop that we really should get rid of, this just prevents
-            # us from spinning right now
+            # and here is the loop that we really should get rid of, this
+            # just prevents us from spinning right now
             time.sleep(1)
 
     def process_line(self, col, line):
@@ -248,7 +261,8 @@ class ReaderThread(threading.Thread):
         parsed = re.match('^([-_.a-zA-Z0-9]+)\s+'  # Metric name.
                           '(\d+)\s+'               # Timestamp.
                           '(\S+?)'                 # Value (int or float).
-                          '((?:\s+[-_.a-zA-Z0-9]+=[-_.a-zA-Z0-9]+)*)$', line)  # Tags.
+                          '((?:\s+[-_.a-zA-Z0-9]+=[-_.a-zA-Z0-9]+)*)$', # Tags
+                          line)
         if parsed is None:
             LOG.warning('%s sent invalid data: %s', col.name, line)
             col.lines_invalid += 1
@@ -275,15 +289,17 @@ class ReaderThread(threading.Thread):
                 col.values[key] = (value, True, line, timestamp)
                 return
 
-            # we might have to append two lines if the value has been the same for a while
-            # and we've skipped one or more values.  we need to replay the last value
-            # we skipped so the jumps in our graph are accurate.
+            # we might have to append two lines if the value has been the same
+            # for a while and we've skipped one or more values.  we need to
+            # replay the last value we skipped so the jumps in our graph are
+            # accurate.
             if col.values[key][1]:
                 col.lines_sent += 1
                 if not self.readerq.nput(col.values[key][2]):
                     self.lines_dropped += 1
 
-        # now we can reset for the next pass and send the line we actually want to send
+        # now we can reset for the next pass and send the line we actually
+        # want to send
         col.values[key] = (value, False, line, timestamp)
         col.lines_sent += 1
         if not self.readerq.nput(line):
@@ -291,9 +307,10 @@ class ReaderThread(threading.Thread):
 
 
 class SenderThread(threading.Thread):
-    """The SenderThread is responsible for maintaining a connection to the TSD and sending
-       the data we're getting over to it.  This thread is also responsible for doing any
-       sort of emergency buffering we might need to do if we can't establish a connection
+    """The SenderThread is responsible for maintaining a connection
+       to the TSD and sending the data we're getting over to it.  This
+       thread is also responsible for doing any sort of emergency
+       buffering we might need to do if we can't establish a connection
        and we need to spool to disk.  That isn't implemented yet."""
 
     def __init__(self, reader, dryrun, host, port, tags):
@@ -336,6 +353,8 @@ class SenderThread(threading.Thread):
             self.send_data()
 
     def verify_conn(self):
+        """Periodically verify that our connection to the TSD is OK
+           and that the TSD is alive/working"""
         if self.tsd is None:
             return False
 
@@ -343,7 +362,8 @@ class SenderThread(threading.Thread):
         if self.last_verify > time.time() - 60:
             return True
 
-        # we use the version command as it is very low effort for the TSD to respond
+        # we use the version command as it is very low effort for the TSD
+        # to respond
         LOG.debug('verifying our TSD connection is alive')
         try:
             self.tsd.sendall('version\n')
@@ -352,8 +372,9 @@ class SenderThread(threading.Thread):
             return False
 
         while True:
-            # try to read as much data as we can.  at some point this is going to
-            # block, but we have set the timeout low when we made the connection
+            # try to read as much data as we can.  at some point this is going
+            # to block, but we have set the timeout low when we made the
+            # connection
             try:
                 buf = self.tsd.recv(4096)
             except socket.error, msg:
@@ -362,23 +383,29 @@ class SenderThread(threading.Thread):
 
             # if we get data... then everything looks good
             if len(buf):
-                # and if everything is good, send out our meta stats.  this helps to see
-                # what is going on with the tcollector
+                # and if everything is good, send out our meta stats.  this
+                # helps to see what is going on with the tcollector
                 if len(buf) < 4096:
                     strs = [
-                            ('reader.lines_collected', '', self.reader.lines_collected),
-                            ('reader.lines_dropped', '', self.reader.lines_dropped)
+                            ('reader.lines_collected',
+                             '', self.reader.lines_collected),
+                            ('reader.lines_dropped',
+                             '', self.reader.lines_dropped)
                            ]
 
                     for col in all_living_collectors():
-                        strs.append(('collector.lines_sent', 'collector=' + col.name, col.lines_sent))
-                        strs.append(('collector.lines_received', 'collector=' + col.name, col.lines_received))
-                        strs.append(('collector.lines_invalid', 'collector=' + col.name, col.lines_invalid))
+                        strs.append(('collector.lines_sent', 'collector='
+                                     + col.name, col.lines_sent))
+                        strs.append(('collector.lines_received', 'collector='
+                                     + col.name, col.lines_received))
+                        strs.append(('collector.lines_invalid', 'collector='
+                                     + col.name, col.lines_invalid))
 
                     ts = int(time.time())
-                    strout = ["tcollector.%s %d %d %s" % (x[0], ts, x[2], x[1]) for x in strs]
-                    for str in strout:
-                        self.sendq.append(str)
+                    strout = ["tcollector.%s %d %d %s"
+                              % (x[0], ts, x[2], x[1]) for x in strs]
+                    for string in strout:
+                        self.sendq.append(string)
                     break
             else:
                 self.tsd = None
@@ -389,22 +416,24 @@ class SenderThread(threading.Thread):
         return True
 
     def maintain_conn(self):
-        """Safely connect to the TSD and ensure that it's up and running and that we're not
-           talking to a ghost connection (no response)."""
+        """Safely connect to the TSD and ensure that it's up and
+           running and that we're not talking to a ghost connection
+           (no response)."""
 
         # dry runs are always good
         if self.dryrun:
             return
 
-        # connection didn't verify, so create a new one.  we might be in this method for
-        # a long time while we sort this out.
+        # connection didn't verify, so create a new one.  we might be in
+        # this method for a long time while we sort this out.
         try_delay = 1
         while True:
             if self.verify_conn():
                 return
 
-            # increase the try delay by some amount and some random value, in case
-            # the TSD is down for a while.  delay at most approximately 10 minutes.
+            # increase the try delay by some amount and some random value,
+            # in case the TSD is down for a while.  delay at most
+            # approximately 10 minutes.
             try_delay *= 1 + random.random()
             if try_delay > 600:
                 try_delay *= 0.5
@@ -417,7 +446,8 @@ class SenderThread(threading.Thread):
                 self.tsd.settimeout(15)
                 self.tsd.connect((self.host, self.port))
             except socket.error, msg:
-                LOG.error('failed to connect to %s:%d: %s', self.host, self.port, msg)
+                LOG.error('failed to connect to %s:%d: %s',
+                           self.host, self.port, msg)
                 self.tsd.close()
                 self.tsd = None
 
@@ -435,8 +465,8 @@ class SenderThread(threading.Thread):
             LOG.debug('send_data no data?')
             return
 
-        # try sending our data.  if an exception occurs, just error and try sending
-        # again next time.
+        # try sending our data.  if an exception occurs, just error and
+        # try sending again next time.
         try:
             if self.dryrun:
                 print out
@@ -451,8 +481,8 @@ class SenderThread(threading.Thread):
                 pass
             self.tsd = None
 
-        # FIXME: we should be reading the result at some point to drain the packets
-        # out of the kernel's queue
+        # FIXME: we should be reading the result at some point to drain
+        # the packets out of the kernel's queue
 
 
 def main(argv):
@@ -460,27 +490,38 @@ def main(argv):
 
     LOG.setLevel(logging.INFO)
     ch = logging.StreamHandler(sys.stdout)
-    ch.setFormatter(logging.Formatter('%(asctime)s %(name)s[%(process)d] %(levelname)s: %(message)s'))
+    ch.setFormatter(logging.Formatter('%(asctime)s %(name)s[%(process)d] '
+                                      '%(levelname)s: %(message)s'))
     LOG.addHandler(ch)
 
     # get arguments
-    parser = OptionParser(description='Manages collectors which gather data and report back.')
-    parser.add_option('-c', '--collector-dir', dest='cdir', default='./collectors', metavar='DIR',
-            help='Directory where the collectors are located.')
-    parser.add_option('-d', '--dry-run', dest='dryrun', action='store_true', default=False,
-            help='Don\'t actually send anything to the TSD, just print the datapoints.')
-    parser.add_option('-H', '--host', dest='host', default='localhost', metavar='HOST',
-            help='Hostname to use to connect to the TSD.')
-    parser.add_option('-s', '--stdin', dest='stdin', action='store_true', default=False,
-            help='Run once, read and dedup data points from stdin.')
-    parser.add_option('-p', '--port', dest='port', type='int', default=4242, metavar='PORT',
-            help='Port to connect to the TSD instance on.')
+    parser = OptionParser(description='Manages collectors which gather '
+                                       'data and report back.')
+    parser.add_option('-c', '--collector-dir', dest='cdir',
+                      default='./collectors', metavar='DIR',
+                      help='Directory where the collectors are located.')
+    parser.add_option('-d', '--dry-run', dest='dryrun', action='store_true',
+                      default=False,
+                      help='Don\'t actually send anything to the TSD, '
+                           'just print the datapoints.')
+    parser.add_option('-H', '--host', dest='host', default='localhost',
+                      metavar='HOST',
+                      help='Hostname to use to connect to the TSD.')
+    parser.add_option('-s', '--stdin', dest='stdin', action='store_true',
+                      default=False,
+                      help='Run once, read and dedup data points from stdin.')
+    parser.add_option('-p', '--port', dest='port', type='int',
+                      default=4242, metavar='PORT',
+                      help='Port to connect to the TSD instance on.')
     parser.add_option('-v', dest='verbose', action='store_true', default=False,
-            help='Verbose mode (log debug messages).')
-    parser.add_option('-t', '--tag', dest='tags', action='append', default=[], metavar='TAG',
-            help='Tags to append to all timeseries we send, e.g.: -t TAG=VALUE -t TAG2=VALUE')
-    parser.add_option('-P', '--pidfile', dest='pidfile', default='/var/run/tcollector.pid',
-            metavar='FILE', help='Write our pidfile')
+                      help='Verbose mode (log debug messages).')
+    parser.add_option('-t', '--tag', dest='tags', action='append',
+                      default=[], metavar='TAG',
+                      help='Tags to append to all timeseries we send, '
+                           'e.g.: -t TAG=VALUE -t TAG2=VALUE')
+    parser.add_option('-P', '--pidfile', dest='pidfile',
+                      default='/var/run/tcollector.pid',
+                      metavar='FILE', help='Write our pidfile')
     (options, args) = parser.parse_args(args=argv[1:])
 
     if options.verbose:
@@ -506,8 +547,8 @@ def main(argv):
     modules = load_etc_dir(options, tags)
 
     # tsdb does not require a host tag, but we do.  we are always running on a
-    # host.  FIXME: we should make it so that collectors may request to set their
-    # own host tag, or not set one.
+    # host.  FIXME: we should make it so that collectors may request to set
+    # their own host tag, or not set one.
     if not 'host' in tags and not options.stdin:
         tags['host'] = socket.gethostname()
         LOG.warning('Tag "host" not specified, defaulting to %s.', tags['host'])
@@ -523,8 +564,8 @@ def main(argv):
     for sig in (signal.SIGTERM, signal.SIGINT):
         signal.signal(sig, shutdown_signal)
 
-    # at this point we're ready to start processing, so start the ReaderThread so we can
-    # have it running and pulling in data for us
+    # at this point we're ready to start processing, so start the ReaderThread
+    # so we can have it running and pulling in data for us
     reader = ReaderThread()
     reader.start()
 
@@ -534,8 +575,8 @@ def main(argv):
     sender.start()
     LOG.info('SenderThread startup complete')
 
-    # if we're in stdin mode, build a stdin collector and just join on the reader thread
-    # since there's nothing else for us to do here
+    # if we're in stdin mode, build a stdin collector and just join on the
+    # reader thread since there's nothing else for us to do here
     if options.stdin:
         register_collector(StdinCollector())
         stdin_loop(options, modules, sender, tags)
@@ -694,8 +735,8 @@ def all_collectors():
 
 # collectors that are not marked dead
 def all_valid_collectors():
-    """Generator to return all defined collectors that haven't been marked dead (e.g. by the
-       collector process returning exit status 13)."""
+    """Generator to return all defined collectors that haven't been marked
+       dead (e.g. by the collector process returning exit status 13)."""
 
     for col in all_collectors():
         if not col.dead:
@@ -704,7 +745,8 @@ def all_valid_collectors():
 
 # collectors that have a process attached (currenty alive)
 def all_living_collectors():
-    """Generator to return all defined collectors that have an active process."""
+    """Generator to return all defined collectors that have
+       an active process."""
 
     for col in all_collectors():
         if col.proc is not None:
@@ -722,8 +764,8 @@ def kill(proc, signum=signal.SIGTERM):
 
 
 def shutdown():
-    """Called by atexit and when we receive a signal, this ensures we properly terminate
-       any outstanding children."""
+    """Called by atexit and when we receive a signal, this ensures we properly
+       terminate any outstanding children."""
 
     LOG.info('shutting down children')
 
@@ -736,8 +778,8 @@ def shutdown():
 
 
 def reap_children():
-    """When a child process dies, we have to determine why it died and whether or not
-       we need to restart it.  This method manages that logic."""
+    """When a child process dies, we have to determine why it died and whether
+       or not we need to restart it.  This method manages that logic."""
 
     for col in all_living_collectors():
         now = int(time.time())
@@ -749,15 +791,17 @@ def reap_children():
             continue
         col.proc = None
 
-        # behavior based on status.  a code 0 is normal termination, code 13 is used
-        # to indicate that we don't want to restart this collector.  any other status
-        # code is an error and is logged.
+        # behavior based on status.  a code 0 is normal termination, code 13
+        # is used to indicate that we don't want to restart this collector.
+        # any other status code is an error and is logged.
         if status == 13:
-            LOG.info('removing %s from the list of collectors (by request)', col.name)
+            LOG.info('removing %s from the list of collectors (by request)',
+                      col.name)
             col.dead = True
         elif status != 0:
-            LOG.warning('collector %s terminated after %d seconds with status code %d, marking dead',
-                    col.name, now - col.lastspawn, status)
+            LOG.warning('collector %s terminated after %d seconds with '
+                        'status code %d, marking dead',
+                        col.name, now - col.lastspawn, status)
             col.dead = True
         else:
             register_collector(Collector(col.name, col.interval, col.filename,
@@ -791,8 +835,9 @@ def spawn_collector(col):
 
 
 def spawn_children():
-    """Iterates over our defined collectors and performs the logic to determine if we need
-       to spawn, kill, or otherwise take some action on them."""
+    """Iterates over our defined collectors and performs the logic to
+       determine if we need to spawn, kill, or otherwise take some
+       action on them."""
 
     for col in all_valid_collectors():
         now = int(time.time())
@@ -804,34 +849,39 @@ def spawn_children():
                 spawn_collector(col)
                 continue
 
-            # I'm not very satisfied with this path.  It seems fragile and overly complex, maybe
-            # we should just reply on the asyncproc terminate method, but that would make the main
-            # tcollector block until it dies... :|
+            # I'm not very satisfied with this path.  It seems fragile and
+            # overly complex, maybe we should just reply on the asyncproc
+            # terminate method, but that would make the main tcollector
+            # block until it dies... :|
             if col.nextkill > now:
                 continue
             if col.killstate == 0:
-                LOG.warning('warning: %s (interval=%d, pid=%d) overstayed its welcome, SIGTERM sent',
-                        col.name, col.interval, col.proc.pid)
+                LOG.warning('warning: %s (interval=%d, pid=%d) overstayed '
+                            'its welcome, SIGTERM sent',
+                            col.name, col.interval, col.proc.pid)
                 kill(col.proc)
                 col.nextkill = now + 5
                 col.killstate = 1
             elif col.killstate == 1:
-                LOG.error('error: %s (interval=%d, pid=%d) still not dead, SIGKILL sent',
-                        col.name, col.interval, col.proc.pid)
+                LOG.error('error: %s (interval=%d, pid=%d) still not dead, '
+                           'SIGKILL sent',
+                           col.name, col.interval, col.proc.pid)
                 kill(col.proc, signal.SIGKILL)
                 col.nextkill = now + 5
                 col.killstate = 2
             else:
-                LOG.error('error: %s (interval=%d, pid=%d) needs manual intervention to kill it',
-                        col.name, col.interval, col.proc.pid)
+                LOG.error('error: %s (interval=%d, pid=%d) needs manual '
+                           'intervention to kill it',
+                           col.name, col.interval, col.proc.pid)
                 col.nextkill = now + 300
 
 
 def populate_collectors(coldir):
-    """Maintains our internal list of valid collectors.  This walks the collector
-       directory and looks for files.  In subsequent calls, this also looks for
-       changes to the files -- new, removed, or updated files, and takes the right
-       action to bring the state of our running processes in line with the filesystem."""
+    """Maintains our internal list of valid collectors.  This walks the
+       collector directory and looks for files.  In subsequent calls, this
+       also looks for changes to the files -- new, removed, or updated files,
+       and takes the right action to bring the state of our running processes
+       in line with the filesystem."""
 
     global GENERATION
     GENERATION += 1
@@ -851,23 +901,28 @@ def populate_collectors(coldir):
             if os.path.isfile(filename):
                 mtime = os.path.getmtime(filename)
 
-                # if this collector is already 'known', then check if it's been updated (new mtime)
-                # so we can kill off the old one (but only if it's interval 0, else we'll just get
+                # if this collector is already 'known', then check if it's
+                # been updated (new mtime) so we can kill off the old one
+                # (but only if it's interval 0, else we'll just get
                 # it next time it runs)
                 if colname in COLLECTORS:
                     col = COLLECTORS[colname]
 
-                    # if we get a dupe, then ignore the one we're trying to add now.  there is probably a
-                    # more robust way of doing this...
+                    # if we get a dupe, then ignore the one we're trying to
+                    # add now.  there is probably a more robust way of doing
+                    # this...
                     if col.interval != interval:
-                        LOG.error('two collectors with the same name %s and different intervals %d and %d',
-                                colname, interval, col.interval)
+                        LOG.error('two collectors with the same name %s and '
+                                   'different intervals %d and %d',
+                                   colname, interval, col.interval)
                         continue
 
-                    # we have to increase the generation or we will kill this script again
+                    # we have to increase the generation or we will kill
+                    # this script again
                     col.generation = GENERATION
                     if col.proc is not None and not col.interval and col.mtime < mtime:
-                        LOG.info('%s has been updated on disk, respawning', col.name)
+                        LOG.info('%s has been updated on disk, respawning',
+                                  col.name)
                         col.mtime = mtime
                         col.shutdown()
                 else:
@@ -878,7 +933,8 @@ def populate_collectors(coldir):
     to_delete = []
     for col in all_collectors():
         if col.generation < GENERATION:
-            LOG.info('collector %s removed from the filesystem, forgetting', col.name)
+            LOG.info('collector %s removed from the filesystem, forgetting',
+                      col.name)
             col.shutdown()
             to_delete.append(col.name)
     for name in to_delete:
