@@ -99,7 +99,10 @@ def main(argv):
         return 13
     sitecfg = dict(re.findall("<name>([^<]+)</name>[^<]*<value>([^<]+)</value>",
                               open(HBASE_CONFIG).read(), re.S))
-    cluster = sitecfg.get("zookeeper.znode.parent", "/hbase")[1:]
+    cluster = sitecfg.get("su.cluster.name")
+    if cluster is None:
+        print >>sys.stderr, "Couldn't find su.cluster.name in %s" % HBASE_CONFIG
+        cluster = sitecfg.get("zookeeper.znode.parent", "/hbase")[1:]
     if cluster == "hbase":
         if "sv2borg170" in sitecfg.get("hbase.rootdir", ""):  # XXX Don't hardcode sv2
             cluster = "backup"
