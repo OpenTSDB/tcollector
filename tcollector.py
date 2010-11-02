@@ -225,12 +225,20 @@ class ReaderThread(threading.Thread):
        All data read is put into the self.readerq Queue, which is
        consumed by the SenderThread."""
 
-    def __init__(self):
+    def __init__(self, dedupinterval):
+        """Constructor.
+            Args:
+              dedupinterval: If a metric sends the same value over successive
+                intervals, suppress sending the same value to the TSD until
+                this many seconds have elapsed.  This helps graphs over narrow
+                time ranges still see timeseries with suppressed datapoints.
+        """
         super(ReaderThread, self).__init__()
 
         self.readerq = ReaderQueue(100000)
         self.lines_collected = 0
         self.lines_dropped = 0
+        self.dedupinterval = dedupinterval
 
     def run(self):
         """Main loop for this thread.  Just reads from collectors,
@@ -268,10 +276,15 @@ class ReaderThread(threading.Thread):
         metric, timestamp, value, tags = parsed.groups()
         timestamp = int(timestamp)
 
-        # De-dupe detection...  This reduces the noise we send to the TSD so
-        # we don't store data points that don't change.  This is a hack, as
-        # it can be defeated by sending tags in different orders...  But that's
-        # probably OK.
+        # De-dupe detection...  To reduce the number of points we send to the
+        # TSD, we suppress sending values of metrics that don't change to
+        # only once every 10 minutes (which is also when TSD changes rows
+        # and how much extra time the scanner adds to the beginning/end of a
+        # graph interval in order to correctly calculate aggregated values).
+        # When the values do change, we want to first send the previous value
+        # with what the timestamp was when it first became that value (to keep
+        # slopes of graphs correct).
+        #
         key = (metric, tags)
         if key in col.values:
             # if the timestamp isn't > than the previous one, ignore this value
@@ -280,24 +293,37 @@ class ReaderThread(threading.Thread):
                           " old_ts=%d >= new_ts=%d - ignoring data point"
                           " (value=%r, collector=%s)", metric, tags,
                           col.values[key][3], timestamp, value, col.name)
+                col.lines_invalid += 1
                 return
 
-            # if this data point is repeated, store it but don't send
-            if col.values[key][0] == value:
-                col.values[key] = (value, True, line, timestamp)
+            # if this data point is repeated, store it but don't send.
+            # store the previous timestamp, so when/if this value changes
+            # we send the timestamp when this metric first became the current
+            # value instead of the last.  Fall through if we reach
+            # the dedup interval so we can print the value.
+            if (col.values[key][0] == value and
+                (timestamp - col.values[key][3] < self.dedupinterval)):
+                col.values[key] = (value, True, line, col.values[key][3])
                 return
 
             # we might have to append two lines if the value has been the same
             # for a while and we've skipped one or more values.  we need to
-            # replay the last value we skipped so the jumps in our graph are
-            # accurate.
-            if col.values[key][1]:
+            # replay the last value we skipped (if changed) so the jumps in
+            # our graph are accurate,
+            if ((col.values[key][1] or
+                (timestamp - col.values[key][3] >= self.dedupinterval))
+                and col.values[key][0] != value):
                 col.lines_sent += 1
                 if not self.readerq.nput(col.values[key][2]):
                     self.lines_dropped += 1
 
         # now we can reset for the next pass and send the line we actually
         # want to send
+        # col.values is a dict of arrays, with the key being the metric and
+        # tags (essentially the same as wthat TSD uses for the row key).
+        # The array consists of:
+        # [ the metric's value, if this value was repeated, the line of data,
+        #   the value's timestamp that it last changed ]
         col.values[key] = (value, False, line, timestamp)
         col.lines_sent += 1
         if not self.readerq.nput(line):
@@ -320,9 +346,9 @@ class SenderThread(threading.Thread):
             being sent to the TSD.
           host: The hostname of the TSD to connect to.
           port: The port of the TSD to connect to.
-          self_report_stats: If true, the reader thread will insert its own stats
-            into the metrics reported to TSD, as if those metrics had been
-            read from a collector.
+          self_report_stats: If true, the reader thread will insert its own
+            stats into the metrics reported to TSD, as if those metrics had
+            been read from a collector.
           tags: A string containing tags to append at for every data point.
         """
         super(SenderThread, self).__init__()
@@ -538,7 +564,8 @@ def parse_cmdline(argv):
                       help='Run once, read and dedup data points from stdin.')
     parser.add_option('-p', '--port', dest='port', type='int',
                       default=4242, metavar='PORT',
-                      help='Port to connect to the TSD instance on.')
+                      help='Port to connect to the TSD instance on. '
+                           'default=%default')
     parser.add_option('-v', dest='verbose', action='store_true', default=False,
                       help='Verbose mode (log debug messages).')
     parser.add_option('-t', '--tag', dest='tags', action='append',
@@ -548,6 +575,11 @@ def parse_cmdline(argv):
     parser.add_option('-P', '--pidfile', dest='pidfile',
                       default='/var/run/tcollector.pid',
                       metavar='FILE', help='Write our pidfile')
+    parser.add_option('--dedup-interval', dest='dedupinterval', type='int',
+                      default=600, metavar='DEDUPINTERVAL',
+                      help='Number of seconds in which successive duplicate '
+                           'datapoints are suppressed before sending to the TSD. '
+                           'default=%default')
     (options, args) = parser.parse_args(args=argv[1:])
     return (options, args)
 
@@ -600,7 +632,7 @@ def main(argv):
 
     # at this point we're ready to start processing, so start the ReaderThread
     # so we can have it running and pulling in data for us
-    reader = ReaderThread()
+    reader = ReaderThread(options.dedupinterval)
     reader.start()
 
     # and setup the sender to start writing out to the tsd
