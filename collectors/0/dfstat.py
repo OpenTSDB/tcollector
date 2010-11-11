@@ -65,7 +65,10 @@ def main():
                 if fields[6] == "/dev":
                     continue
                 # /dev/shm, /lib/init_rw, /lib/modules, etc
-                if fields[6].startswith(("/lib/", "/dev/")):
+                #if fields[6].startswith(("/lib/", "/dev/")):  # python2.5+
+                if fields[6].startswith("/lib/"):
+                    continue
+                if fields[6].startswith("/dev/"):
                     continue
 
                 mount = fields[6].replace('/', '_')
