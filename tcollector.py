@@ -736,10 +736,12 @@ def all_collectors():
 # collectors that are not marked dead
 def all_valid_collectors():
     """Generator to return all defined collectors that haven't been marked
-       dead (e.g. by the collector process returning exit status 13)."""
+       dead in the past hour, allowing temporarily broken collectors a
+       chance at redemption."""
 
+    now = int(time.time())
     for col in all_collectors():
-        if not col.dead:
+        if not col.dead or (now - col.lastspawn > 3600):
             yield col
 
 
@@ -828,6 +830,7 @@ def spawn_collector(col):
     set_nonblocking(col.proc.stdout.fileno())
     set_nonblocking(col.proc.stderr.fileno())
     if col.proc.pid > 0:
+        col.dead = False
         LOG.info('spawned %s (pid=%d)', col.name, col.proc.pid)
         return
     # FIXME: handle errors better
@@ -920,11 +923,14 @@ def populate_collectors(coldir):
                     # we have to increase the generation or we will kill
                     # this script again
                     col.generation = GENERATION
-                    if col.proc is not None and not col.interval and col.mtime < mtime:
-                        LOG.info('%s has been updated on disk, respawning',
-                                  col.name)
+                    if col.mtime < mtime:
+                        LOG.info('%s has been updated on disk', col.name)
                         col.mtime = mtime
-                        col.shutdown()
+                        if not col.interval:
+                            col.shutdown()
+                            LOG.info('Respawning %s', col.name)
+                            register_collector(Collector(colname, interval,
+                                                         filename, mtime))
                 else:
                     register_collector(Collector(colname, interval, filename,
                                                  mtime))
