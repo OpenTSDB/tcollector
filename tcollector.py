@@ -86,6 +86,12 @@ def main(argv):
             assert False, 'Tag "%s" already declared.' % k
         tags[k] = v
 
+    options.cdir = os.path.realpath(options.cdir)
+    if not os.path.isdir(options.cdir):
+        LOG.fatal('No such directory: %s', options.cdir)
+        return 1
+    modules = load_etc_dir(options, tags)
+
     # tsdb does not require a host tag, but we do.  we are always running on a
     # host.  FIXME: we should make it so that collectors may request to set their
     # own host tag, or not set one.
@@ -108,11 +114,110 @@ def main(argv):
     # FIXME: there are more efficient ways of doing this than just looping every second
     while True:
         populate_collectors(options.cdir)
+        if reload_changed_config_modules(modules, options, tags):
+            tagstr = ' ' + ' '.join('%s=%s' % (k, v)
+                                    for k, v in tags.iteritems())
         read_children()
         reap_children()
         spawn_children()
         send_to_tsd(options, tagstr)
         time.sleep(1)
+
+
+def list_config_modules(etcdir):
+    """Returns an iterator that yields the name of all the config modules."""
+    if not os.path.isdir(etcdir):
+        return iter(())  # Empty iterator.
+    return (name for name in os.listdir(etcdir)
+            if (name.endswith('.py')
+                and os.path.isfile(os.path.join(etcdir, name))))
+
+
+def load_etc_dir(options, tags):
+    """Loads any Python module from tcollector's own 'etc' directory.
+
+    Returns: A dict of path -> (module, timestamp).
+    """
+
+    etcdir = os.path.join(options.cdir, 'etc')
+    sys.path.append(etcdir)  # So we can import modules from the etc dir.
+    modules = {}  # path -> (module, timestamp)
+    for name in list_config_modules(etcdir):
+        path = os.path.join(etcdir, name)
+        module = load_config_module(name, options, tags)
+        modules[path] = (module, os.path.getmtime(path))
+    return modules
+
+
+def load_config_module(name, options, tags):
+    """Imports the config module of the given name
+
+    The 'name' argument can be a string, in which case the module will be
+    loaded by name, or it can be a module object, in which case the module
+    will get reloaded.
+
+    If the module has an 'onload' function, calls it.
+    Returns: the reference to the module loaded.
+    """
+
+    if isinstance(name, str):
+      LOG.info('Loading %s', name)
+      d = {}
+      # Strip the trailing .py
+      module = __import__(name[:-3], d, d)
+    else:
+      module = reload(name)
+    onload = module.__dict__.get('onload')
+    if callable(onload):
+        try:
+            onload(options, tags)
+        except:
+            LOG.fatal('Exception while loading %s', name)
+            raise
+    return module
+
+
+def reload_changed_config_modules(modules, options, tags):
+    """Reloads any changed modules from the 'etc' directory.
+
+    Args:
+      cdir: The path to the 'collectors' directory.
+      modules: A dict of path -> (module, timestamp).
+    Returns: whether or not anything has changed.
+    """
+
+    etcdir = os.path.join(options.cdir, 'etc')
+    current_modules = set(list_config_modules(etcdir))
+    current_paths = set(os.path.join(etcdir, name)
+                        for name in current_modules)
+    changed = False
+
+    # Reload any module that has changed.
+    for path, (module, timestamp) in modules.iteritems():
+        if path not in current_paths:  # Module was removed.
+            continue
+        mtime = os.path.getmtime(path)
+        if mtime > timestamp:
+            LOG.info('Reloading %s, file has changed', path)
+            module = load_config_module(module, options, tags)
+            modules[path] = (module, mtime)
+            changed = True
+
+    # Remove any module that has been removed.
+    for path in set(modules).difference(current_paths):
+        LOG.info('%s has been removed, tcollector should be restarted', path)
+        del modules[path]
+        changed = True
+
+    # Check for any modules that may have been added.
+    for name in current_modules:
+        path = os.path.join(etcdir, name)
+        if path not in modules:
+            module = load_config_module(name, options, tags)
+            modules[path] = (module, os.path.getmtime(path))
+            changed = True
+
+    return changed
 
 
 def all_collectors():
@@ -426,4 +531,4 @@ def populate_collectors(coldir):
 
 
 if __name__ == '__main__':
-    main(sys.argv)
+    sys.exit(main(sys.argv))
