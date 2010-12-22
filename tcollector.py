@@ -495,10 +495,12 @@ def main(argv):
     LOG.addHandler(ch)
 
     # get arguments
+    default_cdir = os.path.join(os.path.dirname(os.path.realpath(sys.argv[0])),
+                                'collectors')
     parser = OptionParser(description='Manages collectors which gather '
                                        'data and report back.')
-    parser.add_option('-c', '--collector-dir', dest='cdir',
-                      default='./collectors', metavar='DIR',
+    parser.add_option('-c', '--collector-dir', dest='cdir', metavar='DIR',
+                      default=default_cdir,
                       help='Directory where the collectors are located.')
     parser.add_option('-d', '--dry-run', dest='dryrun', action='store_true',
                       default=False,
