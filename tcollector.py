@@ -485,14 +485,17 @@ class SenderThread(threading.Thread):
         # the packets out of the kernel's queue
 
 
-def main(argv):
-    """The main tcollector entry point and loop."""
+def setup_logging():
 
     LOG.setLevel(logging.INFO)
     ch = logging.StreamHandler(sys.stdout)
     ch.setFormatter(logging.Formatter('%(asctime)s %(name)s[%(process)d] '
                                       '%(levelname)s: %(message)s'))
     LOG.addHandler(ch)
+
+
+def parse_cmdline(argv):
+    """Parses the command-line."""
 
     # get arguments
     default_cdir = os.path.join(os.path.dirname(os.path.realpath(sys.argv[0])),
@@ -525,6 +528,14 @@ def main(argv):
                       default='/var/run/tcollector.pid',
                       metavar='FILE', help='Write our pidfile')
     (options, args) = parser.parse_args(args=argv[1:])
+    return (options, args)
+
+
+def main(argv):
+    """The main tcollector entry point and loop."""
+
+    setup_logging()
+    options, args = parse_cmdline(argv)
 
     if options.verbose:
         LOG.setLevel(logging.DEBUG)  # up our level
