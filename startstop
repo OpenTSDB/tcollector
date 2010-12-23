@@ -39,19 +39,10 @@ for i in "$PIDFILE" "$LOG"; do
 done
 
 which_python () {
-    if [[ -x /usr/bin/python2.6 ]]; then
-        echo "/usr/bin/python2.6"
-        return
-    fi
-    if [[ -x /usr/bin/python2.5 ]]; then
-        echo "/usr/bin/python2.5"
-        return
-    fi
-    if [[ -x /usr/bin/python ]]; then
-        echo "/usr/bin/python"
-        return
-    fi
-    echo >&2 "Python is not installed"
+    for python in /usr/bin/python2.6 /usr/bin/python2.5 /usr/bin/python; do
+        test -x "$python" && echo "$python" && return
+    done
+    echo >&2 'Could not find a Python interpreter'
     exit 1
 }
 
