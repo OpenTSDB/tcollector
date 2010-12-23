@@ -10,10 +10,33 @@ test -n "$TSD_HOST" || {
 }
 
 HOSTNAME=$(hostname)
-PIDFILE=/var/run/tcollector.pid
+PIDFILE=${PIDFILE-'/var/run/tcollector.pid'}
 PROG=$TCOLLECTOR_PATH/tcollector.py
-LOG=/var/log/tcollector.log
+LOG=${LOG-'/var/log/tcollector.log'}
 ARGS="-c $TCOLLECTOR_PATH/collectors -H $TSD_HOST -t host=$HOSTNAME -P $PIDFILE"
+
+# Sanity checks.
+test -d "$TCOLLECTOR_PATH" || {
+    echo >&2 "No such directory: $TCOLLECTOR_PATH"
+    echo >&2 "You might need to set the TCOLLECTOR_PATH variable in $0"
+    exit 2
+}
+
+test -f "$PROG" || {
+    echo >&2 "No such file: $PROG"
+    echo >&2 "You might need to set the TCOLLECTOR_PATH variable in $0"
+    exit 3
+}
+
+for i in "$PIDFILE" "$LOG"; do
+    # If the file doesn't exist, check that we have write access to its parent
+    # directory to be able to create it.
+    test -e "$i" || i=`dirname "$i"`
+    test -w "$i" || {
+        echo >&2 "$0: error: Cannot write to $i"
+        exit 4
+    }
+done
 
 which_python () {
     if [[ -x /usr/bin/python2.6 ]]; then
