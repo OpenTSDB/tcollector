@@ -2,11 +2,18 @@
 
 # Semi Universal start-stop script
 
+# TSD_HOST=dns.name.of.tsd
+TCOLLECTOR_PATH=${TCOLLECTOR_PATH-'/usr/local/tcollector'}
+test -n "$TSD_HOST" || {
+    echo >&2 "TSD_HOST is not set in $0"
+    exit 1
+}
+
 HOSTNAME=$(hostname)
 PIDFILE=/var/run/tcollector.pid
-PROG=/usr/local/tcollector/tcollector.py
+PROG=$TCOLLECTOR_PATH/tcollector.py
 LOG=/var/log/tcollector.log
-ARGS="-c /usr/local/tcollector/collectors -H tsd.sv4.stumble.net -t host=$HOSTNAME -P $PIDFILE"
+ARGS="-c $TCOLLECTOR_PATH/collectors -H $TSD_HOST -t host=$HOSTNAME -P $PIDFILE"
 
 which_python () {
     if [[ -x /usr/bin/python2.6 ]]; then
