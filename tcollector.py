@@ -20,8 +20,6 @@
 # by Mark Smith <msmith@stumbleupon.com>.
 #
 
-from __future__ import with_statement
-
 import atexit
 import errno
 import fcntl
