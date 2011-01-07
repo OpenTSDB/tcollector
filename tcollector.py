@@ -313,7 +313,20 @@ class SenderThread(threading.Thread):
        buffering we might need to do if we can't establish a connection
        and we need to spool to disk.  That isn't implemented yet."""
 
-    def __init__(self, reader, dryrun, host, port, tags):
+    def __init__(self, reader, dryrun, host, port, self_report_stats, tags):
+        """Constructor.
+
+        Args:
+          reader: A reference to a ReaderThread instance.
+          dryrun: If true, data points will be printed on stdout instead of
+            being sent to the TSD.
+          host: The hostname of the TSD to connect to.
+          port: The port of the TSD to connect to.
+          self_report_stats: If true, the reader thread will insert its own stats
+            into the metrics reported to TSD, as if those metrics had been
+            read from a collector.
+          tags: A string containing tags to append at for every data point.
+        """
         super(SenderThread, self).__init__()
 
         self.dryrun = dryrun
@@ -324,6 +337,7 @@ class SenderThread(threading.Thread):
         self.tsd = None
         self.last_verify = 0
         self.sendq = []
+        self.self_report_stats = self_report_stats
 
     def run(self):
         """Main loop.  A simple scheduler.  Loop waiting for 5
@@ -371,45 +385,53 @@ class SenderThread(threading.Thread):
             self.tsd = None
             return False
 
+        bufsize = 4096
         while True:
             # try to read as much data as we can.  at some point this is going
             # to block, but we have set the timeout low when we made the
             # connection
             try:
-                buf = self.tsd.recv(4096)
+                buf = self.tsd.recv(bufsize)
             except socket.error, msg:
                 self.tsd = None
                 return False
 
-            # if we get data... then everything looks good
-            if len(buf):
-                # and if everything is good, send out our meta stats.  this
-                # helps to see what is going on with the tcollector
-                if len(buf) < 4096:
-                    strs = [
-                            ('reader.lines_collected',
-                             '', self.reader.lines_collected),
-                            ('reader.lines_dropped',
-                             '', self.reader.lines_dropped)
-                           ]
-
-                    for col in all_living_collectors():
-                        strs.append(('collector.lines_sent', 'collector='
-                                     + col.name, col.lines_sent))
-                        strs.append(('collector.lines_received', 'collector='
-                                     + col.name, col.lines_received))
-                        strs.append(('collector.lines_invalid', 'collector='
-                                     + col.name, col.lines_invalid))
-
-                    ts = int(time.time())
-                    strout = ["tcollector.%s %d %d %s"
-                              % (x[0], ts, x[2], x[1]) for x in strs]
-                    for string in strout:
-                        self.sendq.append(string)
-                    break
-            else:
+            # If we don't get a response to the `version' request, the TSD
+            # must be dead or overloaded.
+            if not buf:
                 self.tsd = None
                 return False
+
+            # Woah, the TSD has a lot of things to tell us...  Let's make
+            # sure we read everything it sent us by looping once more.
+            if len(buf) == bufsize:
+                continue
+
+            # If everything is good, send out our meta stats.  This
+            # helps to see what is going on with the tcollector.
+            if self.self_report_stats:
+                strs = [
+                        ('reader.lines_collected',
+                         '', self.reader.lines_collected),
+                        ('reader.lines_dropped',
+                         '', self.reader.lines_dropped)
+                       ]
+
+                for col in all_living_collectors():
+                    strs.append(('collector.lines_sent', 'collector='
+                                 + col.name, col.lines_sent))
+                    strs.append(('collector.lines_received', 'collector='
+                                 + col.name, col.lines_received))
+                    strs.append(('collector.lines_invalid', 'collector='
+                                 + col.name, col.lines_invalid))
+
+                ts = int(time.time())
+                strout = ["tcollector.%s %d %d %s"
+                          % (x[0], ts, x[2], x[1]) for x in strs]
+                for string in strout:
+                    self.sendq.append(string)
+
+            break  # TSD is alive.
 
         # if we get here, we assume the connection is good
         self.last_verify = time.time()
@@ -512,6 +534,9 @@ def parse_cmdline(argv):
     parser.add_option('-H', '--host', dest='host', default='localhost',
                       metavar='HOST',
                       help='Hostname to use to connect to the TSD.')
+    parser.add_option('--no-tcollector-stats', dest='no_tcollector_stats',
+                      default=False, action='store_true',
+                      help='Prevent tcollector from reporting its own stats to TSD')
     parser.add_option('-s', '--stdin', dest='stdin', action='store_true',
                       default=False,
                       help='Run once, read and dedup data points from stdin.')
@@ -584,7 +609,7 @@ def main(argv):
 
     # and setup the sender to start writing out to the tsd
     sender = SenderThread(reader, options.dryrun, options.host, options.port,
-                          tagstr)
+                          not options.no_tcollector_stats, tagstr)
     sender.start()
     LOG.info('SenderThread startup complete')
 
