@@ -354,7 +354,6 @@ class SenderThread(threading.Thread):
             except Empty:
                 continue
             self.sendq.append(line)
-            self.reader.readerq.task_done()
             time.sleep(5)  # Wait for more data
             while True:
                 try:
@@ -362,7 +361,6 @@ class SenderThread(threading.Thread):
                 except Empty:
                     break
                 self.sendq.append(line)
-                self.reader.readerq.task_done()
 
             self.send_data()
 
