@@ -746,9 +746,9 @@ def reload_changed_config_modules(modules, options, sender, tags):
             changed = True
 
     if changed:
-        sender.tagstr = ' ' + ' '.join('%s=%s' % (k, v)
-                                       for k, v in tags.iteritems())
-        sender.tagstr = sender.tagstr.strip()
+        sender.tagstr = ' '.join('%s=%s' % (k, v)
+                                 for k, v in tags.iteritems())
+        sender.tagstr = ' ' + sender.tagstr.strip()
     return changed
 
 
