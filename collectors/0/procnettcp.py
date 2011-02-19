@@ -159,6 +159,11 @@ def is_public_ip(ipstr):
 def main():
     """procnettcp main loop"""
     drop_privileges()
+    try:           # On some Linux kernel versions, with lots of connections
+      os.nice(19)  # this collector can be very CPU intensive.  So be nicer.
+    except OSError, e:
+      print >>sys.stderr, "warning: failed to self-renice:", e
+
     interval = 60
 
     ts = int(time.time())
