@@ -25,9 +25,6 @@ import traceback
 # If we're running as root, we'll drop privileges using this user.
 USER = "hadoop"
 
-# We read this file to determine which cluster we're on.
-HBASE_CONFIG = "/home/hadoop/hbase/conf/hbase-site.xml"
-
 # We add those files to the classpath if they exist.
 CLASSPATH = [
     "/usr/lib/jvm/java-6-sun/lib/tools.jar",
@@ -91,25 +88,6 @@ def main(argv):
         if os.path.exists(jar):
             classpath.append(jar)
     classpath = ":".join(classpath)
-
-    # Load the HBase site config.
-    if not os.path.exists(HBASE_CONFIG):
-        print >>sys.stderr, ("WTF?!  HBase site config (%s) doesn't exist"
-                             % HBASE_CONFIG)
-        return 13
-    sitecfg = dict(re.findall("<name>([^<]+)</name>[^<]*<value>([^<]+)</value>",
-                              open(HBASE_CONFIG).read(), re.S))
-    cluster = sitecfg.get("su.cluster.name")
-    if cluster is None:
-        print >>sys.stderr, "Couldn't find su.cluster.name in %s" % HBASE_CONFIG
-        cluster = sitecfg.get("zookeeper.znode.parent", "/hbase")[1:]
-    if cluster == "hbase":
-        if "sv2borg170" in sitecfg.get("hbase.rootdir", ""):  # XXX Don't hardcode sv2
-            cluster = "backup"
-        elif "sv2" in sitecfg.get("hbase.rootdir", ""):  # XXX Don't hardcode sv2
-            cluster = "dev"
-        else:
-            cluster = "prod"
 
     jmx = subprocess.Popen(
         ["java", "-enableassertions", "-enablesystemassertions",  # safe++
@@ -230,8 +208,8 @@ def main(argv):
                                      % (mbean_properties["service"], line))
             metric = jmx_service.lower() + "." + metric
 
-            sys.stdout.write("hbase.%s %d %s cluster=%s%s\n"
-                             % (metric, timestamp, value, cluster, tags))
+            sys.stdout.write("hbase.%s %d %s%s\n"
+                             % (metric, timestamp, value, tags))
             sys.stdout.flush()
     finally:
         kill(jmx)
