@@ -120,18 +120,21 @@ def main():
             else:
                 metric = "iostat.part."
 
+            # Sometimes there can be a slash in the device name, see bug #8.
+            # TODO(tsuna): Remove the substitution once TSD allows `/' in tags.
+            device = values[2].replace("/", "_")
             if len(values) == 14:
                 # full stats line
                 for i in range(11):
                     print ("%s%s %d %s dev=%s"
                            % (metric, FIELDS_DISK[i], ts, values[i+3],
-                              values[2]))
+                              device))
             elif len(values) == 7:
                 # partial stats line
                 for i in range(4):
                     print ("%s%s %d %s dev=%s"
                            % (metric, FIELDS_PART[i], ts, values[i+3],
-                              values[2]))
+                              device))
             else:
                 print >> sys.stderr, "Cannot parse /proc/diskstats line: ", line
                 continue
