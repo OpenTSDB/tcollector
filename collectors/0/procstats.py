@@ -56,50 +56,53 @@ def main():
         ts = int(time.time())
         for line in f_vmstat:
             m = re.match("(\w+)\s+(\d+)", line)
-            if m:
-                if m.group(1) in ("pgpgin", "pgpgout", "pswpin",
-                                  "pswpout", "pgfault", "pgmajfault"):
-                    print "proc.vmstat.%s %d %s" % (m.group(1), ts, m.group(2))
+            if not m:
+                continue
+            if m.group(1) in ("pgpgin", "pgpgout", "pswpin",
+                              "pswpout", "pgfault", "pgmajfault"):
+                print "proc.vmstat.%s %d %s" % (m.group(1), ts, m.group(2))
 
         # proc.stat
         f_stat.seek(0)
         ts = int(time.time())
         for line in f_stat:
             m = re.match("(\w+)\s+(.*)", line)
-            if m:
-                if m.group(1) == "cpu":
-                    fields = m.group(2).split()
-                    print "proc.stat.cpu %d %s type=user" % (ts, fields[0])
-                    print "proc.stat.cpu %d %s type=nice" % (ts, fields[1])
-                    print "proc.stat.cpu %d %s type=system" % (ts, fields[2])
-                    print "proc.stat.cpu %d %s type=idle" % (ts, fields[3])
-                    print "proc.stat.cpu %d %s type=iowait" % (ts, fields[4])
-                    print "proc.stat.cpu %d %s type=irq" % (ts, fields[5])
-                    print "proc.stat.cpu %d %s type=softirq" % (ts, fields[6])
-                    # really old kernels don't have this field
-                    if len(fields) > 7:
-                        print ("proc.stat.cpu %d %s type=guest"
-                               % (ts, fields[7]))
-                        # old kernels don't have this field
-                        if len(fields) > 8:
-                            print ("proc.stat.cpu %d %s type=guest_nice"
-                                   % (ts, fields[8]))
-                elif m.group(1) == "intr":
-                    print ("proc.stat.%s %d %s"
-                            % (m.group(1), ts, m.group(2).split()[0]))
-                elif m.group(1) == "ctxt":
-                    print "proc.stat.%s %d %s" % (m.group(1), ts, m.group(2))
+            if not m:
+                continue
+            if m.group(1) == "cpu":
+                fields = m.group(2).split()
+                print "proc.stat.cpu %d %s type=user" % (ts, fields[0])
+                print "proc.stat.cpu %d %s type=nice" % (ts, fields[1])
+                print "proc.stat.cpu %d %s type=system" % (ts, fields[2])
+                print "proc.stat.cpu %d %s type=idle" % (ts, fields[3])
+                print "proc.stat.cpu %d %s type=iowait" % (ts, fields[4])
+                print "proc.stat.cpu %d %s type=irq" % (ts, fields[5])
+                print "proc.stat.cpu %d %s type=softirq" % (ts, fields[6])
+                # really old kernels don't have this field
+                if len(fields) > 7:
+                    print ("proc.stat.cpu %d %s type=guest"
+                           % (ts, fields[7]))
+                    # old kernels don't have this field
+                    if len(fields) > 8:
+                        print ("proc.stat.cpu %d %s type=guest_nice"
+                               % (ts, fields[8]))
+            elif m.group(1) == "intr":
+                print ("proc.stat.%s %d %s"
+                        % (m.group(1), ts, m.group(2).split()[0]))
+            elif m.group(1) == "ctxt":
+                print "proc.stat.%s %d %s" % (m.group(1), ts, m.group(2))
 
         f_loadavg.seek(0)
         ts = int(time.time())
         for line in f_loadavg:
             m = re.match("(\S+)\s+(\S+)\s+(\S+)\s+(\d+)/(\d+)\s+", line)
-            if m:
-                print "proc.loadavg.1min %d %s" % (ts, m.group(1))
-                print "proc.loadavg.5min %d %s" % (ts, m.group(2))
-                print "proc.loadavg.15min %d %s" % (ts, m.group(3))
-                print "proc.loadavg.runnable %d %s" % (ts, m.group(4))
-                print "proc.loadavg.total_threads %d %s" % (ts, m.group(5))
+            if not m:
+                continue
+            print "proc.loadavg.1min %d %s" % (ts, m.group(1))
+            print "proc.loadavg.5min %d %s" % (ts, m.group(2))
+            print "proc.loadavg.15min %d %s" % (ts, m.group(3))
+            print "proc.loadavg.runnable %d %s" % (ts, m.group(4))
+            print "proc.loadavg.total_threads %d %s" % (ts, m.group(5))
 
         sys.stdout.flush()
         time.sleep(COLLECTION_INTERVAL)
