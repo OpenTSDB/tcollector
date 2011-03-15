@@ -87,10 +87,14 @@ def main():
                         print ("proc.stat.cpu %d %s type=guest_nice"
                                % (ts, fields[8]))
             elif m.group(1) == "intr":
-                print ("proc.stat.%s %d %s"
-                        % (m.group(1), ts, m.group(2).split()[0]))
+                print ("proc.stat.intr %d %s"
+                        % (ts, m.group(2).split()[0]))
             elif m.group(1) == "ctxt":
-                print "proc.stat.%s %d %s" % (m.group(1), ts, m.group(2))
+                print "proc.stat.ctxt %d %s" % (ts, m.group(2))
+            elif m.group(1) == "processes":
+                print "proc.stat.processes %d %s" % (ts, m.group(2))
+            elif m.group(1) == "procs_blocked":
+                print "proc.stat.procs_blocked %d %s" % (ts, m.group(2))
 
         f_loadavg.seek(0)
         ts = int(time.time())
