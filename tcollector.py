@@ -282,23 +282,26 @@ class ReaderThread(threading.Thread):
                           col.values[key][3], timestamp, value, col.name)
                 return
 
-            # if this data point is repeated, store it but don't send
-            if col.values[key][0] == value:
-                col.values[key] = (value, True, line, timestamp)
-                return
+            # if this data point is repeated, store it and increment dupe count
+            # send the 100th dupe just to have some recent data in the TSD
+            if col.values[key][0] == value and col.values[key][1] < 100:
+                    col.values[key][1] += 1
+                    col.values[key][2] = line
+                    col.values[key][3] = timestamp
+                    return
 
             # we might have to append two lines if the value has been the same
             # for a while and we've skipped one or more values.  we need to
             # replay the last value we skipped so the jumps in our graph are
             # accurate.
-            if col.values[key][1]:
+            if col.values[key][1] != 0:
                 col.lines_sent += 1
                 if not self.readerq.nput(col.values[key][2]):
                     self.lines_dropped += 1
 
         # now we can reset for the next pass and send the line we actually
         # want to send
-        col.values[key] = (value, False, line, timestamp)
+        col.values[key] = (value, 0, line, timestamp)
         col.lines_sent += 1
         if not self.readerq.nput(line):
             self.lines_dropped += 1
