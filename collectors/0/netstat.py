@@ -111,7 +111,7 @@ def main():
                         # UDP memory accounting was added in v2.6.25-rc1
                         "(?: mem (?P<udp_pages>\d+))?\n"
                         # UDP-Lite (RFC 3828) was added in v2.6.20-rc2
-                        "(?:UDPLITE: inuse (?P<udplite_inuse>\d+)\n)"
+                        "(?:UDPLITE: inuse (?P<udplite_inuse>\d+)\n)?"
                         "RAW: inuse (?P<raw_inuse>\d+)\n"
                         "FRAG: inuse (?P<ip_frag_nqueues>\d+)"
                         " memory (?P<ip_frag_mem>\d+)\n")
