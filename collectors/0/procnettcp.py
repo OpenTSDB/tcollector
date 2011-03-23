@@ -183,7 +183,12 @@ def main():
         # appear in tcp6. It has the same format, apart from the
         # address size
         for procfile in ("/proc/net/tcp", "/proc/net/tcp6"):
-            f_proctcp = open(procfile)
+            try:
+                f_proctcp = open(procfile)
+            except IOError, (errno, msg):
+                if errno == 2:  # No such file, IPv6 is disabled.
+                    continue
+                raise
             for line in f_proctcp:
                 try:
                     # pylint: disable=W0612
