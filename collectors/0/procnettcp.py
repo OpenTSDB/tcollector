@@ -166,8 +166,6 @@ def main(unused_args):
 
     interval = 60
 
-    ts = int(time.time())
-
     # resolve the list of users to match on into UIDs
     uids = {}
     for user in USERS:
@@ -197,6 +195,7 @@ def main(unused_args):
 
         for procfile in (tcp, tcp6):
             procfile.seek(0)
+            ts = int(time.time())
             for line in procfile:
                 try:
                     # pylint: disable=W0612
@@ -244,7 +243,6 @@ def main(unused_args):
 
         sys.stdout.flush()
         time.sleep(interval)
-        ts = int(time.time())
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv))
