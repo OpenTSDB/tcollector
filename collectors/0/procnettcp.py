@@ -176,20 +176,28 @@ def main(unused_args):
         except KeyError:
             continue
 
-    while True:
-        counter = {}
-
+    try:
+        tcp = open("/proc/net/tcp")
         # if IPv6 is enabled, even IPv4 connections will also
         # appear in tcp6. It has the same format, apart from the
         # address size
-        for procfile in ("/proc/net/tcp", "/proc/net/tcp6"):
-            try:
-                f_proctcp = open(procfile)
-            except IOError, (errno, msg):
-                if errno == 2:  # No such file, IPv6 is disabled.
-                    continue
+        try:
+            tcp6 = open("/proc/net/tcp6")
+        except IOError, (errno, msg):
+            if errno == 2:  # No such file => IPv6 is disabled.
+                tcp6 = None
+            else:
                 raise
-            for line in f_proctcp:
+    except IOError, e:
+        print >>sys.stderr, "Failed to open input file: %s" % (e,)
+        return 13  # Ask tcollector to not re-start us immediately.
+
+    while True:
+        counter = {}
+
+        for procfile in (tcp, tcp6):
+            procfile.seek(0)
+            for line in procfile:
                 try:
                     # pylint: disable=W0612
                     (num, src, dst, state, queue, when, retrans,
@@ -221,7 +229,6 @@ def main(unused_args):
                     counter[key] += 1
                 else:
                     counter[key] = 1
-            f_proctcp.close()
 
         # output the counters
         for state in TCPSTATES:
