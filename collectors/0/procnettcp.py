@@ -156,7 +156,7 @@ def is_public_ip(ipstr):
     return True
 
 
-def main():
+def main(unused_args):
     """procnettcp main loop"""
     drop_privileges()
     try:           # On some Linux kernel versions, with lots of connections
@@ -240,5 +240,4 @@ def main():
         ts = int(time.time())
 
 if __name__ == "__main__":
-    main()
-
+    sys.exit(main(sys.argv))
