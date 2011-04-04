@@ -633,11 +633,13 @@ def main(argv):
     # at this point we're ready to start processing, so start the ReaderThread
     # so we can have it running and pulling in data for us
     reader = ReaderThread(options.dedupinterval)
+    reader.setDaemon(True)
     reader.start()
 
     # and setup the sender to start writing out to the tsd
     sender = SenderThread(reader, options.dryrun, options.host, options.port,
                           not options.no_tcollector_stats, tagstr)
+    sender.setDaemon(True)
     sender.start()
     LOG.info('SenderThread startup complete')
 
