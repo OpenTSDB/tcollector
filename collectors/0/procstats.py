@@ -31,6 +31,7 @@ def main():
     f_vmstat = open("/proc/vmstat", "r")
     f_stat = open("/proc/stat", "r")
     f_loadavg = open("/proc/loadavg", "r")
+    f_entropy_avail = open("/proc/sys/kernel/random/entropy_avail", "r")
 
     while True:
         # proc.uptime
@@ -107,6 +108,11 @@ def main():
             print "proc.loadavg.15min %d %s" % (ts, m.group(3))
             print "proc.loadavg.runnable %d %s" % (ts, m.group(4))
             print "proc.loadavg.total_threads %d %s" % (ts, m.group(5))
+
+        f_entropy_avail.seek(0)
+        ts = int(time.time())
+        for line in f_entropy_avail:
+            print "proc.kernel.entropy_avail %d %s" % (ts, line.strip())
 
         sys.stdout.flush()
         time.sleep(COLLECTION_INTERVAL)
