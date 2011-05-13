@@ -194,6 +194,8 @@ def main(unused_args):
         counter = {}
 
         for procfile in (tcp, tcp6):
+            if procfile is None:
+                continue
             procfile.seek(0)
             ts = int(time.time())
             for line in procfile:
