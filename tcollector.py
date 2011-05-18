@@ -445,7 +445,7 @@ class SenderThread(threading.Thread):
             return False
 
         bufsize = 4096
-        while True:
+        while ALIVE:
             # try to read as much data as we can.  at some point this is going
             # to block, but we have set the timeout low when we made the
             # connection
@@ -508,7 +508,7 @@ class SenderThread(threading.Thread):
         # connection didn't verify, so create a new one.  we might be in
         # this method for a long time while we sort this out.
         try_delay = 1
-        while True:
+        while ALIVE:
             if self.verify_conn():
                 return
 
@@ -881,6 +881,13 @@ def kill(proc, signum=signal.SIGTERM):
 def shutdown():
     """Called by atexit and when we receive a signal, this ensures we properly
        terminate any outstanding children."""
+
+    global ALIVE
+    # prevent repeated calls
+    if not ALIVE:
+        return
+    # notify threads of program termination
+    ALIVE = False
 
     LOG.info('shutting down children')
 
