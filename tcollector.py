@@ -503,7 +503,7 @@ class SenderThread(threading.Thread):
         for line in self.sendq:
             line = 'put ' + line + self.tagstr
             out += line + '\n'
-            LOG.debug('SENDING: %s' % line)
+            LOG.debug('SENDING: %s', line)
 
         if not out:
             LOG.debug('send_data no data?')
