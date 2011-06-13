@@ -186,6 +186,11 @@ class Collector(object):
             # we really don't want to die as we're trying to exit gracefully
             LOG.exception('ignoring uncaught exception while shutting down')
 
+    def cleanOldkeys(self, timestamp, interval):
+      for key in self.values.keys():
+        time = self.values[key][3]
+        if time < timestamp and timestamp - time > interval:
+          del self.values[key]
 
 class StdinCollector(Collector):
     """A StdinCollector simply reads from STDIN and provides the
@@ -239,6 +244,9 @@ class ReaderThread(threading.Thread):
         self.lines_collected = 0
         self.lines_dropped = 0
         self.dedupinterval = dedupinterval
+        self.checkinterval = dedupinterval * 3
+        self.lastchecktime = 0
+        self.maxnumkeys = 100000
 
     def run(self):
         """Main loop for this thread.  Just reads from collectors,
@@ -251,10 +259,17 @@ class ReaderThread(threading.Thread):
         # select or other thing to wait for input on our children,
         # while breaking out every once in a while to setup selects
         # on new children.
+        nowtime = int(time.time())
         while ALIVE:
             for col in all_living_collectors():
                 for line in col.collect():
                     self.process_line(col, line)
+
+            if nowtime - self.lastchecktime > self.checkinterval:
+              for col in all_living_collectors():
+                if len(col.values) > self.maxnumkeys: 
+                  col.cleanOldkeys(nowtime, self.checkinterval)
+              self.lastchecktime = nowtime
 
             # and here is the loop that we really should get rid of, this
             # just prevents us from spinning right now
