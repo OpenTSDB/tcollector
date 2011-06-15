@@ -53,25 +53,13 @@ start () {
     $PYTHON $PROG $ARGS >> $LOG 2>&1 &
 }
 
+# stop [signum]
 stop () {
     echo "Stopping $PROG"
-    if [[ -r "$PIDFILE" ]]; then
-        PID=$(< "$PIDFILE")
-        kill $1 $PID
-        sleep 1
-    fi
-    # Check also for instances not started with a pidfile
-    # include only python processes
-    pgrep -f "/usr/bin/python.* $PROG -c" |grep -vw "$PID" | xargs -r kill $1
+    pkill $1 -f "/usr/bin/python.* $PROG -c"
 }
 
 status () {
-    if [[ -r "$PIDFILE" ]]; then
-        if kill -0 $(< $PIDFILE) 2>/dev/null; then
-            echo "$PROG" running
-            return 0
-        fi
-    fi
     if [[ -n $(pgrep -f "/usr/bin/python.* $PROG -c") ]]; then
         echo "$PROG" running
         return 0
