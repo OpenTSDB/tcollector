@@ -60,7 +60,7 @@ stop () {
 }
 
 status () {
-    if [[ -n $(pgrep -f "/usr/bin/python.* $PROG -c") ]]; then
+    if pgrep -f "/usr/bin/python.* $PROG -c" >/dev/null; then
         echo "$PROG" running
         return 0
     fi
