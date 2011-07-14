@@ -13,7 +13,10 @@ HOSTNAME=$(hostname)
 PIDFILE=${PIDFILE-'/var/run/tcollector.pid'}
 PROG=$TCOLLECTOR_PATH/tcollector.py
 LOG=${LOG-'/var/log/tcollector.log'}
+COMMAND=$1
+shift
 ARGS="-c $TCOLLECTOR_PATH/collectors -H $TSD_HOST -t host=$HOSTNAME -P $PIDFILE"
+ARGS="$ARGS $@"
 
 # Sanity checks.
 test -d "$TCOLLECTOR_PATH" || {
@@ -84,7 +87,7 @@ forcerestart () {
     start
 }
 
-case $1 in
+case $COMMAND in
     start)  status || start
         ;;
     force-restart)
@@ -113,7 +116,7 @@ case $1 in
     status) status
             exit $?
         ;;
-    *)  echo >&2 "usage: $0 <start|stop|restart|status|force-restart>"
+    *)  echo >&2 "usage: $0 <start [args]|stop|restart|status|force-restart>"
         exit 1
         ;;
 esac
