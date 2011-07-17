@@ -1,8 +1,8 @@
 #!/usr/bin/env python
-# Load average monitoring on FreeBSD for tcollector.
+# Swap monitoring for FreeBSD.
 #
 # By: Sean Rees <sean@rees.us>
-# May, 2011
+# July 2011.
 #
 """Import all numeric sysctl variables."""
 
