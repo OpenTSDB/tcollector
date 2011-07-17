@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # Semi Universal start-stop script
 
@@ -39,6 +39,9 @@ for i in "$PIDFILE" "$LOG"; do
 done
 
 which_python () {
+    python=$(which python)
+    test -x "$python" && echo "$python" && return
+
     for python in /usr/bin/python2.6 /usr/bin/python2.5 /usr/bin/python; do
         test -x "$python" && echo "$python" && return
     done
@@ -55,24 +58,25 @@ start () {
 
 stop () {
     echo "Stopping $PROG"
-    if [[ -r "$PIDFILE" ]]; then
-        PID=$(< "$PIDFILE")
+    if [ -r "$PIDFILE" ]; then
+        PID=$(cat "$PIDFILE")
         kill $1 $PID
         sleep 1
     fi
     # Check also for instances not started with a pidfile
     # include only python processes
-    pgrep -f "/usr/bin/python.* $PROG -c" |grep -vw "$PID" | xargs -r kill $1
+    pgrep -f "${PYTHON}.* $PROG -c" | grep -vw "$PID" | xargs -r kill $1
 }
 
 status () {
-    if [[ -r "$PIDFILE" ]]; then
-        if kill -0 $(< $PIDFILE) 2>/dev/null; then
+    if [ -r "$PIDFILE" ]; then
+        if kill -0 $(cat $PIDFILE) 2>/dev/null; then
             echo "$PROG" running
             return 0
         fi
     fi
-    if [[ -n $(pgrep -f "/usr/bin/python.* $PROG -c") ]]; then
+
+    if [ $(pgrep -f "${PYTHON}.* $PROG -c") ]; then
         echo "$PROG" running
         return 0
     fi
@@ -85,7 +89,7 @@ forcerestart () {
     sleep 1
     while status; do
         try=$((try + 1))
-        if [[ $try -gt 3 ]]; then
+        if [ $try -gt 3 ]; then
             stop -9
         else
             stop
@@ -113,7 +117,7 @@ case $1 in
         # like asyncproc.py, but that's ok.
         if status; then
             newer=$(find $PROG -newer $PIDFILE | wc -l)
-            if [[ $newer -gt 0 ]]; then
+            if [ $newer -gt 0 ]; then
                 forcerestart
             fi
         else
