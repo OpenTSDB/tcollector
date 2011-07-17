@@ -4,7 +4,7 @@
 # By: Sean Rees <sean@rees.us>
 # July 2011.
 #
-"""Import all numeric sysctl variables."""
+"""Get swap data."""
 
 import re
 import subprocess
