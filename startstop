@@ -13,7 +13,10 @@ HOSTNAME=$(hostname)
 PIDFILE=${PIDFILE-'/var/run/tcollector.pid'}
 PROG=$TCOLLECTOR_PATH/tcollector.py
 LOG=${LOG-'/var/log/tcollector.log'}
+COMMAND=$1
+shift
 ARGS="-c $TCOLLECTOR_PATH/collectors -H $TSD_HOST -t host=$HOSTNAME -P $PIDFILE"
+ARGS="$ARGS $@"
 
 # Sanity checks.
 test -d "$TCOLLECTOR_PATH" || {
@@ -56,16 +59,17 @@ start () {
     $PYTHON $PROG $ARGS >> $LOG 2>&1 &
 }
 
+# stop [signum]
 stop () {
     echo "Stopping $PROG"
     if [ -r "$PIDFILE" ]; then
-        PID=$(cat "$PIDFILE")
-        kill $1 $PID
+        PID=$(cat $PIDFILE)
+        kill -TERM $PID
         sleep 1
     fi
     # Check also for instances not started with a pidfile
     # include only python processes
-    pgrep -f "${PYTHON}.* $PROG -c" | grep -vw "$PID" | xargs -r kill $1
+    pkill -f "${PYTHON}.* $PROG -c" 
 }
 
 status () {
@@ -100,7 +104,7 @@ forcerestart () {
     start
 }
 
-case $1 in
+case $COMMAND in
     start)  status || start
         ;;
     force-restart)
@@ -129,7 +133,7 @@ case $1 in
     status) status
             exit $?
         ;;
-    *)  echo >&2 "usage: $0 <start|stop|restart|status|force-restart>"
+    *)  echo >&2 "usage: $0 <start [args]|stop|restart|status|force-restart>"
         exit 1
         ;;
 esac

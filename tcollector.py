@@ -97,6 +97,15 @@ class Collector(object):
         self.generation = GENERATION
         self.buffer = ""
         self.datalines = []
+        # Maps (metric, tags) to (value, repeated, line, timestamp) where:
+        #  value: Last value seen.
+        #  repeated: boolean, whether the last value was seen more than once.
+        #  line: The last line that was read from that collector.
+        #  timestamp: Time at which we saw the value for the first time.
+        # This dict is used to keep track of and remove duplicate values.
+        # Since it might grow unbounded (in case we see many different
+        # combinations of metrics and tags) someone needs to regularly call
+        # evict_old_keys() to remove old entries.
         self.values = {}
         self.lines_sent = 0
         self.lines_received = 0
@@ -186,6 +195,18 @@ class Collector(object):
             # we really don't want to die as we're trying to exit gracefully
             LOG.exception('ignoring uncaught exception while shutting down')
 
+    def evict_old_keys(self, cut_off):
+        """Remove old entries from the cache used to detect duplicate values.
+
+        Args:
+          cut_off: A UNIX timestamp.  Any value that's older than this will be
+            removed from the cache.
+        """
+        for key in self.values.keys():
+            time = self.values[key][3]
+            if time < cut_off:
+                del self.values[key]
+
 
 class StdinCollector(Collector):
     """A StdinCollector simply reads from STDIN and provides the
@@ -225,20 +246,28 @@ class ReaderThread(threading.Thread):
        All data read is put into the self.readerq Queue, which is
        consumed by the SenderThread."""
 
-    def __init__(self, dedupinterval):
+    def __init__(self, dedupinterval, evictinterval):
         """Constructor.
             Args:
               dedupinterval: If a metric sends the same value over successive
                 intervals, suppress sending the same value to the TSD until
                 this many seconds have elapsed.  This helps graphs over narrow
                 time ranges still see timeseries with suppressed datapoints.
+              evictinterval: In order to implement the behavior above, the
+                code needs to keep track of the last value seen for each
+                combination of (metric, tags).  Values older than
+                evictinterval will be removed from the cache to save RAM.
+                Invariant: evictinterval > dedupinterval
         """
+        assert evictinterval > dedupinterval, "%r <= %r" % (evictinterval,
+                                                            dedupinterval)
         super(ReaderThread, self).__init__()
 
         self.readerq = ReaderQueue(100000)
         self.lines_collected = 0
         self.lines_dropped = 0
         self.dedupinterval = dedupinterval
+        self.evictinterval = evictinterval
 
     def run(self):
         """Main loop for this thread.  Just reads from collectors,
@@ -247,6 +276,7 @@ class ReaderThread(threading.Thread):
 
         LOG.debug("ReaderThread up and running")
 
+        lastevict_time = 0
         # we loop every second for now.  ideally we'll setup some
         # select or other thing to wait for input on our children,
         # while breaking out every once in a while to setup selects
@@ -256,6 +286,13 @@ class ReaderThread(threading.Thread):
                 for line in col.collect():
                     self.process_line(col, line)
 
+            now = int(time.time())
+            if now - lastevict_time > self.evictinterval:
+                lastevict_time = now
+                now -= self.evictinterval
+                for col in all_collectors():
+                    col.evict_old_keys(now)
+
             # and here is the loop that we really should get rid of, this
             # just prevents us from spinning right now
             time.sleep(1)
@@ -264,10 +301,10 @@ class ReaderThread(threading.Thread):
         """Parses the given line and appends the result to the reader queue."""
 
         col.lines_received += 1
-        parsed = re.match('^([-_.a-zA-Z0-9]+)\s+'  # Metric name.
+        parsed = re.match('^([-_./a-zA-Z0-9]+)\s+' # Metric name.
                           '(\d+)\s+'               # Timestamp.
                           '(\S+?)'                 # Value (int or float).
-                          '((?:\s+[-_.a-zA-Z0-9]+=[-_.a-zA-Z0-9]+)*)$', # Tags
+                          '((?:\s+[-_./a-zA-Z0-9]+=[-_./a-zA-Z0-9]+)*)$', # Tags
                           line)
         if parsed is None:
             LOG.warning('%s sent invalid data: %s', col.name, line)
@@ -319,7 +356,7 @@ class ReaderThread(threading.Thread):
 
         # now we can reset for the next pass and send the line we actually
         # want to send
-        # col.values is a dict of arrays, with the key being the metric and
+        # col.values is a dict of tuples, with the key being the metric and
         # tags (essentially the same as wthat TSD uses for the row key).
         # The array consists of:
         # [ the metric's value, if this value was repeated, the line of data,
@@ -408,7 +445,7 @@ class SenderThread(threading.Thread):
             return False
 
         bufsize = 4096
-        while True:
+        while ALIVE:
             # try to read as much data as we can.  at some point this is going
             # to block, but we have set the timeout low when we made the
             # connection
@@ -471,7 +508,7 @@ class SenderThread(threading.Thread):
         # connection didn't verify, so create a new one.  we might be in
         # this method for a long time while we sort this out.
         try_delay = 1
-        while True:
+        while ALIVE:
             if self.verify_conn():
                 return
 
@@ -503,7 +540,7 @@ class SenderThread(threading.Thread):
         for line in self.sendq:
             line = 'put ' + line + self.tagstr
             out += line + '\n'
-            LOG.debug('SENDING: %s' % line)
+            LOG.debug('SENDING: %s', line)
 
         if not out:
             LOG.debug('send_data no data?')
@@ -576,11 +613,21 @@ def parse_cmdline(argv):
                       default='/var/run/tcollector.pid',
                       metavar='FILE', help='Write our pidfile')
     parser.add_option('--dedup-interval', dest='dedupinterval', type='int',
-                      default=600, metavar='DEDUPINTERVAL',
+                      default=300, metavar='DEDUPINTERVAL',
                       help='Number of seconds in which successive duplicate '
                            'datapoints are suppressed before sending to the TSD. '
                            'default=%default')
+    parser.add_option('--evict-interval', dest='evictinterval', type='int',
+                      default=6000, metavar='EVICTINTERVAL',
+                      help='Number of seconds after which to remove cached '
+                           'values of old data points to save memory. '
+                           'default=%default')
     (options, args) = parser.parse_args(args=argv[1:])
+    if options.dedupinterval < 2:
+      parser.error('--dedup-interval must be at least 2 seconds')
+    if options.evictinterval <= options.dedupinterval:
+      parser.error('--evict-interval must be strictly greater than '
+                   '--dedup-interval')
     return (options, args)
 
 
@@ -632,7 +679,7 @@ def main(argv):
 
     # at this point we're ready to start processing, so start the ReaderThread
     # so we can have it running and pulling in data for us
-    reader = ReaderThread(options.dedupinterval)
+    reader = ReaderThread(options.dedupinterval, options.evictinterval)
     reader.start()
 
     # and setup the sender to start writing out to the tsd
@@ -834,6 +881,13 @@ def kill(proc, signum=signal.SIGTERM):
 def shutdown():
     """Called by atexit and when we receive a signal, this ensures we properly
        terminate any outstanding children."""
+
+    global ALIVE
+    # prevent repeated calls
+    if not ALIVE:
+        return
+    # notify threads of program termination
+    ALIVE = False
 
     LOG.info('shutting down children')
 

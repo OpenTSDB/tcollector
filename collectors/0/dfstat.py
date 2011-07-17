@@ -71,7 +71,7 @@ def main():
                 if fields[6].startswith("/dev/"):
                     continue
 
-                mount = fields[6].replace('/', '_')
+                mount = fields[6]
                 print ("df.1kblocks.total %d %s mount=%s fstype=%s"
                        % (ts, fields[2], mount, fields[1]))
                 print ("df.1kblocks.used %d %s mount=%s fstype=%s"
@@ -91,7 +91,7 @@ def main():
                 if not line or not fields[2].isdigit():
                     continue
 
-                mount = fields[6].replace('/', '_')
+                mount = fields[6]
                 print ("df.inodes.total %d %s mount=%s fstype=%s"
                        % (ts, fields[2], mount, fields[1]))
                 print ("df.inodes.used %d %s mount=%s fstype=%s"
