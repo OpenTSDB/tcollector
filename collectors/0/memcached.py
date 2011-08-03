@@ -66,7 +66,7 @@ COLLECTION_INTERVAL = 3  # seconds
 
 MEMCACHED_STAT_CMD = 'stats'
 MEMCACHED_STAT_REGEX = re.compile(ur"STAT (.*) (.*)\r")
-MEMCACHED_STAT_OMMIT = ['version', 'threads', 'pid', 'time', 'pointer_size']
+MEMCACHED_STAT_OMIT = ['version', 'threads', 'pid', 'time', 'pointer_size']
 
 def main():
     """memcached main loop"""
@@ -84,7 +84,7 @@ def main():
             response = dict(MEMCACHED_STAT_REGEX.findall(client.read_until('END')))
     
             for stat,val in response.iteritems():
-                if stat not in MEMCACHED_STAT_OMMIT:
+                if stat not in MEMCACHED_STAT_OMIT:
                     print ("memcached.%s %d %s" % (stat, ts, val))
         
         except socket.error, (errno, msg):
