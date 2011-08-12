@@ -230,6 +230,7 @@ def collect(db):
   def printmetric(metric, value, tags=""):
     print "mysql.%s %d %s schema=%s%s" % (metric, ts, value, db.dbname, tags)
 
+  has_innodb = False
   if db.isShowGlobalStatusSafe():
     for metric, value in db.query("SHOW GLOBAL STATUS"):
       try:
@@ -240,9 +241,10 @@ def collect(db):
       except ValueError:
         continue
       metric = metric.lower()
+      has_innodb = has_innodb or metric.startswith("innodb")
       printmetric(metric, value)
 
-  if False:  # This is disabled because it's too expensive for InnoDB.
+  if has_innodb and False:  # Disabled because it's too expensive for InnoDB.
     waits = {}  # maps a mutex name to the number of waits
     for engine, mutex, status in db.query("SHOW ENGINE INNODB MUTEX"):
       if not status.startswith("os_waits"):
