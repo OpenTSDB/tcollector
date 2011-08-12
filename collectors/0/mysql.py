@@ -256,7 +256,7 @@ def collect(db):
       wait_count = int(status.split("=", 1)[1])
       waits[mutex] = waits.get(mutex, 0) + wait_count
     for mutex, wait_count in waits.iteritems():
-      printmetric(mutex, wait_count)
+      printmetric("innodb.locks", wait_count, " mutex=" + mutex)
 
   slave_status = todict(db, db.query("SHOW SLAVE STATUS")[0])
   master_host = slave_status["master_host"]
