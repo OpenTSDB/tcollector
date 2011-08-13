@@ -246,6 +246,7 @@ def collect(db):
 
   if has_innodb and False:  # Disabled because it's too expensive for InnoDB.
     waits = {}  # maps a mutex name to the number of waits
+    ts = now()
     for engine, mutex, status in db.query("SHOW ENGINE INNODB MUTEX"):
       if not status.startswith("os_waits"):
         continue
@@ -260,6 +261,7 @@ def collect(db):
     for mutex, wait_count in waits.iteritems():
       printmetric("innodb.locks", wait_count, " mutex=" + mutex)
 
+  ts = now()
   slave_status = todict(db, db.query("SHOW SLAVE STATUS")[0])
   master_host = slave_status["master_host"]
   if master_host and master_host != "None":
