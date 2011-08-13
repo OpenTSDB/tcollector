@@ -223,6 +223,76 @@ def isyes(s):
   return 0
 
 
+def collectInnodbStatus(db):
+  """Collects and prints InnoDB stats about the given DB instance."""
+  ts = now()
+  def printmetric(metric, value, tags=""):
+    print "mysql.%s %d %s schema=%s%s" % (metric, ts, value, db.dbname, tags)
+
+  innodb_status = db.query("SHOW ENGINE INNODB STATUS")[0][2]
+  m = re.search("^(\d{6}\s+\d{1,2}:\d\d:\d\d) INNODB MONITOR OUTPUT$",
+                innodb_status, re.M)
+  if m:  # If we have it, try to use InnoDB's own timestamp.
+    ts = int(time.mktime(time.strptime(m.group(1), "%y%m%d %H:%M:%S")))
+
+  line = None
+  def match(regexp):
+    return re.match(regexp, line)
+
+  for line in innodb_status.split("\n"):
+    # SEMAPHORES
+    m = match("OS WAIT ARRAY INFO: reservation count (\d+), signal count (\d+)")
+    if m:
+      printmetric("innodb.oswait_array.reservation_count", m.group(1))
+      printmetric("innodb.oswait_array.signal_count", m.group(2))
+      continue
+    m = match("Mutex spin waits (\d+), rounds (\d+), OS waits (\d+)")
+    if m:
+      printmetric("innodb.locks.spin_waits", m.group(1), " type=mutex")
+      printmetric("innodb.locks.rounds", m.group(2), " type=mutex")
+      printmetric("innodb.locks.os_waits", m.group(3), " type=mutex")
+      continue
+    m = match("RW-shared spins (\d+), OS waits (\d+);"
+              " RW-excl spins (\d+), OS waits (\d+)")
+    if m:
+      printmetric("innodb.locks.spin_waits", m.group(1), " type=rw-shared")
+      printmetric("innodb.locks.os_waits", m.group(2), " type=rw-shared")
+      printmetric("innodb.locks.spin_waits", m.group(3), " type=rw-exclusive")
+      printmetric("innodb.locks.os_waits", m.group(4), " type=rw-exclusive")
+      continue
+    # INSERT BUFFER AND ADAPTIVE HASH INDEX
+    # TODO(tsuna): According to the code in ibuf0ibuf.c, this line and
+    # the following one can appear multiple times.  I've never seen this.
+    # If that happens, we need to aggregate the values here instead of
+    # printing them directly.
+    m = match("Ibuf: size (\d+), free list len (\d+), seg size (\d+),")
+    if m:
+      printmetric("innodb.ibuf.size", m.group(1))
+      printmetric("innodb.ibuf.free_list_len", m.group(2))
+      printmetric("innodb.ibuf.seg_size", m.group(3))
+      continue
+    m = match("(\d+) inserts, (\d+) merged recs, (\d+) merges")
+    if m:
+      printmetric("innodb.ibuf.inserts", m.group(1))
+      printmetric("innodb.ibuf.merged_recs", m.group(2))
+      printmetric("innodb.ibuf.merges", m.group(3))
+      continue
+    # ROW OPERATIONS
+    m = match("\d+ queries inside InnoDB, (\d+) queries in queue")
+    if m:
+      printmetric("innodb.queries_queued", m.group(1))
+      continue
+    m = match("(\d+) read views open inside InnoDB")
+    if m:
+      printmetric("innodb.opened_read_views", m.group(1))
+      continue
+    # TRANSACTION
+    m = match("History list length (\d+)")
+    if m:
+      printmetric("innodb.history_list_length", m.group(1))
+      continue
+
+
 def collect(db):
   """Collects and prints stats about the given DB instance."""
 
@@ -243,6 +313,9 @@ def collect(db):
       metric = metric.lower()
       has_innodb = has_innodb or metric.startswith("innodb")
       printmetric(metric, value)
+
+  if has_innodb:
+    collectInnodbStatus(db)
 
   if has_innodb and False:  # Disabled because it's too expensive for InnoDB.
     waits = {}  # maps a mutex name to the number of waits
