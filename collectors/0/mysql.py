@@ -275,7 +275,8 @@ def collect(db):
   for id, user, host, db_, cmd, time, state, _ in db.query("SHOW PROCESSLIST"):
     states[cmd] = states.get(cmd, 0) + 1
   for state, count in states.iteritems():
-    printmetric("connection_states", count, " state=%s" % state.lower())
+    state = state.lower().replace(" ", "_")
+    printmetric("connection_states", count, " state=%s" % state)
 
 
 def main(args):
