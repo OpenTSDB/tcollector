@@ -272,7 +272,8 @@ def collect(db):
                 isyes(slave_status["slave_sql_running"]))
 
   states = {}  # maps a connection state to number of connections in that state
-  for id, user, host, db_, cmd, time, state, _ in db.query("SHOW PROCESSLIST"):
+  for row in db.query("SHOW PROCESSLIST"):
+    id, user, host, db_, cmd, time, state = row[:7]
     states[cmd] = states.get(cmd, 0) + 1
   for state, count in states.iteritems():
     state = state.lower().replace(" ", "_")
