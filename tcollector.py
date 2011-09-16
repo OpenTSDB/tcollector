@@ -522,13 +522,20 @@ class SenderThread(threading.Thread):
             time.sleep(try_delay)
 
             # now actually try the connection
-            try:
-                self.tsd = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                self.tsd.settimeout(15)
-                self.tsd.connect((self.host, self.port))
-            except socket.error, msg:
-                LOG.error('failed to connect to %s:%d: %s',
-                           self.host, self.port, msg)
+          adresses = socket.getaddrinfo(self.host, self.port, socket.AF_UNSPEC, socket.SOCK_STREAM, 0)
+            for (family, socktype, proto, canonname, sockaddr) in adresses :
+                try:
+                    self.tsd = socket.socket(family, socktype, proto)
+                    self.tsd.settimeout(15)
+                    self.tsd.connect(sockaddr)
+                    # if we get here it connected
+                    break
+                except socket.error, msg:
+                    LOG.warning ('connection attempt failed to %s:%d: %s' , host, port, msg )
+                self.tsd = None
+            if not self.tsd :
+                LOG.error('failed to connect to %s:%d',
+                           self.host, self.port)
                 self.tsd.close()
                 self.tsd = None
 
