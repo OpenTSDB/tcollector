@@ -532,7 +532,8 @@ class SenderThread(threading.Thread):
                     # if we get here it connected
                     break
                 except socket.error, msg:
-                    LOG.warning('Connection attempt failed to %s:%d: %s', host, port, msg)
+                    LOG.warning('Connection attempt failed to %s:%d: %s',
+                                self.host, self.port, msg)
                 self.tsd.close()
                 self.tsd = None
             if not self.tsd:
