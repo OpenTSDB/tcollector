@@ -47,7 +47,7 @@ SEARCH_DIRS = [
 ]
 
 def err(msg):
-  print >>sys.stderr, msg
+  print >> sys.stderr, msg
 
 class DB(object):
   """Represents a MySQL server (as we can monitor more than 1 MySQL)."""
@@ -337,22 +337,33 @@ def collect(db):
       printmetric("innodb.locks", wait_count, " mutex=" + mutex)
 
   ts = now()
-  slave_status = todict(db, db.query("SHOW SLAVE STATUS")[0])
-  master_host = slave_status["master_host"]
-  if master_host and master_host != "None":
-    sbm = slave_status.get("seconds_behind_master")
-    if isinstance(sbm, (int, long)):
-      printmetric("slave.seconds_behind_master", sbm)
-    printmetric("slave.bytes_executed", slave_status["exec_master_log_pos"])
-    printmetric("slave.bytes_relayed", slave_status["read_master_log_pos"])
-    printmetric("slave.thread_io_running",
-                isyes(slave_status["slave_io_running"]))
-    printmetric("slave.thread_sql_running",
-                isyes(slave_status["slave_sql_running"]))
+
+  mysql_slave_status = db.query("SHOW SLAVE STATUS")
+  if mysql_slave_status:
+    print_slave_status(mysql_slave_status)
+
+  def print_slave_status(mysql_slave_status):
+    """ If we have slave status information, send it to opentsdb """
+
+    if not mysql_slave_status:
+      return
+
+    slave_status = todict(db, mysql_slave_status)[0]
+    master_host = slave_status["master_host"]
+    if master_host and master_host != "None":
+      sbm = slave_status.get("seconds_behind_master")
+      if isinstance(sbm, (int, long)):
+        printmetric("slave.seconds_behind_master", sbm)
+      printmetric("slave.bytes_executed", slave_status["exec_master_log_pos"])
+      printmetric("slave.bytes_relayed", slave_status["read_master_log_pos"])
+      printmetric("slave.thread_io_running",
+		      isyes(slave_status["slave_io_running"]))
+      printmetric("slave.thread_sql_running",
+		      isyes(slave_status["slave_sql_running"]))
 
   states = {}  # maps a connection state to number of connections in that state
   for row in db.query("SHOW PROCESSLIST"):
-    id, user, host, db_, cmd, time, state = row[:7]
+    id_, user, host, db_, cmd, time, state = row[:7]
     states[cmd] = states.get(cmd, 0) + 1
   for state, count in states.iteritems():
     state = state.lower().replace(" ", "_")
