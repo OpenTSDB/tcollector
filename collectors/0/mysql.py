@@ -337,8 +337,14 @@ def collect(db):
       printmetric("innodb.locks", wait_count, " mutex=" + mutex)
 
   ts = now()
-  slave_status = todict(db, db.query("SHOW SLAVE STATUS")[0])
-  master_host = slave_status["master_host"]
+
+  mysql_slave_status = db.query("SHOW SLAVE STATUS")
+  if mysql_slave_status:
+    slave_status = todict(db, mysql_slave_status[0])
+    master_host = slave_status["master_host"]
+  else:
+    master_host = None
+
   if master_host and master_host != "None":
     sbm = slave_status.get("seconds_behind_master")
     if isinstance(sbm, (int, long)):
