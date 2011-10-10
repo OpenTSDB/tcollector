@@ -1,13 +1,21 @@
 #!/usr/bin/python
 #
-# collector for Riak statistics.  this is very basic right now.  borrowed
-# somewhat from netstat.py.
+# Copyright 2011 by Bump Technologies, Inc.
 #
-# written by Mark Smith <mark@bu.mp>
+# This program is free software: you can redistribute it and/or modify it
+# under the terms of the GNU Lesser General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or (at your
+# option) any later version.  This program is distributed in the hope that it
+# will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty
+# of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser
+# General Public License for more details.  You should have received a copy
+# of the GNU Lesser General Public License along with this program.  If not,
+# see <http://www.gnu.org/licenses/>.
+#
+# Written by Mark Smith <mark@qq.is>.
 #
 
-
-"""Statistics from a Riak node.
+"""A collector to gather statistics from a Riak node.
 
 The following all have tags of 'type' which can be 'get' or 'put'.  Latency
 is measured in milliseconds.  All latency values are calculated over the last
@@ -47,7 +55,7 @@ USER = "nobody"
 
 MAP = {
     'vnode_gets_total': ('vnode.requests', 'type=get'),
-    'vnode_puts_total': ('vnode.puts', 'type=put'),
+    'vnode_puts_total': ('vnode.requests', 'type=put'),
     'node_gets_total': ('node.requests', 'type=get'),
     'node_puts_total': ('node.requests', 'type=put'),
     'node_get_fsm_time_mean': ('node.latency.mean', 'type=get'),
@@ -107,14 +115,15 @@ def main():
 
         req = urllib2.urlopen("http://localhost:8098/stats")
         if req is not None:
-            obj = json.loads("".join(req.readlines()))
+            obj = json.loads(req.read())
             for key in obj:
-                if key in MAP:
-                    # this is a hack, but Riak reports latencies in microseconds.  they're fairly useless
-                    # to our human operators, so we're going to convert them to seconds.
-                    if 'latency' in MAP[key][0]:
-                        obj[key] = float(obj[key] / 1000000.0)
-                    print_stat(MAP[key][0], obj[key], MAP[key][1])
+                if key not in MAP:
+                    continue
+                # this is a hack, but Riak reports latencies in microseconds.  they're fairly useless
+                # to our human operators, so we're going to convert them to seconds.
+                if 'latency' in MAP[key][0]:
+                    obj[key] = float(obj[key] / 1000000)
+                print_stat(MAP[key][0], obj[key], MAP[key][1])
             if 'connected_nodes' in obj:
                 print_stat('connected_nodes', len(obj['connected_nodes']), '')
 
