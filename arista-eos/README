@@ -1,0 +1,13 @@
+This Makefile allows you to package tcollector as an EOS extension.
+EOS is Arista's Extensible Operating System, the OS that runs on all
+of Arista's switches.  EOS runs an unmodified Linux kernel along with
+a Fedora userland.
+
+Deploying tcollector as an EOS extension makes it easy to monitor all
+your Arista devices.
+
+To build the extension, just do `make all'.  Then install it like any
+other extension, for example:
+  copy http://www.example.com/tcollector-X.Y.Z-A.swix extension:
+  extension tcollector-X.Y.Z-A.swix
+Then restart the CLI.
