@@ -11,8 +11,6 @@ import subprocess
 import sys
 import time
 
-COLLECTION_INTERVAL = 15  # seconds
-
 def swapinfo():
     proc = subprocess.Popen(["/usr/sbin/swapinfo"], stdout=subprocess.PIPE)
     output = proc.communicate()[0]
@@ -37,23 +35,20 @@ def print_swaplines(ts, device, size, used, avail):
 def main(argv):
     """main loop"""
 
-    while True:
-        ts = int(time.time())
+    ts = int(time.time())
 
-        swapinfo_lines = swapinfo()
+    swapinfo_lines = swapinfo()
 
-        for line in swapinfo_lines:
-            if not line:
-                continue
+    for line in swapinfo_lines:
+        if not line:
+            continue
 
-            device, size, used, avail, capacity = re.split("\s+", line)
+        device, size, used, avail, capacity = re.split("\s+", line)
+        device = device.replace("/dev/", "")
 
-            device = device.replace("/dev/", "")
-
-            print_swaplines(ts, device, size, used, avail)
+        print_swaplines(ts, device, size, used, avail)
 
         sys.stdout.flush()
-        time.sleep(COLLECTION_INTERVAL)
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv))
