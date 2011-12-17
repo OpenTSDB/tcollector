@@ -10,23 +10,52 @@ import subprocess
 import sys
 import time
 
+# This has to be a long-running collector, because we need to
+# sample kern.cp_times for deltas.
 COLLECTION_INTERVAL = 15  # seconds
 
-def labelify_cptimes(cp_times_list, cpu_label="all"):
-    cptime_types = ["user", "nice", "system", "interrupt", "idle"]
+# We only sample kern.cp_times. On uni-processor systems
+# it will equal kern.cp_time, on multi-processor systems,
+# we'll get a (user, nice, system, interrupt, idle) block
+# for each CPU.
+CPTIMES_TYPES = ["user", "nice", "system", "interrupt", "idle"]
+LAST_CPTIMES = None
+
+def compute_and_label_times(cur_times, last_times, cpu_label="cpu0"):
+    """Computes and labels results.
+
+    This will diff each cpu time counter with the last value collected,
+    then use that to form a percentage over the total difference since
+    the last collection.
+
+    Args:
+        cur_times: list of current cpu times for a given cpu.
+        last_times: the last sampled times for the same cpu.
+        cpu_label: a human-friendly label for this cpu.
+
+    Returns:
+        A list of (cpu time percentage, {labels}) tuples.
+    """
+    global CPTIMES_TYPES
     labeled_results = []
 
-    for i in range(len(cptime_types)):
-        labels = "cpu=%s type=%s" % (cpu_label, cptime_types[i])
+    # Sanity checks, we should be comparing apples to apples here.
+    assert len(cur_times) == len(last_times)
+    assert len(cur_times) == len(CPTIMES_TYPES)
 
-        labeled_results.append((cp_times_list[i], labels))
+    # We compute percentages by diffing the ticks since the
+    # last time, then determining the average of them all.
+    differences = [(int)(cur_times[i]) - (int)(last_times[i])
+                   for i in range(len(cur_times))]
+    total_difference = sum(differences)
+
+    for i in range(len(CPTIMES_TYPES)):
+        labels = "cpu=%s type=%s" % (cpu_label, CPTIMES_TYPES[i])
+        pct = round(float(differences[i]) / total_difference * 100, 1)
+
+        labeled_results.append((pct, labels))
 
     return labeled_results
-
-def parse_kern_cptime(sysctls, key, kern_cptime_val, results):
-    cpu_times = kern_cptime_val.split(" ")
-
-    results[key] = labelify_cptimes(cpu_times)
 
 def parse_kern_cptimes(sysctls, key, kern_cptimes_val, results):
     """Processes kern.cp_times.
@@ -38,29 +67,39 @@ def parse_kern_cptimes(sysctls, key, kern_cptimes_val, results):
     We split the value along those lines and feed it into
     parse_kern_cptime.
     """
-    # XXX: we presume there are always 5 cpu time types. This should
-    # probably be less dumb.
-    slice_len = 5
+    global CPTIMES_TYPES, LAST_CPTIMES
+
+    slice_len = len(CPTIMES_TYPES)
 
     num_cpus = int(sysctls['hw.ncpu'])
     cpu_times = kern_cptimes_val.split(" ")
 
     labeled_results = []
 
-    for i in range(num_cpus):
-        times_for_this_cpu = cpu_times[i*slice_len:i*slice_len+slice_len]
-        labeled_results += labelify_cptimes(times_for_this_cpu, 'cpu%d' % i)
+    if LAST_CPTIMES is not None:
+        for i in range(num_cpus):
+            range_beg = i * slice_len
+            range_end = range_beg + slice_len
 
-    results[key] = labeled_results
+            times_for_this_cpu = cpu_times[range_beg:range_end]
+            last_times_for_this_cpu = LAST_CPTIMES[range_beg:range_end]
+
+            labeled_results += compute_and_label_times(
+                times_for_this_cpu, last_times_for_this_cpu, 'cpu%d' % i)
+
+    LAST_CPTIMES = cpu_times
+
+    # Compatible name with the Linux collector.
+    results["proc.stat.cpu"] = labeled_results
 
 def parse_vm_loadavg(sysctls, key, loadavg_val, results):
     # vm.loadavg: { 1m 5m 15m }
     load_avgs = loadavg_val[2:-2].split(" ")
 
-    # Rewrite keys to be name-compatible with the Linux extractor.
-    results['proc.loadavg.1min'] = load_avgs[0]
-    results['proc.loadavg.5min'] = load_avgs[1]
-    results['proc.loadavg.15min'] = load_avgs[2]
+    # Compatible names with the Linux collector.
+    results["proc.loadavg.1min"] = load_avgs[0]
+    results["proc.loadavg.5min"] = load_avgs[1]
+    results["proc.loadavg.15min"] = load_avgs[2]
 
 def multiply_by_pagesize(sysctls, key, val, results):
     page_size = int(sysctls["vm.stats.vm.v_page_size"])
@@ -99,7 +138,6 @@ def main(argv):
     # Some FreeBSD sysctl's are in a packed format, these extractors
     # will split out individual values.
     extractors = {
-        "kern.cp_time": parse_kern_cptime,
         "kern.cp_times": parse_kern_cptimes,
         "vm.loadavg": parse_vm_loadavg,
         "vm.stats.vm.v_active_count": multiply_by_pagesize,
