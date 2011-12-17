@@ -44,7 +44,10 @@ COLLECTORS = {}
 GENERATION = 0
 LOG = logging.getLogger('tcollector')
 ALIVE = True
-
+# If the SenderThread catches more than this many consecutive uncaught
+# exceptions, something is not right and tcollector will shutdown.
+# Hopefully some kind of supervising daemon will then restart it.
+MAX_UNCAUGHT_EXCEPTIONS = 100
 
 def register_collector(collector):
     """Register a collector with the COLLECTORS global"""
@@ -408,22 +411,38 @@ class SenderThread(threading.Thread):
            send it.  A little better than sending every line as its
            own packet."""
 
+        errors = 0  # How many uncaught exceptions in a row we got.
         while ALIVE:
-            self.maintain_conn()
             try:
-                line = self.reader.readerq.get(True, 5)
-            except Empty:
-                continue
-            self.sendq.append(line)
-            time.sleep(5)  # Wait for more data
-            while True:
+                self.maintain_conn()
                 try:
-                    line = self.reader.readerq.get(False)
+                    line = self.reader.readerq.get(True, 5)
                 except Empty:
-                    break
+                    continue
                 self.sendq.append(line)
+                time.sleep(5)  # Wait for more data
+                while True:
+                    try:
+                        line = self.reader.readerq.get(False)
+                    except Empty:
+                        break
+                    self.sendq.append(line)
 
-            self.send_data()
+                self.send_data()
+                errors = 0  # We managed to do a successful iteration.
+            except (ArithmeticError, EOFError, EnvironmentError, LookupError,
+                    ValueError), e:
+                errors += 1
+                if errors > MAX_UNCAUGHT_EXCEPTIONS:
+                    shutdown()
+                    raise
+                LOG.exception('Uncaught exception in SenderThread, ignoring')
+                time.sleep(1)
+                continue
+            except:
+                LOG.exception('Uncaught exception in SenderThread, going to exit')
+                shutdown()
+                raise
 
     def verify_conn(self):
         """Periodically verify that our connection to the TSD is OK
@@ -521,16 +540,23 @@ class SenderThread(threading.Thread):
             LOG.debug('SenderThread blocking %0.2f seconds', try_delay)
             time.sleep(try_delay)
 
-            # now actually try the connection
-            try:
-                self.tsd = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                self.tsd.settimeout(15)
-                self.tsd.connect((self.host, self.port))
-            except socket.error, msg:
-                LOG.error('failed to connect to %s:%d: %s',
-                           self.host, self.port, msg)
+            # Now actually try the connection.
+            adresses = socket.getaddrinfo(self.host, self.port, socket.AF_UNSPEC,
+                                          socket.SOCK_STREAM, 0)
+            for family, socktype, proto, canonname, sockaddr in adresses:
+                try:
+                    self.tsd = socket.socket(family, socktype, proto)
+                    self.tsd.settimeout(15)
+                    self.tsd.connect(sockaddr)
+                    # if we get here it connected
+                    break
+                except socket.error, msg:
+                    LOG.warning('Connection attempt failed to %s:%d: %s',
+                                self.host, self.port, msg)
                 self.tsd.close()
                 self.tsd = None
+            if not self.tsd:
+                LOG.error('Failed to connect to %s:%d', self.host, self.port)
 
     def send_data(self):
         """Sends outstanding data in self.sendq to the TSD in one operation."""
