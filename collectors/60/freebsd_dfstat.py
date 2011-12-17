@@ -48,7 +48,7 @@ def main():
     ts = int(time.time())
 
     # 1kblocks and inodes
-    df_proc = subprocess.Popen(["df", "-PlTki"], stdout=subprocess.PIPE)
+    df_proc = subprocess.Popen(["df", "-Plki"], stdout=subprocess.PIPE)
     stdout, _ = df_proc.communicate()
     if df_proc.returncode == 0:
         for line in stdout.split("\n"): # pylint: disable=E1103
@@ -61,23 +61,23 @@ def main():
             # want to blacklist all tmpfs since sometimes it's
             # used for active filesystems (/var/run, /tmp)
             # that we do want to track.
-            if fields[1] in ("devfs", "fdescfs", "procfs"):
+            if fields[0] in ("devfs", "fdescfs", "procfs"):
                 continue
 
-            mount = fields[9]
-            total_inodes = int(fields[6]) + int(fields[7])
-            print ("df.1kblocks.total %d %s mount=%s fstype=%s"
-                   % (ts, fields[2], mount, fields[1]))
-            print ("df.1kblocks.used %d %s mount=%s fstype=%s"
-                   % (ts, fields[3], mount, fields[1]))
-            print ("df.1kblocks.free %d %s mount=%s fstype=%s"
-                   % (ts, fields[4], mount, fields[1]))
-            print ("df.inodes.total %d %s mount=%s fstype=%s"
-                   % (ts, total_inodes, mount, fields[1]))
-            print ("df.inodes.used %d %s mount=%s fstype=%s"
-                   % (ts, fields[6], mount, fields[1]))
-            print ("df.inodes.free %d %s mount=%s fstype=%s"
-                   % (ts, fields[7], mount, fields[1]))
+            mount = fields[8]
+            total_inodes = int(fields[5]) + int(fields[6])
+            print ("df.1kblocks.total %d %s mount=%s"
+                   % (ts, fields[1], mount))
+            print ("df.1kblocks.used %d %s mount=%s"
+                   % (ts, fields[2], mount))
+            print ("df.1kblocks.free %d %s mount=%s"
+                   % (ts, fields[3], mount))
+            print ("df.inodes.total %d %s mount=%s"
+                   % (ts, total_inodes, mount))
+            print ("df.inodes.used %d %s mount=%s"
+                   % (ts, fields[5], mount))
+            print ("df.inodes.free %d %s mount=%s"
+                   % (ts, fields[6], mount))
     else:
         print >> sys.stderr, "df -PlTki returned %r" % df_proc.returncode
 
