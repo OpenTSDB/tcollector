@@ -64,14 +64,14 @@ def main(argv):
 
         print "ifstat.mtu %d %s if=%s" % (ts, mtu, ifname)
         print "ifstat.collisions %d %s if=%s" % (ts, coll, ifname)
-        print "ifstat.in.packets %d %s if=%s" % (ts, ipkts, ifname)
-        print "ifstat.in.errors %d %s if=%s" % (ts, ierrs, ifname)
-        print "ifstat.in.dropped %d %s if=%s" % (ts, idrop, ifname)
-        print "ifstat.in.kbytes %d %s if=%s" % (ts, ibytes / 1024, ifname)
-        print "ifstat.out.packets %d %s if=%s" % (ts, opkts, ifname)
-        print "ifstat.out.errors %d %s if=%s" % (ts, oerrs, ifname)
-        print "ifstat.out.dropped %d %s if=%s" % (ts, odrop, ifname)
-        print "ifstat.out.kbytes %d %s if=%s" % (ts, obytes / 1024, ifname)
+        print "ifstat.packets_out %d %s if=%s" % (ts, ipkts, ifname)
+        print "ifstat.errors_in %d %s if=%s" % (ts, ierrs, ifname)
+        print "ifstat.drops_in %d %s if=%s" % (ts, idrop, ifname)
+        print "ifstat.kbits_in %d %s if=%s" % (ts, (ibytes / 1024) * 8, ifname)
+        print "ifstat.packets_out %d %s if=%s" % (ts, opkts, ifname)
+        print "ifstat.errors_out %d %s if=%s" % (ts, oerrs, ifname)
+        print "ifstat.drops_out %d %s if=%s" % (ts, odrop, ifname)
+        print "ifstat.kbits_out %d %s if=%s" % (ts, (obytes / 1024) * 8, ifname)
 
         sys.stdout.flush()
 
