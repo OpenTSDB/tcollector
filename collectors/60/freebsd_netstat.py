@@ -64,7 +64,7 @@ def main(argv):
 
         print "ifstat.mtu %d %s if=%s" % (ts, mtu, ifname)
         print "ifstat.collisions %d %s if=%s" % (ts, coll, ifname)
-        print "ifstat.packets_out %d %s if=%s" % (ts, ipkts, ifname)
+        print "ifstat.packets_in %d %s if=%s" % (ts, ipkts, ifname)
         print "ifstat.errors_in %d %s if=%s" % (ts, ierrs, ifname)
         print "ifstat.drops_in %d %s if=%s" % (ts, idrop, ifname)
         print "ifstat.kbits_in %d %s if=%s" % (ts, (ibytes / 1024) * 8, ifname)
