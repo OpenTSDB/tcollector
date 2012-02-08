@@ -98,7 +98,6 @@ def main(argv):
     # Build the classpath.
     dir = os.path.dirname(sys.argv[0])
     jar = os.path.normpath(dir + "/../lib/jmx-1.0.jar")
-    jar = os.path.normpath("/usr/local/tcollector/collectors/lib/jmx-1.0.jar")
     if not os.path.exists(jar):
         print >>sys.stderr, "WTF?!  Can't run, %s doesn't exist" % jar
         return 13
