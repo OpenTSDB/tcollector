@@ -720,6 +720,7 @@ def main(argv):
         register_collector(StdinCollector())
         stdin_loop(options, modules, sender, tags)
     else:
+        sys.stdin.close()
         main_loop(options, modules, sender, tags)
     LOG.debug('Shutting down -- joining the reader thread.')
     reader.join()
