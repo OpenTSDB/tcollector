@@ -117,7 +117,15 @@ def main(argv):
                 print >>sys.stderr, "invalid line (too short): %r" % line
                 continue
 
-            timestamp, metric, value, mbean = line.split("\t", 3)
+            try:
+                timestamp, metric, value, mbean = line.split("\t", 3)
+            except ValueError, e:
+                # Temporary workaround for jmx.jar not printing these lines we
+                # don't care about anyway properly.
+                if "java.lang.String" not in line:
+                    print >>sys.stderr, "Can't split line: %r" % line
+                continue
+
             # Sanitize the timestamp.
             try:
                 timestamp = int(timestamp)
