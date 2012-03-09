@@ -35,6 +35,8 @@ JMX_SERVICE_RENAMING = {
     "GarbageCollector": "gc",
     "OperatingSystem": "os",
     "Threading": "threads",
+    # New in 0.92.1, from HBASE-5325:
+    "org.apache.hbase": "hbase",
 }
 
 def drop_privileges():
