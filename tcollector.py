@@ -33,6 +33,7 @@ import subprocess
 import sys
 import threading
 import time
+from logging.handlers import RotatingFileHandler
 from Queue import Queue
 from Queue import Empty
 from Queue import Full
@@ -42,6 +43,7 @@ from optparse import OptionParser
 # global variables.
 COLLECTORS = {}
 GENERATION = 0
+DEFAULT_LOG = '/var/log/tcollector.log'
 LOG = logging.getLogger('tcollector')
 ALIVE = True
 # If the SenderThread catches more than this many consecutive uncaught
@@ -592,10 +594,15 @@ class SenderThread(threading.Thread):
         # the packets out of the kernel's queue
 
 
-def setup_logging():
+def setup_logging(logfile=DEFAULT_LOG, max_bytes=None, backup_count=None):
+    """Sets up logging and associated handlers."""
 
     LOG.setLevel(logging.INFO)
-    ch = logging.StreamHandler(sys.stdout)
+    if backup_count is not None:  # Setup log rotation handler.
+        ch = RotatingFileHandler(logfile, 'a', max_bytes, backup_count)
+    else:  # Setup stream handler.
+        ch = logging.StreamHandler(sys.stdout)
+
     ch.setFormatter(logging.Formatter('%(asctime)s %(name)s[%(process)d] '
                                       '%(levelname)s: %(message)s'))
     LOG.addHandler(ch)
@@ -648,6 +655,13 @@ def parse_cmdline(argv):
                       help='Number of seconds after which to remove cached '
                            'values of old data points to save memory. '
                            'default=%default')
+    parser.add_option('--max-bytes', dest='max_bytes', type='int',
+                      default=1000000, help='Maximum bytes per a logfile.')
+    parser.add_option('--backup-count', dest='backup_count', type='int',
+                      default=0, help='Maximum number of logfiles to backup.')
+    parser.add_option('--logfile', dest='logfile', type='str',
+                      default=DEFAULT_LOG,
+                      help='Filename where logs are written to.')
     (options, args) = parser.parse_args(args=argv[1:])
     if options.dedupinterval < 2:
       parser.error('--dedup-interval must be at least 2 seconds')
@@ -660,8 +674,8 @@ def parse_cmdline(argv):
 def main(argv):
     """The main tcollector entry point and loop."""
 
-    setup_logging()
     options, args = parse_cmdline(argv)
+    setup_logging(options.logfile, options.max_bytes, options.backup_count)
 
     if options.verbose:
         LOG.setLevel(logging.DEBUG)  # up our level
