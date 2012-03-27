@@ -222,9 +222,8 @@ final class jmx {
       }
       buf.setLength(buf.length() - 1);
     } else {
-      buf.append(name).append('\t');
+      buf.append(name).append('\t').append(value);
     }
-    buf.append(value);
     if (long_output) {
       buf.append('\t').append(object);
     }
