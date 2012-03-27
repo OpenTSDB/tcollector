@@ -306,6 +306,10 @@ class ReaderThread(threading.Thread):
         """Parses the given line and appends the result to the reader queue."""
 
         col.lines_received += 1
+        if len(line) >= 1024:  # Limit in net.opentsdb.tsd.PipelineFactory
+            LOG.warning('%s line too long: %s', col.name, line)
+            col.lines_invalid += 1
+            return
         parsed = re.match('^([-_./a-zA-Z0-9]+)\s+' # Metric name.
                           '(\d+)\s+'               # Timestamp.
                           '(\S+?)'                 # Value (int or float).
