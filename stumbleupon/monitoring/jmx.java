@@ -32,6 +32,7 @@ import javax.management.MBeanAttributeInfo;
 import javax.management.MBeanInfo;
 import javax.management.MBeanServerConnection;
 import javax.management.ObjectName;
+import javax.management.openmbean.TabularData;
 import javax.management.remote.JMXConnector;
 import javax.management.remote.JMXConnectorFactory;
 import javax.management.remote.JMXServiceURL;
@@ -209,9 +210,26 @@ final class jmx {
                                 final MBeanServerConnection mbsc,
                                 final ObjectName object,
                                 final MBeanAttributeInfo attr) throws Exception {
-    final StringBuilder buf = new StringBuilder();
     final String name = attr.getName();
     Object value = mbsc.getAttribute(object, name);
+    if (value instanceof TabularData) {
+      final TabularData tab = (TabularData) value;
+      int i = 0;
+      for (final Object o : tab.keySet()) {
+        dumpMBeanValue(long_output, print_timestamps, object, name + "." + i, o);
+        i++;
+      }
+    } else {
+      dumpMBeanValue(long_output, print_timestamps, object, name, value);
+    }
+  }
+
+  private static void dumpMBeanValue(final boolean long_output,
+                                     final boolean print_timestamps,
+                                     final ObjectName object,
+                                     final String name,
+                                     final Object value) {
+    final StringBuilder buf = new StringBuilder();
     final long timestamp = System.currentTimeMillis() / 1000;
     if (print_timestamps) {
       buf.append(timestamp).append('\t');
