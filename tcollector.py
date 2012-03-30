@@ -602,7 +602,9 @@ def setup_logging(logfile=DEFAULT_LOG, max_bytes=None, backup_count=None):
     """Sets up logging and associated handlers."""
 
     LOG.setLevel(logging.INFO)
-    if backup_count is not None:  # Setup log rotation handler.
+    if backup_count is not None and max_bytes is not None:
+        assert backup_count > 0
+        assert max_bytes > 0
         ch = RotatingFileHandler(logfile, 'a', max_bytes, backup_count)
     else:  # Setup stream handler.
         ch = logging.StreamHandler(sys.stdout)
@@ -660,7 +662,8 @@ def parse_cmdline(argv):
                            'values of old data points to save memory. '
                            'default=%default')
     parser.add_option('--max-bytes', dest='max_bytes', type='int',
-                      default=1000000, help='Maximum bytes per a logfile.')
+                      default=64 * 1024 * 1024,
+                      help='Maximum bytes per a logfile.')
     parser.add_option('--backup-count', dest='backup_count', type='int',
                       default=0, help='Maximum number of logfiles to backup.')
     parser.add_option('--logfile', dest='logfile', type='str',
@@ -679,7 +682,8 @@ def main(argv):
     """The main tcollector entry point and loop."""
 
     options, args = parse_cmdline(argv)
-    setup_logging(options.logfile, options.max_bytes, options.backup_count)
+    setup_logging(options.logfile, options.max_bytes or None,
+                  options.backup_count or None)
 
     if options.verbose:
         LOG.setLevel(logging.DEBUG)  # up our level
