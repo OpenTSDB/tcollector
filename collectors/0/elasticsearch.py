@@ -12,7 +12,7 @@
 # of the GNU Lesser General Public License along with this program.  If not,
 # see <http://www.gnu.org/licenses/>.
 """ElasticSearch collector"""  # Because ES is cool, bonsai cool.
-# Tested with ES 0.16.5 and 0.17.x
+# Tested with ES 0.18.x, 0.19.x
 
 import errno
 import httplib
@@ -23,7 +23,6 @@ except ImportError:
 import socket
 import sys
 import time
-
 
 COLLECTION_INTERVAL = 15  # seconds
 DEFAULT_TIMEOUT = 10.0    # seconds
@@ -36,14 +35,11 @@ STATUS_MAP = {
   "red": 2,
 }
 
-
 def is_numeric(value):
   return isinstance(value, (int, long, float))
 
-
 def err(msg):
   print >>sys.stderr, msg
-
 
 class ESError(RuntimeError):
   """Exception raised if we don't get a 200 OK from ElasticSearch."""
@@ -51,7 +47,6 @@ class ESError(RuntimeError):
   def __init__(self, resp):
     RuntimeError.__init__(self, str(resp))
     self.resp = resp
-
 
 def request(server, uri):
   """Does a GET request of the given uri on the given HTTPConnection."""
@@ -61,19 +56,22 @@ def request(server, uri):
     raise ESError(resp)
   return json.loads(resp.read())
 
-
 def cluster_health(server):
   return request(server, "/_cluster/health")
-
 
 def cluster_state(server):
   return request(server, "/_cluster/state"
                  + "?filter_routing_table=true&filter_metadata=true&filter_blocks=true")
 
-
 def node_stats(server):
-  return request(server, "/_cluster/nodes/_local/stats")
+  return request(server, "/_cluster/nodes/_local/stats?all=true")
 
+def version(server):
+  v = request(server, "/")["version"]["number"].encode("ascii","ignore").split(".")
+  major = v[0]
+  minor = v[1]
+  rev = v[2]
+  return major,minor,rev
 
 def main(argv):
   socket.setdefaulttimeout(DEFAULT_TIMEOUT)
@@ -91,8 +89,9 @@ def main(argv):
   nstats = node_stats(server)
   cluster_name = nstats["cluster_name"]
   nodeid, nstats = nstats["nodes"].popitem()
-
+  major, minor, rev = version(server)
   ts = None
+
   def printmetric(metric, value, **tags):
     if tags:
       tags = " " + " ".join("%s=%s" % (name, value)
@@ -129,8 +128,31 @@ def main(argv):
 
     ts = nstats["os"]["timestamp"] / 1000  # ms -> s
     indices = nstats["indices"]
-    printmetric("indices.size", indices["size_in_bytes"])
-    printmetric("num_docs", indices["docs"]["num_docs"])
+    printmetric("indices.store", indices["store"]["size_in_bytes"])
+    printmetric("num_docs", indices["docs"]["count"])
+    printmetric("num_docs_deleted", indices["docs"]["deleted"])
+    d = indices["indexing"]
+    printmetric("indexing.total", d["index_total"])
+    printmetric("indexing.time", d["index_time_in_millis"] / 1000.)
+    printmetric("indexing.current", d["index_current"])
+    printmetric("delete.total", d["delete_total"])
+    printmetric("delete.time", d["delete_time_in_millis"] / 1000.)
+    printmetric("delete.current", d["delete_current"])
+    d = indices["get"]
+    printmetric("get.current", d["current"])
+    printmetric("get.total", d["total"])
+    printmetric("get.time", d["time_in_millis"] / 1000.)
+    printmetric("exists.total", d["exists_total"])
+    printmetric("exists.time", d["exists_time_in_millis"] / 1000.)
+    printmetric("missing.total", d["missing_total"])
+    printmetric("missing.time", d["missing_time_in_millis"] / 1000.)
+    d = indices["search"]
+    printmetric("query.total", d["query_total"])
+    printmetric("query.time", d["query_time_in_millis"] / 1000.)
+    printmetric("query.current", d["query_current"])
+    printmetric("fetch.total", d["fetch_total"])
+    printmetric("fetch.time", d["fetch_time_in_millis"] / 1000.)
+    printmetric("fetch.current", d["fetch_current"])
     d = indices["cache"]
     printmetric("cache.field.evictions", d["field_evictions"])
     printmetric("cache.field.size", d["field_size_in_bytes"])
@@ -139,8 +161,18 @@ def main(argv):
     printmetric("cache.filter.size", d["filter_size_in_bytes"])
     d = indices["merges"]
     printmetric("merges.current", d["current"])
+    printmetric("merges.current.docs", d["current_docs"])
+    printmetric("merges.current.size", d["current_size_in_bytes"])
     printmetric("merges.total", d["total"])
     printmetric("merges.total_time", d["total_time_in_millis"] / 1000.)
+    printmetric("merges.total.docs", d["total_docs"])
+    printmetric("merges.total.size", d["total_size_in_bytes"])
+    d = indices["refresh"]
+    printmetric("refresh.total", d["total"])
+    printmetric("refresh.total_time", d["total_time_in_millis"] / 1000.)
+    d = indices["flush"]
+    printmetric("flush.total", d["total"])
+    printmetric("flush.total_time", d["total_time_in_millis"] / 1000.)
     del indices
     process = nstats["process"]
     ts = process["timestamp"] / 1000  # ms -> s
@@ -183,12 +215,41 @@ def main(argv):
       if is_numeric(value):
         printmetric("transport." + stat, value)
     # New in ES 0.17:
-    for stat, value in nstats.get("http", {}).iteritems():
-      if is_numeric(value):
-        printmetric("http." + stat, value)
+    if int(minor) >= 17:
+      for stat, value in nstats.get("http", {}).iteritems():
+        if is_numeric(value):
+          printmetric("http." + stat, value)
+    # New in ES 0.19:
+    if int(minor) >= 19:
+      jvm = nstats["jvm"]
+      for gc, d in jvm["mem"]["pools"].iteritems():
+        gc = gc.encode("ascii","ignore").replace(" ","_")
+        printmetric("jvm.mem.pools", d["used_in_bytes"], gc=gc, type="used")
+        printmetric("jvm.mem.pools", d["max_in_bytes"], gc=gc, type="max")
+        printmetric("jvm.mem.pools", d["peak_max_in_bytes"], gc=gc, type="peak")
+      t = nstats["thread_pool"]
+      for p, d in t.iteritems():
+        printmetric("thread.pool.threads", d["threads"], pool=p)
+        printmetric("thread.pool.queue", d["queue"], pool=p)
+        printmetric("thread.pool.active", d["active"], pool=p)
+      fs = nstats["fs"]["data"]
+      for id, data in enumerate(fs):
+        mount = data["mount"]
+        dev = data["dev"].encode("ascii","ignore").split("/")[-1]
+        printmetric("data.total", data["total_in_bytes"], mount=mount, device=dev)
+        printmetric("data.free", data["free_in_bytes"], mount=mount, device=dev)
+        printmetric("data.available", data["available_in_bytes"], mount=mount, device=dev)
+        printmetric("data.reads", data["disk_reads"], mount=mount, device=dev)
+        printmetric("data.read.size", data["disk_read_size_in_bytes"], mount=mount, device=dev)
+        printmetric("data.writes", data["disk_writes"], mount=mount, device=dev)
+        printmetric("data.write.size", data["disk_write_size_in_bytes"], mount=mount, device=dev)
+        printmetric("data.disk.queue", data["disk_queue"], mount=mount, device=dev)
+        printmetric("data.disk.service_time", data["disk_service_time"], mount=mount, device=dev)
+      del jvm
+      del t
+      del fs
     del nstats
     time.sleep(COLLECTION_INTERVAL)
-
 
 if __name__ == "__main__":
   sys.exit(main(sys.argv))
