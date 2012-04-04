@@ -38,8 +38,10 @@ STATUS_MAP = {
 def is_numeric(value):
   return isinstance(value, (int, long, float))
 
+
 def err(msg):
   print >>sys.stderr, msg
+
 
 class ESError(RuntimeError):
   """Exception raised if we don't get a 200 OK from ElasticSearch."""
@@ -47,6 +49,7 @@ class ESError(RuntimeError):
   def __init__(self, resp):
     RuntimeError.__init__(self, str(resp))
     self.resp = resp
+
 
 def request(server, uri):
   """Does a GET request of the given uri on the given HTTPConnection."""
@@ -56,22 +59,27 @@ def request(server, uri):
     raise ESError(resp)
   return json.loads(resp.read())
 
+
 def cluster_health(server):
   return request(server, "/_cluster/health")
+
 
 def cluster_state(server):
   return request(server, "/_cluster/state"
                  + "?filter_routing_table=true&filter_metadata=true&filter_blocks=true")
 
+
 def node_stats(server):
   return request(server, "/_cluster/nodes/_local/stats?all=true")
 
+
 def version(server):
-  v = request(server, "/")["version"]["number"].encode("ascii","ignore").split(".")
-  major = v[0]
-  minor = v[1]
-  rev = v[2]
-  return major,minor,rev
+  v = request(server, "/")["version"]["number"].encode("ascii", "ignore").split(".")
+  major = int(v[0])
+  minor = int(v[1])
+  rev = int(v[2])
+  return major, minor, rev
+
 
 def main(argv):
   socket.setdefaulttimeout(DEFAULT_TIMEOUT)
@@ -215,12 +223,12 @@ def main(argv):
       if is_numeric(value):
         printmetric("transport." + stat, value)
     # New in ES 0.17:
-    if int(minor) >= 17:
+    if minor >= 17:
       for stat, value in nstats.get("http", {}).iteritems():
         if is_numeric(value):
           printmetric("http." + stat, value)
     # New in ES 0.19:
-    if int(minor) >= 19:
+    if minor >= 19:
       jvm = nstats["jvm"]
       for gc, d in jvm["mem"]["pools"].iteritems():
         gc = gc.encode("ascii","ignore").replace(" ","_")
@@ -250,6 +258,7 @@ def main(argv):
       del fs
     del nstats
     time.sleep(COLLECTION_INTERVAL)
+
 
 if __name__ == "__main__":
   sys.exit(main(sys.argv))
