@@ -138,7 +138,7 @@ def main(argv):
 
     ts = nstats["os"]["timestamp"] / 1000  # ms -> s
     indices = nstats["indices"]
-    printmetric("indices.store", indices["store"]["size_in_bytes"])
+    printmetric("indices.size", indices["store"]["size_in_bytes"])
     printmetric("num_docs", indices["docs"]["count"])
     printmetric("num_docs_deleted", indices["docs"]["deleted"])
     d = indices["indexing"]
