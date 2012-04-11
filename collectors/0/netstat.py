@@ -94,8 +94,9 @@ def main():
     try:
         sockstat = open("/proc/net/sockstat")
         netstat = open("/proc/net/netstat")
+        snmp = open("/proc/net/snmp")
     except IOError, e:
-        print >>sys.stderr, "Failed to open /proc/net/sockstat: %s" % e
+        print >>sys.stderr, "open failed: %s" % e
         return 13  # Ask tcollector to not re-start us.
 
     # Note: up until v2.6.37-rc2 most of the values were 32 bits.
@@ -121,16 +122,22 @@ def main():
             print "net.sockstat.%s %d %s%s" % (metric, ts, value, tags)
 
 
-    # If a line in /proc/net/netstat doesn't start with a word in that dict,
-    # we'll ignore it.  We use the value to build the metric name.
-    known_netstatstypes = {
+    # If a line in /proc/net/{netstat,snmp} doesn't start with a word in that
+    # dict, we'll ignore it.  We use the value to build the metric name.
+    known_statstypes = {
         "TcpExt:": "tcp",
         "IpExt:": "ip",  # We don't collect anything from here for now.
+        "Ip:": "ip",  # We don't collect anything from here for now.
+        "Icmp:": "icmp",  # We don't collect anything from here for now.
+        "IcmpMsg:": "icmpmsg",  # We don't collect anything from here for now.
+        "Tcp:": "tcp",  # We don't collect anything from here for now.
+        "Udp:": "udp",
+        "UdpLite:": "udplite",  # We don't collect anything from here for now.
         }
 
-    # Any stat in /proc/net/netstat that doesn't appear in this dict will be
-    # ignored.  If we find a match, we'll use the (metricname, tags).
-    known_netstats = {
+    # Any stat in /proc/net/{netstat,snmp} that doesn't appear in this dict will
+    # be ignored.  If we find a match, we'll use the (metricname, tags).
+    tcp_stats = {
         # An application wasn't able to accept a connection fast enough, so
         # the kernel couldn't store an entry in the queue for this connection.
         # Instead of dropping it, it sent a cookie to the client.
@@ -223,7 +230,33 @@ def main():
         # We received something but had to drop it because the socket's
         # receive queue was full.
         "TCPBacklogDrop": ("receive.queue.full", None),
-        }
+    }
+    known_stats = {
+        "tcp": tcp_stats,
+        "ip": {
+        },
+        "icmp": {
+        },
+        "icmpmsg": {
+        },
+        "udp": {
+            # Total UDP datagrams received by this host
+            "InDatagrams": ("datagrams", "direction=in"),
+            # UDP datagrams received on a port with no listener
+            "NoPorts": ("errors", "direction=in reason=noport"),
+            # Total UDP datagrams that could not be delivered to an application
+            # Note: this counter also increments for RcvbufErrors
+            "InErrors": ("errors", "direction=in reason=other"),
+            # Total UDP datagrams sent from this host
+            "OutDatagrams": ("datagrams", "direction=out"),
+            # Datagrams for which not enough socket buffer memory to receive
+            "RcvbufErrors": ("errors", "direction=in reason=nomem"),
+            # Datagrams for which not enough socket buffer memory to transmit
+            "SndbufErrors": ("errors", "direction=out reason=nomem"),
+        },
+        "udplite": {
+        },
+    }
 
 
     def print_netstat(statstype, metric, value, tags=""):
@@ -234,13 +267,50 @@ def main():
         print "net.stat.%s.%s %d %s%s%s" % (statstype, metric, ts, value,
                                             space, tags)
 
-    statsdikt = {}
+    def parse_stats(stats, filename):
+        statsdikt = {}
+        # /proc/net/{netstat,snmp} have a retarded column-oriented format.  It
+        # looks like this:
+        #   Header: SomeMetric OtherMetric
+        #   Header: 1 2
+        #   OtherHeader: ThirdMetric FooBar
+        #   OtherHeader: 42 51
+        # We first group all the lines for each header together:
+        #   {"Header:": [["SomeMetric", "OtherHeader"], ["1", "2"]],
+        #    "OtherHeader:": [["ThirdMetric", "FooBar"], ["42", "51"]]}
+        # Then we'll create a dict for each type:
+        #   {"SomeMetric": "1", "OtherHeader": "2"}
+        for line in stats.splitlines():
+            line = line.split()
+            if line[0] not in known_statstypes:
+                print >>sys.stderr, ("Unrecoginized line in %s:"
+                                     " %r (file=%r)" % (filename, line, stats))
+                continue
+            statstype = line.pop(0)
+            statsdikt.setdefault(known_statstypes[statstype], []).append(line)
+        for statstype, stats in statsdikt.iteritems():
+            # stats is now:
+            # [["SyncookiesSent", "SyncookiesRecv", ...], ["1", "2", ....]]
+            assert len(stats) == 2, repr(statsdikt)
+            stats = dict(zip(*stats))
+            # Undo the kernel's double counting
+            if "ListenDrops" in stats:
+                stats["ListenDrops"] = int(stats["ListenDrops"]) - int(stats.get("ListenOverflows", 0))
+            elif "RcvbufErrors" in stats:
+                stats["InErrors"] = int(stats.get("InErrors", 0)) - int(stats["RcvbufErrors"])
+            for stat, (metric, tags) in known_stats[statstype].iteritems():
+                value = stats.get(stat)
+                if value is not None:
+                    print_netstat(statstype, metric, value, tags)
+
     while True:
         ts = int(time.time())
         sockstat.seek(0)
         netstat.seek(0)
+        snmp.seek(0)
         data = sockstat.read()
-        stats = netstat.read()
+        netstats = netstat.read()
+        snmpstats = snmp.read()
         m = re.match(regexp, data)
         if not m:
             print >>sys.stderr, "Cannot parse sockstat: %r" % data
@@ -264,39 +334,8 @@ def main():
         print_sockstat("memory", m.group("ip_frag_mem"), " type=ipfrag")
         print_sockstat("ipfragqueues", m.group("ip_frag_nqueues"))
 
-        # /proc/net/netstat has a retarded column-oriented format.  It looks
-        # like this:
-        #   Header: SomeMetric OtherMetric
-        #   Header: 1 2
-        #   OtherHeader: ThirdMetric FooBar
-        #   OtherHeader: 42 51
-        # We first group all the lines for each header together:
-        #   {"Header:": [["SomeMetric", "OtherHeader"], ["1", "2"]],
-        #    "OtherHeader:": [["ThirdMetric", "FooBar"], ["42", "51"]]}
-        # Then we'll create a dict for each type:
-        #   {"SomeMetric": "1", "OtherHeader": "2"}
-        for line in stats.splitlines():
-            line = line.split()
-            if line[0] not in known_netstatstypes:
-                print >>sys.stderr, ("Unrecoginized line in /proc/net/netstat:"
-                                     " %r (file=%r)" % (line, stats))
-                continue
-            statstype = line.pop(0)
-            statsdikt.setdefault(known_netstatstypes[statstype], []).append(line)
-        for statstype, stats in statsdikt.iteritems():
-            # stats is now:
-            # [["SyncookiesSent", "SyncookiesRecv", ...], ["1", "2", ....]]
-            assert len(stats) == 2, repr(statsdikt)
-            stats = dict(zip(*stats))
-            value = stats.get("ListenDrops")
-            if value is not None:  # Undo the kernel's double counting
-                stats["ListenDrops"] = int(value) - int(stats.get("ListenOverflows", 0))
-            for stat, (metric, tags) in known_netstats.iteritems():
-                value = stats.get(stat)
-                if value is not None:
-                    print_netstat(statstype, metric, value, tags)
-        stats.clear()
-        statsdikt.clear()
+        parse_stats(netstats, netstat.name)
+        parse_stats(snmpstats, snmp.name)
 
         sys.stdout.flush()
         time.sleep(interval)
