@@ -31,7 +31,7 @@ def main():
 
     while True:
         ts = int(time.time())
-	ntp_proc = subprocess.Popen(["/usr/sbin/ntpdc", "-c", "loopinfo"], stdout=subprocess.PIPE)
+        ntp_proc = subprocess.Popen(["/usr/sbin/ntpdc", "-c", "loopinfo"], stdout=subprocess.PIPE)
         stdout, _ = ntp_proc.communicate()
         if ntp_proc.returncode == 0:
             for line in stdout.split("\n"): 
