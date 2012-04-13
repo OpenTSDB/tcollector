@@ -11,6 +11,7 @@
 # General Public License for more details.  You should have received a copy
 # of the GNU Lesser General Public License along with this program.  If not,
 # see <http://www.gnu.org/licenses/>.
+<<<<<<< HEAD
 """df disk space and inode counts for TSDB """
 #
 # dfstat.py
@@ -31,6 +32,13 @@
 # this could cause problems if you have a mountpoint of
 # "/foo/bar/" and "/foo_bar/".
 
+=======
+"""ntp offset stats for TSDB """
+#
+# ntpstat.py
+#
+# ntp.offset             estimated offset
+>>>>>>> ntp_collector
 
 import os
 import socket
@@ -44,6 +52,7 @@ COLLECTION_INTERVAL = 60  # seconds
 def main():
     """ntpstats main loop"""
 
+<<<<<<< HEAD
     #find the primary server to get reference
     #should be the prefer on ntp.conf or the first server if not preferred.
     f = open('/etc/ntp.conf', 'r')
@@ -77,6 +86,24 @@ def main():
                 print ("ntp.offset %d %s timeserver=%s"
                        % (ts, offset, server ))
                 continue
+=======
+    while True:
+        ts = int(time.time())
+	ntp_proc = subprocess.Popen(["/usr/sbin/ntpdc", "-c", "loopinfo"], stdout=subprocess.PIPE)
+        stdout, _ = ntp_proc.communicate()
+        if ntp_proc.returncode == 0:
+            for line in stdout.split("\n"): 
+                if not line:
+                    continue
+                fields = line.split()
+                if len(fields) <= 0: 
+                    continue
+                if fields[0] == "offset:":
+                    offset=fields[1]    
+                    continue
+            print ("ntp.offset %d %s"
+                    % (ts, offset))
+>>>>>>> ntp_collector
         else:
             print >> sys.stderr, "ntpdate -q %s returned %r" % (server, ntp_proc.returncode)
 
