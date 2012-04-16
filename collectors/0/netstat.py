@@ -231,7 +231,6 @@ def main():
             # We received something but had to drop it because the socket's
             # receive queue was full.
             "TCPBacklogDrop": ("receive.queue.full", None),
-            "InDatagrams": ("udp.datagrams","type=in"),
         },
         "ip": {
         },
@@ -240,12 +239,19 @@ def main():
         "icmpmsg": {
         },
         "udp": {
-            "InDatagrams": ("datagrams","type=in"),
-            "NoPorts": ("datagrams","type=noports"),
-            "InErrors": ("datagrams","type=inerrors"),
-            "OutDatagrams": ("datagrams","type=out"),
-            "RcvbufErrors": ("datagrams","type=rcvbuferrors"),
-            "SndbufErrors": ("datagrams","type=sndbuferrors"),
+            # Total UDP datagrams received by this host
+            "InDatagrams": ("datagrams", "direction=in"),
+            # UDP datagrams received on a port with no listener
+            "NoPorts": ("errors", "direction=in reason=noport"),
+            # Total UDP datagrams that could not be delivered to an application
+            # Note: this counter also increments for RcvbufErrors
+            "InErrors": ("errors", "direction=in reason=other"),
+            # Total UDP datagrams sent from this host
+            "OutDatagrams": ("datagrams", "direction=out"),
+            # Datarams for which not enough socket buffer memory to receive
+            "RcvbufErrors": ("errors", "direction=in reason=rcvbuf"),
+            # Datagrams for which not enough socket buffer memory to transmit
+            "SndbufErrors": ("errors", "direction=out reason=sndbuf"),
         },
         "udplite": {
         },
@@ -260,7 +266,7 @@ def main():
         print "net.stat.%s.%s %d %s%s%s" % (statstype, metric, ts, value,
                                             space, tags)
 
-    def print_stats(stats):
+    def parse_stats(stats, filename):
         statsdikt = {}
         # /proc/net/{netstat,snmp} have a retarded column-oriented format.  It
         # looks like this:
@@ -276,8 +282,8 @@ def main():
         for line in stats.splitlines():
             line = line.split()
             if line[0] not in known_statstypes:
-                print >>sys.stderr, ("Unrecoginized line in /proc/net/netstat:"
-                                     " %r (file=%r)" % (line, stats))
+                print >>sys.stderr, ("Unrecoginized line in %s:"
+                                     " %r (file=%r)" % (filename, line, stats))
                 continue
             statstype = line.pop(0)
             statsdikt.setdefault(known_statstypes[statstype], []).append(line)
@@ -286,9 +292,11 @@ def main():
             # [["SyncookiesSent", "SyncookiesRecv", ...], ["1", "2", ....]]
             assert len(stats) == 2, repr(statsdikt)
             stats = dict(zip(*stats))
-            value = stats.get("ListenDrops")
-            if value is not None:  # Undo the kernel's double counting
-                stats["ListenDrops"] = int(value) - int(stats.get("ListenOverflows", 0))
+            # Undo the kernel's double counting
+            if "ListenDrops" in stats:
+                stats["ListenDrops"] = int(stats.get("ListenDrops")) - int(stats.get("ListenOverflows", 0))
+            elif "RcvbufErrors" in stats:
+                stats["InErrors"] = int(stats.get("InErrors")) - int(stats.get("RcvbufErrors", 0))
             for stat, (metric, tags) in known_stats[statstype].iteritems():
                 value = stats.get(stat)
                 if value is not None:
@@ -325,8 +333,8 @@ def main():
         print_sockstat("memory", m.group("ip_frag_mem"), " type=ipfrag")
         print_sockstat("ipfragqueues", m.group("ip_frag_nqueues"))
 
-        print_stats(netstats)
-        print_stats(snmpstats)
+        parse_stats(netstats, netstat.name)
+        parse_stats(snmpstats, snmp.name)
 
         sys.stdout.flush()
         time.sleep(interval)
