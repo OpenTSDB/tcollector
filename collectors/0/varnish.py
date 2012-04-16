@@ -12,12 +12,14 @@ Created on Apr 16, 2012
 '''
 
 import sys
+import os
 import time
 import threading
 import signal
 import logging
 import math
 import functools
+import subprocess
 
 """
 A request from a browser comes in for a Varnish thread to handle
@@ -193,12 +195,18 @@ class ThreadDatabase:
         return f
 
 class Manager:
-    def __init__(self,infile=sys.stdin,frequency=1,filter_expression=None):
-        self.infile = infile
+    def __init__(self,frequency=1,filter_expression=None):
         self.frequency = frequency
         self.filter_expression = filter_expression
         self.finished = False
         self.logger = logging.getLogger("Manager")
+        self.varnishlog_process = subprocess.Popen(
+           ["varnishlog"],
+           stdin=open(os.devnull),
+           stdout=subprocess.PIPE,
+           stderr=None,
+        )
+        self.infile = self.varnishlog_process.stdout
         self.thread_database = ThreadDatabase()
         self.statemachine_thread = threading.Thread(target=self.statemachine)
         self.statemachine_thread.setDaemon(True)
@@ -333,16 +341,24 @@ varnish.completed_requests.lifecycle_time.99th %s %s"""%(stamp,life_time_median,
     def stop(self):
         self.finished = True
         self.infile.close()
+        self.varnishlog_process.kill()
     
     def wait(self):
         self.logger.info("Ending")
         self.statemachine_thread.join()
         self.printer_thread.join()
         self.logger.info("Ended")
+        self.varnishlog_process.wait()
         
 def main():
     logging.basicConfig(level=logging.DEBUG)
-    manager = Manager()
+    try:
+        manager = Manager()
+    except OSError,e:
+        if e.errno == 2:
+            logging.error("varnishlog could not be executed.  Check that your varnishlog command is in the PATH.")
+            return 2
+        else: raise
     try:
         manager.run()
     except KeyboardInterrupt:
