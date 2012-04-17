@@ -225,12 +225,12 @@ def main(argv):
       if is_numeric(value):
         printmetric("transport." + stat, value)
     # New in ES 0.17:
-    if minor >= 17:
+    if major >= 0 and minor >= 17:
       for stat, value in nstats.get("http", {}).iteritems():
         if is_numeric(value):
           printmetric("http." + stat, value)
     # New in ES 0.19:
-    if minor >= 19:
+    if major >= 0 and minor >= 19:
       jvm = nstats["jvm"]
       for gc, d in jvm["mem"]["pools"].iteritems():
         gc = gc.encode("ascii","ignore").replace(" ","_")
