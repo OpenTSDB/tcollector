@@ -248,10 +248,10 @@ def main():
             "InErrors": ("errors", "direction=in reason=other"),
             # Total UDP datagrams sent from this host
             "OutDatagrams": ("datagrams", "direction=out"),
-            # Datarams for which not enough socket buffer memory to receive
-            "RcvbufErrors": ("errors", "direction=in reason=rcvbuf"),
+            # Datagrams for which not enough socket buffer memory to receive
+            "RcvbufErrors": ("errors", "direction=in reason=nomem"),
             # Datagrams for which not enough socket buffer memory to transmit
-            "SndbufErrors": ("errors", "direction=out reason=sndbuf"),
+            "SndbufErrors": ("errors", "direction=out reason=nomem"),
         },
         "udplite": {
         },
@@ -294,9 +294,9 @@ def main():
             stats = dict(zip(*stats))
             # Undo the kernel's double counting
             if "ListenDrops" in stats:
-                stats["ListenDrops"] = int(stats.get("ListenDrops")) - int(stats.get("ListenOverflows", 0))
+                stats["ListenDrops"] = int(stats["ListenDrops"]) - int(stats.get("ListenOverflows", 0))
             elif "RcvbufErrors" in stats:
-                stats["InErrors"] = int(stats.get("InErrors")) - int(stats.get("RcvbufErrors", 0))
+                stats["InErrors"] = int(stats.get("InErrors", 0)) - int(stats["RcvbufErrors"])
             for stat, (metric, tags) in known_stats[statstype].iteritems():
                 value = stats.get(stat)
                 if value is not None:
