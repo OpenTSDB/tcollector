@@ -195,7 +195,7 @@ class ThreadDatabase:
         return f
 
 class Manager:
-    def __init__(self,frequency=1,filter_expression=None):
+    def __init__(self,frequency=10,filter_expression=None):
         self.frequency = frequency
         self.filter_expression = filter_expression
         self.finished = False
