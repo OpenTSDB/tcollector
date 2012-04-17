@@ -78,8 +78,6 @@ def main():
                        % (ts, fields[3], mount, fields[1]))
                 print ("df.1kblocks.free %d %s mount=%s fstype=%s"
                        % (ts, fields[4], mount, fields[1]))
-                print ("df.percent.used %d %s mount=%s fstype=%s"
-                       % (ts, fields[5].strip('%'), mount, fields[1]))
         else:
             print >> sys.stderr, "df -Pltk returned %r" % df_proc.returncode
 
