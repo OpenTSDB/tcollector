@@ -125,23 +125,22 @@ def main():
             m = re.match("(\w+)\s+(.*)", line)
             if not m:
                 continue
-            if m.group(1) == "cpu":
+            cm = re.match("(cpu\d+)", m.group(1))
+            if cm:
                 fields = m.group(2).split()
-                print "proc.stat.cpu %d %s type=user" % (ts, fields[0])
-                print "proc.stat.cpu %d %s type=nice" % (ts, fields[1])
-                print "proc.stat.cpu %d %s type=system" % (ts, fields[2])
-                print "proc.stat.cpu %d %s type=idle" % (ts, fields[3])
-                print "proc.stat.cpu %d %s type=iowait" % (ts, fields[4])
-                print "proc.stat.cpu %d %s type=irq" % (ts, fields[5])
-                print "proc.stat.cpu %d %s type=softirq" % (ts, fields[6])
+                print ("proc.stat.cpu %d %s cpu=%s type=user" % (ts, fields[0], cm.group(1)))
+                print ("proc.stat.cpu %d %s cpu=%s type=nice" % (ts, fields[1], cm.group(1)))
+                print ("proc.stat.cpu %d %s cpu=%s type=system" % (ts, fields[2], cm.group(1)))
+                print ("proc.stat.cpu %d %s cpu=%s type=idle" % (ts, fields[3], cm.group(1)))
+                print ("proc.stat.cpu %d %s cpu=%s type=iowait" % (ts, fields[4], cm.group(1)))
+                print ("proc.stat.cpu %d %s cpu=%s type=irq" % (ts, fields[5], cm.group(1)))
+                print ("proc.stat.cpu %d %s cpu=%s type=softirq" % (ts, fields[6], cm.group(1)))
                 # really old kernels don't have this field
                 if len(fields) > 7:
-                    print ("proc.stat.cpu %d %s type=guest"
-                           % (ts, fields[7]))
+                    print ("proc.stat.cpu %d %s cpu=%s type=steal" % (ts, fields[7], cm.group(1)))
                     # old kernels don't have this field
                     if len(fields) > 8:
-                        print ("proc.stat.cpu %d %s type=guest_nice"
-                               % (ts, fields[8]))
+                        print ("proc.stat.cpu %d %s cpu=%s type=guest" % (ts, fields[8], cm.group(1)))            
             elif m.group(1) == "intr":
                 print ("proc.stat.intr %d %s"
                         % (ts, m.group(2).split()[0]))
