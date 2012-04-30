@@ -38,10 +38,10 @@ JMX_SERVICE_RENAMING = {
     "org.apache.hbase": "hbase",
 }
 
-TABLE_PREFIXES = ["tbl.", "region.", "cf."]
+TABLE_PREFIXES = ("tbl.", "region.", "cf.")
 
 
-class TSDBMetric:
+class TSDBMetric(object):
     def __init__(self, metric, timestamp, value, tags):
         self.metric = metric
         self.timestamp = timestamp
@@ -54,6 +54,16 @@ class TSDBMetric:
 
 
 def parse_region_metric(timestamp, metric, value, mbean):
+    """Parses metrics emitted by hbase 0.94 and above
+    The metric will look like:
+    tbl.tsdb.region.ac24585de8938d7d77ea8f7845350260.multiput_MaxTime
+
+    For the tsdb table region ac2... had a multi put operation(s) with
+    a max time contained in the value.
+
+    This will not emit anything if hbase.metrics.showTableName is
+    set to false.
+    """
     if not metric.startswith(TABLE_PREFIXES[0]):
         #even though there can be more ways to emit these values
         #hbase.metrics.showTableName must be true
@@ -65,12 +75,12 @@ def parse_region_metric(timestamp, metric, value, mbean):
     region_end_index = metric.index(".", region_label_index + 8)
     region_name = metric[region_label_index + 7: region_end_index]
     metric = "tables." + metric[region_end_index + 1:]
-    if len(table_name) == 0:
+    if not table_name:
         print >>sys.stderr, ("Warning: could "
                 "not find table from %s" % metric)
         return None
 
-    if len(region_name) == 0:
+    if not region_name:
         return None
 
     if metric.endswith("MinTime"):
@@ -220,9 +230,9 @@ def main(argv):
          # The remaining arguments are pairs (mbean_regexp, attr_regexp).
          # The first regexp is used to match one or more MBeans, the 2nd
          # to match one or more attributes of the MBeans matched.
-         "hadoop", "",                     # All HBase / hadoop metrics.
-         "Threading", "Count|Time$",       # Number of threads and CPU time.
-         "OperatingSystem", "OpenFile",    # Number of open files.
+         "hadoop", "",                      # All HBase / hadoop metrics.
+         "Threading", "Count|Time$",        # Number of threads and CPU time.
+         "OperatingSystem", "OpenFile",     # Number of open files.
          "GarbageCollector", "Collection",  # GC runs and time spent GCing.
          ], stdout=subprocess.PIPE, bufsize=1)
     do_on_signal(signal.SIGINT, kill, jmx)
