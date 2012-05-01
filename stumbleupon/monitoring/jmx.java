@@ -85,6 +85,7 @@ final class jmx {
                          + "  --long                    Print a longer but more explicit output for each value.\n"
                          + "  --timestamp               Print a timestamp at the beginning of each line.\n"
                          + "  --watch N                 Reprint the output every N seconds.\n"
+                         + "  --reconnect N             How often to disconnect and connec to JMX\n"
                          + "\n"
                          + "Return value:\n"
                          + "  0: Everything OK.\n"
@@ -109,6 +110,8 @@ final class jmx {
 
     int current_arg = 0;
     long watch = 0;
+    long reconnect  = 0;
+    long lastReconnect = System.currentTimeMillis();
     boolean long_output = false;
     boolean print_timestamps = false;
     while (current_arg < args.length) {
@@ -129,6 +132,15 @@ final class jmx {
         current_arg++;
       } else if ("--timestamp".equals(args[current_arg])) {
         print_timestamps = true;
+        current_arg++;
+      } else if("--reconnect".equals(args[current_arg])) {
+        current_arg++;
+        try {
+          reconnect = Integer.parseInt(args[current_arg]) * 1000;
+        } catch (NumberFormatException e) {
+          fatal(1, "Invalid value for --reconnect: " + e.getMessage());
+          return;
+        }
         current_arg++;
       } else {
         break;
@@ -183,17 +195,18 @@ final class jmx {
           return;
         }
         System.out.flush();
-        if (watch > 0) {
-          //Now that we are done. Reconnect if we're looping.
-          long start = System.currentTimeMillis();
+
+        //Now that we are done getting metrics see if we need to reconnect.
+        long start = System.currentTimeMillis();
+        if (reconnect > 0 && ((start - lastReconnect) > reconnect)) {
           connection.close();
           jvm = selectJVM(jvmSelector, vms);
           connection = JMXConnectorFactory.connect(jvm.jmxUrl());
           mbsc = connection.getMBeanServerConnection();
-          
-          //However long the re-connect took, take that off the sleep time.
-          Thread.sleep(watch - (System.currentTimeMillis() - start));
         }
+
+        //However long the re-connect took (if at all), take that off the sleep time.
+        Thread.sleep(watch - (System.currentTimeMillis() - start));
       } while (watch > 0);
     } finally {
       connection.close();
