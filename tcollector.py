@@ -88,12 +88,13 @@ class Collector(object):
        collector and gives us utility methods for working with
        it."""
 
-    def __init__(self, colname, interval, filename, mtime=0, lastspawn=0):
+    def __init__(self, colname, interval, filename, mtime=0, lastspawn=0, hosttag=True):
         """Construct a new Collector."""
         self.name = colname
         self.interval = interval
         self.filename = filename
         self.lastspawn = lastspawn
+        self.hosttag = hosttag
         self.proc = None
         self.nextkill = 0
         self.killstate = 0
@@ -360,7 +361,7 @@ class ReaderThread(threading.Thread):
                 (timestamp - col.values[key][3] >= self.dedupinterval))
                 and col.values[key][0] != value):
                 col.lines_sent += 1
-                if not self.readerq.nput(col.values[key][2]):
+                if not self.readerq.nput((col.values[key][2], col.hosttag)):
                     self.lines_dropped += 1
 
         # now we can reset for the next pass and send the line we actually
@@ -372,7 +373,7 @@ class ReaderThread(threading.Thread):
         #   the value's timestamp that it last changed ]
         col.values[key] = (value, False, line, timestamp)
         col.lines_sent += 1
-        if not self.readerq.nput(line):
+        if not self.readerq.nput((line, col.hosttag)):
             self.lines_dropped += 1
 
 
@@ -383,7 +384,7 @@ class SenderThread(threading.Thread):
        buffering we might need to do if we can't establish a connection
        and we need to spool to disk.  That isn't implemented yet."""
 
-    def __init__(self, reader, dryrun, host, port, self_report_stats, tags):
+    def __init__(self, reader, dryrun, host, port, self_report_stats, tags, tagsnohost):
         """Constructor.
 
         Args:
@@ -396,6 +397,7 @@ class SenderThread(threading.Thread):
             stats into the metrics reported to TSD, as if those metrics had
             been read from a collector.
           tags: A string containing tags to append at for every data point.
+          tagsnohost: A string containing tags to append at for every data point where host tag is excluded.
         """
         super(SenderThread, self).__init__()
 
@@ -404,6 +406,7 @@ class SenderThread(threading.Thread):
         self.port = port
         self.reader = reader
         self.tagstr = tags
+        self.tagstrnohost = tagsnohost
         self.tsd = None
         self.last_verify = 0
         self.sendq = []
@@ -513,7 +516,7 @@ class SenderThread(threading.Thread):
                 strout = ["tcollector.%s %d %d %s"
                           % (x[0], ts, x[2], x[1]) for x in strs]
                 for string in strout:
-                    self.sendq.append(string)
+                    self.sendq.append((string, True))
 
             break  # TSD is alive.
 
@@ -569,8 +572,8 @@ class SenderThread(threading.Thread):
 
         # construct the output string
         out = ''
-        for line in self.sendq:
-            line = 'put ' + line + self.tagstr
+        for (line, hosttag) in self.sendq:
+            line = 'put ' + line + (self.tagstr if hosttag else self.tagstrnohost)
             out += line + '\n'
             LOG.debug('SENDING: %s', line)
 
@@ -716,9 +719,14 @@ def main(argv):
 
     # prebuild the tag string from our tags dict
     tagstr = ''
+    tagstrnohost = ''
     if tags:
         tagstr = ' '.join('%s=%s' % (k, v) for k, v in tags.iteritems())
         tagstr = ' ' + tagstr.strip()
+        tagstrnohost = ' '.join('%s=%s' % (k, v) for k, v in tags.iteritems() if k != 'host')
+        tagstrnohost = ' ' + tagstrnohost.strip()
+
+
 
     # gracefully handle death for normal termination paths and abnormal
     atexit.register(shutdown)
@@ -732,7 +740,7 @@ def main(argv):
 
     # and setup the sender to start writing out to the tsd
     sender = SenderThread(reader, options.dryrun, options.host, options.port,
-                          not options.no_tcollector_stats, tagstr)
+                          not options.no_tcollector_stats, tagstr, tagstrnohost)
     sender.start()
     LOG.info('SenderThread startup complete')
 
@@ -877,6 +885,9 @@ def reload_changed_config_modules(modules, options, sender, tags):
         sender.tagstr = ' '.join('%s=%s' % (k, v)
                                  for k, v in tags.iteritems())
         sender.tagstr = ' ' + sender.tagstr.strip()
+        sender.tagstrnohost = ' '.join('%s=%s' % (k, v)
+                                 for k, v in tags.iteritems() if k != 'host')
+        sender.tagstrnohost = ' ' + sender.tagstrnohost.strip()
     return changed
 
 
@@ -891,7 +902,6 @@ def write_pid(pidfile):
 
 def all_collectors():
     """Generator to return all collectors."""
-
     return COLLECTORS.itervalues()
 
 
@@ -976,7 +986,7 @@ def reap_children():
             col.dead = True
         else:
             register_collector(Collector(col.name, col.interval, col.filename,
-                                         col.mtime, col.lastspawn))
+                                         col.mtime, col.lastspawn, col.hosttag))
 
 
 def set_nonblocking(fd):
@@ -1074,16 +1084,23 @@ def populate_collectors(coldir):
 
     # get numerics from scriptdir, we're only setup to handle numeric paths
     # which define intervals for our monitoring scripts
-    for interval in os.listdir(coldir):
+    for intervaldirname in os.listdir(coldir):
+        interval = intervaldirname
+	hosttag = True
+	nohostmarker = '.nohosttag'
+        interval = interval
+        if interval.endswith(nohostmarker):
+            interval = interval[:-len(nohostmarker)]
+            hosttag = False
         if not interval.isdigit():
             continue
         interval = int(interval)
 
-        for colname in os.listdir('%s/%d' % (coldir, interval)):
+        for colname in os.listdir('%s/%s' % (coldir, intervaldirname)):
             if colname.startswith('.'):
                 continue
 
-            filename = '%s/%d/%s' % (coldir, interval, colname)
+            filename = '%s/%s/%s' % (coldir, intervaldirname, colname)
             if os.path.isfile(filename):
                 mtime = os.path.getmtime(filename)
 
@@ -1113,10 +1130,10 @@ def populate_collectors(coldir):
                             col.shutdown()
                             LOG.info('Respawning %s', col.name)
                             register_collector(Collector(colname, interval,
-                                                         filename, mtime))
+                                                         filename, mtime, hosttag=hosttag))
                 else:
                     register_collector(Collector(colname, interval, filename,
-                                                 mtime))
+                                                 mtime, hosttag=hosttag))
 
     # now iterate over everybody and look for old generations
     to_delete = []
