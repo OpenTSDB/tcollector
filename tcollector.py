@@ -76,7 +76,6 @@ class ReaderQueue(Queue):
         try:
             self.put(value, False)
         except Full:
-            LOG.error("DROPPED LINE: %s", value)
             return False
         return True
 
