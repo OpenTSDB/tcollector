@@ -383,15 +383,14 @@ class SenderThread(threading.Thread):
        buffering we might need to do if we can't establish a connection
        and we need to spool to disk.  That isn't implemented yet."""
 
-    def __init__(self, reader, dryrun, host, port, self_report_stats, tags):
+    def __init__(self, reader, dryrun, hosts, self_report_stats, tags):
         """Constructor.
 
         Args:
           reader: A reference to a ReaderThread instance.
           dryrun: If true, data points will be printed on stdout instead of
             being sent to the TSD.
-          host: The hostname of the TSD to connect to.
-          port: The port of the TSD to connect to.
+          hosts: List of (host, port) tuples defining list of TSDs
           self_report_stats: If true, the reader thread will insert its own
             stats into the metrics reported to TSD, as if those metrics had
             been read from a collector.
@@ -400,14 +399,37 @@ class SenderThread(threading.Thread):
         super(SenderThread, self).__init__()
 
         self.dryrun = dryrun
-        self.host = host
-        self.port = port
         self.reader = reader
         self.tagstr = tags
+        self.hosts = hosts
+        # Randomize hosts to help even out the load.
+        random.shuffle(self.hosts)
+        self.blacklisted_hosts = []
+        self.host = None
+        self.port = None
         self.tsd = None
         self.last_verify = 0
         self.sendq = []
         self.self_report_stats = self_report_stats
+
+    def pick_connection(self):
+        """Picks up a random host/port connection."""
+        if not self.hosts:
+            LOG.info('No more healthy hosts, retry with previously blacklisted')
+            self.hosts = self.blacklisted_hosts
+            random.shuffle(self.hosts)
+            self.blacklisted_hosts = []
+        self.host, self.port = self.hosts.pop(0)
+        LOG.info('Selected connection: %s:%s', self.host, str(self.port))
+
+    def blacklist(self, host, port):
+        """Marks the tuple (host, port) as blacklisted.
+
+           Blacklisted hosts will get another chance to be elected once there
+           will be no more healthy hosts."""
+        # FIXME: Enhance this naive strategy.
+        LOG.info('Blacklisting %s:%s for a while', host, port)
+        self.blacklisted_hosts.append((host, port))
 
     def run(self):
         """Main loop.  A simple scheduler.  Loop waiting for 5
@@ -452,7 +474,7 @@ class SenderThread(threading.Thread):
 
     def verify_conn(self):
         """Periodically verify that our connection to the TSD is OK
-           and that the TSD is alive/working"""
+           and that the TSD is alive/working."""
         if self.tsd is None:
             return False
 
@@ -467,6 +489,7 @@ class SenderThread(threading.Thread):
             self.tsd.sendall('version\n')
         except socket.error, msg:
             self.tsd = None
+            self.blacklist(self.host, self.port)
             return False
 
         bufsize = 4096
@@ -478,12 +501,14 @@ class SenderThread(threading.Thread):
                 buf = self.tsd.recv(bufsize)
             except socket.error, msg:
                 self.tsd = None
+                self.blacklist(self.host, self.port)
                 return False
 
             # If we don't get a response to the `version' request, the TSD
             # must be dead or overloaded.
             if not buf:
                 self.tsd = None
+                self.blacklist(self.host, self.port)
                 return False
 
             # Woah, the TSD has a lot of things to tell us...  Let's make
@@ -547,6 +572,7 @@ class SenderThread(threading.Thread):
             time.sleep(try_delay)
 
             # Now actually try the connection.
+            self.pick_connection()
             adresses = socket.getaddrinfo(self.host, self.port, socket.AF_UNSPEC,
                                           socket.SOCK_STREAM, 0)
             for family, socktype, proto, canonname, sockaddr in adresses:
@@ -563,6 +589,7 @@ class SenderThread(threading.Thread):
                 self.tsd = None
             if not self.tsd:
                 LOG.error('Failed to connect to %s:%d', self.host, self.port)
+                self.blacklist(self.host, self.port)
 
     def send_data(self):
         """Sends outstanding data in self.sendq to the TSD in one operation."""
@@ -634,6 +661,9 @@ def parse_cmdline(argv):
     parser.add_option('-H', '--host', dest='host', default='localhost',
                       metavar='HOST',
                       help='Hostname to use to connect to the TSD.')
+    parser.add_option('-L', '--hosts-list', dest='hosts', default=False,
+                      metavar='HOSTS',
+                      help='List of host:port to connect to tsd\'s (comma separated).')
     parser.add_option('--no-tcollector-stats', dest='no_tcollector_stats',
                       default=False, action='store_true',
                       help='Prevent tcollector from reporting its own stats to TSD')
@@ -761,8 +791,26 @@ def main(argv):
     reader = ReaderThread(options.dedupinterval, options.evictinterval)
     reader.start()
 
+    # prepare list of (host, port) of TSDs given on CLI
+    if not options.hosts:
+        options.hosts = [(options.host, options.port)]
+    else:
+        def splitHost(hostport):
+            if ":" in hostport:
+                # Check if we have an IPv6 address.
+                if hostport[0] == "[" and "]:" in hostport:
+                    host, port = hostport.split("]:")
+                    host = host[1:]
+                else:
+                    host, port = hostport.split(":")
+                return (host, int(port))
+            return (hostport, 4242)
+        options.hosts = [splitHost(host) for host in options.hosts.split(",")]
+        if options.host != "localhost" or options.port != 4242:
+            options.hosts.append((options.host, options.port))
+
     # and setup the sender to start writing out to the tsd
-    sender = SenderThread(reader, options.dryrun, options.host, options.port,
+    sender = SenderThread(reader, options.dryrun, options.hosts,
                           not options.no_tcollector_stats, tagstr)
     sender.start()
     LOG.info('SenderThread startup complete')
