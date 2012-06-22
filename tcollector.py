@@ -390,8 +390,7 @@ class SenderThread(threading.Thread):
           reader: A reference to a ReaderThread instance.
           dryrun: If true, data points will be printed on stdout instead of
             being sent to the TSD.
-          hosts: Connection string defining list of tsds to connect to.
-            (eg: host1:42,host2:42)
+          hosts: List of (host, port) tuples defining list of TSDs
           self_report_stats: If true, the reader thread will insert its own
             stats into the metrics reported to TSD, as if those metrics had
             been read from a collector.
@@ -402,7 +401,7 @@ class SenderThread(threading.Thread):
         self.dryrun = dryrun
         self.reader = reader
         self.tagstr = tags
-        self.hosts = hosts.split(",")
+        self.hosts = hosts
         self.blacklisted_hosts = []
         self.host = None
         self.port = None
@@ -418,19 +417,18 @@ class SenderThread(threading.Thread):
             self.hosts = self.blacklisted_hosts
             self.blacklisted_hosts = []
         elt = self.hosts[random.randint(0, len(self.hosts) - 1)]
-        parts = elt.split(":")
-        self.host = parts[0]
-        self.port = int(parts[1]) if len(parts) == 2 else 4242
+        self.host = elt[0]
+        self.port = elt[1]
         LOG.info('Selected connection: %s:%s', self.host, str(self.port))
 
     def blacklist(self, host, port):
         """Mark the tuple (host, port) as blacklisted. Blacklisted hosts
            will get another chance to be elected once there will be no more
-           healthy hosts"""
-        address = host + ":" + str(port)
-        LOG.info('Blacklisting %s for a while', address)
-        self.blacklisted_hosts.append(address)
-        self.hosts.remove(address)
+           healthy hosts.
+           FIXME: Enhance this naive strategy."""
+        LOG.info('Blacklisting %s:%s for a while', host, port)
+        self.hosts.remove((host, port))
+        self.blacklisted_hosts.append((host, port))
 
     def run(self):
         """Main loop.  A simple scheduler.  Loop waiting for 5
@@ -475,9 +473,7 @@ class SenderThread(threading.Thread):
 
     def verify_conn(self):
         """Periodically verify that our connection to the TSD is OK
-           and that the TSD is alive/working.
-           FIXME: Blacklist current host if an error occured, even before
-           trying to reconnect to avoid reconnecting to the same insane again?"""
+           and that the TSD is alive/working."""
         if self.tsd is None:
             return False
 
@@ -492,6 +488,7 @@ class SenderThread(threading.Thread):
             self.tsd.sendall('version\n')
         except socket.error, msg:
             self.tsd = None
+            self.blacklist(self.host, self.port)
             return False
 
         bufsize = 4096
@@ -503,12 +500,14 @@ class SenderThread(threading.Thread):
                 buf = self.tsd.recv(bufsize)
             except socket.error, msg:
                 self.tsd = None
+                self.blacklist(self.host, self.port)
                 return False
 
             # If we don't get a response to the `version' request, the TSD
             # must be dead or overloaded.
             if not buf:
                 self.tsd = None
+                self.blacklist(self.host, self.port)
                 return False
 
             # Woah, the TSD has a lot of things to tell us...  Let's make
@@ -656,7 +655,10 @@ def parse_cmdline(argv):
                       default=False,
                       help='Don\'t actually send anything to the TSD, '
                            'just print the datapoints.')
-    parser.add_option('-H', '--hosts', dest='hosts', default='localhost:4242',
+    parser.add_option('-H', '--host', dest='host', default='localhost',
+                      metavar='HOST',
+                      help='Hostname to use to connect to the TSD.')
+    parser.add_option('-L', '--hosts-list', dest='hosts', default=False,
                       metavar='HOSTS',
                       help='List of host:port to connect to tsd\'s (comma separated).')
     parser.add_option('--no-tcollector-stats', dest='no_tcollector_stats',
@@ -665,6 +667,10 @@ def parse_cmdline(argv):
     parser.add_option('-s', '--stdin', dest='stdin', action='store_true',
                       default=False,
                       help='Run once, read and dedup data points from stdin.')
+    parser.add_option('-p', '--port', dest='port', type='int',
+                      default=4242, metavar='PORT',
+                      help='Port to connect to the TSD instance on. '
+                           'default=%default')
     parser.add_option('-v', dest='verbose', action='store_true', default=False,
                       help='Verbose mode (log debug messages).')
     parser.add_option('-t', '--tag', dest='tags', action='append',
@@ -752,6 +758,17 @@ def main(argv):
     # so we can have it running and pulling in data for us
     reader = ReaderThread(options.dedupinterval, options.evictinterval)
     reader.start()
+
+    # prepare list of (host, port) of TSDs given on CLI
+    if not options.hosts:
+        options.hosts = [(options.host, options.port)]
+    else:
+        tuplizator = lambda x: len(x.split(":")) == 2 \
+            and (x.split(":")[0], int(x.split(":")[1])) \
+            or (x, 4242)
+        options.hosts = map(tuplizator, options.hosts.split(","))
+        if options.host != "localhost" and options.port == 4242:
+            options.hosts.append((options.host, options.port))
 
     # and setup the sender to start writing out to the tsd
     sender = SenderThread(reader, options.dryrun, options.hosts,
