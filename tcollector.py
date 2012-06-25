@@ -767,7 +767,7 @@ def main(argv):
             and (x.split(":")[0], int(x.split(":")[1])) \
             or (x, 4242)
         options.hosts = map(tuplizator, options.hosts.split(","))
-        if options.host != "localhost" and options.port == 4242:
+        if options.host != "localhost" and options.port != 4242:
             options.hosts.append((options.host, options.port))
 
     # and setup the sender to start writing out to the tsd
