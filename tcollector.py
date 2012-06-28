@@ -42,14 +42,27 @@ from optparse import OptionParser
 
 # global variables.
 COLLECTORS = {}
+ENABLED_COLLECTORS = []
 GENERATION = 0
 DEFAULT_LOG = '/var/log/tcollector.log'
 LOG = logging.getLogger('tcollector')
 ALIVE = True
+CONFIGURATION_FILE = { 'file': None, 'mtime': 0 }
 # If the SenderThread catches more than this many consecutive uncaught
 # exceptions, something is not right and tcollector will shutdown.
 # Hopefully some kind of supervising daemon will then restart it.
 MAX_UNCAUGHT_EXCEPTIONS = 100
+
+def is_collector_enabled(collector):
+    """Check whether collector is enabled according to a configuration file.
+       If no configuration file has been specified, we consider all included
+       collectors are valid."""
+
+    global ENABLED_COLLECTORS
+    if not ENABLED_COLLECTORS:
+        return True
+    else:
+        return collector in ENABLED_COLLECTORS
 
 def register_collector(collector):
     """Register a collector with the COLLECTORS global"""
@@ -65,6 +78,7 @@ def register_collector(collector):
             col.shutdown()
 
     COLLECTORS[collector.name] = collector
+
 
 
 class ReaderQueue(Queue):
@@ -698,6 +712,9 @@ def parse_cmdline(argv):
     parser.add_option('--logfile', dest='logfile', type='str',
                       default=DEFAULT_LOG,
                       help='Filename where logs are written to.')
+    parser.add_option('--config', dest='config', type='str',
+                      default=False,
+                      help='Path to configuration file')
     (options, args) = parser.parse_args(args=argv[1:])
     if options.dedupinterval < 2:
       parser.error('--dedup-interval must be at least 2 seconds')
@@ -710,6 +727,7 @@ def parse_cmdline(argv):
 def main(argv):
     """The main tcollector entry point and loop."""
 
+    global ENABLED_COLLECTORS
     options, args = parse_cmdline(argv)
     setup_logging(options.logfile, options.max_bytes or None,
                   options.backup_count or None)
@@ -719,6 +737,9 @@ def main(argv):
 
     if options.pidfile:
         write_pid(options.pidfile)
+
+    if options.config:
+        ENABLED_COLLECTORS = load_enabled_collectors(options.config)
 
     # validate everything
     tags = {}
@@ -788,6 +809,24 @@ def main(argv):
     reader.join()
     LOG.debug('Shutting down -- joining the sender thread.')
     sender.join()
+
+def load_enabled_collectors(config_file):
+    """Fetch enabled collectors according to the list given by configuration
+       file. If no configuration file is supplied, all included collectors
+       will be launched."""
+
+    global CONFIGURATION_FILE
+    if config_file and os.path.exists(config_file):
+        result = []
+        fd = open(config_file, 'rb')
+        try:
+            for collector in fd:
+                result.append(collector.strip())
+            CONFIGURATION_FILE['file'] = config_file
+            CONFIGURATION_FILE['mtime'] = os.path.getmtime(config_file)
+        finally:
+            fd.close()
+            return result
 
 def stdin_loop(options, modules, sender, tags):
     """The main loop of the program that runs when we are in stdin mode."""
@@ -1109,8 +1148,13 @@ def populate_collectors(coldir):
        and takes the right action to bring the state of our running processes
        in line with the filesystem."""
 
-    global GENERATION
+    global GENERATION, CONFIGURATION_FILE, ENABLED_COLLECTORS
     GENERATION += 1
+
+    # Reload configuration file if required
+    if CONFIGURATION_FILE['file'] and CONFIGURATION_FILE['mtime'] < \
+            os.path.getmtime(CONFIGURATION_FILE['file']):
+        ENABLED_COLLECTORS = load_enabled_collectors(CONFIGURATION_FILE.file)
 
     # get numerics from scriptdir, we're only setup to handle numeric paths
     # which define intervals for our monitoring scripts
@@ -1126,6 +1170,10 @@ def populate_collectors(coldir):
             filename = '%s/%d/%s' % (coldir, interval, colname)
             if os.path.isfile(filename):
                 mtime = os.path.getmtime(filename)
+
+                if not is_collector_enabled(colname):
+                    LOG.debug('Collector %s is not enabled', colname)
+                    continue
 
                 # if this collector is already 'known', then check if it's
                 # been updated (new mtime) so we can kill off the old one
