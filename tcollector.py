@@ -997,18 +997,11 @@ def spawn_collector(col):
         col.proc = subprocess.Popen(col.filename, stdout=subprocess.PIPE,
                                 stderr=subprocess.PIPE)
     except OSError, e:
-        if e.errno == 13:
-            LOG.error('failed to spawn collector %s: permission denied' %
-                      col.filename)
-            return
-        elif e.errno == 2:
-            LOG.error('failed to spawn collector %s: no such file or directory' %
-                      col.filename)
-        else:
-            raise
-    # the following line needs to move below this line because it is used in
+        LOG.error('Failed to spawn collector %s: %s' % (col.filename, e))
+        return
+    # The following line needs to move below this line because it is used in
     # other logic and it makes no sense to update the last spawn time if the
-    # collector didn't actually spam
+    # collector didn't actually start.
     col.lastspawn = int(time.time())
     set_nonblocking(col.proc.stdout.fileno())
     set_nonblocking(col.proc.stderr.fileno())
