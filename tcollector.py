@@ -322,6 +322,11 @@ class ReaderThread(threading.Thread):
         metric, timestamp, value, tags = parsed.groups()
         timestamp = int(timestamp)
 
+        # Add missing host tag.
+        if re.search('\shost=[^\s]', tags) is None:
+            line += ' host=' + socket.gethostname()
+            tags += ' host=' + socket.gethostname()
+
         # De-dupe detection...  To reduce the number of points we send to the
         # TSD, we suppress sending values of metrics that don't change to
         # only once every 10 minutes (which is also when TSD changes rows
@@ -706,13 +711,6 @@ def main(argv):
         LOG.fatal('No such directory: %s', options.cdir)
         return 1
     modules = load_etc_dir(options, tags)
-
-    # tsdb does not require a host tag, but we do.  we are always running on a
-    # host.  FIXME: we should make it so that collectors may request to set
-    # their own host tag, or not set one.
-    if not 'host' in tags and not options.stdin:
-        tags['host'] = socket.gethostname()
-        LOG.warning('Tag "host" not specified, defaulting to %s.', tags['host'])
 
     # prebuild the tag string from our tags dict
     tagstr = ''
