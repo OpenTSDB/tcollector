@@ -76,7 +76,6 @@ class ReaderQueue(Queue):
         try:
             self.put(value, False)
         except Full:
-            LOG.error("DROPPED LINE: %s", value)
             return False
         return True
 
@@ -191,8 +190,8 @@ class Collector(object):
                 for attempt in range(5):
                     if self.proc.poll() is not None:
                         return
-                    LOG.info('Waiting %ds for PID %d to exit...'
-                             % (5 - attempt, self.proc.pid))
+                    LOG.info('Waiting 1s for %s (pid=%d) to exit...'
+                             % (self.name, self.proc.pid))
                     time.sleep(1)
                 kill(self.proc, signal.SIGKILL)
                 self.proc.wait()
@@ -321,6 +320,11 @@ class ReaderThread(threading.Thread):
             return
         metric, timestamp, value, tags = parsed.groups()
         timestamp = int(timestamp)
+
+        # Add missing host tag.
+        if re.search('\shost=[^\s]', tags) is None:
+            line += ' host=' + socket.gethostname()
+            tags += ' host=' + socket.gethostname()
 
         # De-dupe detection...  To reduce the number of points we send to the
         # TSD, we suppress sending values of metrics that don't change to
@@ -707,13 +711,6 @@ def main(argv):
         return 1
     modules = load_etc_dir(options, tags)
 
-    # tsdb does not require a host tag, but we do.  we are always running on a
-    # host.  FIXME: we should make it so that collectors may request to set
-    # their own host tag, or not set one.
-    if not 'host' in tags and not options.stdin:
-        tags['host'] = socket.gethostname()
-        LOG.warning('Tag "host" not specified, defaulting to %s.', tags['host'])
-
     # prebuild the tag string from our tags dict
     tagstr = ''
     if tags:
@@ -924,7 +921,7 @@ def shutdown_signal(signum, frame):
 
 
 def kill(proc, signum=signal.SIGTERM):
-  os.kill(proc.pid, signum)
+  os.killpg(proc.pid, signum)
 
 
 def shutdown():
@@ -995,7 +992,7 @@ def spawn_collector(col):
     #     ... load the py module directly instead of using a subprocess ...
     try:
         col.proc = subprocess.Popen(col.filename, stdout=subprocess.PIPE,
-                                stderr=subprocess.PIPE)
+                                stderr=subprocess.PIPE, preexec_fn=os.setsid)
     except OSError, e:
         LOG.error('Failed to spawn collector %s: %s' % (col.filename, e))
         return

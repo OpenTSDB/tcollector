@@ -15,7 +15,7 @@ PROG=$TCOLLECTOR_PATH/tcollector.py
 LOG=${LOG-'/var/log/tcollector.log'}
 COMMAND=$1
 shift
-ARGS="-c $TCOLLECTOR_PATH/collectors -H $TSD_HOST -t host=$HOSTNAME -P $PIDFILE"
+ARGS="-c $TCOLLECTOR_PATH/collectors -H $TSD_HOST -P $PIDFILE"
 ARGS="$ARGS $@"
 
 # Sanity checks.
