@@ -19,7 +19,6 @@ import signal
 import subprocess
 import sys
 import time
-import traceback
 
 # If this user doesn't exist, we'll exit immediately.
 # If we're running as root, we'll drop privileges using this user.
@@ -39,6 +38,137 @@ JMX_SERVICE_RENAMING = {
     "org.apache.hbase": "hbase",
 }
 
+TABLE_PREFIXES = ("tbl.", "region.", "cf.")
+
+
+class TSDBMetric(object):
+    def __init__(self, metric, timestamp, value, tags):
+        self.metric = metric
+        self.timestamp = timestamp
+        self.value = value
+        self.tags = tags
+
+    def __str__(self):
+        return "hbase.%s %d %s%s" % (self.metric,
+                self.timestamp, self.value, self.tags)
+
+
+def parse_region_metric(timestamp, metric, value, mbean):
+    """Parses metrics emitted by hbase 0.94 and above
+    The metric will look like:
+    tbl.tsdb.region.ac24585de8938d7d77ea8f7845350260.multiput_MaxTime
+
+    For the tsdb table region ac2... had a multi put operation(s) with
+    a max time contained in the value.
+
+    This will not emit anything if hbase.metrics.showTableName is
+    set to false.
+    """
+    if not metric.startswith(TABLE_PREFIXES[0]):
+        #even though there can be more ways to emit these values
+        #hbase.metrics.showTableName must be true
+        return None
+    region_label_index = metric.find(TABLE_PREFIXES[1])
+    if region_label_index <= 0:
+        return None
+    table_name = metric[4: (region_label_index - 1)]
+    region_end_index = metric.index(".", region_label_index + 8)
+    region_name = metric[region_label_index + 7: region_end_index]
+    metric = "tables." + metric[region_end_index + 1:]
+    if not table_name:
+        print >>sys.stderr, ("Warning: could "
+                "not find table from %s" % metric)
+        return None
+
+    if not region_name:
+        return None
+
+    if metric.endswith("MinTime"):
+        return None
+    tags = " table=" + table_name + " region=" + region_name
+    return TSDBMetric(metric, timestamp, value, tags)
+
+
+def parse_base_metric(timestamp, metric, value, mbean):
+    if any(metric.startswith(prefix) for prefix in TABLE_PREFIXES):
+        return None
+    tags = ""
+    # The JMX metrics have per-request-type metrics like so:
+    #   metricNameNumOps
+    #   metricNameMinTime
+    #   metricNameMaxTime
+    #   metricNameAvgTime
+    # Group related metrics together in the same metric name, use tags
+    # to separate the different request types, so we end up with:
+    #   numOps op=metricName
+    #   avgTime op=metricName
+    # etc, which makes it easier to graph things with the TSD.
+    if metric.endswith("MinTime"):  # We don't care about the minimum
+        return None                    # time taken by operations.
+    elif metric.endswith("NumOps"):
+        tags = " op=" + metric[:-6]
+        metric = "numOps"
+    elif metric.endswith("AvgTime"):
+        tags = " op=" + metric[:-7]
+        metric = "avgTime"
+    elif metric.endswith("MaxTime"):
+        tags = " op=" + metric[:-7]
+        metric = "maxTime"
+
+    # mbean is of the form "domain:key=value,...,foo=bar"
+    mbean_domain, mbean_props = mbean.rstrip().split(":", 1)
+    if mbean_domain not in ("hadoop", "java.lang"):
+        print >>sys.stderr, "Unexpected mbean domain = %r" % mbean_domain
+        return None
+
+    mbean_props = dict(prop.split("=", 1) for prop in mbean_props.split(","))
+    if mbean_domain == "hadoop":
+        # jmx_service is HBase by default, but we can also have
+        # RegionServer or Replication and such.
+        jmx_service = mbean_props.get("service", "HBase")
+        if jmx_service == "HBase":
+            jmx_service = "regionserver"
+    elif mbean_domain == "java.lang":
+        jmx_service = mbean_props.pop("type", "jvm")
+        if mbean_props:
+            tags += " "
+            tags += " ".join(k + "=" + v for k, v in mbean_props.iteritems())
+    else:
+        assert 0, "Should never be here"
+
+    # Hack.  Right now, the RegionServer is printing stats for its own
+    # replication queue, but when another RegionServer dies, this one
+    # may take over the replication queue of the dead one.  When this
+    # happens, we'll get the same metrics multiple times, because
+    # internally the RegionServer has multiple queues (although only
+    # only one is actively used, the other ones get flushed and
+    # discarded).  The following `if' statement is simply discarding
+    # stats for "recovered" replication queues, because we can't keep
+    # track of them properly in TSDB, because there is no sensible
+    # tag we can use to differentiate queues.
+    if jmx_service == "Replication":
+        attr_name = mbean_props.get("name", "")
+        # Normally the attribute will look this:
+        #   ReplicationSource for <N>
+        # Where <N> is the ID of the destination cluster.
+        # But when this is the recovered queue of a dead RegionServer:
+        #   ReplicationSource for <N>-<HOST>%2C<PORT>%2C<TIMESTAMP>
+        # Where <HOST>, <PORT> and <TIMESTAMP> relate to the dead RS.
+        # So we discriminate those entries by looking for a dash.
+        if "ReplicationSource" in attr_name and "-" in attr_name:
+            return None
+
+    jmx_service = JMX_SERVICE_RENAMING.get(jmx_service, jmx_service)
+    jmx_service, repl_count = re.subn("[^a-zA-Z0-9]+", ".",
+                                      jmx_service)
+    if repl_count:
+        print >>sys.stderr, ("Warning: found malformed"
+                             " jmx_service=%r on line=%r"
+                             % mbean_props["service"])
+    metric = jmx_service.lower() + "." + metric
+    return TSDBMetric(metric, timestamp, value, tags)
+
+
 def drop_privileges():
     try:
         ent = pwd.getpwnam(USER)
@@ -54,27 +184,27 @@ def drop_privileges():
 
 
 def kill(proc):
-  """Kills the subprocess given in argument."""
-  # Clean up after ourselves.
-  proc.stdout.close()
-  rv = proc.poll()
-  if rv is None:
-      os.kill(proc.pid, 15)
-      rv = proc.poll()
-      if rv is None:
-          os.kill(proc.pid, 9)  # Bang bang!
-          rv = proc.wait()  # This shouldn't block too long.
-  print >>sys.stderr, "warning: proc exited %d" % rv
-  return rv
+    """Kills the subprocess given in argument."""
+    # Clean up after ourselves.
+    proc.stdout.close()
+    rv = proc.poll()
+    if rv is None:
+        os.kill(proc.pid, 15)
+        rv = proc.poll()
+        if rv is None:
+            os.kill(proc.pid, 9)  # Bang bang!
+            rv = proc.wait()  # This shouldn't block too long.
+    print >>sys.stderr, "warning: proc exited %d" % rv
+    return rv
 
 
 def do_on_signal(signum, func, *args, **kwargs):
-  """Calls func(*args, **kwargs) before exiting when receiving signum."""
-  def signal_shutdown(signum, frame):
-    print >>sys.stderr, "got signal %d, exiting" % signum
-    func(*args, **kwargs)
-    sys.exit(128 + signum)
-  signal.signal(signum, signal_shutdown)
+    """Calls func(*args, **kwargs) before exiting when receiving signum."""
+    def signal_shutdown(signum, frame):
+        print >>sys.stderr, "got signal %d, exiting" % signum
+        func(*args, **kwargs)
+        sys.exit(128 + signum)
+    signal.signal(signum, signal_shutdown)
 
 
 def main(argv):
@@ -95,15 +225,17 @@ def main(argv):
         ["java", "-enableassertions", "-enablesystemassertions",  # safe++
          "-Xmx64m",  # Low RAM limit, to avoid stealing too much from prod.
          "-cp", classpath, "com.stumbleupon.monitoring.jmx",
-         "--watch", "10", "--long", "--timestamp",
+         "--watch", "10",
+         "--reconnect", "60",
+         "--long", "--timestamp",
          "HRegionServer",  # Name of the process.
          # The remaining arguments are pairs (mbean_regexp, attr_regexp).
          # The first regexp is used to match one or more MBeans, the 2nd
          # to match one or more attributes of the MBeans matched.
-         "hadoop", "",                     # All HBase / hadoop metrics.
-         "Threading", "Count|Time$",       # Number of threads and CPU time.
-         "OperatingSystem", "OpenFile",    # Number of open files.
-         "GarbageCollector", "Collection", # GC runs and time spent GCing.
+         "hadoop", "",                      # All HBase / hadoop metrics.
+         "Threading", "Count|Time$",        # Number of threads and CPU time.
+         "OperatingSystem", "OpenFile",     # Number of open files.
+         "GarbageCollector", "Collection",  # GC runs and time spent GCing.
          ], stdout=subprocess.PIPE, bufsize=1)
     do_on_signal(signal.SIGINT, kill, jmx)
     do_on_signal(signal.SIGPIPE, kill, jmx)
@@ -141,86 +273,13 @@ def main(argv):
                                      % (line, e))
                 continue
             prev_timestamp = timestamp
+            tsdb = parse_region_metric(timestamp, metric, value, mbean)
+            if tsdb == None:
+                tsdb = parse_base_metric(timestamp, metric, value, mbean)
 
-            tags = ""
-            # The JMX metrics have per-request-type metrics like so:
-            #   metricNameNumOps
-            #   metricNameMinTime
-            #   metricNameMaxTime
-            #   metricNameAvgTime
-            # Group related metrics together in the same metric name, use tags
-            # to separate the different request types, so we end up with:
-            #   numOps op=metricName
-            #   avgTime op=metricName
-            # etc, which makes it easier to graph things with the TSD.
-            if metric.endswith("MinTime"):  # We don't care about the minimum
-                continue                    # time taken by operations.
-            elif metric.endswith("NumOps"):
-                tags = " op=" + metric[:-6]
-                metric = "numOps"
-            elif metric.endswith("AvgTime"):
-                tags = " op=" + metric[:-7]
-                metric = "avgTime"
-            elif metric.endswith("MaxTime"):
-                tags = " op=" + metric[:-7]
-                metric = "maxTime"
-
-            # mbean is of the form "domain:key=value,...,foo=bar"
-            mbean_domain, mbean_properties = mbean.rstrip().split(":", 1)
-            if mbean_domain not in ("hadoop", "java.lang"):
-                print >>sys.stderr, ("Unexpected mbean domain = %r on line %r"
-                                     % (mbean_domain, line))
-                continue
-            mbean_properties = dict(prop.split("=", 1)
-                                    for prop in mbean_properties.split(","))
-            if mbean_domain == "hadoop":
-              # jmx_service is HBase by default, but we can also have
-              # RegionServer or Replication and such.
-              jmx_service = mbean_properties.get("service", "HBase")
-              if jmx_service == "HBase":
-                  jmx_service = "regionserver"
-            elif mbean_domain == "java.lang":
-                jmx_service = mbean_properties.pop("type", "jvm")
-                if mbean_properties:
-                    tags += " " + " ".join(k + "=" + v for k, v in
-                                           mbean_properties.iteritems())
-            else:
-                assert 0, "Should never be here"
-
-            # Hack.  Right now, the RegionServer is printing stats for its own
-            # replication queue, but when another RegionServer dies, this one
-            # may take over the replication queue of the dead one.  When this
-            # happens, we'll get the same metrics multiple times, because
-            # internally the RegionServer has multiple queues (although only
-            # only one is actively used, the other ones get flushed and
-            # discarded).  The following `if' statement is simply discarding
-            # stats for "recovered" replication queues, because we can't keep
-            # track of them properly in TSDB, because there is no sensible
-            # tag we can use to differentiate queues.
-            if jmx_service == "Replication":
-              attr_name = mbean_properties.get("name", "")
-              # Normally the attribute will look this:
-              #   ReplicationSource for <N>
-              # Where <N> is the ID of the destination cluster.
-              # But when this is the recovered queue of a dead RegionServer:
-              #   ReplicationSource for <N>-<HOST>%2C<PORT>%2C<TIMESTAMP>
-              # Where <HOST>, <PORT> and <TIMESTAMP> relate to the dead RS.
-              # So we discriminate those entries by looking for a dash.
-              if "ReplicationSource" in attr_name and "-" in attr_name:
-                continue
-
-            jmx_service = JMX_SERVICE_RENAMING.get(jmx_service, jmx_service)
-            jmx_service, repl_count = re.subn("[^a-zA-Z0-9]+", ".",
-                                              jmx_service)
-            if repl_count:
-                print >>sys.stderr, ("Warning: found malformed"
-                                     " jmx_service=%r on line=%r"
-                                     % (mbean_properties["service"], line))
-            metric = jmx_service.lower() + "." + metric
-
-            sys.stdout.write("hbase.%s %d %s%s\n"
-                             % (metric, timestamp, value, tags))
-            sys.stdout.flush()
+            if tsdb != None:
+                sys.stdout.write("%s\n" % str(tsdb))
+                sys.stdout.flush()
     finally:
         kill(jmx)
         time.sleep(300)

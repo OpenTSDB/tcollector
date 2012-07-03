@@ -36,6 +36,7 @@ import javax.management.openmbean.TabularData;
 import javax.management.remote.JMXConnector;
 import javax.management.remote.JMXConnectorFactory;
 import javax.management.remote.JMXServiceURL;
+import javax.management.AttributeNotFoundException;
 
 // Sun specific
 import com.sun.tools.attach.AgentInitializationException;
@@ -84,6 +85,7 @@ final class jmx {
                          + "  --long                    Print a longer but more explicit output for each value.\n"
                          + "  --timestamp               Print a timestamp at the beginning of each line.\n"
                          + "  --watch N                 Reprint the output every N seconds.\n"
+                         + "  --reconnect N             How often to disconnect and connec to JMX\n"
                          + "\n"
                          + "Return value:\n"
                          + "  0: Everything OK.\n"
@@ -107,14 +109,16 @@ final class jmx {
     }
 
     int current_arg = 0;
-    int watch = 0;
+    long watch = 0;
+    long reconnect  = 0;
+    long lastReconnect = System.currentTimeMillis();
     boolean long_output = false;
     boolean print_timestamps = false;
     while (current_arg < args.length) {
       if ("--watch".equals(args[current_arg])) {
         current_arg++;
         try {
-          watch = Integer.parseInt(args[current_arg]);
+          watch = Integer.parseInt(args[current_arg]) * 1000;
         } catch (NumberFormatException e) {
           fatal(1, "Invalid value for --watch: " + e.getMessage());
           return;
@@ -128,6 +132,15 @@ final class jmx {
         current_arg++;
       } else if ("--timestamp".equals(args[current_arg])) {
         print_timestamps = true;
+        current_arg++;
+      } else if("--reconnect".equals(args[current_arg])) {
+        current_arg++;
+        try {
+          reconnect = Integer.parseInt(args[current_arg]) * 1000;
+        } catch (NumberFormatException e) {
+          fatal(1, "Invalid value for --reconnect: " + e.getMessage());
+          return;
+        }
         current_arg++;
       } else {
         break;
@@ -146,11 +159,11 @@ final class jmx {
       return;
     }
 
-    final JVM jvm = selectJVM(args[current_arg++], vms);
-    vms = null;
-    final JMXConnector connection = JMXConnectorFactory.connect(jvm.jmxUrl());
+    String jvmSelector = args[current_arg++];
+    JVM jvm = selectJVM(jvmSelector, vms);
+    JMXConnector connection = JMXConnectorFactory.connect(jvm.jmxUrl());
     try {
-      final MBeanServerConnection mbsc = connection.getMBeanServerConnection();
+      MBeanServerConnection mbsc = connection.getMBeanServerConnection();
       if (args.length == current_arg) {
         for (final ObjectName mbean : listMBeans(mbsc)) {
           System.out.println(mbean);
@@ -182,7 +195,18 @@ final class jmx {
           return;
         }
         System.out.flush();
-        Thread.sleep(watch * 1000);
+
+        //Now that we are done getting metrics see if we need to reconnect.
+        long start = System.currentTimeMillis();
+        if (reconnect > 0 && ((start - lastReconnect) > reconnect)) {
+          connection.close();
+          jvm = selectJVM(jvmSelector, vms);
+          connection = JMXConnectorFactory.connect(jvm.jmxUrl());
+          mbsc = connection.getMBeanServerConnection();
+        }
+
+        //However long the re-connect took (if at all), take that off the sleep time.
+        Thread.sleep(watch - (System.currentTimeMillis() - start));
       } while (watch > 0);
     } finally {
       connection.close();
@@ -210,17 +234,24 @@ final class jmx {
                                 final MBeanServerConnection mbsc,
                                 final ObjectName object,
                                 final MBeanAttributeInfo attr) throws Exception {
-    final String name = attr.getName();
-    Object value = mbsc.getAttribute(object, name);
-    if (value instanceof TabularData) {
-      final TabularData tab = (TabularData) value;
-      int i = 0;
-      for (final Object o : tab.keySet()) {
-        dumpMBeanValue(long_output, print_timestamps, object, name + "." + i, o);
-        i++;
+    try {
+      final String name = attr.getName();
+      Object value = mbsc.getAttribute(object, name);
+      if (value instanceof TabularData) {
+        final TabularData tab = (TabularData) value;
+        int i = 0;
+        for (final Object o : tab.keySet()) {
+          dumpMBeanValue(long_output, print_timestamps, object, name + "." + i, o);
+          i++;
+        }
+      } else {
+        dumpMBeanValue(long_output, print_timestamps, object, name, value);
       }
-    } else {
-      dumpMBeanValue(long_output, print_timestamps, object, name, value);
+    } catch (AttributeNotFoundException nfe) {
+      // Ignored
+      // The bean might have been one that was just removed.
+      // No need to stop.
+
     }
   }
 
