@@ -57,7 +57,6 @@ def main():
                         print "nfs.client.v4.rpc %d %s op=%s" % (ts, int(val), nfs_client_proc4_names[idx])
                     except IndexError:
                         print >> sys.stderr, "%s: Warning: name lookup failed at position %d" % (sys.argv[0], idx)
-                        continue
             elif fields[0] == "rpc":
                 # RPC
                 calls = fields[1]
