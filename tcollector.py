@@ -322,11 +322,6 @@ class ReaderThread(threading.Thread):
         metric, timestamp, value, tags = parsed.groups()
         timestamp = int(timestamp)
 
-        # Add missing host tag.
-        if re.search('\shost=[^\s]', tags) is None:
-            line += ' host=' + socket.gethostname()
-            tags += ' host=' + socket.gethostname()
-
         # De-dupe detection...  To reduce the number of points we send to the
         # TSD, we suppress sending values of metrics that don't change to
         # only once every 10 minutes (which is also when TSD changes rows
@@ -576,6 +571,11 @@ class SenderThread(threading.Thread):
         out = ''
         for line in self.sendq:
             line = 'put ' + line + self.tagstr
+
+            # Add missing host tag.
+            if re.search('\shost=[^\s]', line) is None:
+                line += ' host=' + socket.gethostname()
+
             out += line + '\n'
             LOG.debug('SENDING: %s', line)
 
