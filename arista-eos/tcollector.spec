@@ -4,6 +4,7 @@
 %undefine __check_files
 BuildArch:      noarch
 Name:           tcollector
+Group:          System/Monitoring
 Version:        @PACKAGE_VERSION@
 Release:        @RPM_REVISION@
 Distribution:   buildhash=@GIT_FULLSHA1@
