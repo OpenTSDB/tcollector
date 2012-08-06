@@ -238,7 +238,9 @@ final class jmx {
       for (final Object o : (Object[]) value) {
         buf.append(o).append('\t');
       }
-      buf.setLength(buf.length() - 1);
+      if(buf.length() > 0){
+          buf.setLength(buf.length() - 1);
+      }
     } else {
       buf.append(name).append('\t').append(value);
     }
