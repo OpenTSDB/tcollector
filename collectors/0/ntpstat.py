@@ -22,6 +22,7 @@ import socket
 import subprocess
 import sys
 import time
+import errno
 
 
 COLLECTION_INTERVAL = 60  # seconds
