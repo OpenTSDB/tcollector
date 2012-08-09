@@ -50,8 +50,7 @@ def main():
                 if fields[0] == "offset:":
                     offset=fields[1]    
                     continue
-            print ("ntp.offset %d"
-                    % (ts, offset))
+            print ("ntp.offset %d %s" % (ts, offset))
         else:
             print >> sys.stderr, "ntpdc -c loopinfo, returned %r" % (ntp_proc.returncode)
 
