@@ -31,7 +31,14 @@ def main():
 
     while True:
         ts = int(time.time())
-        ntp_proc = subprocess.Popen(["/usr/sbin/ntpdc", "-c", "loopinfo"], stdout=subprocess.PIPE)
+        try:
+            ntp_proc = subprocess.Popen(["ntpdc", "-c", "loopinfo"], stdout=subprocess.PIPE)
+        except OSError, e:
+            if e.errno == errno.ENOENT:
+                # looks like ntpdc is not available, stop using this collector
+                sys.exit(13) # we signal tcollector to stop using this
+            raise
+
         stdout, _ = ntp_proc.communicate()
         if ntp_proc.returncode == 0:
             for line in stdout.split("\n"): 
@@ -43,10 +50,10 @@ def main():
                 if fields[0] == "offset:":
                     offset=fields[1]    
                     continue
-            print ("ntp.offset %d %s"
+            print ("ntp.offset %d"
                     % (ts, offset))
         else:
-            print >> sys.stderr, "ntpdate -q %s returned %r" % (server, ntp_proc.returncode)
+            print >> sys.stderr, "ntpdc -c loopinfo, returned %r" % (ntp_proc.returncode)
 
         sys.stdout.flush()
         time.sleep(COLLECTION_INTERVAL)
