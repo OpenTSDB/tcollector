@@ -36,7 +36,7 @@ fi
 lockfile=${LOCKFILE-/var/lock/subsys/tcollector}
 
 if [ -z "$OPTIONS" ]; then
-  OPTIONS="-H $TSD_HOST -t host=$THIS_HOST -P $PIDFILE"
+  OPTIONS="-D -H $TSD_HOST -t host=$THIS_HOST -P $PIDFILE"
   OPTIONS="$OPTIONS --logfile=$LOGFILE --backup-count=$NUMLOGFILES"
 fi
 

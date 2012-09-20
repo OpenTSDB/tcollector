@@ -629,6 +629,8 @@ def parse_cmdline(argv):
                       default=False,
                       help='Don\'t actually send anything to the TSD, '
                            'just print the datapoints.')
+    parser.add_option('-D', '--daemonize', dest='daemonize', action='store_true',
+                      default=False, help='Run as a background daemon.')
     parser.add_option('-H', '--host', dest='host', default='localhost',
                       metavar='HOST',
                       help='Hostname to use to connect to the TSD.')
@@ -671,17 +673,46 @@ def parse_cmdline(argv):
                       help='Filename where logs are written to.')
     (options, args) = parser.parse_args(args=argv[1:])
     if options.dedupinterval < 2:
-      parser.error('--dedup-interval must be at least 2 seconds')
+        parser.error('--dedup-interval must be at least 2 seconds')
     if options.evictinterval <= options.dedupinterval:
-      parser.error('--evict-interval must be strictly greater than '
-                   '--dedup-interval')
+        parser.error('--evict-interval must be strictly greater than '
+                     '--dedup-interval')
+    # We cannot write to stdout when we're a daemon.
+    if options.daemonize and not options.backup_count:
+        options.backup_count = 1
     return (options, args)
+
+
+def daemonize():
+    """Performs the necessary dance to become a background daemon."""
+    if os.fork():
+        os._exit(0)
+    os.chdir("/")
+    os.umask(022)
+    os.setsid()
+    os.umask(0)
+    if os.fork():
+        os._exit(0)
+    stdin = open(os.devnull)
+    stdout = open(os.devnull, 'w')
+    os.dup2(stdin.fileno(), 0)
+    os.dup2(stdout.fileno(), 1)
+    os.dup2(stdout.fileno(), 2)
+    stdin.close()
+    stdout.close()
+    for fd in xrange(3, 1024):
+        try:
+            os.close(fd)
+        except OSError:  # This FD wasn't opened...
+            pass         # ... ignore the exception.
 
 
 def main(argv):
     """The main tcollector entry point and loop."""
 
     options, args = parse_cmdline(argv)
+    if options.daemonize:
+        daemonize()
     setup_logging(options.logfile, options.max_bytes or None,
                   options.backup_count or None)
 
