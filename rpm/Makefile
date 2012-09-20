@@ -97,6 +97,7 @@ manifest.txt: $(EOSRPM) Makefile
         done
 	$(PYTHON) -m compileall -q "$(DESTDIR)"
 	$(PYTHON) -O -m compileall -q "$(DESTDIR)"
+	chmod -R a+rX "$(DESTDIR)"
 	@touch $@
 
 common.spec: .dist-stamp tcollector.spec ChangeLog $(VPATH)/README Makefile
