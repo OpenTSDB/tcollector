@@ -1,4 +1,6 @@
-This Makefile allows you to package tcollector as an EOS extension.
+This Makefile allows you to package tcollector as an RPM and/or as an
+EOS extension.  The plain RPM is for any Linux distro that uses RPM.
+
 EOS is Arista's Extensible Operating System, the OS that runs on all
 of Arista's switches.  EOS runs an unmodified Linux kernel along with
 a Fedora userland.
