@@ -23,11 +23,11 @@ import traceback
 
 # If this user doesn't exist, we'll exit immediately.
 # If we're running as root, we'll drop privileges using this user.
-USER = "hadoop"
+USER = "tsuna"
 
 # We add those files to the classpath if they exist.
 CLASSPATH = [
-    "/usr/lib/jvm/java-6-sun/lib/tools.jar",
+    "/usr/lib/jvm/java-1.6.0-openjdk-1.6.0.0.x86_64/lib/tools.jar",
 ]
 
 # We shorten certain strings to avoid excessively long metric names.
@@ -96,7 +96,7 @@ def main(argv):
          "-Xmx64m",  # Low RAM limit, to avoid stealing too much from prod.
          "-cp", classpath, "com.stumbleupon.monitoring.jmx",
          "--watch", "10", "--long", "--timestamp",
-         "HRegionServer",  # Name of the process.
+         "HMaster",  # Name of the process.
          # The remaining arguments are pairs (mbean_regexp, attr_regexp).
          # The first regexp is used to match one or more MBeans, the 2nd
          # to match one or more attributes of the MBeans matched.
