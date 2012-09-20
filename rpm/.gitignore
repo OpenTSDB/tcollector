@@ -5,3 +5,4 @@ manifest.txt
 real.spec
 *.rpm
 *.swix
+common.spec

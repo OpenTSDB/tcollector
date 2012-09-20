@@ -114,11 +114,11 @@ common.spec: .dist-stamp tcollector.spec ChangeLog $(VPATH)/README Makefile
 	mv $@-t $@
 
 RPM_SPEC := $(RPM:.rpm=.spec)
-$(RPM_SPEC): common.spec
+$(RPM_SPEC): common.spec linux.spec
 	mkdir -p $(DESTDIR)/etc/init.d
 	cp initd.sh $(DESTDIR)/etc/init.d/tcollector
 	{ \
-          cat $<; \
+          cat $^; \
           echo %files; \
           cat filelist; \
           echo '%attr(755, -, -) "/etc/init.d/tcollector"'; \
