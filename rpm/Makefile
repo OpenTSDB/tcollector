@@ -115,10 +115,13 @@ common.spec: .dist-stamp tcollector.spec ChangeLog $(VPATH)/README Makefile
 
 RPM_SPEC := $(RPM:.rpm=.spec)
 $(RPM_SPEC): common.spec
+	mkdir -p $(DESTDIR)/etc/init.d
+	cp initd.sh $(DESTDIR)/etc/init.d/tcollector
 	{ \
           cat $<; \
           echo %files; \
           cat filelist; \
+          echo '%attr(755, -, -) "/etc/init.d/tcollector"'; \
           echo %changelog; \
           cat ChangeLog; \
           echo %description; \
@@ -144,6 +147,7 @@ clean:
           echo rm -f "'$(DESTDIR)/$(tcollectordir)/$$file'"; \
           rm -f "$(DESTDIR)/$(tcollectordir)/$$file" || exit $$?; \
         done
+	rm -f $(DESTDIR)/etc/init.d/tcollector
 	@test -d "$(DESTDIR)" || exit 0; \
         find "$(DESTDIR)" -depth -type d \
         | while read dir; do \
