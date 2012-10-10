@@ -30,6 +30,10 @@ CLASSPATH = [
     "/usr/lib/jvm/java-6-sun/lib/tools.jar",
 ]
 
+IGNORED_METRICS = set(["revision","hdfsUser","hdfsDate","hdfsUrl","date",
+                       "hdfsRevision","user","hdfsVersion","url","version",
+                       "ServerName","Coprocessors","ZookeeperQuorum" ])
+
 # We shorten certain strings to avoid excessively long metric names.
 JMX_SERVICE_RENAMING = {
     "GarbageCollector": "gc",
@@ -126,6 +130,9 @@ def main(argv):
                 # don't care about anyway properly.
                 if "java.lang.String" not in line:
                     print >>sys.stderr, "Can't split line: %r" % line
+                continue
+
+            if metric in IGNORED_METRICS:
                 continue
 
             # Sanitize the timestamp.
