@@ -38,7 +38,8 @@ JMX_SERVICE_RENAMING = {
 
 IGNORED_METRICS = set(["revision", "hdfsUser", "hdfsDate", "hdfsUrl", "date",
                        "hdfsRevision", "user", "hdfsVersion", "url", "version",
-                       "NamenodeAddress", "Version", "RpcPort", "HttpPort",
+                       "NamenodeAddress", "Version", "RpcPort", "HttpPort","tag.Context","tag.Hostname","NamenodeAddresses",
+                       "tag.SessionId","tag.port",
                        # These are useless as-is because they represent the
                        # thread that's dedicated to serving JMX RPCs.
                        "CurrentThreadCpuTime", "CurrentThreadUserTime",
@@ -116,7 +117,7 @@ def main(argv):
          # The remaining arguments are pairs (mbean_regexp, attr_regexp).
          # The first regexp is used to match one or more MBeans, the 2nd
          # to match one or more attributes of the MBeans matched.
-         "hadoop", "",                     # All HBase / hadoop metrics.
+         "[Hh]adoop", "",                     # All HBase / Hadoop metrics.
          "Threading", "Count|Time$",       # Number of threads and CPU time.
          "OperatingSystem", "OpenFile",    # Number of open files.
          "GarbageCollector", "Collection", # GC runs and time spent GCing.
@@ -179,13 +180,13 @@ def main(argv):
             # mbean is of the form "domain:key=value,...,foo=bar"
             # some tags can have spaces, so we need to fix that.
             mbean_domain, mbean_properties = mbean.rstrip().replace(" ", "_").split(":", 1)
-            if mbean_domain not in ("hadoop", "java.lang"):
+            if mbean_domain not in ("Hadoop", "java.lang"):
                 print >>sys.stderr, ("Unexpected mbean domain = %r on line %r"
                                      % (mbean_domain, line))
                 continue
             mbean_properties = dict(prop.split("=", 1)
                                     for prop in mbean_properties.split(","))
-            if mbean_domain == "hadoop":
+            if mbean_domain == "Hadoop":
               # jmx_service is HBase by default, but we can also have
               # RegionServer or Replication and such.
               jmx_service = mbean_properties.get("service", "HBase")
@@ -202,7 +203,7 @@ def main(argv):
             jmx_service = JMX_SERVICE_RENAMING.get(jmx_service, jmx_service)
             metric = jmx_service.lower() + "." + metric
 
-            sys.stdout.write("hadoop.%s %d %s%s\n"
+            sys.stdout.write("Hadoop.%s %d %s%s\n"
                              % (metric, timestamp, value, tags))
             sys.stdout.flush()
     finally:
