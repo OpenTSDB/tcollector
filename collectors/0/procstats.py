@@ -17,8 +17,13 @@
 import os
 import sys
 import time
-import socket
 import re
+try:
+    import multiprocessing
+except ImportError:
+    NUM_CPU = int(os.sysconf('SC_NPROCESSORS_ONLN'))
+else:
+    NUM_CPU = multiprocessing.cpu_count()
 
 COLLECTION_INTERVAL = 15  # seconds
 NUMADIR = "/sys/devices/system/node"
@@ -125,23 +130,25 @@ def main():
             m = re.match("(\w+)\s+(.*)", line)
             if not m:
                 continue
-            if m.group(1) == "cpu":
+            use_bycpu = re.match("(cpu\d+)", m.group(1)) and (NUM_CPU > 1)
+            if m.group(1) == "cpu" or use_bycpu:
                 fields = m.group(2).split()
-                print "proc.stat.cpu %d %s type=user" % (ts, fields[0])
-                print "proc.stat.cpu %d %s type=nice" % (ts, fields[1])
-                print "proc.stat.cpu %d %s type=system" % (ts, fields[2])
-                print "proc.stat.cpu %d %s type=idle" % (ts, fields[3])
-                print "proc.stat.cpu %d %s type=iowait" % (ts, fields[4])
-                print "proc.stat.cpu %d %s type=irq" % (ts, fields[5])
-                print "proc.stat.cpu %d %s type=softirq" % (ts, fields[6])
-                # really old kernels don't have this field
+                if re.match("(cpu\d+)", m.group(1)):
+                    cputag = "cpu=%s" % (m.group(1),)
+                    metric = "proc.stat.cpu.bycpu"
+                else:
+                    cputag = ""
+                    metric = "proc.stat.cpu"
+                types = ["user", "nice", "system", "idle", "iowait", "irq", "softirq"]
                 if len(fields) > 7:
-                    print ("proc.stat.cpu %d %s type=guest"
-                           % (ts, fields[7]))
-                    # old kernels don't have this field
+                    types.append("guest")
                     if len(fields) > 8:
-                        print ("proc.stat.cpu %d %s type=guest_nice"
-                               % (ts, fields[8]))
+                        types.append("guest_nice")
+                ix = 0
+                for t in types:
+                    out = "%s %d %s type=%s %s" % (metric, ts, fields[ix], t, cputag)
+                    print out.strip()
+                    ix += 1
             elif m.group(1) == "intr":
                 print ("proc.stat.intr %d %s"
                         % (ts, m.group(2).split()[0]))
