@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 # This file is part of tcollector.
 # Copyright (C) 2010  StumbleUpon, Inc.
 #
@@ -42,14 +42,27 @@ from optparse import OptionParser
 
 # global variables.
 COLLECTORS = {}
+ENABLED_COLLECTORS = []
 GENERATION = 0
 DEFAULT_LOG = '/var/log/tcollector.log'
 LOG = logging.getLogger('tcollector')
 ALIVE = True
+CONFIGURATION_FILE = { 'file': None, 'mtime': 0 }
 # If the SenderThread catches more than this many consecutive uncaught
 # exceptions, something is not right and tcollector will shutdown.
 # Hopefully some kind of supervising daemon will then restart it.
 MAX_UNCAUGHT_EXCEPTIONS = 100
+
+def is_collector_enabled(collector):
+    """Check whether collector is enabled according to a configuration file.
+       If no configuration file has been specified, we consider all included
+       collectors are valid."""
+
+    global ENABLED_COLLECTORS
+    if not ENABLED_COLLECTORS:
+        return True
+    else:
+        return collector in ENABLED_COLLECTORS
 
 def register_collector(collector):
     """Register a collector with the COLLECTORS global"""
@@ -65,6 +78,7 @@ def register_collector(collector):
             col.shutdown()
 
     COLLECTORS[collector.name] = collector
+
 
 
 class ReaderQueue(Queue):
@@ -383,15 +397,14 @@ class SenderThread(threading.Thread):
        buffering we might need to do if we can't establish a connection
        and we need to spool to disk.  That isn't implemented yet."""
 
-    def __init__(self, reader, dryrun, host, port, self_report_stats, tags):
+    def __init__(self, reader, dryrun, hosts, self_report_stats, tags):
         """Constructor.
 
         Args:
           reader: A reference to a ReaderThread instance.
           dryrun: If true, data points will be printed on stdout instead of
             being sent to the TSD.
-          host: The hostname of the TSD to connect to.
-          port: The port of the TSD to connect to.
+          hosts: List of (host, port) tuples defining list of TSDs
           self_report_stats: If true, the reader thread will insert its own
             stats into the metrics reported to TSD, as if those metrics had
             been read from a collector.
@@ -400,14 +413,36 @@ class SenderThread(threading.Thread):
         super(SenderThread, self).__init__()
 
         self.dryrun = dryrun
-        self.host = host
-        self.port = port
         self.reader = reader
         self.tagstr = tags
+        self.hosts = hosts
+        self.blacklisted_hosts = []
+        self.host = None
+        self.port = None
         self.tsd = None
         self.last_verify = 0
         self.sendq = []
         self.self_report_stats = self_report_stats
+
+    def pick_connection(self):
+        """Pick up a random host/port connection"""
+        if len(self.hosts) == 0:
+            LOG.info('No more healthy hosts, retry with previously blacklisted')
+            self.hosts = self.blacklisted_hosts
+            self.blacklisted_hosts = []
+        elt = self.hosts[random.randint(0, len(self.hosts) - 1)]
+        self.host = elt[0]
+        self.port = elt[1]
+        LOG.info('Selected connection: %s:%s', self.host, str(self.port))
+
+    def blacklist(self, host, port):
+        """Mark the tuple (host, port) as blacklisted. Blacklisted hosts
+           will get another chance to be elected once there will be no more
+           healthy hosts.
+           FIXME: Enhance this naive strategy."""
+        LOG.info('Blacklisting %s:%s for a while', host, port)
+        self.hosts.remove((host, port))
+        self.blacklisted_hosts.append((host, port))
 
     def run(self):
         """Main loop.  A simple scheduler.  Loop waiting for 5
@@ -452,7 +487,7 @@ class SenderThread(threading.Thread):
 
     def verify_conn(self):
         """Periodically verify that our connection to the TSD is OK
-           and that the TSD is alive/working"""
+           and that the TSD is alive/working."""
         if self.tsd is None:
             return False
 
@@ -467,6 +502,7 @@ class SenderThread(threading.Thread):
             self.tsd.sendall('version\n')
         except socket.error, msg:
             self.tsd = None
+            self.blacklist(self.host, self.port)
             return False
 
         bufsize = 4096
@@ -478,12 +514,14 @@ class SenderThread(threading.Thread):
                 buf = self.tsd.recv(bufsize)
             except socket.error, msg:
                 self.tsd = None
+                self.blacklist(self.host, self.port)
                 return False
 
             # If we don't get a response to the `version' request, the TSD
             # must be dead or overloaded.
             if not buf:
                 self.tsd = None
+                self.blacklist(self.host, self.port)
                 return False
 
             # Woah, the TSD has a lot of things to tell us...  Let's make
@@ -547,6 +585,7 @@ class SenderThread(threading.Thread):
             time.sleep(try_delay)
 
             # Now actually try the connection.
+            self.pick_connection()
             adresses = socket.getaddrinfo(self.host, self.port, socket.AF_UNSPEC,
                                           socket.SOCK_STREAM, 0)
             for family, socktype, proto, canonname, sockaddr in adresses:
@@ -563,6 +602,7 @@ class SenderThread(threading.Thread):
                 self.tsd = None
             if not self.tsd:
                 LOG.error('Failed to connect to %s:%d', self.host, self.port)
+                self.blacklist(self.host, self.port)
 
     def send_data(self):
         """Sends outstanding data in self.sendq to the TSD in one operation."""
@@ -634,6 +674,9 @@ def parse_cmdline(argv):
     parser.add_option('-H', '--host', dest='host', default='localhost',
                       metavar='HOST',
                       help='Hostname to use to connect to the TSD.')
+    parser.add_option('-L', '--hosts-list', dest='hosts', default=False,
+                      metavar='HOSTS',
+                      help='List of host:port to connect to tsd\'s (comma separated).')
     parser.add_option('--no-tcollector-stats', dest='no_tcollector_stats',
                       default=False, action='store_true',
                       help='Prevent tcollector from reporting its own stats to TSD')
@@ -671,6 +714,9 @@ def parse_cmdline(argv):
     parser.add_option('--logfile', dest='logfile', type='str',
                       default=DEFAULT_LOG,
                       help='Filename where logs are written to.')
+    parser.add_option('--config', dest='config', type='str',
+                      default=False,
+                      help='Path to configuration file')
     (options, args) = parser.parse_args(args=argv[1:])
     if options.dedupinterval < 2:
         parser.error('--dedup-interval must be at least 2 seconds')
@@ -710,6 +756,7 @@ def daemonize():
 def main(argv):
     """The main tcollector entry point and loop."""
 
+    global ENABLED_COLLECTORS
     options, args = parse_cmdline(argv)
     if options.daemonize:
         daemonize()
@@ -721,6 +768,9 @@ def main(argv):
 
     if options.pidfile:
         write_pid(options.pidfile)
+
+    if options.config:
+        ENABLED_COLLECTORS = load_enabled_collectors(options.config)
 
     # validate everything
     tags = {}
@@ -761,8 +811,19 @@ def main(argv):
     reader = ReaderThread(options.dedupinterval, options.evictinterval)
     reader.start()
 
+    # prepare list of (host, port) of TSDs given on CLI
+    if not options.hosts:
+        options.hosts = [(options.host, options.port)]
+    else:
+        tuplizator = lambda x: len(x.split(":")) == 2 \
+            and (x.split(":")[0], int(x.split(":")[1])) \
+            or (x, 4242)
+        options.hosts = map(tuplizator, options.hosts.split(","))
+        if options.host != "localhost" and options.port != 4242:
+            options.hosts.append((options.host, options.port))
+
     # and setup the sender to start writing out to the tsd
-    sender = SenderThread(reader, options.dryrun, options.host, options.port,
+    sender = SenderThread(reader, options.dryrun, options.hosts,
                           not options.no_tcollector_stats, tagstr)
     sender.start()
     LOG.info('SenderThread startup complete')
@@ -779,6 +840,24 @@ def main(argv):
     reader.join()
     LOG.debug('Shutting down -- joining the sender thread.')
     sender.join()
+
+def load_enabled_collectors(config_file):
+    """Fetch enabled collectors according to the list given by configuration
+       file. If no configuration file is supplied, all included collectors
+       will be launched."""
+
+    global CONFIGURATION_FILE
+    if config_file and os.path.exists(config_file):
+        result = []
+        fd = open(config_file, 'rb')
+        try:
+            for collector in fd:
+                result.append(collector.strip())
+            CONFIGURATION_FILE['file'] = config_file
+            CONFIGURATION_FILE['mtime'] = os.path.getmtime(config_file)
+        finally:
+            fd.close()
+            return result
 
 def stdin_loop(options, modules, sender, tags):
     """The main loop of the program that runs when we are in stdin mode."""
@@ -1093,8 +1172,13 @@ def populate_collectors(coldir):
        and takes the right action to bring the state of our running processes
        in line with the filesystem."""
 
-    global GENERATION
+    global GENERATION, CONFIGURATION_FILE, ENABLED_COLLECTORS
     GENERATION += 1
+
+    # Reload configuration file if required
+    if CONFIGURATION_FILE['file'] and CONFIGURATION_FILE['mtime'] < \
+            os.path.getmtime(CONFIGURATION_FILE['file']):
+        ENABLED_COLLECTORS = load_enabled_collectors(CONFIGURATION_FILE.file)
 
     # get numerics from scriptdir, we're only setup to handle numeric paths
     # which define intervals for our monitoring scripts
@@ -1110,6 +1194,10 @@ def populate_collectors(coldir):
             filename = '%s/%d/%s' % (coldir, interval, colname)
             if os.path.isfile(filename) and os.access(filename, os.X_OK):
                 mtime = os.path.getmtime(filename)
+
+                if not is_collector_enabled(colname):
+                    LOG.debug('Collector %s is not enabled', colname)
+                    continue
 
                 # if this collector is already 'known', then check if it's
                 # been updated (new mtime) so we can kill off the old one
