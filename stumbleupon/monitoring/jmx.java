@@ -235,10 +235,16 @@ final class jmx {
       buf.append(timestamp).append('\t');
     }
     if (value instanceof Object[]) {
+      buf.append(name).append("\t[");
+      int i=0;
       for (final Object o : (Object[]) value) {
-        buf.append(o).append('\t');
+        buf.append(o).append(',');
+        i++;
       }
-      buf.setLength(buf.length() - 1);
+      if ( i > 0) {
+        buf.setLength(buf.length() - 1);
+      }
+      buf.append(']');
     } else {
       buf.append(name).append('\t').append(value);
     }

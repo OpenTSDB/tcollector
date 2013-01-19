@@ -24,7 +24,7 @@ jmx_JAVA = \
 	jmx.java	\
 
 jmx_LIBADD = \
-	/usr/lib/jvm/java-6-sun/lib/tools.jar	\
+	$(CLASSPATH):/usr/lib/jvm/java-6-sun/lib/tools.jar	\
 
 AM_JAVACFLAGS = -Xlint -source 6
 JVM_ARGS =
