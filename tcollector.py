@@ -191,8 +191,8 @@ class Collector(object):
                 for attempt in range(5):
                     if self.proc.poll() is not None:
                         return
-                    LOG.info('Waiting %ds for PID %d to exit...'
-                             % (5 - attempt, self.proc.pid))
+                    LOG.info('Waiting 1s for %s (pid=%d) to exit...'
+                             % (self.name, self.proc.pid))
                     time.sleep(1)
                 kill(self.proc, signal.SIGKILL)
                 self.proc.wait()
@@ -955,7 +955,7 @@ def shutdown_signal(signum, frame):
 
 
 def kill(proc, signum=signal.SIGTERM):
-  os.kill(proc.pid, signum)
+  os.killpg(proc.pid, signum)
 
 
 def shutdown():
@@ -1026,7 +1026,7 @@ def spawn_collector(col):
     #     ... load the py module directly instead of using a subprocess ...
     try:
         col.proc = subprocess.Popen(col.filename, stdout=subprocess.PIPE,
-                                stderr=subprocess.PIPE)
+                                stderr=subprocess.PIPE, preexec_fn=os.setsid)
     except OSError, e:
         LOG.error('Failed to spawn collector %s: %s' % (col.filename, e))
         return
