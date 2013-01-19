@@ -50,6 +50,7 @@ ALIVE = True
 # exceptions, something is not right and tcollector will shutdown.
 # Hopefully some kind of supervising daemon will then restart it.
 MAX_UNCAUGHT_EXCEPTIONS = 100
+DEFAULT_PORT = 4242
 
 def register_collector(collector):
     """Register a collector with the COLLECTORS global"""
@@ -671,7 +672,7 @@ def parse_cmdline(argv):
                       default=False,
                       help='Run once, read and dedup data points from stdin.')
     parser.add_option('-p', '--port', dest='port', type='int',
-                      default=4242, metavar='PORT',
+                      default=DEFAULT_PORT, metavar='PORT',
                       help='Port to connect to the TSD instance on. '
                            'default=%default')
     parser.add_option('-v', dest='verbose', action='store_true', default=False,
@@ -804,9 +805,9 @@ def main(argv):
                 else:
                     host, port = hostport.split(":")
                 return (host, int(port))
-            return (hostport, 4242)
+            return (hostport, DEFAULT_PORT)
         options.hosts = [splitHost(host) for host in options.hosts.split(",")]
-        if options.host != "localhost" or options.port != 4242:
+        if options.host != "localhost" or options.port != DEFAULT_PORT:
             options.hosts.append((options.host, options.port))
 
     # and setup the sender to start writing out to the tsd
