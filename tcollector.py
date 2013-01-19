@@ -192,8 +192,8 @@ class Collector(object):
                 for attempt in range(5):
                     if self.proc.poll() is not None:
                         return
-                    LOG.info('Waiting %ds for PID %d to exit...'
-                             % (5 - attempt, self.proc.pid))
+                    LOG.info('Waiting %ds for PID %d (%s) to exit...'
+                             % (5 - attempt, self.proc.pid, self.name))
                     time.sleep(1)
                 kill(self.proc, signal.SIGKILL)
                 self.proc.wait()
