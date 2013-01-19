@@ -11,7 +11,7 @@
 # of the GNU Lesser General Public License along with this program.  If not,
 # see <http://www.gnu.org/licenses/>.
 
-PACKAGE_VERSION := 1.0.0
+PACKAGE_VERSION := 1.0.1
 RPM_REVISION := 1
 # Where do we install our files.
 tcollectordir := /usr/local/tcollector

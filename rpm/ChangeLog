@@ -1,2 +1,5 @@
+* Sat Jan 19 2013 Benoit 'tsuna' Sigoure <tsunanet@gmail.com> 1.0.1-1
+- Fix the default value of $TCOLLECTOR in init.d script.
+
 * Sun Oct 16 2011 Benoit 'tsuna' Sigoure <tsuna@stumbleupon.com> 1.0.0-1 
 - Initialize release of tcollector as an EOS module.

@@ -23,7 +23,7 @@
 TSD_HOST=tsd
 THIS_HOST=`hostname`
 THIS_HOST=${THIS_HOST%%.*}
-TCOLLECTOR=${TCOLLECTOR-usr/local/tcollector/tcollector.py}
+TCOLLECTOR=${TCOLLECTOR-/usr/local/tcollector/tcollector.py}
 PIDFILE=${PIDFILE-/var/run/tcollector.pid}
 LOGFILE=${LOGFILE-/var/log/tcollector.log}
 NUMLOGFILES=3
