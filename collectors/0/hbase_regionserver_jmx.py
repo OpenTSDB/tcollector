@@ -23,7 +23,7 @@ import traceback
 
 # If this user doesn't exist, we'll exit immediately.
 # If we're running as root, we'll drop privileges using this user.
-USER = "tsuna"
+USER = "hadoop"
 
 # We add those files to the classpath if they exist.
 CLASSPATH = [
