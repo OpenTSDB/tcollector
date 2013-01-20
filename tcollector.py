@@ -709,7 +709,7 @@ def parse_cmdline(argv):
         parser.error('--evict-interval must be strictly greater than '
                      '--dedup-interval')
     # We cannot write to stdout when we're a daemon.
-    if options.daemonize and not options.backup_count:
+    if (options.daemonize or options.max_bytes) and not options.backup_count:
         options.backup_count = 1
     return (options, args)
 
