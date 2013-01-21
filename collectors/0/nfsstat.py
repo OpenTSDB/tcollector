@@ -51,7 +51,9 @@ def main():
             if fields[0] == "proc4":
                 # NFSv4
                 # first entry should equal total count of subsequent entries
-                assert int(fields[1]) == len(fields[2:]), "Reported number of entries does not equal list length"
+                assert int(fields[1]) == len(fields[2:]), \
+                    "reported count (%d) does not equal list length (%d)" % \
+                    (int(fields[1]), len(fields[2:]))
                 for idx, val in enumerate(fields[2:]):
                     try:
                         print "nfs.client.v4.rpc %d %s op=%s" % (ts, int(val), nfs_client_proc4_names[idx])
