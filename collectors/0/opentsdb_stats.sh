@@ -8,6 +8,6 @@ COLLECTION_INTERVAL="1m"
 
 while true
 do
-    ${CURL_BIN} ${URL}
+    ${CURL_BIN} -s ${URL}
     sleep ${COLLECTION_INTERVAL}
 done
