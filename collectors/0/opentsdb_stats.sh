@@ -2,12 +2,11 @@
 
 # Collects the OpenTSDB stats published over HTTP.
 
-URL="http://localhost:4242/stats"
-CURL_BIN="/usr/bin/curl"
-COLLECTION_INTERVAL="1m"
+TSD_HOST="localhost"
+TSD_PORT="4242"
+COLLECTION_INTERVAL="15s"
 
-while true
-do
-    ${CURL_BIN} -s ${URL}
-    sleep ${COLLECTION_INTERVAL}
-done
+while :; do
+  echo stats || exit
+  sleep ${COLLECTION_INTERVAL}
+done | nc ${TSD_HOST} ${TSD_PORT}
