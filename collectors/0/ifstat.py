@@ -15,6 +15,7 @@
 """network interface stats for TSDB"""
 
 import os
+import pwd
 import sys
 import time
 import socket
@@ -31,11 +32,29 @@ import re
 FIELDS = ("bytes", "packets", "errs", "dropped",
            None, None, None, None,)
 
+# If we're running as root and this user exists, we'll drop privileges.
+USER = "nobody"
+
+
+def drop_privileges():
+    """Drops privileges if running as root."""
+    try:
+        ent = pwd.getpwnam(USER)
+    except KeyError:
+        return
+
+    if os.getuid() != 0:
+        return
+
+    os.setgid(ent.pw_gid)
+    os.setuid(ent.pw_uid)
+
 def main():
     """ifstat main loop"""
     interval = 15
 
     f_netdev = open("/proc/net/dev", "r")
+    drop_privileges()
 
     # We just care about ethN interfaces.  We specifically
     # want to avoid bond interfaces, because interface
