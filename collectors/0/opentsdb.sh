@@ -18,6 +18,8 @@ TSD_HOST=localhost
 TSD_PORT=4242
 COLLECTION_INTERVAL=15
 
+nc -z $TSD_HOST $TSD_PORT >/dev/null || exit 13
+
 while :; do
   echo stats || exit
   sleep $COLLECTION_INTERVAL
