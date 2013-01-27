@@ -33,6 +33,7 @@
 
 
 import os
+import pwd
 import socket
 import subprocess
 import sys
@@ -41,9 +42,28 @@ import time
 
 COLLECTION_INTERVAL = 60  # seconds
 
+# If we're running as root and this user exists, we'll drop privileges.
+USER = "nobody"
+
+
+def drop_privileges():
+    """Drops privileges if running as root."""
+    try:
+        ent = pwd.getpwnam(USER)
+    except KeyError:
+        return
+
+    if os.getuid() != 0:
+        return
+
+    os.setgid(ent.pw_gid)
+    os.setuid(ent.pw_uid)
+
+
 def main():
     """dfstats main loop"""
 
+    drop_privileges()
     while True:
         ts = int(time.time())
         # 1kblocks
