@@ -158,7 +158,6 @@ def is_public_ip(ipstr):
 
 def main(unused_args):
     """procnettcp main loop"""
-    drop_privileges()
     try:           # On some Linux kernel versions, with lots of connections
       os.nice(19)  # this collector can be very CPU intensive.  So be nicer.
     except OSError, e:
@@ -190,6 +189,7 @@ def main(unused_args):
         print >>sys.stderr, "Failed to open input file: %s" % (e,)
         return 13  # Ask tcollector to not re-start us immediately.
 
+    drop_privileges()
     while True:
         counter = {}
 

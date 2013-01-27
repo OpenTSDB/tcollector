@@ -85,7 +85,6 @@ def drop_privileges():
 
 def main():
     """Main loop"""
-    drop_privileges()
     sys.stdin.close()
 
     interval = 15
@@ -98,6 +97,7 @@ def main():
     except IOError, e:
         print >>sys.stderr, "open failed: %s" % e
         return 13  # Ask tcollector to not re-start us.
+    drop_privileges()
 
     # Note: up until v2.6.37-rc2 most of the values were 32 bits.
     # The first value is pretty useless since it accounts for some
