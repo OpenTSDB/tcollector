@@ -15,6 +15,7 @@
 """import various /proc stats from /proc into TSDB"""
 
 import os
+import pwd
 import sys
 import time
 import socket
@@ -22,6 +23,23 @@ import re
 
 COLLECTION_INTERVAL = 15  # seconds
 NUMADIR = "/sys/devices/system/node"
+
+# If we're running as root and this user exists, we'll drop privileges.
+USER = "nobody"
+
+
+def drop_privileges():
+    """Drops privileges if running as root."""
+    try:
+        ent = pwd.getpwnam(USER)
+    except KeyError:
+        return
+
+    if os.getuid() != 0:
+        return
+
+    os.setgid(ent.pw_gid)
+    os.setuid(ent.pw_uid)
 
 
 def open_sysfs_numa_stats():
@@ -87,6 +105,7 @@ def main():
     f_loadavg = open("/proc/loadavg", "r")
     f_entropy_avail = open("/proc/sys/kernel/random/entropy_avail", "r")
     numastats = open_sysfs_numa_stats()
+    drop_privileges()
 
     while True:
         # proc.uptime
