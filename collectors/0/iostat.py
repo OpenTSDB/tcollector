@@ -69,6 +69,7 @@
 
 
 import os
+import pwd
 import socket
 import sys
 import time
@@ -96,10 +97,28 @@ FIELDS_PART = ("read_issued",
                "write_sectors",
               )
 
+# If we're running as root and this user exists, we'll drop privileges.
+USER = "nobody"
+
+
+def drop_privileges():
+    """Drops privileges if running as root."""
+    try:
+        ent = pwd.getpwnam(USER)
+    except KeyError:
+        return
+
+    if os.getuid() != 0:
+        return
+
+    os.setgid(ent.pw_gid)
+    os.setuid(ent.pw_uid)
+
 
 def main():
     """iostats main loop."""
     f_diskstats = open("/proc/diskstats", "r")
+    drop_privileges()
 
     while True:
         f_diskstats.seek(0)
