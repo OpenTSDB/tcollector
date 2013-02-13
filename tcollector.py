@@ -824,6 +824,10 @@ def main(argv):
     else:
         sys.stdin.close()
         main_loop(options, modules, sender, tags)
+
+    # We're exiting, make sure we don't leave any collector behind.
+    for col in all_living_collectors():
+      col.shutdown()
     LOG.debug('Shutting down -- joining the reader thread.')
     reader.join()
     LOG.debug('Shutting down -- joining the sender thread.')
