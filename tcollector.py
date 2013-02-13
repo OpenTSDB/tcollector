@@ -798,7 +798,7 @@ def main_loop(options, modules, sender, tags):
     """The main loop of the program that runs when we're not in stdin mode."""
 
     next_heartbeat = int(time.time() + 600)
-    global ALIVE
+
     while ALIVE:
         populate_collectors(options.cdir)
         reload_changed_config_modules(modules, options, sender, tags)
@@ -1050,7 +1050,6 @@ def spawn_children():
        determine if we need to spawn, kill, or otherwise take some
        action on them."""
 
-    global ALIVE
     if not ALIVE:
         return
 
