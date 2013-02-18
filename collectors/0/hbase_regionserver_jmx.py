@@ -155,6 +155,8 @@ def main(argv):
             # etc, which makes it easier to graph things with the TSD.
             if metric.endswith("MinTime"):  # We don't care about the minimum
                 continue                    # time taken by operations.
+            elif metric.startswith("tbl."): # Per-table/region/cf metrics
+                continue                    # ignore for now, too much spam
             elif metric.endswith("NumOps"):
                 tags = " op=" + metric[:-6]
                 metric = "numOps"
