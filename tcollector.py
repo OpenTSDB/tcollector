@@ -574,9 +574,9 @@ class SenderThread(threading.Thread):
 
             # Now actually try the connection.
             self.pick_connection()
-            adresses = socket.getaddrinfo(self.host, self.port, socket.AF_UNSPEC,
+            addresses = socket.getaddrinfo(self.host, self.port, socket.AF_UNSPEC,
                                           socket.SOCK_STREAM, 0)
-            for family, socktype, proto, canonname, sockaddr in adresses:
+            for family, socktype, proto, canonname, sockaddr in addresses:
                 try:
                     self.tsd = socket.socket(family, socktype, proto)
                     self.tsd.settimeout(15)
