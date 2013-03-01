@@ -31,6 +31,7 @@ VPATH := ..
 # What files to put in the EOSRPM.
 FILES := \
 	collectors/0/dfstat.py	\
+	collectors/0/eos.py	\
 	collectors/0/ifstat.py	\
 	collectors/0/iostat.py	\
 	collectors/0/netstat.py	\
