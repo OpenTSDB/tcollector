@@ -12,7 +12,7 @@
 # see <http://www.gnu.org/licenses/>.
 
 PACKAGE_VERSION := 1.0.1
-RPM_REVISION := 1
+RPM_REVISION := 2
 # Where do we install our files.
 tcollectordir := /usr/local/tcollector
 
@@ -36,6 +36,7 @@ FILES := \
 	collectors/0/netstat.py	\
 	collectors/0/procnettcp.py	\
 	collectors/0/procstats.py	\
+	collectors/0/smart-stats.py	\
 	tcollector.py	\
 
 git_version := \
