@@ -123,19 +123,36 @@ def process_output(drive, smart_output):
   # beginning with ID# in the output.  Start processing rows after
   # that point.
   data_marker = False
+  is_seagate = False
 
   for line in smart_output:
-
     if data_marker:
       fields = line.split()
-
-      if len(fields) > 2 and fields[0] in ATTRIBUTE_MAP:
-        print ("smart.%s %d %s disk=%s"
-               % (ATTRIBUTE_MAP[fields[0]],
-                  ts, fields[9].split()[0], drive))
-
+      if len(fields) < 2:
+        continue
+      field = fields[0]
+      if len(fields) > 2 and field in ATTRIBUTE_MAP:
+        metric = ATTRIBUTE_MAP[field]
+        value = fields[9].split()[0]
+        print ("smart.%s %d %s disk=%s" % (metric, ts, value, drive))
+        if is_seagate and metric in ("seek_error_rate", "raw_read_error_rate"):
+          # It appears that some Seagate drives (and possibly some Western
+          # Digital ones too) use the first 16 bits to store error counts,
+          # and the low 32 bits to store operation counts, out of these 48
+          # bit values.  So try to be helpful and extract these here.
+          value = int(value)
+          print ("smart.%s %d %d disk=%s"
+                 % (metric.replace("error_rate", "count"), ts,
+                    value & 0xFFFFFFFF, drive))
+          print ("smart.%s %d %d disk=%s"
+                 % (metric.replace("error_rate", "errors"), ts,
+                    (value & 0xFFFF00000000) >> 32, drive))
     elif line.startswith("ID#"):
       data_marker = True
+    elif line.startswith("Device Model:"):
+      model = line.split(None, 2)[2]
+      # Rough approximation to detect Seagate drives.
+      is_seagate = model.startswith("ST")
 
 
 def main():
@@ -153,7 +170,7 @@ def main():
   while True:
     for drive in drives:
       signal.alarm(COMMAND_TIMEOUT)
-      smart_ctl = subprocess.Popen(SMART_CTL + " -A /dev/" + drive,
+      smart_ctl = subprocess.Popen(SMART_CTL + " -i -A /dev/" + drive,
                                    shell=True, stdout=subprocess.PIPE)
       smart_output = smart_ctl.communicate()[0]
       signal.alarm(0)
