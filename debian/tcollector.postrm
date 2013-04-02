@@ -1,0 +1,11 @@
+#!/bin/sh
+
+set -e
+
+if [ "$1" = "purge" ]; then
+	deluser --system --quiet tcollector || true
+	rm -f /var/log/tcollector.log
+	rm -f /var/run/tcollector.pid
+fi
+
+#DEBHELPER#
