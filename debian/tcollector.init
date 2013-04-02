@@ -1,0 +1,73 @@
+#! /bin/sh
+### BEGIN INIT INFO
+# Provides:          tcollector
+# Required-Start:    $network $remote_fs
+# Required-Stop:
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Starts tcollector
+### END INIT INFO
+
+PATH=/sbin:/bin:/usr/sbin:/usr/bin
+DAEMON=/usr/bin/tcollector
+
+. /lib/lsb/init-functions
+
+if [ -r /etc/default/ntp ]; then
+    . /etc/default/tcollector
+fi
+
+PIDFILE=${PIDFILE-"/var/run/tcollector.pid"}
+LOGFILE=${LOGFILE-"/var/log/tcollector.log"}
+COLLECTOR_PATH=${COLLECTOR_PATH-"/usr/lib/tcollector/collectors"}
+DEDUP_INTERVAL=${DEDUP_INTERVAL-600}
+EVICT_INTERVAL=${EVICT_INTERVAL-6000}
+HOSTNAME=${HOSTNAME-$(hostname)}
+USER=${USER-tcollector}
+GROUP=${GROUP-tcollector}
+
+case $1 in
+    start)
+        log_daemon_msg "Starting tcollector" "tcollector"
+        if [ -z "$TSD_HOSTS" ]; then
+            log_failure_msg "TSD_HOSTS is empty"
+            exit 1
+        fi
+
+        if [ ! -f "$LOGFILE" ]; then
+            touch "$LOGFILE"
+        fi
+        chown tcollector:tcollector "$LOGFILE"
+
+        if [ ! -f "$PIDFILE" ]; then
+            touch "$PIDFILE"
+        fi
+        chown tcollector:tcollector "$PIDFILE"
+
+        #start_daemon -p "$PIDFILE" $DAEMON -c "$COLLECTOR_PATH" -L $TSD_HOSTS\
+        start-stop-daemon --start --quiet -u $USER --pidfile "$PIDFILE"\
+        --chuid tcollector --startas $DAEMON -- -c "$COLLECTOR_PATH"\
+            -L $TSD_HOSTS -t host=$HOSTNAME --dedup-interval=$DEDUP_INTERVAL\
+            --evict-interval=$EVICT_INTERVAL -P "$PIDFILE" -D
+        log_end_msg $?
+        ;;
+    stop)
+        log_daemon_msg "Stopping tcollector" "tcollector"
+        if [ ! -f "$PIDFILE" ]; then
+            log_failure_msg "$PIDFILE doesn't exist. tcollector not running?"
+            exit 0
+        fi
+        killproc -p "$PIDFILE" "$DAEMON" && rm -f "$PIDFILE"
+        log_end_msg 0
+        ;;
+    restart|force-reload)
+        $0 stop && $0 start
+        ;;
+    status)
+        status_of_proc -p $PIDFILE "NTP server"
+        ;;
+    *)
+        echo "Usage: $0 {start|stop|restart|try-restart|force-reload|status}"
+        exit 2
+        ;;
+esac

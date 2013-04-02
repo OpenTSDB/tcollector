@@ -1,0 +1,15 @@
+Source: tcollector
+Priority: optional
+Maintainer: Fabian Holler <fabian.holler@profitbricks.com>
+Standards-Version: 3.9.3
+Section: utils
+vcs-Browser: https://github.com/OpenTSDB/tcollector
+Homepage: http://opentsdb.net/
+
+Package: tcollector
+Architecture: any
+Depends: python
+Recommends: smartmontools
+Section: utils
+Description: tcollector
+ Data collection framework for OpenTSDB.
