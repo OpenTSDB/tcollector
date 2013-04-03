@@ -13,7 +13,7 @@ DAEMON=/usr/bin/tcollector
 
 . /lib/lsb/init-functions
 
-if [ -r /etc/default/ntp ]; then
+if [ -r /etc/default/tcollector ]; then
     . /etc/default/tcollector
 fi
 
