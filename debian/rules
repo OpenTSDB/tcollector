@@ -6,4 +6,8 @@ export DH_VERBOSE=1
 	dh $@
 
 build:
-	mv tcollector.py tcollector
+	cp tcollector.py tcollector
+
+clean:
+	dh_clean
+	rm -f tcollector
