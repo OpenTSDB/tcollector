@@ -7,3 +7,5 @@ if [ "$1" = "purge" ]; then
 	rm -f /var/log/tcollector.log
 	rm -f /var/run/tcollector.pid
 fi
+
+#DEBHELPER#
