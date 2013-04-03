@@ -67,7 +67,7 @@ case $1 in
         status_of_proc -p $PIDFILE "NTP server"
         ;;
     *)
-        echo "Usage: $0 {start|stop|restart|try-restart|force-reload|status}"
+        echo "Usage: $0 {start|stop|restart|force-reload|status}"
         exit 2
         ;;
 esac
