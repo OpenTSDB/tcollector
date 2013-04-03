@@ -26,6 +26,14 @@ HOSTNAME=${HOSTNAME-$(hostname)}
 USER=${USER-tcollector}
 GROUP=${GROUP-tcollector}
 
+fix_perms() {
+    local file=$1
+        if [ ! -f "$file" ]; then
+            touch "$file"
+        fi
+        chown tcollector:tcollector "$file"
+}
+
 case $1 in
     start)
         log_daemon_msg "Starting tcollector" "tcollector"
@@ -33,16 +41,11 @@ case $1 in
             log_failure_msg "TSD_HOSTS is empty"
             exit 1
         fi
+        fix_perms $LOGFILE
+        fix_perms $PIDFILE
 
-        if [ ! -f "$LOGFILE" ]; then
-            touch "$LOGFILE"
         fi
-        chown tcollector:tcollector "$LOGFILE"
 
-        if [ ! -f "$PIDFILE" ]; then
-            touch "$PIDFILE"
-        fi
-        chown tcollector:tcollector "$PIDFILE"
 
         #start_daemon -p "$PIDFILE" $DAEMON -c "$COLLECTOR_PATH" -L $TSD_HOSTS\
         start-stop-daemon --start --quiet -u $USER --pidfile "$PIDFILE"\
