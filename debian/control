@@ -10,6 +10,7 @@ Homepage: http://opentsdb.net/
 Package: tcollector
 Architecture: any
 Depends: ${misc:Depends}, ${python:Depends}, adduser
+Recommends: smartmontools
 Section: utils
 Description: data collection framework for OpenTSDB
  OpenTSDB is a distributed, scalable Time Series Database (TSDB) written on 
