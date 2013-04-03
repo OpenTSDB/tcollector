@@ -13,3 +13,10 @@
 
 # uncomment to override the value of the recorded hostname tag
 #HOSTNAME=mynameispeter
+
+# Numerical list of processors tcollector and his children processes are pinned
+# to. taskset has to be installed and the processors list has to be specified
+# in taskset format:
+# "The numbers are separated by commas and may include ranges.
+# For example: 0,5,7,9-11.
+#CPU_LIST="0"

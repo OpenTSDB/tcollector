@@ -44,16 +44,25 @@ case $1 in
         fix_perms $LOGFILE
         fix_perms $PIDFILE
 
+        taskset=""
+        if [ -n "$CPU_LIST" ]; then
+            if which taskset &>/dev/null; then
+                taskset="taskset -c $CPU_LIST"
+            else
+                log_warning_msg "taskset not found, tcollector couldn't be"
+                    " pinned to $CPU_LIST"
+            fi
         fi
 
+        $taskset start-stop-daemon --start --quiet -u $USER\
+            --pidfile "$PIDFILE" --chuid tcollector --startas $DAEMON --\
+                -c "$COLLECTOR_PATH" -L $TSD_HOSTS -t host=$HOSTNAME\
+                --dedup-interval=$DEDUP_INTERVAL\
+                --evict-interval=$EVICT_INTERVAL -P "$PIDFILE" -D
 
-        #start_daemon -p "$PIDFILE" $DAEMON -c "$COLLECTOR_PATH" -L $TSD_HOSTS\
-        start-stop-daemon --start --quiet -u $USER --pidfile "$PIDFILE"\
-        --chuid tcollector --startas $DAEMON -- -c "$COLLECTOR_PATH"\
-            -L $TSD_HOSTS -t host=$HOSTNAME --dedup-interval=$DEDUP_INTERVAL\
-            --evict-interval=$EVICT_INTERVAL -P "$PIDFILE" -D
         log_end_msg $?
         ;;
+
     stop)
         log_daemon_msg "Stopping tcollector" "tcollector"
         if [ ! -f "$PIDFILE" ]; then
@@ -63,12 +72,15 @@ case $1 in
         killproc -p "$PIDFILE" "$DAEMON" && rm -f "$PIDFILE"
         log_end_msg 0
         ;;
+
     restart|force-reload)
         $0 stop && $0 start
         ;;
+
     status)
         status_of_proc -p $PIDFILE "NTP server"
         ;;
+
     *)
         echo "Usage: $0 {start|stop|restart|force-reload|status}"
         exit 2
