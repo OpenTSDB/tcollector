@@ -67,7 +67,7 @@ case $1 in
         log_daemon_msg "Stopping tcollector" "tcollector"
         if [ ! -f "$PIDFILE" ]; then
             log_failure_msg "$PIDFILE doesn't exist. tcollector not running?"
-            exit 0
+            exit 1
         fi
         killproc -p "$PIDFILE" "$DAEMON" && rm -f "$PIDFILE"
         log_end_msg 0
