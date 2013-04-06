@@ -28,6 +28,7 @@ USER = "hadoop"
 # We add those files to the classpath if they exist.
 CLASSPATH = [
     "/usr/lib/jvm/java-6-sun/lib/tools.jar",
+    "/usr/java/default/lib/tools.jar",
 ]
 
 # We shorten certain strings to avoid excessively long metric names.
@@ -104,6 +105,7 @@ def main(argv):
          "Threading", "Count|Time$",       # Number of threads and CPU time.
          "OperatingSystem", "OpenFile",    # Number of open files.
          "GarbageCollector", "Collection", # GC runs and time spent GCing.
+         "OperatingSystem", "ProcessCpuTime",
          ], stdout=subprocess.PIPE, bufsize=1)
     do_on_signal(signal.SIGINT, kill, jmx)
     do_on_signal(signal.SIGPIPE, kill, jmx)
@@ -164,6 +166,11 @@ def main(argv):
             elif metric.endswith("MaxTime"):
                 tags = " op=" + metric[:-7]
                 metric = "maxTime"
+
+            if metric.endswith("date"):
+               continue
+            elif metric.endswith("hdfsDate"):
+               continue
 
             # mbean is of the form "domain:key=value,...,foo=bar"
             mbean_domain, mbean_properties = mbean.rstrip().split(":", 1)
