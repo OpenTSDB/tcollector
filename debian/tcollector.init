@@ -55,10 +55,10 @@ case $1 in
         fi
 
         $taskset start-stop-daemon --start --quiet -u $RUN_AS_USER\
-            --pidfile "$PIDFILE" --chuid tcollector --startas $DAEMON --\
-                -c "$COLLECTOR_PATH" -L $TSD_HOSTS -t host=$HOSTNAME\
-                --dedup-interval=$DEDUP_INTERVAL\
-                --evict-interval=$EVICT_INTERVAL -P "$PIDFILE" -D
+            --pidfile "$PIDFILE" --chuid $RUN_AS_USER:$RUN_AS_GROUP\
+            --startas $DAEMON -- -c "$COLLECTOR_PATH" -L $TSD_HOSTS\
+            -t host=$HOSTNAME --dedup-interval=$DEDUP_INTERVAL\
+            --evict-interval=$EVICT_INTERVAL -P "$PIDFILE" -D
 
         log_end_msg $?
         ;;
