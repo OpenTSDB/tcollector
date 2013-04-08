@@ -39,7 +39,7 @@ case $1 in
         log_daemon_msg "Starting tcollector" "tcollector"
         if [ -z "$TSD_HOSTS" ]; then
             log_failure_msg "TSD_HOSTS is empty"
-            exit 1
+            exit 6
         fi
         fix_perms $LOGFILE
         fix_perms $PIDFILE
@@ -49,7 +49,7 @@ case $1 in
             if which taskset &>/dev/null; then
                 taskset="taskset -c $CPU_LIST"
             else
-                log_warning_msg "taskset not found, tcollector couldn't be"
+                log_warning_msg "taskset not found, tcollector can't be"
                     " pinned to $CPU_LIST"
             fi
         fi
@@ -67,18 +67,20 @@ case $1 in
         log_daemon_msg "Stopping tcollector" "tcollector"
         if [ ! -f "$PIDFILE" ]; then
             log_failure_msg "$PIDFILE doesn't exist. tcollector not running?"
-            exit 1
+            exit 0
         fi
         killproc -p "$PIDFILE" "$DAEMON" && rm -f "$PIDFILE"
+        rv=$?
         log_end_msg 0
+        exit $rv
         ;;
-
     restart|force-reload)
         $0 stop && $0 start
         ;;
 
     status)
         status_of_proc -p $PIDFILE "NTP server"
+        exit $?
         ;;
 
     *)
