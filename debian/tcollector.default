@@ -8,8 +8,8 @@
 #DEDUP_INTERVAL=600
 #EVICT_INTERVAL=6000
 
-#USER=tcollector
-#GROUP=tcollector
+#RUN_AS_USER=tcollector
+#RUN_AS_GROUP=tcollector
 
 # uncomment to override the value of the recorded hostname tag
 #HOSTNAME=mynameispeter
