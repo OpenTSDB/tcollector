@@ -637,6 +637,7 @@ class SenderThread(threading.Thread):
             except socket.error:
                 pass
             self.tsd = None
+            self.blacklist_connection()
 
         # FIXME: we should be reading the result at some point to drain
         # the packets out of the kernel's queue
