@@ -128,23 +128,22 @@ def main():
             m = re.match("(\w+)\s+(.*)", line)
             if not m:
                 continue
-            if m.group(1) == "cpu":
+            if m.group(1).startswith("cpu"):
+                cpu_m = re.match("cpu(\d+)", m.group(1))
+                if cpu_m:
+                    metric_percpu = '.percpu'
+                    tags = ' cpu=%s' % cpu_m.group(1)
+                else:
+                    metric_percpu = ''
+                    tags = ''
                 fields = m.group(2).split()
-                print "proc.stat.cpu %d %s type=user" % (ts, fields[0])
-                print "proc.stat.cpu %d %s type=nice" % (ts, fields[1])
-                print "proc.stat.cpu %d %s type=system" % (ts, fields[2])
-                print "proc.stat.cpu %d %s type=idle" % (ts, fields[3])
-                print "proc.stat.cpu %d %s type=iowait" % (ts, fields[4])
-                print "proc.stat.cpu %d %s type=irq" % (ts, fields[5])
-                print "proc.stat.cpu %d %s type=softirq" % (ts, fields[6])
-                # really old kernels don't have this field
-                if len(fields) > 7:
-                    print ("proc.stat.cpu %d %s type=guest"
-                           % (ts, fields[7]))
-                    # old kernels don't have this field
-                    if len(fields) > 8:
-                        print ("proc.stat.cpu %d %s type=guest_nice"
-                               % (ts, fields[8]))
+                cpu_types = ['user', 'nice', 'system', 'idle', 'iowait',
+                    'irq', 'softirq', 'guest', 'guest_nice']
+
+                # We use zip to ignore fields that don't exist.
+                for value, field_name in zip(fields, cpu_types):
+                    print "proc.stat.cpu%s %d %s type=%s%s" % (metric_percpu,
+                        ts, value, field_name, tags)
             elif m.group(1) == "intr":
                 print ("proc.stat.intr %d %s"
                         % (ts, m.group(2).split()[0]))
