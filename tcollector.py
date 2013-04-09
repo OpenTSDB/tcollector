@@ -52,6 +52,9 @@ ALIVE = True
 MAX_UNCAUGHT_EXCEPTIONS = 100
 DEFAULT_PORT = 4242
 MAX_REASONABLE_TIMESTAMP = 1600000000  # Good until September 2020 :)
+# How long to wait for datapoints before assuming
+# a collector is dead and restarting it
+ALLOWED_INACTIVITY_TIME = 600  # seconds
 MAX_SENDQ_SIZE = 10000
 MAX_READQ_SIZE = 100000
 
@@ -120,6 +123,7 @@ class Collector(object):
         self.lines_sent = 0
         self.lines_received = 0
         self.lines_invalid = 0
+        self.last_datapoint = int(time.time())
 
     def read(self):
         """Read bytes from our subprocess and store them in our temporary
@@ -171,6 +175,7 @@ class Collector(object):
             line = self.buffer[0:idx].strip()
             if line:
                 self.datalines.append(line)
+                self.last_datapoint = int(time.time())
             self.buffer = self.buffer[idx+1:]
 
     def collect(self):
@@ -917,6 +922,7 @@ def main_loop(options, modules, sender, tags):
         populate_collectors(options.cdir)
         reload_changed_config_modules(modules, options, sender, tags)
         reap_children()
+        check_children()
         spawn_children()
         time.sleep(15)
         now = int(time.time())
@@ -1124,6 +1130,21 @@ def reap_children():
             register_collector(Collector(col.name, col.interval, col.filename,
                                          col.mtime, col.lastspawn))
 
+def check_children():
+    """When a child process hasn't received a datapoint in a while,
+       assume it's died in some fashion and restart it."""
+
+    for col in all_living_collectors():
+        now = int(time.time())
+
+        if col.last_datapoint < (now - ALLOWED_INACTIVITY_TIME):
+            # It's too old, kill it
+            LOG.warning('Terminating collector %s after %d seconds of inactivity',
+                        col.name, now - col.last_datapoint)
+            col.shutdown()
+            register_collector(Collector(col.name, col.interval, col.filename,
+                                         col.mtime, col.lastspawn))
+        
 
 def set_nonblocking(fd):
     """Sets the given file descriptor to non-blocking mode."""
