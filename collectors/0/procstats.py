@@ -67,7 +67,7 @@ def print_numa_stats(numafiles):
     """From a list of opened files, extracts and prints NUMA stats."""
     for numafile in numafiles:
         numafile.seek(0)
-        node_id = int(numafile.name[numafile.name.find("/node/node")+10:-9])
+        node_id = int(numafile.name[numafile.name.find("/node/node") + 10:-9])
         ts = int(time.time())
         stats = dict(line.split() for line in numafile.read().splitlines())
         for stat, tag in (# hit: process wanted memory from this node and got it
@@ -95,6 +95,102 @@ def print_numa_stats(numafiles):
                % (ts, stats["interleave_hit"], node_id))
 
 
+def print_uptime_stats(f_uptime):
+    f_uptime.seek(0)
+    ts = int(time.time())
+    for line in f_uptime:
+        m = re.match("(\S+)\s+(\S+)", line)
+        if m:
+            print "proc.uptime.total %d %s" % (ts, m.group(1))
+            print "proc.uptime.now %d %s" % (ts, m.group(2))
+
+
+def print_uptime_stats(f_meminfo):
+    f_meminfo.seek(0)
+    ts = int(time.time())
+    for line in f_meminfo:
+        m = re.match("(\w+):\s+(\d+)", line)
+        if m:
+            print ("proc.meminfo.%s %d %s"
+                    % (m.group(1).lower(), ts, m.group(2)))
+
+
+def print_vmstat_stats(f_vmstat):
+    f_vmstat.seek(0)
+    ts = int(time.time())
+    for line in f_vmstat:
+        m = re.match("(\w+)\s+(\d+)", line)
+        if not m:
+            continue
+        if m.group(1) in ("pgpgin", "pgpgout", "pswpin",
+                          "pswpout", "pgfault", "pgmajfault"):
+            print "proc.vmstat.%s %d %s" % (m.group(1), ts, m.group(2))
+
+
+def print_stat_stats(f_stat):
+    f_stat.seek(0)
+    ts = int(time.time())
+    for line in f_stat:
+        m = re.match("(\w+)\s+(.*)", line)
+        if not m:
+            continue
+        cm = re.match("cpu(\d+)", m.group(1))
+        if cm:
+            fields = m.group(2).split()
+            print("proc.stat.cpu %d %s cpu=%s type=user" % (ts, fields[0],
+                cm.group(1)))
+            print("proc.stat.cpu %d %s cpu=%s type=nice" % (ts, fields[1],
+                cm.group(1)))
+            print("proc.stat.cpu %d %s cpu=%s type=system" % (ts, fields[2],
+                cm.group(1)))
+            print("proc.stat.cpu %d %s cpu=%s type=idle" % (ts, fields[3],
+                cm.group(1)))
+            print("proc.stat.cpu %d %s cpu=%s type=iowait" % (ts, fields[4],
+                cm.group(1)))
+            print("proc.stat.cpu %d %s cpu=%s type=irq" % (ts, fields[5],
+                cm.group(1)))
+            print("proc.stat.cpu %d %s cpu=%s type=softirq" % (ts, fields[6],
+                cm.group(1)))
+            # really old kernels don't have this field
+            if len(fields) > 7:
+                print ("proc.stat.cpu %d %s cpu=%s type=steal" % (ts,
+                    fields[7], cm.group(1)))
+                # old kernels don't have this field
+            if len(fields) > 8:
+                print ("proc.stat.cpu %d %s cpu=%s type=guest" % (ts,
+                    fields[8], cm.group(1)))
+        elif m.group(1) == "intr":
+            print ("proc.stat.intr %d %s"
+                    % (ts, m.group(2).split()[0]))
+        elif m.group(1) == "ctxt":
+            print "proc.stat.ctxt %d %s" % (ts, m.group(2))
+        elif m.group(1) == "processes":
+            print "proc.stat.processes %d %s" % (ts, m.group(2))
+        elif m.group(1) == "procs_blocked":
+            print "proc.stat.procs_blocked %d %s" % (ts, m.group(2))
+
+
+def print_loadavg_stats(f_loadavg):
+    f_loadavg.seek(0)
+    ts = int(time.time())
+    for line in f_loadavg:
+        m = re.match("(\S+)\s+(\S+)\s+(\S+)\s+(\d+)/(\d+)\s+", line)
+        if not m:
+            continue
+        print "proc.loadavg.1min %d %s" % (ts, m.group(1))
+        print "proc.loadavg.5min %d %s" % (ts, m.group(2))
+        print "proc.loadavg.15min %d %s" % (ts, m.group(3))
+        print "proc.loadavg.runnable %d %s" % (ts, m.group(4))
+        print "proc.loadavg.total_threads %d %s" % (ts, m.group(5))
+
+
+def print_entropy_stats(f_entropy_avail):
+    f_entropy_avail.seek(0)
+    ts = int(time.time())
+    for line in f_entropy_avail:
+        print "proc.kernel.entropy_avail %d %s" % (ts, line.strip())
+
+
 def main():
     """procstats main loop"""
 
@@ -108,91 +204,18 @@ def main():
     drop_privileges()
 
     while True:
-        # proc.uptime
-        f_uptime.seek(0)
-        ts = int(time.time())
-        for line in f_uptime:
-            m = re.match("(\S+)\s+(\S+)", line)
-            if m:
-                print "proc.uptime.total %d %s" % (ts, m.group(1))
-                print "proc.uptime.now %d %s" % (ts, m.group(2))
-
-        # proc.meminfo
-        f_meminfo.seek(0)
-        ts = int(time.time())
-        for line in f_meminfo:
-            m = re.match("(\w+):\s+(\d+)", line)
-            if m:
-                print ("proc.meminfo.%s %d %s"
-                        % (m.group(1).lower(), ts, m.group(2)))
-
-        # proc.vmstat
-        f_vmstat.seek(0)
-        ts = int(time.time())
-        for line in f_vmstat:
-            m = re.match("(\w+)\s+(\d+)", line)
-            if not m:
-                continue
-            if m.group(1) in ("pgpgin", "pgpgout", "pswpin",
-                              "pswpout", "pgfault", "pgmajfault"):
-                print "proc.vmstat.%s %d %s" % (m.group(1), ts, m.group(2))
-
-        # proc.stat
-        f_stat.seek(0)
-        ts = int(time.time())
-        for line in f_stat:
-            m = re.match("(\w+)\s+(.*)", line)
-            if not m:
-                continue
-            if m.group(1) == "cpu":
-                fields = m.group(2).split()
-                print "proc.stat.cpu %d %s type=user" % (ts, fields[0])
-                print "proc.stat.cpu %d %s type=nice" % (ts, fields[1])
-                print "proc.stat.cpu %d %s type=system" % (ts, fields[2])
-                print "proc.stat.cpu %d %s type=idle" % (ts, fields[3])
-                print "proc.stat.cpu %d %s type=iowait" % (ts, fields[4])
-                print "proc.stat.cpu %d %s type=irq" % (ts, fields[5])
-                print "proc.stat.cpu %d %s type=softirq" % (ts, fields[6])
-                # really old kernels don't have this field
-                if len(fields) > 7:
-                    print ("proc.stat.cpu %d %s type=guest"
-                           % (ts, fields[7]))
-                    # old kernels don't have this field
-                    if len(fields) > 8:
-                        print ("proc.stat.cpu %d %s type=guest_nice"
-                               % (ts, fields[8]))
-            elif m.group(1) == "intr":
-                print ("proc.stat.intr %d %s"
-                        % (ts, m.group(2).split()[0]))
-            elif m.group(1) == "ctxt":
-                print "proc.stat.ctxt %d %s" % (ts, m.group(2))
-            elif m.group(1) == "processes":
-                print "proc.stat.processes %d %s" % (ts, m.group(2))
-            elif m.group(1) == "procs_blocked":
-                print "proc.stat.procs_blocked %d %s" % (ts, m.group(2))
-
-        f_loadavg.seek(0)
-        ts = int(time.time())
-        for line in f_loadavg:
-            m = re.match("(\S+)\s+(\S+)\s+(\S+)\s+(\d+)/(\d+)\s+", line)
-            if not m:
-                continue
-            print "proc.loadavg.1min %d %s" % (ts, m.group(1))
-            print "proc.loadavg.5min %d %s" % (ts, m.group(2))
-            print "proc.loadavg.15min %d %s" % (ts, m.group(3))
-            print "proc.loadavg.runnable %d %s" % (ts, m.group(4))
-            print "proc.loadavg.total_threads %d %s" % (ts, m.group(5))
-
-        f_entropy_avail.seek(0)
-        ts = int(time.time())
-        for line in f_entropy_avail:
-            print "proc.kernel.entropy_avail %d %s" % (ts, line.strip())
+        print_uptime_stats(f_uptime)
+        print_uptime_stats(f_meminfo)
+        print_vmstat_stats(f_vmstat)
+        print_stat_stats(f_stat)
+        print_loadavg_stats(f_loadavg)
+        print_entropy_stats(f_entropy_avail)
 
         print_numa_stats(numastats)
 
         sys.stdout.flush()
         time.sleep(COLLECTION_INTERVAL)
 
+
 if __name__ == "__main__":
     main()
-
