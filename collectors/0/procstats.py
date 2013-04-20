@@ -14,12 +14,13 @@
 #
 """import various /proc stats from /proc into TSDB"""
 
+import multiprocessing
 import os
 import pwd
+import re
+import socket
 import sys
 import time
-import socket
-import re
 
 COLLECTION_INTERVAL = 15  # seconds
 NUMADIR = "/sys/devices/system/node"
@@ -104,6 +105,7 @@ def main():
     f_stat = open("/proc/stat", "r")
     f_loadavg = open("/proc/loadavg", "r")
     f_entropy_avail = open("/proc/sys/kernel/random/entropy_avail", "r")
+    f_interrupts = open("/proc/interrupts", "r")
     numastats = open_sysfs_numa_stats()
     drop_privileges()
 
@@ -187,6 +189,26 @@ def main():
         ts = int(time.time())
         for line in f_entropy_avail:
             print "proc.kernel.entropy_avail %d %s" % (ts, line.strip())
+
+        f_interrupts.seek(0)
+        ts = int(time.time())
+        # get number of CPUs from description line
+        num_cpus = len(f_interrupts.readline().split())
+        for line in f_interrupts:
+            cols = line.split()
+
+            irq_type = cols[0].rstrip(":")
+            if irq_type.isalpha():
+                for idx, val in enumerate(cols[1:]):
+                    if idx > num_cpus:
+                        # all values read, remaining cols contain textual
+                        # description
+                        break
+                    if not val.isdigit():
+                        # something is weird, there should only be digit values
+                        break
+                    print("proc.interrupts %s %s type=%s cpu=%s" %
+                         (ts, val, irq_type.lower(), idx))
 
         print_numa_stats(numastats)
 
