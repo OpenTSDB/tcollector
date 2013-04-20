@@ -402,35 +402,46 @@ class SenderThread(threading.Thread):
         self.dryrun = dryrun
         self.reader = reader
         self.tagstr = tags
-        self.hosts = hosts
+        self.hosts = hosts  # A list of (host, port) pairs.
         # Randomize hosts to help even out the load.
         random.shuffle(self.hosts)
-        self.blacklisted_hosts = []
-        self.host = None
-        self.port = None
-        self.tsd = None
+        self.blacklisted_hosts = set()  # The 'bad' (host, port) pairs.
+        self.current_tsd = -1  # Index in self.hosts where we're at.
+        self.host = None  # The current TSD host we've selected.
+        self.port = None  # The port of the current TSD.
+        self.tsd = None   # The socket connected to the aforementioned TSD.
         self.last_verify = 0
         self.sendq = []
         self.self_report_stats = self_report_stats
 
     def pick_connection(self):
         """Picks up a random host/port connection."""
-        if not self.hosts:
+        # Try to get the next host from the list, until we find a host that
+        # isn't in the blacklist, or until we run out of hosts (i.e. they
+        # are all blacklisted, which typically happens when we lost our
+        # connectivity to the outside world).
+        for self.current_tsd in xrange(self.current_tsd + 1, len(self.hosts)):
+            hostport = self.hosts[self.current_tsd]
+            if hostport not in self.blacklisted_hosts:
+                break
+        else:
             LOG.info('No more healthy hosts, retry with previously blacklisted')
-            self.hosts = self.blacklisted_hosts
             random.shuffle(self.hosts)
-            self.blacklisted_hosts = []
-        self.host, self.port = self.hosts.pop(0)
-        LOG.info('Selected connection: %s:%s', self.host, str(self.port))
+            self.blacklisted_hosts.clear()
+            self.current_tsd = 0
+            hostport = self.hosts[self.current_tsd]
 
-    def blacklist(self, host, port):
-        """Marks the tuple (host, port) as blacklisted.
+        self.host, self.port = hostport
+        LOG.info('Selected connection: %s:%d', self.host, self.port)
+
+    def blacklist_connection(self):
+        """Marks the current TSD host we're trying to use as blacklisted.
 
            Blacklisted hosts will get another chance to be elected once there
            will be no more healthy hosts."""
         # FIXME: Enhance this naive strategy.
-        LOG.info('Blacklisting %s:%s for a while', host, port)
-        self.blacklisted_hosts.append((host, port))
+        LOG.info('Blacklisting %s:%s for a while', self.host, self.port)
+        self.blacklisted_hosts.add((self.host, self.port))
 
     def run(self):
         """Main loop.  A simple scheduler.  Loop waiting for 5
@@ -490,7 +501,7 @@ class SenderThread(threading.Thread):
             self.tsd.sendall('version\n')
         except socket.error, msg:
             self.tsd = None
-            self.blacklist(self.host, self.port)
+            self.blacklist_connection()
             return False
 
         bufsize = 4096
@@ -502,14 +513,14 @@ class SenderThread(threading.Thread):
                 buf = self.tsd.recv(bufsize)
             except socket.error, msg:
                 self.tsd = None
-                self.blacklist(self.host, self.port)
+                self.blacklist_connection()
                 return False
 
             # If we don't get a response to the `version' request, the TSD
             # must be dead or overloaded.
             if not buf:
                 self.tsd = None
-                self.blacklist(self.host, self.port)
+                self.blacklist_connection()
                 return False
 
             # Woah, the TSD has a lot of things to tell us...  Let's make
@@ -576,7 +587,7 @@ class SenderThread(threading.Thread):
             self.pick_connection()
             try:
                 addresses = socket.getaddrinfo(self.host, self.port, socket.AF_UNSPEC,
-                                              socket.SOCK_STREAM, 0)
+                                               socket.SOCK_STREAM, 0)
             except socket.gaierror, e:
                 if e[0] == socket.EAI_AGAIN:
                     continue
@@ -595,7 +606,7 @@ class SenderThread(threading.Thread):
                 self.tsd = None
             if not self.tsd:
                 LOG.error('Failed to connect to %s:%d', self.host, self.port)
-                self.blacklist(self.host, self.port)
+                self.blacklist_connection()
 
     def send_data(self):
         """Sends outstanding data in self.sendq to the TSD in one operation."""
