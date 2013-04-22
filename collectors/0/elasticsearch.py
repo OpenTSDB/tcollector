@@ -24,6 +24,8 @@ import socket
 import sys
 import time
 
+from collectors.lib import utils
+
 
 COLLECTION_INTERVAL = 15  # seconds
 DEFAULT_TIMEOUT = 10.0    # seconds
@@ -76,6 +78,7 @@ def node_stats(server):
 
 
 def main(argv):
+  utils.drop_privileges()
   socket.setdefaulttimeout(DEFAULT_TIMEOUT)
   server = httplib.HTTPConnection(ES_HOST, ES_PORT)
   try:

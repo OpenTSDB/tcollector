@@ -42,14 +42,11 @@ These metrics have no tags and are global:
 
 import json
 import os
-import pwd
 import sys
 import time
 import urllib2
 
-# If we're running as root and this user exists, we'll drop privileges.  Set this
-# to 'root' if you don't want to drop privileges.
-USER = "nobody"
+from collectors.lib import utils
 
 MAP = {
     'vnode_gets_total': ('vnode.requests', 'type=get'),
@@ -75,22 +72,6 @@ MAP = {
     #connected_nodes is calculated
 }
 
-def drop_privileges():
-    """Drops privileges if running as root."""
-
-    if USER == 'root':
-        return
-
-    try:
-        ent = pwd.getpwnam(USER)
-    except KeyError:
-        return
-
-    if os.getuid() != 0:
-        return
-    os.setgid(ent.pw_gid)
-    os.setuid(ent.pw_uid)
-
 
 def main():
     """Main loop"""
@@ -99,7 +80,7 @@ def main():
     if not os.path.exists("/usr/lib/riak"):
         sys.exit(13)
 
-    drop_privileges()
+    utils.drop_privileges()
     sys.stdin.close()
 
     interval = 15

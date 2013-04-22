@@ -49,10 +49,11 @@
 # example, they will always show user=root.
 
 import os
+import pwd
 import sys
 import time
-import socket
-import pwd
+
+from collectors.lib import utils
 
 
 USERS = ("root", "www-data", "mysql")
@@ -118,22 +119,6 @@ TCPSTATES = {
     "0B": "closing",
     }
 
-# If we're running as root and this user exists, we'll drop privileges.
-USER = "nobody"
-
-
-def drop_privileges():
-    try:
-        ent = pwd.getpwnam(USER)
-    except KeyError:
-        return
-
-    if os.getuid() != 0:
-        return
-
-    os.setgid(ent.pw_gid)
-    os.setuid(ent.pw_uid)
-
 
 def is_public_ip(ipstr):
     """
@@ -189,7 +174,7 @@ def main(unused_args):
         print >>sys.stderr, "Failed to open input file: %s" % (e,)
         return 13  # Ask tcollector to not re-start us immediately.
 
-    drop_privileges()
+    utils.drop_privileges()
     while True:
         counter = {}
 

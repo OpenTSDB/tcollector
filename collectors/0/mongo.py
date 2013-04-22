@@ -20,6 +20,8 @@ try:
 except ImportError:
     pymongo = None  # This is handled gracefully in main()
 
+from collectors.lib import utils
+
 HOST = 'localhost'
 PORT = 27017
 INTERVAL = 15
@@ -59,6 +61,7 @@ TAG_METRICS = (
 )
 
 def main():
+    utils.drop_privileges()
     if pymongo is None:
        print >>sys.stderr, "error: Python module `pymongo' is missing"
        return 13

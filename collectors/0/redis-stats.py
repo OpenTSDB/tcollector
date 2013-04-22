@@ -57,8 +57,6 @@ For more information on these values, see this (not very useful) documentation:
     http://redis.io/commands/info
 """
 
-import os
-import pwd
 import re
 import subprocess
 import sys
@@ -69,6 +67,8 @@ try:
     has_redis = True
 except ImportError:
     has_redis = False
+
+from collectors.lib import utils
 
 # If we are root, drop privileges to this user, if necessary.  NOTE: if this is
 # not root, this MUST be the user that you run redis-server under.  If not, we
@@ -88,27 +88,12 @@ KEYS = [
     'changes_since_last_save', 'mem_fragmentation_ratio', 'keyspace_hits', 'evicted_keys'
 ];
 
-def drop_privileges():
-    """Drops privileges if running as root."""
-
-    if USER == 'root':
-        return
-
-    try:
-        ent = pwd.getpwnam(USER)
-    except KeyError:
-        return
-
-    if os.getuid() != 0:
-        return
-    os.setgid(ent.pw_gid)
-    os.setuid(ent.pw_uid)
-
 
 def main():
     """Main loop"""
 
-    drop_privileges()
+    if USER != "root":
+        utils.drop_privileges(user=USER)
     sys.stdin.close()
 
     interval = 15

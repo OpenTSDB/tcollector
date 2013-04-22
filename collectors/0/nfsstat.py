@@ -17,6 +17,8 @@
 import sys
 import time
 
+from collectors.lib import utils
+
 COLLECTION_INTERVAL = 15  # seconds
 
 nfs_client_proc4_names = (
@@ -43,6 +45,7 @@ def main():
         print >>sys.stderr, "Failed to open input file: %s" % (e,)
         return 13  # Ask tcollector to not re-start us immediately.
 
+    utils.drop_privileges()
     while True:
         f_nfs.seek(0)
         ts = int(time.time())

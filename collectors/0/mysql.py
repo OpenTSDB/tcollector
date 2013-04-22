@@ -26,10 +26,7 @@ try:
 except ImportError:
   MySQLdb = None  # This is handled gracefully in main()
 
-# This is really ugly, but we don't have a good way of passing
-# configuration data down to the collectors at the moment :(
-sys.path.append(os.path.dirname(sys.argv[0]) + "/../etc")
-import mysqlconf
+from collectors.etc import mysqlconf
 
 COLLECTION_INTERVAL = 15  # seconds
 CONNECT_TIMEOUT = 2  # seconds

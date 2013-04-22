@@ -755,6 +755,20 @@ def daemonize():
             pass         # ... ignore the exception.
 
 
+def setup_python_path(argv0):
+    """Sets up PYTHONPATH so that collectors can easily import common code."""
+    mydir = os.path.abspath(os.path.dirname(argv0))
+    libdir = os.path.join(mydir, 'collectors', 'lib')
+    if not os.path.isdir(libdir):
+        return
+    pythonpath = os.environ.get('PYTHONPATH', '')
+    if pythonpath:
+        pythonpath += ':'
+    pythonpath += mydir
+    os.environ['PYTHONPATH'] = pythonpath
+    LOG.debug('Set PYTHONPATH to %r', pythonpath)
+
+
 def main(argv):
     """The main tcollector entry point and loop."""
 
@@ -798,6 +812,8 @@ def main(argv):
     if tags:
         tagstr = ' '.join('%s=%s' % (k, v) for k, v in tags.iteritems())
         tagstr = ' ' + tagstr.strip()
+
+    setup_python_path(argv[0])
 
     # gracefully handle death for normal termination paths and abnormal
     atexit.register(shutdown)

@@ -57,30 +57,12 @@ Metrics from /proc/net/netstat (`netstat -s' command):
   - net.stat.tcp.syncookies: SYN cookies (both sent & received).
 """
 
-import os
-import pwd
 import re
 import resource
 import sys
 import time
 
-# If we're running as root and this user exists, we'll drop privileges.
-USER = "nobody"
-
-
-def drop_privileges():
-    """Drops privileges if running as root."""
-    try:
-        ent = pwd.getpwnam(USER)
-    except KeyError:
-        return
-
-    if os.getuid() != 0:
-        return
-
-    os.setgid(ent.pw_gid)
-    os.setuid(ent.pw_uid)
-
+from collectors.lib import utils
 
 
 def main():
@@ -97,7 +79,7 @@ def main():
     except IOError, e:
         print >>sys.stderr, "open failed: %s" % e
         return 13  # Ask tcollector to not re-start us.
-    drop_privileges()
+    utils.drop_privileges()
 
     # Note: up until v2.6.37-rc2 most of the values were 32 bits.
     # The first value is pretty useless since it accounts for some
