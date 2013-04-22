@@ -589,7 +589,7 @@ class SenderThread(threading.Thread):
                 addresses = socket.getaddrinfo(self.host, self.port, socket.AF_UNSPEC,
                                                socket.SOCK_STREAM, 0)
             except socket.gaierror, e:
-                if e[0] in (socket.EAI_AGAIN, EAI_NONAME):
+                if e[0] in (socket.EAI_AGAIN, socket.EAI_NONAME):
                     continue
                 raise
             for family, socktype, proto, canonname, sockaddr in addresses:
