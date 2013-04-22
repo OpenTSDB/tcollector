@@ -1,7 +1,7 @@
 #!/usr/bin/python
 #
 # mongo.py -- a MongoDB collector for tcollector/OpenTSDB
-# Copyright (C) 2013  Tim Douglas, me@timdoug.com
+# Copyright (C) 2013  The tcollector Authors.
 #
 # This program is free software: you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published by
