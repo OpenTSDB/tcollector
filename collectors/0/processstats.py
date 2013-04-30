@@ -166,18 +166,14 @@ def collect_kvm_stats(processes):
             stat = process.stat()
         except ProcessTerminatedError:
             continue
-        print("kvm.cputime %s %s pid=%s type=guest_time uuid=%s" % (ts,
-            stat["guest_time"], process.pid, process.uuid))
-        print("kvm.cputime %s %s pid=%s type=cguest_time uuid=%s" % (ts,
-            stat["cguest_time"], process.pid, process.uuid))
-        print("kvm.cputime %s %s pid=%s type=cutime uuid=%s" % (ts,
-            stat["cutime"], process.pid, process.uuid))
-        print("kvm.cputime %s %s pid=%s type=utime uuid=%s" % (ts,
-            stat["utime"], process.pid, process.uuid))
-        print("kvm.cputime %s %s pid=%s type=stime uuid=%s" % (ts,
-            stat["stime"], process.pid, process.uuid))
-        print("kvm.cputime %s %s pid=%s type=cstime uuid=%s" % (ts,
-            stat["cstime"], process.pid, process.uuid))
+        for metric in ("guest_time", "cguest_time", "cutime",
+                       "utime", "stime", "cstime", "vsize", "rss"):
+            # guest_time and cguest_time not available for kernel < 2.6.24
+            if metric in ("guest_time", "cguest_time") and metric not in stat:
+                continue
+            print("kvm.cputime %s %s pid=%s type=%s uuid=%s" %
+                (ts, stat[metric], process.pid, metric, process.uuid))
+
         print("kvm.mem_bytes %s %s pid=%s type=vsize uuid=%s" % (ts,
             stat["vsize"], process.pid, process.uuid))
         print("kvm.mem_bytes %s %s pid=%s type=rss uuid=%s" % (ts,
