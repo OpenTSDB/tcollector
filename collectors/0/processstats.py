@@ -29,23 +29,9 @@ import resource
 import sys
 import time
 
+from collectors.lib import utils
+
 COLLECTION_INTERVAL = 15  # seconds
-# If we're running as root and this user exists, we'll drop privileges.
-USER = "nobody"
-
-
-def drop_privileges():
-    """Drops privileges if running as root."""
-    try:
-        ent = pwd.getpwnam(USER)
-    except KeyError:
-        return
-
-    if os.getuid() != 0:
-        return
-
-    os.setgid(ent.pw_gid)
-    os.setuid(ent.pw_uid)
 
 
 class ProcessTerminatedError(Exception):
@@ -226,7 +212,7 @@ def collect_tcollect_stats(processes):
 
 
 def main():
-    drop_privileges()
+    utils.drop_privileges()
 
     while True:
         processes = ProcessTable()
