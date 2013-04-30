@@ -70,13 +70,9 @@ class Process(object):
             path = "/proc/%s/cmdline" % self.pid
             try:
                 with open(path) as f:
-                    tmp = f.readline()
-                    if tmp:
-                        # remove terminating \0
-                        tmp = tmp.rstrip('\0')
-                        # replace \0 arg seperator with spaces
-                        tmp = tmp.replace('\0', ' ')
-                    self._cmdline = tuple(tmp.split())
+                    cmdl = f.readline()
+                    if cmdl:
+                        self._cmdline = tuple(cmdl.split('\0'))
             except IOError:
                 raise ProcessTerminatedError()
 
