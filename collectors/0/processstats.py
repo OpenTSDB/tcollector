@@ -93,12 +93,17 @@ class Process(object):
         try:
             with open(path) as f:
                 spl = f.readline().split()
-                return {"pid": spl[0], "comm": spl[1], "ppid": spl[3],
-                        "utime": spl[13], "stime": spl[14], "cutime": spl[15],
-                        "cstime": spl[16], "vsize": spl[22], "rss": spl[23],
-                        "guest_time": spl[42], "cguest_time": spl[43]}
         except IOError:
             raise ProcessTerminatedError()
+
+        rv = {"pid": spl[0], "comm": spl[1], "ppid": spl[3],
+                "utime": spl[13], "stime": spl[14], "cutime": spl[15],
+                "cstime": spl[16], "vsize": spl[22], "rss": spl[23]}
+        # supported since Kernel 2.6.24
+        if len(spl) > 43:
+                rv.update({"guest_time": spl[42],
+                           "cguest_time": spl[43]})
+        return rv
 
 
 class ProcessTable(object):
