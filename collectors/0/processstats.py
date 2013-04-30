@@ -119,7 +119,7 @@ class ProcessTable(object):
         new = {}
         pids = [int(i) for i in os.listdir("/proc") if i.isdigit()]
         for pid in pids:
-            # TODO: Optimize: Don't creaete 2 objects, use a factory function
+            # TODO: Optimize: Don't create 2 objects, use a factory function
             # or something similar
             if pid in self.processes:
                 new[pid] = self.processes[pid]
