@@ -134,9 +134,6 @@ class ProcessTable(object):
                     continue
         self.processes = new
 
-    def count(self):
-        return len(self.processes)
-
     def filter(self, cond):
         """ Return processes for that the function cond evaluates to true. """
         return filter(cond, self.processes.values())
