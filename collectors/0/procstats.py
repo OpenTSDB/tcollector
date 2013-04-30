@@ -1,6 +1,6 @@
 #!/usr/bin/python
 # This file is part of tcollector.
-# Copyright (C) 2010  StumbleUpon, Inc.
+# Copyright (C) 2010  The tcollector Authors.
 #
 # This program is free software: you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published by
@@ -15,31 +15,14 @@
 """import various /proc stats from /proc into TSDB"""
 
 import os
-import pwd
+import re
 import sys
 import time
-import socket
-import re
+
+from collectors.lib import utils
 
 COLLECTION_INTERVAL = 15  # seconds
 NUMADIR = "/sys/devices/system/node"
-
-# If we're running as root and this user exists, we'll drop privileges.
-USER = "nobody"
-
-
-def drop_privileges():
-    """Drops privileges if running as root."""
-    try:
-        ent = pwd.getpwnam(USER)
-    except KeyError:
-        return
-
-    if os.getuid() != 0:
-        return
-
-    os.setgid(ent.pw_gid)
-    os.setuid(ent.pw_uid)
 
 
 def open_sysfs_numa_stats():
@@ -104,8 +87,9 @@ def main():
     f_stat = open("/proc/stat", "r")
     f_loadavg = open("/proc/loadavg", "r")
     f_entropy_avail = open("/proc/sys/kernel/random/entropy_avail", "r")
+    f_interrupts = open("/proc/interrupts", "r")
     numastats = open_sysfs_numa_stats()
-    drop_privileges()
+    utils.drop_privileges()
 
     while True:
         # proc.uptime
@@ -187,6 +171,33 @@ def main():
         ts = int(time.time())
         for line in f_entropy_avail:
             print "proc.kernel.entropy_avail %d %s" % (ts, line.strip())
+
+        f_interrupts.seek(0)
+        ts = int(time.time())
+        # Get number of CPUs from description line.
+        num_cpus = len(f_interrupts.readline().split())
+        for line in f_interrupts:
+            cols = line.split()
+
+            irq_type = cols[0].rstrip(":")
+            if irq_type.isalnum():
+                if irq_type.isdigit():
+                    if cols[-2] == "PCI-MSI-edge" and "eth" in cols[-1]:
+                        irq_type = cols[-1]
+                    else:
+                        continue  # Interrupt type is just a number, ignore.
+                for i, val in enumerate(cols[1:]):
+                    if i >= num_cpus:
+                        # All values read, remaining cols contain textual
+                        # description
+                        break
+                    if not val.isdigit():
+                        # something is weird, there should only be digit values
+                        sys.stderr.write("Unexpected interrupts value %r in"
+                                         " %r: " % (val, cols))
+                        break
+                    print ("proc.interrupts %s %s type=%s cpu=%s"
+                           % (ts, val, irq_type, i))
 
         print_numa_stats(numastats)
 

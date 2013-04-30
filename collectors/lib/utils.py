@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/python
 # This file is part of tcollector.
 # Copyright (C) 2013  The tcollector Authors.
 #
@@ -12,15 +12,24 @@
 # of the GNU Lesser General Public License along with this program.  If not,
 # see <http://www.gnu.org/licenses/>.
 
-# Collects OpenTSDB's own stats.
+"""Common utility functions shared for Python collectors"""
 
-TSD_HOST=localhost
-TSD_PORT=4242
-COLLECTION_INTERVAL=15
+import os
+import pwd
 
-nc -z $TSD_HOST $TSD_PORT >/dev/null || exit 13
+# If we're running as root and this user exists, we'll drop privileges.
+USER = "nobody"
 
-while :; do
-  echo stats || exit
-  sleep $COLLECTION_INTERVAL
-done | nc $TSD_HOST $TSD_PORT
+
+def drop_privileges(user=USER):
+    """Drops privileges if running as root."""
+    try:
+        ent = pwd.getpwnam(USER)
+    except KeyError:
+        return
+
+    if os.getuid() != 0:
+        return
+
+    os.setgid(ent.pw_gid)
+    os.setuid(ent.pw_uid)

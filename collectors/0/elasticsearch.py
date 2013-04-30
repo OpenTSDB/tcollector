@@ -1,6 +1,6 @@
 #!/usr/bin/python
 # This file is part of tcollector.
-# Copyright (C) 2011  StumbleUpon, Inc.
+# Copyright (C) 2011  The tcollector Authors.
 #
 # This program is free software: you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published by
@@ -23,6 +23,8 @@ except ImportError:
 import socket
 import sys
 import time
+
+from collectors.lib import utils
 
 
 COLLECTION_INTERVAL = 15  # seconds
@@ -76,6 +78,7 @@ def node_stats(server):
 
 
 def main(argv):
+  utils.drop_privileges()
   socket.setdefaulttimeout(DEFAULT_TIMEOUT)
   server = httplib.HTTPConnection(ES_HOST, ES_PORT)
   try:

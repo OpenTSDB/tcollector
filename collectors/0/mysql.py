@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # This file is part of tcollector.
-# Copyright (C) 2011  StumbleUpon, Inc.
+# Copyright (C) 2011  The tcollector Authors.
 #
 # This program is free software: you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published by
@@ -26,10 +26,7 @@ try:
 except ImportError:
   MySQLdb = None  # This is handled gracefully in main()
 
-# This is really ugly, but we don't have a good way of passing
-# configuration data down to the collectors at the moment :(
-sys.path.append(os.path.dirname(sys.argv[0]) + "/../etc")
-import mysqlconf
+from collectors.etc import mysqlconf
 
 COLLECTION_INTERVAL = 15  # seconds
 CONNECT_TIMEOUT = 2  # seconds

@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Copyright (C) 2012  Jari Takkala
+# Copyright (C) 2012  The tcollector Authors.
 #
 # This program is free software: you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published by
@@ -16,6 +16,8 @@
 
 import sys
 import time
+
+from collectors.lib import utils
 
 COLLECTION_INTERVAL = 15  # seconds
 
@@ -43,6 +45,7 @@ def main():
         print >>sys.stderr, "Failed to open input file: %s" % (e,)
         return 13  # Ask tcollector to not re-start us immediately.
 
+    utils.drop_privileges()
     while True:
         f_nfs.seek(0)
         ts = int(time.time())

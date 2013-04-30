@@ -1,7 +1,7 @@
 #!/usr/bin/python
 #
 # mongo.py -- a MongoDB collector for tcollector/OpenTSDB
-# Copyright (C) 2013  Tim Douglas, me@timdoug.com
+# Copyright (C) 2013  The tcollector Authors.
 #
 # This program is free software: you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published by
@@ -19,6 +19,8 @@ try:
     import pymongo
 except ImportError:
     pymongo = None  # This is handled gracefully in main()
+
+from collectors.lib import utils
 
 HOST = 'localhost'
 PORT = 27017
@@ -59,6 +61,7 @@ TAG_METRICS = (
 )
 
 def main():
+    utils.drop_privileges()
     if pymongo is None:
        print >>sys.stderr, "error: Python module `pymongo' is missing"
        return 13

@@ -1,6 +1,6 @@
 #!/usr/bin/python
 # This file is part of tcollector.
-# Copyright (C) 2010  StumbleUpon, Inc.
+# Copyright (C) 2010  The tcollector Authors.
 #
 # This program is free software: you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published by
@@ -68,11 +68,10 @@
 # %util.  These need to pull in cpu idle counters from /proc.
 
 
-import os
-import pwd
-import socket
 import sys
 import time
+
+from collectors.lib import utils
 
 COLLECTION_INTERVAL = 60  # seconds
 
@@ -97,28 +96,11 @@ FIELDS_PART = ("read_issued",
                "write_sectors",
               )
 
-# If we're running as root and this user exists, we'll drop privileges.
-USER = "nobody"
-
-
-def drop_privileges():
-    """Drops privileges if running as root."""
-    try:
-        ent = pwd.getpwnam(USER)
-    except KeyError:
-        return
-
-    if os.getuid() != 0:
-        return
-
-    os.setgid(ent.pw_gid)
-    os.setuid(ent.pw_uid)
-
 
 def main():
     """iostats main loop."""
     f_diskstats = open("/proc/diskstats", "r")
-    drop_privileges()
+    utils.drop_privileges()
 
     while True:
         f_diskstats.seek(0)
