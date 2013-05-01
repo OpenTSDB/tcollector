@@ -35,7 +35,7 @@ BLOCK_TYPE_PREFIX = 'bt\.'
 REGION_PREFIX = 'region\.'
 # Regular Expressions for use in Filters
 FILTER_TAGS = {
-    'table': '{}([a-zA-Z_0-9]+).'.format(TABLE_PREFIX),
+    'table': '{}([a-zA-Z_0-9\-]+).'.format(TABLE_PREFIX),
     'columnfamily': '{}([a-zA-Z_0-9]+).'.format(CF_PREFIX),
     'blocktype': '{}([a-zA-Z_0-9]+).'.format(BLOCK_TYPE_PREFIX),
     'region': '{}([a-zA-Z_0-9]+).'.format(REGION_PREFIX)
@@ -108,6 +108,11 @@ def extract_tags(string, tags):
     until all regexes have been applied. """
     metric_string = string
     metric_tags = tags
+    # Hack for special region .META.
+    # If found, replace .META. with META
+    if '.META.' in metric_string:
+        print metric_string
+        metric_string = metric_string.replace('.META.', 'META')
     for tag, regex in FILTER_TAGS.iteritems():
         new_tag = {}
         (metric_string, new_tag[tag]) = regex_replace(metric_string, regex)
@@ -143,7 +148,7 @@ def extract_operations(string, tags):
     """
     metric_string = string
     metric_tags = tags
-    # Resursively search all regexes in the FILTER_TAGS dict()
+    # Resursively search all regexes in the FILTER_OPERATIONS dict()
     for tag, regex in FILTER_OPERATIONS.iteritems():
         (metric_string, tag_string) = regex_replace(metric_string, regex)
         if tag_string:
