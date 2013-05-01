@@ -111,7 +111,6 @@ def extract_tags(string, tags):
     # Hack for special region .META.
     # If found, replace .META. with META
     if '.META.' in metric_string:
-        print metric_string
         metric_string = metric_string.replace('.META.', 'META')
     for tag, regex in FILTER_TAGS.iteritems():
         new_tag = {}
