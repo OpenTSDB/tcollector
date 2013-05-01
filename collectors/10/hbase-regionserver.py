@@ -18,8 +18,8 @@ import collections
 import time
 import re
 import sys
+import urllib2
 import simplejson as json
-import requests
 
 # MBean Data Structure
 Bean = collections.namedtuple('Bean', 'prefix uri filters')
@@ -60,15 +60,12 @@ MBEANS = [
 
 def get_json(uri):
     """ Request URL, load JSON, exit if error. """
-    url_json = None
-    r = requests.get(uri, timeout=TIMEOUT)
-    if r.status_code == 200:
-        url_json = r.json()
-    else:
-        raise 'Did not recieve 200 response for {}'.format(url)
-    if not 'beans' in url_json:
+    json_response = None
+    r = urllib2.urlopen(uri, timeout=TIMEOUT)
+    json_response = json.load(r)
+    if not 'beans' in json_response:
         raise 'Could not find beans in JSON response'
-    return url_json['beans']
+    return json_response['beans']
 
 
 def is_numeric(obj):
