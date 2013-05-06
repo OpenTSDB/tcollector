@@ -79,7 +79,7 @@ def is_numeric(obj):
     return False
 
 
-def format_tsd_key(metric_key, metric_value, tags=[]):
+def format_tsd_key(metric_key, metric_value, tags={}):
     """ Formats a key for OpenTSDB """
     expanded_tags = ''.join([' %s=%s' % (key, value) for key, value in tags.iteritems()])
     output = '{} {} {}{}'.format(metric_key, TIME, metric_value, expanded_tags)
