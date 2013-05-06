@@ -51,6 +51,7 @@ ALIVE = True
 # Hopefully some kind of supervising daemon will then restart it.
 MAX_UNCAUGHT_EXCEPTIONS = 100
 DEFAULT_PORT = 4242
+MAX_REASONABLE_TIMESTAMP = 1600000000  # Good until September 2020 :)
 
 def register_collector(collector):
     """Register a collector with the COLLECTORS global"""
@@ -341,6 +342,12 @@ class ReaderThread(threading.Thread):
                           " (value=%r, collector=%s)", metric, tags,
                           col.values[key][3], timestamp, value, col.name)
                 col.lines_invalid += 1
+                return
+            elif timestamp >= MAX_REASONABLE_TIMESTAMP:
+                LOG.error("Timestamp is too far out in the future: metric=%s%s"
+                          " old_ts=%d, new_ts=%d - ignoring data point"
+                          " (value=%r, collector=%s)", metric, tags,
+                          col.values[key][3], timestamp, value, col.name)
                 return
 
             # if this data point is repeated, store it but don't send.
