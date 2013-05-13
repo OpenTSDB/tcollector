@@ -15,33 +15,41 @@
 
 import socket
 import sys
+from collectors.lib import utils
 
 HOST = '127.0.0.1'
 PORT = 8953
 SIZE = 8192
 TIMEOUT = 1
-s = None
 
-try:
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    s.bind((HOST, PORT))
-except socket.error as msg:
+def main():
+    utils.drop_privileges()
+
     s = None
 
-if s is None:
-    sys.stderr.write('could not open socket')
-    sys.exit(1)
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.bind((HOST, PORT))
+    except socket.error as msg:
+        s = None
 
-try:
-    while 1:
-        data, address = s.recvfrom(SIZE)
-        if not data:
-            sys.stderr.write("invalid data\n")
-            break
-        print data
-except KeyboardInterrupt:
-    sys.stderr.write("keyboard interrupt, exiting\n")
-finally:
-    s.close()
+    if s is None:
+        sys.stderr.write('could not open socket')
+        sys.exit(1)
+
+    try:
+        while 1:
+            data, address = s.recvfrom(SIZE)
+            if not data:
+                sys.stderr.write("invalid data\n")
+                break
+            print data
+    except KeyboardInterrupt:
+        sys.stderr.write("keyboard interrupt, exiting\n")
+    finally:
+        s.close()
+
+if __name__ == "__main__":
+    main()
 
 sys.exit(0)
