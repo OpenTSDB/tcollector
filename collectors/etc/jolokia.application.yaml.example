@@ -1,0 +1,11 @@
+# This shorter file should be created and put into place by the applications puppet manifest
+mbean: 'org.apache.cassandra.metrics:*' # appended to jolokia url: http://localhost:8778/jolokia/read/ (required)
+metric: 'cassandra.metrics'             # prefix for generated metrics (required)
+not_tags:                               # tags are created for url parameters, these are excluded from that (optional)
+- ''
+- 'type'
+- 'name'
+tags:                                   # custom tags added to each metric (optional)
+- tagname: value
+- tag2name: value2
+

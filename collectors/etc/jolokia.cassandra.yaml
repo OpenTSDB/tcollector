@@ -1,0 +1,7 @@
+# Cassandra 1.2
+mbean: 'org.apache.cassandra.metrics:*'
+metric: 'cassandra.metrics'
+not_tags:
+- ''
+- 'type'
+- 'name'
