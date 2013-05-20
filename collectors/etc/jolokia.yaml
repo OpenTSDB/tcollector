@@ -16,6 +16,11 @@ monitor:
   not_tags:
   - ''
   - 'type'
+- mbean: 'java.lang:type=GarbageCollector,name=*'
+  metric: 'java.lang'
+  not_tags: 
+  - ''
+  - 'type'
 - mbean: 'java.lang:name=CMS%20Old%20Gen,type=MemoryPool'
   metric: 'java.lang.memorypool.cmsoldgen'
   not_tags: 
