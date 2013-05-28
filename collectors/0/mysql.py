@@ -17,7 +17,6 @@ import errno
 import os
 import re
 import socket
-import stat
 import sys
 import time
 
@@ -27,6 +26,7 @@ except ImportError:
   MySQLdb = None  # This is handled gracefully in main()
 
 from collectors.etc import mysqlconf
+from collectors.lib import utils
 
 COLLECTION_INTERVAL = 15  # seconds
 CONNECT_TIMEOUT = 2  # seconds
@@ -147,18 +147,6 @@ def get_dbname(sockfile):
   return m.group(1)
 
 
-def is_sockfile(path):
-  """Returns whether or not the given path is a socket file."""
-  try:
-    s = os.stat(path)
-  except OSError, (no, e):
-    if no == errno.ENOENT:
-      return False
-    err("warning: couldn't stat(%r): %s" % (path, e))
-    return None
-  return s.st_mode & stat.S_IFSOCK == stat.S_IFSOCK
-
-
 def find_sockfiles():
   """Returns a list of paths to socket files to monitor."""
   paths = []
@@ -172,12 +160,12 @@ def find_sockfiles():
         continue
       for subname in os.listdir(subdir):
         path = os.path.join(subdir, subname)
-        if is_sockfile(path):
+        if utils.is_sockfile(path):
           paths.append(path)
           break  # We only expect 1 socket file per DB, so get out.
   # Try the default locations.
   for sockfile in DEFAULT_SOCKFILES:
-    if not is_sockfile(sockfile):
+    if not utils.is_sockfile(sockfile):
       continue
     paths.append(sockfile)
   return paths
