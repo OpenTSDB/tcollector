@@ -17,6 +17,7 @@
 import os
 import stat
 import pwd
+import errno
 
 # If we're running as root and this user exists, we'll drop privileges.
 USER = "nobody"
@@ -45,4 +46,4 @@ def is_sockfile(path):
     err("warning: couldn't stat(%r): %s" % (path, e))
     return None
   return s.st_mode & stat.S_IFSOCK == stat.S_IFSOCK
-    
+  
