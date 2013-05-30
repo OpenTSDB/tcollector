@@ -14,14 +14,13 @@
 """
 Collector for PostgreSQL.
 
-Please, set login/password variables below.
+Please, set login/password at etc/postgresql.conf .
 Collector uses socket file for DB connection so set 'unix_socket_directory'
 at postgresql.conf .
 """
 
 import sys
 import os
-import stat
 import time
 import socket
 import errno
@@ -34,55 +33,51 @@ except ImportError:
 COLLECTION_INTERVAL = 15 # seconds
 CONNECT_TIMEOUT = 2 # seconds
 
-# Credential for PostgreSQL, 
-# ensure that it has enough power to get data from DB
-USER_LOGIN = "admin"
-USER_PASSWORD = ""
+from collectors.lib import utils
+from collectors.etc import postgresqlconf
 
 # Directories under which to search socket files
-SEARCH_DIRS = [
+SEARCH_DIRS = frozenset([
   "/var/run/postgresql", # Debian default
   "/var/pgsql_socket", # MacOS default
   "/usr/local/var/postgres", # custom compilation
   "/tmp", # custom compilation
-]
+])
 
 def err(msg):
   print >>sys.stderr, msg
-  
-def is_sockfile(path):
-  """Returns whether or not the given path is a socket file."""
-  try:
-    s = os.stat(path)
-  except OSError, (no, e):
-    if no == errno.ENOENT:
-      return False
-    err("warning: couldn't stat(%r): %s" % (path, e))
-    return None
-  return s.st_mode & stat.S_IFSOCK == stat.S_IFSOCK
-    
+      
 def find_sockdir():
   """Returns a path to PostgreSQL socket file to monitor."""
   for dir in SEARCH_DIRS:
     for dirpath, dirnames, dirfiles in os.walk(dir, followlinks=True):
       for name in dirfiles:
         # ensure selection of PostgreSQL socket only
-	if (is_sockfile(os.path.join(dirpath, name)) and 'PGSQL' in name):
+	if (utils.is_sockfile(os.path.join(dirpath, name)) 
+	    and 'PGSQL' in name):
           return(dirpath)
 
-def collect(sockdir):
+def postgres_connect(sockdir):
+  """Connects to the PostgreSQL server using the specified socket file."""
+  user, password = postgresqlconf.get_user_password()
+  
+  try:    
+    return psycopg2.connect("host='%s' user='%s' password='%s' "
+                            "connect_timeout='%s' dbname=postgres"
+                            % (sockdir, user, password,
+                            CONNECT_TIMEOUT))
+  except (EnvironmentError, EOFError, RuntimeError, socket.error), e:
+    err("Couldn't connect to DB :%s" % (e))
+
+def collect(db):
   """
   Collects and prints stats.
   
   Here we collect only general info, for full list of data for collection
   see http://www.postgresql.org/docs/9.2/static/monitoring-stats.html
-  """
+  """  
 
   try:
-    db = psycopg2.connect("host='%s' user='%s' password='%s' \
-                          connect_timeout='%s' dbname=postgres" 
-                          % (sockdir, USER_LOGIN, USER_PASSWORD,
-                          CONNECT_TIMEOUT))
     cursor = db.cursor()
     
     # general statics
@@ -127,11 +122,13 @@ def collect(sockdir):
             % (database, time.time(), connection))
        
     cursor.close()
-    db.close()       
 
-  except (EnvironmentError, EOFError, RuntimeError, socket.error), e:
-    err("Couldn't connect to DB :%s" % (e))
-
+  except (EnvironmentError, EOFError, RuntimeError, socket.error,), e:
+    if isinstance(e, IOError) and e[0] == errno.EPIPE:
+      # exit on a broken pipe. There is no point in continuing
+      # because no one will read our stdout anyway.
+      return 2
+    err("error: failed to collect data: %s" % (e))
     
 def main(args):
   """Collects and dumps stats from a PostgreSQL server."""
@@ -144,19 +141,12 @@ def main(args):
     err("error: Python module 'psycopg2' is missing")
     return 1
 
+  db = postgres_connect(sockdir)
+        
   while True:
-    try:
-      collect(sockdir)
-    except (EnvironmentError, EOFError, RuntimeError, socket.error,), e:
-      if isinstance(e, IOError) and e[0] == errno.EPIPE:
-        # exit on a broken pipe. There is no point in continuing
-        # because no one will read our stdout anyway.
-        return 2
-      err("error: failed to collect data from %s" % (e))
-
+    collect(db)
     sys.stdout.flush()
     time.sleep(COLLECTION_INTERVAL)
-
 
 if __name__ == "__main__":
   sys.stdin.close()

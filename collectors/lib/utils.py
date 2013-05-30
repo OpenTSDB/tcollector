@@ -15,6 +15,7 @@
 """Common utility functions shared for Python collectors"""
 
 import os
+import stat
 import pwd
 
 # If we're running as root and this user exists, we'll drop privileges.
@@ -33,3 +34,15 @@ def drop_privileges(user=USER):
 
     os.setgid(ent.pw_gid)
     os.setuid(ent.pw_uid)
+
+def is_sockfile(path):
+  """Returns whether or not the given path is a socket file."""
+  try:
+    s = os.stat(path)
+  except OSError, (no, e):
+    if no == errno.ENOENT:
+      return False
+    err("warning: couldn't stat(%r): %s" % (path, e))
+    return None
+  return s.st_mode & stat.S_IFSOCK == stat.S_IFSOCK
+    
