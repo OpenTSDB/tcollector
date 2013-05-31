@@ -31,3 +31,13 @@ monitor:
   not_tags: 
   - ''
   - 'type'
+- mbean: 'java.lang:name=Eden%20Space,type=MemoryPool?ignoreErrors=true'
+  metric: 'java.lang.memorypool.cmspermgen'
+  not_tags: 
+  - ''
+  - 'type'
+- mbean: 'java.lang:name=Survivor%20Space,type=MemoryPool?ignoreErrors=true'
+  metric: 'java.lang.memorypool.cmspermgen'
+  not_tags: 
+  - ''
+  - 'type'
