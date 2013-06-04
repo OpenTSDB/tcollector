@@ -17,12 +17,19 @@ import socket
 import sys
 from collectors.lib import utils
 
+try:
+  from collectors.etc import udp_bridge_conf
+except ImportError:
+  udp_bridge_conf = None
+
 HOST = '127.0.0.1'
 PORT = 8953
 SIZE = 8192
 TIMEOUT = 1
 
 def main():
+    if not (udp_bridge_conf and udp_bridge_conf.enabled()):
+      sys.exit(13)
     utils.drop_privileges()
 
     try:
