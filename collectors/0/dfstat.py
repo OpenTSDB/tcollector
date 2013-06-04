@@ -26,11 +26,6 @@
 # This makes it easier to exclude stuff like
 # tmpfs mounts from disk usage reports.
 
-# Because tsdb does not like slashes in tags, slashes will
-# be replaced by underscores in the mount= tag.  In theory
-# this could cause problems if you have a mountpoint of
-# "/foo/bar/" and "/foo_bar/".
-
 
 import subprocess
 import sys
