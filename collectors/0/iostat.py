@@ -121,9 +121,7 @@ def main():
             else:
                 metric = "iostat.part."
 
-            # Sometimes there can be a slash in the device name, see bug #8.
-            # TODO(tsuna): Remove the substitution once TSD allows `/' in tags.
-            device = values[2].replace("/", "_")
+            device = values[2]
             if len(values) == 14:
                 # full stats line
                 for i in range(11):
