@@ -152,6 +152,12 @@ def main():
         # allocate a new local port bind bucket.  Note: this counter
         # also include all the increments made to ListenOverflows...
         "ListenDrops": ("failed_accept", "reason=other"),
+        # A packet was lost and we used Forward RTO-Recovery to retransmit.
+        "TCPForwardRetrans": ("retransmit", "type=forward"),
+        # A packet was lost and we fast-retransmitted it.
+        "TCPFastRetrans": ("retransmit", "type=fast"),
+        # A packet was lost and we retransmitted after a slow start.
+        "TCPSlowStartRetrans": ("retransmit", "type=slowstart"),
         # A packet was lost and we recovered after a fast retransmit.
         "TCPRenoRecovery": ("packetloss.recovery", "type=fast_retransmit"),
         # A packet was lost and we recovered by using selective
