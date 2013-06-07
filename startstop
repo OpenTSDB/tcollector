@@ -3,7 +3,7 @@
 # Semi Universal start-stop script
 
 # TSD_HOST=dns.name.of.tsd
-SCRIPT_DIR="$(readlink -f "$(dirname "${BASH_SOURCE[0]}")")"
+SCRIPT_DIR="$(dirname $(readlink -f $0))"
 TCOLLECTOR_PATH=${TCOLLECTOR_PATH-"${SCRIPT_DIR}"}
 test -n "$TSD_HOST" || {
     echo >&2 "TSD_HOST is not set in $0"
