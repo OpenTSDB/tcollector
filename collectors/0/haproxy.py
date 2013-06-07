@@ -12,8 +12,8 @@ COLLECTION_INTERVAL = 15
 
 class Proxy:
   def __init__(self):
-    self.conf=self._find_conf_file()
-    self.sock=self._find_sock_file()
+    self.conf = self._find_conf_file()
+    self.sock = self._find_sock_file()
 
   def _find_conf_file(self):
 
@@ -33,6 +33,8 @@ class Proxy:
     return sock_file
 
   def collect_stats(self):
+ 
+    """Collects stats from haproxy unix domain socket"""
     sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     sock.connect(self.sock)
     sock.send('show stat\n')
