@@ -8,6 +8,7 @@ import time
 import stat
 import subprocess
 from subprocess import Popen, PIPE
+from collectors.lib import utils
 
 COLLECTION_INTERVAL = 15
 
@@ -20,24 +21,9 @@ def haproxy_pid():
 def find_conf_file(pid):
 
   """Returns the conf file of haproxy."""
-  ptree = subprocess.Popen(["ps", "-eo", "pid,cmd"], stdout=PIPE).stdout.read()
-  for line in ptree.split('\n'):
-    if len(line) > 1:
-      if line.split()[0] == pid:
-        conf_file = line.split("-f")[1].split()[0]
-        return conf_file
-
-def is_sock_file(sock_file):
-  
-  """Checks whether the file is a socket file or not."""
-  try:
-    s = os.stat(sock_file)
-  except OSError, (no, e):
-    if no == errno.ENOENT:
-      return False
-    err("Warning: Couldn't stat(%r): %s" % (sock_file, e))
-    return None
-  return s.st_mode & stat.S_IFSOCK == stat.S_IFSOCK
+  cmd = subprocess.Popen(["ps", "--no-headers", "-o", "cmd", pid], stdout=PIPE).stdout.read()
+  conf_file = cmd.split("-f")[1].split()[0]
+  return conf_file
 
 def find_sock_file(conf_file):
 
@@ -46,7 +32,7 @@ def find_sock_file(conf_file):
   for line in fd:
     if line.lstrip(' \t').startswith('stats socket'):
       sock_file = line.split()[2]  
-      if is_sock_file(sock_file):
+      if utils.is_sockfile(sock_file):
         return sock_file
   return 13
 
