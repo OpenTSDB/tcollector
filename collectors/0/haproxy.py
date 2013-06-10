@@ -13,31 +13,24 @@ from collectors.lib import utils
 COLLECTION_INTERVAL = 15
 
 def haproxy_pid():
-  
-  """Finds out the pid of haproxy process""" 
+
+  """Finds out the pid of haproxy process"""
   pid = subprocess.Popen(["pidof", "haproxy"],stdout=PIPE).stdout.read()
   return pid.rstrip()
 
-def find_conf_file(pid):
-
-  """Returns the conf file of haproxy."""
-  cmd = subprocess.Popen(["ps", "--no-headers", "-o", "cmd", pid], stdout=PIPE).stdout.read()
-  conf_file = cmd.split("-f")[1].split()[0]
-  return conf_file
-
-def find_sock_file(conf_file):
+def find_sock_file(pid):
 
   """Returns the unix socket file of haproxy."""
-  fd = open(conf_file,'r')
-  for line in fd:
-    if line.lstrip(' \t').startswith('stats socket'):
-      sock_file = line.split()[2]  
+  out = subprocess.Popen(["lsof", "-U", "-a", "-p", pid, "-Fn"],stdout=PIPE).stdout.read()
+  for line in out.split("\n"):
+    if line.startswith("n"):
+      # name of socket file printed by lsof looks like "<file>.<pid>.tmp", hence taking out the actual socket filename.
+      sock_file = line[::-1].split('.',2)[2][::-1][1::1]
       if utils.is_sockfile(sock_file):
         return sock_file
-  return 13
 
 def collect_stats(sock_file):
- 
+
   """Collects stats from haproxy unix domain socket"""
   sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
   sock.connect(sock_file)
@@ -58,13 +51,15 @@ def main():
 
   pid = haproxy_pid()
   if not pid:
-    return 13                                     # Ask tcollector to not respawn us.
-  
-  conf_file = find_conf_file(pid)
-  sock_file = find_sock_file(conf_file)
-  while True:
-    collect_stats(sock_file)
-    time.sleep(COLLECTION_INTERVAL)
+    return 13                                     # Ask tcollector not to respawn us.
+
+  sock_file = find_sock_file(pid)
+  if sock_file is None:
+    return 13                                     # Ask tcollector not to respawn us.
+  else:
+    while True:
+      collect_stats(sock_file)
+      time.sleep(COLLECTION_INTERVAL)
 
 if __name__ == "__main__":
   main()
