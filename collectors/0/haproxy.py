@@ -12,6 +12,9 @@ from collectors.lib import utils
 
 COLLECTION_INTERVAL = 15
 
+def err(e):
+  print >>sys.stderr, e
+
 def haproxy_pid():
 
   """Finds out the pid of haproxy process"""
@@ -31,6 +34,7 @@ def find_sock_file(conf_file):
   try:
     fd = open(conf_file,'r')
   except IOError, e:
+    err("Error: Config file path is relative: " + conf_file)
     return None
   for line in fd:
     if line.lstrip(' \t').startswith('stats socket'):
@@ -60,11 +64,13 @@ def main():
 
   pid = haproxy_pid()
   if not pid:
+    err("Error: HAProxy is not running")
     return 13                                     # Ask tcollector to not respawn us.
 
   conf_file = find_conf_file(pid)
   sock_file = find_sock_file(conf_file)
   if sock_file is None:
+    err("Error: HAProxy is not listening on any unix domain socket")
     return 13
   else:
     while True:
@@ -73,4 +79,3 @@ def main():
 
 if __name__ == "__main__":
   main()
-
