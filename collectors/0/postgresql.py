@@ -110,8 +110,8 @@ def collect(db):
 
     for database in result:
       for metric, value in info.iteritems():
-        print ("postgresql.%s.database.%s %i %s"
-               % (database, metric, ts, value))
+        print ("postgresql.%s %i %s database=%s"
+               % (metric, ts, value, database))
 
     # connections
     cursor.execute("SELECT datname, count(datname) FROM pg_stat_activity"
@@ -120,8 +120,8 @@ def collect(db):
     connections = cursor.fetchall()
 
     for database, connection in connections:
-      print ("postgresql.%s.database.connections %i %s"
-             % (database, ts, connection))
+      print ("postgresql.connections %i %s database=%s"
+             % (ts, connection, database))
 
     cursor.close()
 
@@ -141,6 +141,7 @@ def main(args):
 
   sockdir = find_sockdir()
   if not sockdir: # Nothing to monitor
+    err("error: Can't find postgresql socket file")
     return 13 # Ask tcollector to not respawn us
 
   db = postgres_connect(sockdir)
