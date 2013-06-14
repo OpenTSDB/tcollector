@@ -26,7 +26,7 @@ USER = "nobody"
 def drop_privileges(user=USER):
     """Drops privileges if running as root."""
     try:
-        ent = pwd.getpwnam(USER)
+        ent = pwd.getpwnam(user)
     except KeyError:
         return
 
