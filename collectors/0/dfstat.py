@@ -1,6 +1,6 @@
 #!/usr/bin/python
 # This file is part of tcollector.
-# Copyright (C) 2013  The tcollector Authors.
+# Copyright (C) 2010-2013  The tcollector Authors.
 #
 # This program is free software: you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published by
@@ -35,6 +35,14 @@ from collectors.lib import utils
 
 COLLECTION_INTERVAL = 60  # seconds
 
+# File system types to ignore
+FSTYPE_IGNORE = frozenset([
+  "debugfs",
+  "devtmpfs",
+  "rpc_pipefs",
+  "rootfs",
+])
+
 
 def err(msg):
   print >> sys.stderr, msg
@@ -55,22 +63,20 @@ def main():
     ts = int(time.time())
 
     for line in f_mounts:
-      """
-      Docs come from the fstab(5)
-      fs_spec     # Mounted block special device or remote filesystem
-      fs_file     # Mount point
-      fs_vfstype  # File system type
-      fs_mntops   # Mount options
-      fs_freq     # Dump(8) utility flags
-      fs_passno   # Order in which filesystem checks are done at reboot time
-      """
-      fs_spec, fs_file, fs_vfstype, fs_mntops, fs_freq, fs_passno = line.split(None)
+      # Docs come from the fstab(5)
+      # fs_spec     # Mounted block special device or remote filesystem
+      # fs_file     # Mount point
+      # fs_vfstype  # File system type
+      # fs_mntops   # Mount options
+      # fs_freq     # Dump(8) utility flags
+      # fs_passno   # Order in which filesystem checks are done at reboot time
+      try:
+        fs_spec, fs_file, fs_vfstype, fs_mntops, fs_freq, fs_passno = line.split(None)
+      except ValueError, e:
+        err("error: can't parse line at /proc/mounts: %s" % e)
+        continue
 
-      # Skip mounts/types we don't care about.
-      # Most of this stuff is of type tmpfs, but we don't want
-      # to blacklist all tmpfs since sometimes it's used for
-      # active filesystems (/var/run, /tmp) that we do want to track.
-      if fs_vfstype in ("debugfs", "devtmpfs", "rpc_pipefs", "rootfs"):
+      if fs_vfstype in FSTYPE_IGNORE:
         continue
       if fs_file.startswith(("/dev", "/sys", "/proc", "/lib")):
         continue
