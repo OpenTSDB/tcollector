@@ -130,7 +130,7 @@ def main():
             m = re.match("(\w+)\s+(.*)", line)
             if not m:
                 continue
-            use_bycpu = re.match("(cpu\d+)", m.group(1)) and (NUM_CPU > 1)
+            use_bycpu = re.match("(cpu\d+)", m.group(1)) and NUM_CPU > 1
             if m.group(1) == "cpu" or use_bycpu:
                 fields = m.group(2).split()
                 if re.match("(cpu\d+)", m.group(1)):
@@ -144,11 +144,9 @@ def main():
                     types.append("guest")
                     if len(fields) > 8:
                         types.append("guest_nice")
-                ix = 0
-                for t in types:
+                for ix, t in enumerate(types):
                     out = "%s %d %s type=%s %s" % (metric, ts, fields[ix], t, cputag)
                     print out.strip()
-                    ix += 1
             elif m.group(1) == "intr":
                 print ("proc.stat.intr %d %s"
                         % (ts, m.group(2).split()[0]))
@@ -183,4 +181,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
