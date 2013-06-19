@@ -81,7 +81,11 @@ def main():
       if fs_file.startswith(("/dev", "/sys", "/proc", "/lib")):
         continue
 
-      r = os.statvfs(fs_file)
+      try:
+        r = os.statvfs(fs_file)
+      except OSError, e:
+        err("error: can't get info for mount point: %s" % fs_file)
+        continue
 
       print("df.bytes.total %d %s mount=%s fstype=%s"
             % (ts, r.f_frsize * r.f_blocks, fs_file, fs_vfstype))
