@@ -622,6 +622,11 @@ class SenderThread(threading.Thread):
         out = ''
         for line in self.sendq:
             line = 'put ' + line + self.tagstr
+
+            # Add missing host tag.
+            if re.search('\shost=[^\s]', line) is None:
+                line += ' host=' + socket.gethostname()
+
             out += line + '\n'
             LOG.debug('SENDING: %s', line)
 
@@ -806,13 +811,6 @@ def main(argv):
         LOG.fatal('No such directory: %s', options.cdir)
         return 1
     modules = load_etc_dir(options, tags)
-
-    # tsdb does not require a host tag, but we do.  we are always running on a
-    # host.  FIXME: we should make it so that collectors may request to set
-    # their own host tag, or not set one.
-    if not 'host' in tags and not options.stdin:
-        tags['host'] = socket.gethostname()
-        LOG.warning('Tag "host" not specified, defaulting to %s.', tags['host'])
 
     # prebuild the tag string from our tags dict
     tagstr = ''
