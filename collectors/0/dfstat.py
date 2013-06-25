@@ -37,6 +37,7 @@ COLLECTION_INTERVAL = 60  # seconds
 
 # File system types to ignore
 FSTYPE_IGNORE = frozenset([
+  "cgroup",
   "debugfs",
   "devtmpfs",
   "rpc_pipefs",
@@ -76,7 +77,7 @@ def main():
         err("error: can't parse line at /proc/mounts: %s" % e)
         continue
 
-      if fs_vfstype in FSTYPE_IGNORE:
+      if fs_vfstype in FSTYPE_IGNORE or fs_vfstype.startswith("fuse."):
         continue
       if fs_file.startswith(("/dev", "/sys", "/proc", "/lib")):
         continue
