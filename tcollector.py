@@ -52,6 +52,9 @@ ALIVE = True
 MAX_UNCAUGHT_EXCEPTIONS = 100
 DEFAULT_PORT = 4242
 MAX_REASONABLE_TIMESTAMP = 1600000000  # Good until September 2020 :)
+MAX_SENDQ_SIZE = 10000
+MAX_READQ_SIZE = 100000
+
 
 def register_collector(collector):
     """Register a collector with the COLLECTORS global"""
@@ -270,7 +273,7 @@ class ReaderThread(threading.Thread):
                                                             dedupinterval)
         super(ReaderThread, self).__init__()
 
-        self.readerq = ReaderQueue(100000)
+        self.readerq = ReaderQueue(MAX_READQ_SIZE)
         self.lines_collected = 0
         self.lines_dropped = 0
         self.dedupinterval = dedupinterval
@@ -469,6 +472,10 @@ class SenderThread(threading.Thread):
                 self.sendq.append(line)
                 time.sleep(5)  # Wait for more data
                 while True:
+                    # prevents self.sendq fast growing in case of sending fails
+                    # in send_data()
+                    if len(self.sendq) > MAX_SENDQ_SIZE:
+                        break
                     try:
                         line = self.reader.readerq.get(False)
                     except Empty:
@@ -620,10 +627,15 @@ class SenderThread(threading.Thread):
 
         # construct the output string
         out = ''
-        for line in self.sendq:
-            line = 'put ' + line + self.tagstr
-            out += line + '\n'
-            LOG.debug('SENDING: %s', line)
+
+        # in case of logging we use less efficient variant
+        if LOG.level == logging.DEBUG:
+            for line in self.sendq:
+                line = "put %s%s" % (line, self.tagstr)
+                out += line + '\n'
+                LOG.debug('SENDING: %s', line)
+        else:
+            out = "".join("put %s%s\n" % (line, self.tagstr) for line in self.sendq)
 
         if not out:
             LOG.debug('send_data no data?')
