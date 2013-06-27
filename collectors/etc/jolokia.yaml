@@ -21,23 +21,9 @@ monitor:
   not_tags: 
   - ''
   - 'type'
-- mbean: 'java.lang:name=CMS%20Old%20Gen,type=MemoryPool'
+- mbean: 'java.lang:type=MemoryPool,name=*?ignoreErrors=true'
   metric: 'java.lang.memorypool.cmsoldgen'
   not_tags: 
   - ''
   - 'type'
-- mbean: 'java.lang:name=CMS%20Perm%20Gen,type=MemoryPool'
-  metric: 'java.lang.memorypool.cmspermgen'
-  not_tags: 
-  - ''
-  - 'type'
-- mbean: 'java.lang:name=Eden%20Space,type=MemoryPool?ignoreErrors=true'
-  metric: 'java.lang.memorypool.edenspace'
-  not_tags: 
-  - ''
-  - 'type'
-- mbean: 'java.lang:name=Survivor%20Space,type=MemoryPool?ignoreErrors=true'
-  metric: 'java.lang.memorypool.survivorspace'
-  not_tags: 
-  - ''
-  - 'type'
+  
