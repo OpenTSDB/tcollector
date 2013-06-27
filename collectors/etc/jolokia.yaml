@@ -22,7 +22,7 @@ monitor:
   - ''
   - 'type'
 - mbean: 'java.lang:type=MemoryPool,name=*?ignoreErrors=true'
-  metric: 'java.lang.memorypool.cmsoldgen'
+  metric: 'java.lang.memorypool'
   not_tags: 
   - ''
   - 'type'
