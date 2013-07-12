@@ -22,6 +22,7 @@ import subprocess
 import sys
 import time
 
+TWCLI = "/usr/sbin/tw_cli"
 ARCCONF = "/usr/local/bin/arcconf"
 ARCCONF_ARGS = "GETVERSION 1"
 NO_CONTROLLER = "Controllers found: 0"
@@ -87,9 +88,19 @@ def alarm_handler(signum, frame):
   raise Alarm()
 
 
-def smart_is_broken():
+def smart_is_broken(drives):
+  """Determines whether SMART can be used.
+
+  Args:
+    drives: A list of device names on which we intend to use SMART.
+
+  Returns:
+    True if SMART is available, False otherwise.
+  """
   if os.path.exists(ARCCONF):
     return is_adaptec_driver_broken()
+  if os.path.exists(TWCLI):
+    return is_3ware_driver_broken(drives)
   return False
 
 
@@ -115,6 +126,24 @@ def is_adaptec_driver_broken():
       print >>sys.stderr, ("arcconf indicates broken driver version %s"
                            % fields[2])
       return True
+  return False
+
+def is_3ware_driver_broken(drives):
+  # Apparently 3ware controllers can't report SMART stats from SAS drives. WTF.
+  # See also http://sourceforge.net/apps/trac/smartmontools/ticket/161
+  for i in reversed(xrange(len(drives))):
+    drive = drives[i]
+    signal.alarm(COMMAND_TIMEOUT)
+    smart_ctl = subprocess.Popen(SMART_CTL + " -i /dev/" + drive,
+                                 shell=True, stdout=subprocess.PIPE)
+    smart_output = smart_ctl.communicate()[0]
+    if "supports SMART and is Disabled" in smart_output:
+      print >>sys.stderr, "SMART is disabled for %s" % drive
+      del drives[i]  # We're iterating from the end of the list so this is OK.
+    signal.alarm(0)
+  if not drives:
+    print >>sys.stderr, "None of the drives support SMART. Are they SAS drives?"
+    return True
   return False
 
 
@@ -167,7 +196,7 @@ def main():
   # to make sure we are done with smartctl in COMMAND_TIMEOUT seconds
   signal.signal(signal.SIGALRM, alarm_handler)
 
-  if smart_is_broken():
+  if smart_is_broken(drives):
     sys.exit(13)
 
   while True:
