@@ -88,9 +88,12 @@ def alarm_handler(signum, frame):
 
 
 def smart_is_broken():
-  if not os.path.exists(ARCCONF):
-    # If arcconf isn't installed, we assume SMART is safe.
-    return False
+  if os.path.exists(ARCCONF):
+    return is_adaptec_driver_broken()
+  return False
+
+
+def is_adaptec_driver_broken():
   signal.alarm(COMMAND_TIMEOUT)
   arcconf = subprocess.Popen("%s %s" % (ARCCONF, ARCCONF_ARGS),
                              shell=True,
