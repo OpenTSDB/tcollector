@@ -19,6 +19,8 @@ import subprocess
 import sys
 import time
 
+from collectors.lib import utils
+
 # If this user doesn't exist, we'll exit immediately.
 # If we're running as root, we'll drop privileges using this user.
 USER = "hadoop"
