@@ -37,6 +37,11 @@ import javax.management.remote.JMXConnector;
 import javax.management.remote.JMXConnectorFactory;
 import javax.management.remote.JMXServiceURL;
 
+// Composite Data
+import javax.management.openmbean.CompositeDataSupport;
+import javax.management.openmbean.CompositeType;
+import javax.management.openmbean.OpenType;
+
 // Sun specific
 import com.sun.tools.attach.AgentInitializationException;
 import com.sun.tools.attach.AgentLoadException;
@@ -211,7 +216,14 @@ final class jmx {
                                 final ObjectName object,
                                 final MBeanAttributeInfo attr) throws Exception {
     final String name = attr.getName();
-    Object value = mbsc.getAttribute(object, name);
+    Object value  = null;
+    try {
+      value = mbsc.getAttribute(object, name);
+    } catch (Exception e) {
+      // Above may raise errors for some attributes like 
+      // CollectionUsage
+      return;
+    }
     if (value instanceof TabularData) {
       final TabularData tab = (TabularData) value;
       int i = 0;
@@ -219,6 +231,12 @@ final class jmx {
         dumpMBeanValue(long_output, print_timestamps, object, name + "." + i, o);
         i++;
       }
+    } else if (value instanceof CompositeDataSupport){
+    	CompositeDataSupport cds = (CompositeDataSupport) value;
+    	CompositeType ct = cds.getCompositeType();
+    	for (final String item: ct.keySet()){
+    		dumpMBeanValue(long_output, print_timestamps, object, name + "." + item, cds.get(item));
+    	}
     } else {
       dumpMBeanValue(long_output, print_timestamps, object, name, value);
     }
@@ -229,6 +247,12 @@ final class jmx {
                                      final ObjectName object,
                                      final String name,
                                      final Object value) {
+    // Ignore non numeric values
+    if ((value instanceof String)||
+        (value instanceof String[])|| 
+        (value instanceof Boolean)) {
+      return;
+    }
     final StringBuilder buf = new StringBuilder();
     final long timestamp = System.currentTimeMillis() / 1000;
     if (print_timestamps) {
