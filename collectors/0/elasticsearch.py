@@ -30,7 +30,7 @@ from collectors.lib import utils
 COLLECTION_INTERVAL = 15  # seconds
 DEFAULT_TIMEOUT = 10.0    # seconds
 ES_HOST = "localhost"
-ES_PORT = 9200  # TCP port on which ES listens.
+ES_PORT = 9201  # TCP port on which ES listens.
 
 STATUS_MAP = {
   "green": 0,
@@ -102,7 +102,7 @@ def main(argv):
                             for name, value in tags.iteritems())
     else:
       tags = ""
-    print ("elasticsearch.%s %d %s cluster=%s%s"
+    print ("elasticsearch.%s %d %s escluster=%s%s"
            % (metric, ts, value, cluster_name, tags))
 
   while True:
