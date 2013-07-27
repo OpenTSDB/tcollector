@@ -130,18 +130,18 @@ def main(argv):
           continue
         printmetric("cluster." + stat, value)
 
-    if nstats.has_key("os"):
+    if "os" in nstats:
        ts = nstats["os"]["timestamp"] / 1000  # ms -> s
-    if nststs.has_key("timestamp"):
+    if "timestamp" in nststs:
        ts = nstats["timestamp"] / 1000  # ms -> s
 
-    if nstats.has_key("indices"):
+    if "indices" in nstats:
        indices = nstats["indices"]
-       if  indices.has_key("docs"):
+       if  "docs" in indices:
           printmetric("num_docs", indices["docs"]["count"])
-       if  indices.has_key("store"):
+       if  "store" in indices:
           printmetric("indices.size", indices["store"]["size_in_bytes"])
-       if  indices.has_key("indexing"):
+       if  "indexing" in indices:
           d = indices["indexing"]
           printmetric("indexing.index_total", d["index_total"])
           printmetric("indexing.index_time", d["index_time_in_millis"])
@@ -150,7 +150,7 @@ def main(argv):
           printmetric("indexing.delete_time_in_millis", d["delete_time_in_millis"])
           printmetric("indexing.delete_current", d["delete_current"])
           del d
-       if  indices.has_key("get"):
+       if  "get" in indices:
           d = indices["get"]
           printmetric("get.total", d["total"])
           printmetric("get.time", d["time_in_millis"])
@@ -159,7 +159,7 @@ def main(argv):
           printmetric("get.missing_total", d["missing_total"])
           printmetric("get.missing_time", d["missing_time_in_millis"])
           del d
-       if  indices.has_key("search"):
+       if  "search" in indices:
           d = indices["search"]
           printmetric("search.query_total", d["query_total"])
           printmetric("search.query_time", d["query_time_in_millis"])
@@ -168,7 +168,7 @@ def main(argv):
           printmetric("search.fetch_time", d["fetch_time_in_millis"])
           printmetric("search.fetch_current", d["fetch_current"])
           del d
-       if indices.has_key("cache"):
+       if "cache" in indices:
           d = indices["cache"]
           printmetric("cache.field.evictions", d["field_evictions"])
           printmetric("cache.field.size", d["field_size_in_bytes"])
@@ -176,14 +176,14 @@ def main(argv):
           printmetric("cache.filter.evictions", d["filter_evictions"])
           printmetric("cache.filter.size", d["filter_size_in_bytes"])
           del d
-       if indices.has_key("merges"):
+       if "merges" in indices:
           d = indices["merges"]
           printmetric("merges.current", d["current"])
           printmetric("merges.total", d["total"])
           printmetric("merges.total_time", d["total_time_in_millis"] / 1000.)
           del d
        del indices
-    if nstats.has_key("process"):
+    if "process" in nstats:
        process = nstats["process"]
        ts = process["timestamp"] / 1000  # ms -> s
        open_fds = process.get("open_file_descriptors")  # ES 0.17
@@ -193,30 +193,30 @@ def main(argv):
            open_fds = open_fds["total"]
        if open_fds is not None:
          printmetric("process.open_file_descriptors", open_fds)
-       if process.has_key("cpu"):
+       if "cpu" in process:
           d = process["cpu"]
           printmetric("process.cpu.percent", d["percent"])
           printmetric("process.cpu.sys", d["sys_in_millis"] / 1000.)
           printmetric("process.cpu.user", d["user_in_millis"] / 1000.)
           del d
-       if process.has_key("mem"):
+       if "mem" in process:
           d = process["mem"]
           printmetric("process.mem.resident", d["resident_in_bytes"])
           printmetric("process.mem.shared", d["share_in_bytes"])
           printmetric("process.mem.total_virtual", d["total_virtual_in_bytes"])
           del d
        del process
-    if nstats.has_key("jvm"):
+    if "jvm" in nstats:
        jvm = nstats["jvm"]
        ts = jvm["timestamp"] / 1000  # ms -> s
-       if jvm.has_key("mem"):
+       if "mem" in jvm:
           d = jvm["mem"]
           printmetric("jvm.mem.heap_used", d["heap_used_in_bytes"])
           printmetric("jvm.mem.heap_committed", d["heap_committed_in_bytes"])
           printmetric("jvm.mem.non_heap_used", d["non_heap_used_in_bytes"])
           printmetric("jvm.mem.non_heap_committed", d["non_heap_committed_in_bytes"])
           del d
-       if jvm.has_key("threads"):
+       if "threads" in jvm:
           d = jvm["threads"]
           printmetric("jvm.threads.count", d["count"])
           printmetric("jvm.threads.peak_count", d["peak_count"])
@@ -227,7 +227,7 @@ def main(argv):
                      d["collection_time_in_millis"] / 1000., gc=gc)
        del jvm
        del d
-    if nstats.has_key("network"):
+    if "network" in nstats:
        for stat, value in nstats["network"]["tcp"].iteritems():
          if is_numeric(value):
            printmetric("network.tcp." + stat, value)
