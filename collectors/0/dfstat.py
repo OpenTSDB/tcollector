@@ -60,6 +60,7 @@ def main():
   utils.drop_privileges()
 
   while True:
+    devices = []
     f_mounts.seek(0)
     ts = int(time.time())
 
@@ -82,6 +83,23 @@ def main():
       if fs_file.startswith(("/dev", "/sys", "/proc", "/lib")):
         continue
 
+      # keep /dev/xxx device with shorter fs_file (remove mount binds)
+      device_found = False
+      if fs_spec.startswith("/dev"):
+        for device in devices:
+          if fs_spec == device[0]:
+            device_found = True
+            if len(fs_file) < len(device[1]):
+              device[1] = fs_file
+            break
+        if not device_found:
+          devices.append((fs_spec, fs_file, fs_vfstype))
+      else:
+        devices.append((fs_spec, fs_file, fs_vfstype))
+
+
+    for device in devices:
+      fs_spec, fs_file, fs_vfstype = device
       try:
         r = os.statvfs(fs_file)
       except OSError, e:
