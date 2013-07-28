@@ -1,6 +1,6 @@
 #!/usr/bin/python
 # This file is part of tcollector.
-# Copyright (C) 2011  The tcollector Authors.
+# Copyright (C) 2011-2013  The tcollector Authors.
 #
 # This program is free software: you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published by
@@ -11,8 +11,9 @@
 # General Public License for more details.  You should have received a copy
 # of the GNU Lesser General Public License along with this program.  If not,
 # see <http://www.gnu.org/licenses/>.
+
 """ElasticSearch collector"""  # Because ES is cool, bonsai cool.
-# Tested with ES 0.16.5 and 0.17.x
+# Tested with ES 0.16.5, 0.17.x, 0.90.1 .
 
 import errno
 import httplib
