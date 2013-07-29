@@ -38,10 +38,16 @@ class Interface(object):
     self.intf_ = intf
 
   def printCounters(self):
+
+    def _printCounter():
+      print ("eos.interface.%s %d %d iface=%s%s"
+             % (counter, ts, value, self.intf_.name, tag))
+
     ts = int(time.time())
-    counters = self.intf_.counter().statistics
-    for counter in counters.attributes:
-      value = getattr(counters, counter)
+    counters = self.intf_.counter()
+    statistics = counters.statistics
+    for counter in statistics.attributes:
+      value = getattr(statistics, counter)
       m = re.match("(in|out)([A-Z])(.*)", counter)
       if m:
         tag, first, rest = m.groups()
@@ -49,8 +55,34 @@ class Interface(object):
         tag = " direction=" + tag
       else:
         tag = ""
-      print ("eos.interface.%s %d %d iface=%s%s"
-             % (counter, ts, value, self.intf_.name, tag))
+      _printCounter()
+
+    # priority-flow-control counters
+    statistics = getattr(counters, "ethStatistics", None)
+    if not statistics:
+      return  # Only physical interfaces have those.
+    for counter in statistics.attributes:
+      value = getattr(statistics, counter)
+      if value is None:
+        continue  # No ethStatistics for management interfaces.
+      m = re.match("(in|out)([A-Z0-9])(.*)", counter)
+      if not m:
+        continue
+      direction, first, rest = m.groups()
+      counter = first.lower() + rest
+      tag = " direction=" + direction
+      if counter.endswith("OctetFrames"):
+        tag += " size=" + counter[:-11]  # Drop the "OctetFrames"
+        counter = "frameBySize"
+      if counter == "pfcClassFrames":
+        counter = "pfcFramesByClass"
+        values = value.count
+        base_tags = tag
+        for priority, value in values.iteritems():
+          tag = base_tags + " priority=%d" % priority
+          _printCounter()
+      else:
+        _printCounter()
 
 
 class Interfaces(object):
