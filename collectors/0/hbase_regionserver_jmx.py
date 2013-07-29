@@ -25,8 +25,8 @@ from collectors.lib import utils
 # If we're running as root, we'll drop privileges using this user.
 USER = "hadoop"
 
-# Pick java based on JAVA_HOME env variable
-JAVA_HOME = os.getenv('JAVA_HOME', '/usr/java/latest')
+# Use JAVA_HOME env variable if set
+JAVA_HOME = os.getenv('JAVA_HOME', '/usr/lib/jvm/java-1.6.0-openjdk-1.6.0.0.x86_64')
 JAVA = "%s/bin/java" % JAVA_HOME
 
 # We add those files to the classpath if they exist.
