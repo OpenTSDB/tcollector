@@ -822,10 +822,15 @@ def main(argv):
     # tsdb does not require a host tag, but we do.  we are always running on a
     # host.  FIXME: we should make it so that collectors may request to set
     # their own host tag, or not set one.
+    '''
     if not 'host' in tags and not options.stdin:
         tags['host'] = socket.gethostname()
         LOG.warning('Tag "host" not specified, defaulting to %s.', tags['host'])
-
+    '''
+    if not 'host' in tags and not options.stdin:
+        default_host = socket.gethostname()
+    elif 'host' in tags:
+       default_host = tags['host']
     # prebuild the tag string from our tags dict
     tagstr = ''
     if tags:
@@ -864,7 +869,7 @@ def main(argv):
 
     # and setup the sender to start writing out to the tsd
     sender = SenderThread(reader, options.dryrun, options.hosts,
-                          not options.no_tcollector_stats, tagstr)
+                          not options.no_tcollector_stats, tagstr, {'host': default_host})
     sender.start()
     LOG.info('SenderThread startup complete')
 
