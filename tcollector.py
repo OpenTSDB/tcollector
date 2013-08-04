@@ -872,7 +872,7 @@ def main(argv):
 
     # and setup the sender to start writing out to the tsd
     sender = SenderThread(reader, options.dryrun, options.hosts,
-                          not options.no_tcollector_stats, tagstr, {'host': default_host})
+                          not options.no_tcollector_stats, tagstr, 'host='+default_host)
     sender.start()
     LOG.info('SenderThread startup complete')
 
