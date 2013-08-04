@@ -394,7 +394,7 @@ class SenderThread(threading.Thread):
        buffering we might need to do if we can't establish a connection
        and we need to spool to disk.  That isn't implemented yet."""
 
-    def __init__(self, reader, dryrun, hosts, self_report_stats, tags):
+    def __init__(self, reader, dryrun, hosts, self_report_stats, tags, default_host):
         """Constructor.
 
         Args:
@@ -632,6 +632,9 @@ class SenderThread(threading.Thread):
         if LOG.level == logging.DEBUG:
             for line in self.sendq:
                 line = "put %s%s" % (line, self.tagstr)
+                if re.search(r"host=", line) == None:
+                   line += default_host
+                   
                 out += line + '\n'
                 LOG.debug('SENDING: %s', line)
         else:
