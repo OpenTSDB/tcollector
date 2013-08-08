@@ -88,6 +88,7 @@ def main():
     f_loadavg = open("/proc/loadavg", "r")
     f_entropy_avail = open("/proc/sys/kernel/random/entropy_avail", "r")
     f_interrupts = open("/proc/interrupts", "r")
+    f_softirqs = open("/proc/softirqs", "r")
     numastats = open_sysfs_numa_stats()
     utils.drop_privileges()
 
@@ -197,6 +198,27 @@ def main():
                         break
                     print ("proc.interrupts %s %s type=%s cpu=%s"
                            % (ts, val, irq_type, i))
+
+        f_softirqs.seek(0)
+        ts = int(time.time())
+        # Get number of CPUs from description line.
+        num_cpus = len(f_softirqs.readline().split())
+        for line in f_softirqs:
+            cols = line.split()
+
+            irq_type = cols[0].rstrip(":")
+            for i, val in enumerate(cols[1:]):
+                if i >= num_cpus:
+                    # All values read, remaining cols contain textual
+                    # description
+                    break
+                if not val.isdigit():
+                    # something is weird, there should only be digit values
+                    sys.stderr.write("Unexpected softirq value %r in"
+                                     " %r: " % (val, cols))
+                    break
+                print ("proc.softirqs %s %s type=%s cpu=%s"
+                       % (ts, val, irq_type, i))
 
         print_numa_stats(numastats)
 
