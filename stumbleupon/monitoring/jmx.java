@@ -157,12 +157,12 @@ final class jmx {
         return;
       }
 
-      final TreeMap<ObjectName, Pattern> objects = selectMBeans(args, current_arg, mbsc);
-      if (objects.isEmpty()) {
-        fatal(3, "No MBean matched your query in " + jvm.name());
-        return;
-      }
       do {
+        final TreeMap<ObjectName, Pattern> objects = selectMBeans(args, current_arg, mbsc);
+        if (objects.isEmpty()) {
+          fatal(3, "No MBean matched your query in " + jvm.name());
+          return;
+        }
         boolean found = false;
         for (final Map.Entry<ObjectName, Pattern> entry : objects.entrySet()) {
           final ObjectName object = entry.getKey();
