@@ -423,7 +423,7 @@ class SenderThread(threading.Thread):
         self.last_verify = 0
         self.sendq = []
         self.self_report_stats = self_report_stats
-		self.default_host_tag = default_host
+	self.default_host_tag = default_host
 
     def pick_connection(self):
         """Picks up a random host/port connection."""
@@ -630,14 +630,14 @@ class SenderThread(threading.Thread):
         out = ''
 
         # in case of logging we use less efficient variant
-	    for line in self.sendq:
-			line = "put %s%s" % (line, self.tagstr)
-			if re.search("host=", line) == None:
-		  		line += self.default_host_tag
+	for line in self.sendq:
+	    line = "put %s%s" % (line, self.tagstr)
+	    if re.search("host=", line) == None:
+                line += self.default_host_tag
 				
-			out += line +"\n"
-			if LOG.level == logging.DEBUG:
-				LOG.debug('SENDING: %s', line)
+	    out += line +"\n"
+	    if LOG.level == logging.DEBUG:
+	        LOG.debug('SENDING: %s', line)
 
         if not out:
             LOG.debug('send_data no data?')
