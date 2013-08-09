@@ -637,7 +637,7 @@ class SenderThread(threading.Thread):
 				
 			out += line +"\n"
 			if LOG.level == logging.DEBUG:
-				LOG.debug('SENDING: %s', line
+				LOG.debug('SENDING: %s', line)
 
         if not out:
             LOG.debug('send_data no data?')
