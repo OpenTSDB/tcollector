@@ -423,6 +423,7 @@ class SenderThread(threading.Thread):
         self.last_verify = 0
         self.sendq = []
         self.self_report_stats = self_report_stats
+		self.default_host_tag = default_host
 
     def pick_connection(self):
         """Picks up a random host/port connection."""
@@ -629,16 +630,14 @@ class SenderThread(threading.Thread):
         out = ''
 
         # in case of logging we use less efficient variant
-        if LOG.level == logging.DEBUG:
-            for line in self.sendq:
-                line = "put %s%s" % (line, self.tagstr)
-                if re.search(r"host=", line) == None:
-                   line += default_host
-                   
-                out += line + '\n'
-                LOG.debug('SENDING: %s', line)
-        else:
-            out = "".join("put %s%s\n" % (line, self.tagstr) for line in self.sendq)
+	    for line in self.sendq:
+			line = "put %s%s" % (line, self.tagstr)
+			if re.search("host=", line) == None:
+		  		line += self.default_host_tag
+				
+			out += line +"\n"
+			if LOG.level == logging.DEBUG:
+				LOG.debug('SENDING: %s', line
 
         if not out:
             LOG.debug('send_data no data?')
@@ -825,15 +824,13 @@ def main(argv):
     # tsdb does not require a host tag, but we do.  we are always running on a
     # host.  FIXME: we should make it so that collectors may request to set
     # their own host tag, or not set one.
-    '''
-    if not 'host' in tags and not options.stdin:
-        tags['host'] = socket.gethostname()
-        LOG.warning('Tag "host" not specified, defaulting to %s.', tags['host'])
-    '''
     if not 'host' in tags and not options.stdin:
         default_host = socket.gethostname()
+        LOG.warning('Tag "host" not specified, defaulting to %s.', tags['host'])
     elif 'host' in tags:
        default_host = tags['host']
+       del tags['host']
+
     # prebuild the tag string from our tags dict
     tagstr = ''
     if tags:
