@@ -632,7 +632,7 @@ class SenderThread(threading.Thread):
         # in case of logging we use less efficient variant
 	for line in self.sendq:
 	    line = "put %s%s" % (line, self.tagstr)
-	    if re.search("host=", line) == None:
+	    if not "host=" in line:
                 line += self.default_host_tag
 				
 	    out += line +"\n"
