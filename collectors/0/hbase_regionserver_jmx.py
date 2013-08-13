@@ -31,7 +31,7 @@ JAVA = "%s/bin/java" % JAVA_HOME
 
 # We add those files to the classpath if they exist.
 CLASSPATH = [
-    "%s/lib/tools.jar" % JAVA_HOME
+    "%s/lib/tools.jar" % JAVA_HOME,
 ]
 
 # We shorten certain strings to avoid excessively long metric names.
@@ -48,7 +48,7 @@ REPORTED_OPS = [
   "get",
   "put",
   "multi",
-  "balance"
+  "balance",
 ]
 
 
