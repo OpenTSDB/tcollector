@@ -19,16 +19,19 @@ import subprocess
 import sys
 import time
 import traceback
-
 from collectors.lib import utils
 
 # If this user doesn't exist, we'll exit immediately.
 # If we're running as root, we'll drop privileges using this user.
 USER = "hadoop"
 
+# Use JAVA_HOME env variable if set
+JAVA_HOME = os.getenv('JAVA_HOME', '/usr/lib/jvm/java-1.6.0-openjdk-1.6.0.0.x86_64')
+JAVA = "%s/bin/java" % JAVA_HOME
+
 # We add those files to the classpath if they exist.
 CLASSPATH = [
-    "/usr/lib/jvm/java-1.6.0-openjdk-1.6.0.0.x86_64/lib/tools.jar",
+    "%s/lib/tools.jar" % JAVA_HOME,
 ]
 
 # We shorten certain strings to avoid excessively long metric names.
@@ -39,6 +42,14 @@ JMX_SERVICE_RENAMING = {
     # New in 0.92.1, from HBASE-5325:
     "org.apache.hbase": "hbase",
 }
+
+REPORTED_OPS = [
+  "append",
+  "get",
+  "put",
+  "multi",
+  "balance",
+]
 
 
 def kill(proc):
@@ -80,15 +91,16 @@ def main(argv):
     classpath = ":".join(classpath)
 
     jmx = subprocess.Popen(
-        ["java", "-enableassertions", "-enablesystemassertions",  # safe++
+        [JAVA, "-enableassertions", "-enablesystemassertions",  # safe++
          "-Xmx64m",  # Low RAM limit, to avoid stealing too much from prod.
          "-cp", classpath, "com.stumbleupon.monitoring.jmx",
          "--watch", "10", "--long", "--timestamp",
-         "HMaster",  # Name of the process.
+         "HRegionServer",  # Name of the process.
          # The remaining arguments are pairs (mbean_regexp, attr_regexp).
          # The first regexp is used to match one or more MBeans, the 2nd
          # to match one or more attributes of the MBeans matched.
          "hadoop", "",                     # All HBase / hadoop metrics.
+         "Memory$", "",                    # Heap stats
          "Threading", "Count|Time$",       # Number of threads and CPU time.
          "OperatingSystem", "OpenFile",    # Number of open files.
          "GarbageCollector", "Collection", # GC runs and time spent GCing.
@@ -145,14 +157,39 @@ def main(argv):
                 continue                    # time taken by operations.
             elif metric.startswith("tbl."): # Per-table/region/cf metrics
                 continue                    # ignore for now, too much spam
+            elif "BlockedSeconds" in metric or "LatencyHistogram" in metric: 
+                continue                    # ignore for now, too much spam
+            elif metric.endswith("KB"): 
+                metric = metric[:-2]
+                # Try converting to bytes
+                try:
+                  value = float(value) * 1024
+                except ValueError, e:
+                  value = 0
+            elif metric.endswith("MB"): 
+                metric = metric[:-2]
+                # Try converting to bytes
+                try:
+                  value = float(value) * 1024 * 1024
+                except ValueError, e:
+                  value = 0
             elif metric.endswith("NumOps"):
-                tags = " op=" + metric[:-6]
+                op = metric[:-6]
+                if op not in REPORTED_OPS:
+                  continue
+                tags = " op=" + op
                 metric = "numOps"
             elif metric.endswith("AvgTime"):
-                tags = " op=" + metric[:-7]
+                op = metric[:-7]
+                if op not in REPORTED_OPS:
+                  continue
+                tags = " op=" + op
                 metric = "avgTime"
             elif metric.endswith("MaxTime"):
-                tags = " op=" + metric[:-7]
+                op = metric[:-7]
+                if op not in REPORTED_OPS:
+                  continue
+                tags = " op=" + op
                 metric = "maxTime"
 
             # mbean is of the form "domain:key=value,...,foo=bar"
@@ -164,6 +201,11 @@ def main(argv):
             mbean_properties = dict(prop.split("=", 1)
                                     for prop in mbean_properties.split(","))
             if mbean_domain == "hadoop":
+              # Ignore metrics from RegionServerDynamicStatistics which
+              # contain some metrics on per-region or per-column-family bases
+              if  mbean_properties.get("name") == "RegionServerDynamicStatistics":
+                continue
+
               # jmx_service is HBase by default, but we can also have
               # RegionServer or Replication and such.
               jmx_service = mbean_properties.get("service", "HBase")
