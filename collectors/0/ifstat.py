@@ -40,7 +40,7 @@ def main():
     f_netdev = open("/proc/net/dev", "r")
     utils.drop_privileges()
 
-    # We just care about ethN interfaces.  We specifically
+    # We just care about ethN and emN interfaces.  We specifically
     # want to avoid bond interfaces, because interface
     # stats are still kept on the child interfaces when
     # you bond.  By skipping bond we avoid double counting.
@@ -48,7 +48,7 @@ def main():
         f_netdev.seek(0)
         ts = int(time.time())
         for line in f_netdev:
-            m = re.match("\s+(eth\d+):(.*)", line)
+            m = re.match("\s+(eth\d+|em\d+):(.*)", line)
             if not m:
                 continue
             intf = m.group(1)
