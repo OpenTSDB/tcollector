@@ -12,16 +12,25 @@
 # of the GNU Lesser General Public License along with this program. If not,
 # see <http://www.gnu.org/licenses/>.
 
+# Script uses UNIX socket opened by haproxy, you need to setup one with
+# "stats socket" config parameter.
+#
+# You need to ensure that "stats timeout" (socket timeout) is big
+# enough to work well with collector COLLECTION_INTERVAL constant.
+# The default timeout on the "stats socket" is set to 10 seconds!
+#
+# See haproxy documentation for details:
+# http://haproxy.1wt.eu/download/1.4/doc/configuration.txt
+# section 3.1. Process management and security.
+
 """HAproxy collector """
 
 import os
-import re
 import socket
 import sys
 import time
 import stat
 import subprocess
-from subprocess import Popen, PIPE
 from collectors.lib import utils
 
 COLLECTION_INTERVAL = 15
@@ -62,17 +71,18 @@ def find_sock_file(conf_file):
   finally:
     fd.close()
 
-def collect_stats(sock_file):
+def collect_stats(sock):
   """Collects stats from haproxy unix domain socket"""
-  sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-  sock.connect(sock_file)
   sock.send("show stat\n")
   stats = sock.recv(10240)
-  sock.close()
+
   ts = time.time()
   for line in stats.split("\n"):
     var = line.split(",")
     if var[0]:
+      # skip ready for next command value "> "
+      if var[0] == "> ":
+        continue
       if var[1] in ("svname", "BACKEND", "FRONTEND"):
         continue
       print ("haproxy.current_sessions %i %s server=%s cluster=%s"
@@ -89,13 +99,22 @@ def main():
   conf_file = find_conf_file(pid)
   if not conf_file:
     return 13
+
   sock_file = find_sock_file(conf_file)
   if sock_file is None:
     err("Error: HAProxy is not listening on any unix domain socket")
     return 13
 
+  sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+  sock.connect(sock_file)
+
+  # put haproxy to interactive mode, otherwise haproxy closes
+  # connection after first command.
+  # See haproxy documentation section 9.2. Unix Socket commands.
+  sock.send("prompt\n")
+
   while True:
-    collect_stats(sock_file)
+    collect_stats(sock)
     time.sleep(COLLECTION_INTERVAL)
 
 if __name__ == "__main__":
