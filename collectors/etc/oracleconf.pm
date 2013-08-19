@@ -40,7 +40,12 @@ sub oracle_config {
     my ($sid,$home,$extra);
     open ORATAB, ORATAB_FILE; 
     while (<ORATAB>) {
+      # Skip comments and empty lines
+      next if /^#/;
+      next if /^\s+$/;
+
       ($sid,$home,$extra) = split(':');
+
       # OEM agent uses this
       next if $sid =~ /^\*/;
       # ASM uses this
