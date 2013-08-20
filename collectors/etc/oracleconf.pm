@@ -58,12 +58,12 @@ sub oracle_config {
 }
 
 # In order to connect as "/" without password we need to
-# be user that can do it. Change username if you use something
-# different from 'oracle'
+# belong to "DBA" group. Change group if you use something
+# different from 'dba'
 sub switch_to_dba {
   if (POSIX::getuid() == 0) {
-    my @pwinfo = POSIX::getpwnam('oracle');
-    POSIX::setuid($pwinfo[2]); 
+    my @grpinfo = POSIX::getgrnam('dba');
+    POSIX::setgid($grpinfo[2]);
   } 
 }
 
