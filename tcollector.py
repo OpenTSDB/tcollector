@@ -600,10 +600,14 @@ class SenderThread(threading.Thread):
             # Now actually try the connection.
             self.pick_connection()
             try:
-                addresses = socket.getaddrinfo(self.host, self.port, socket.AF_UNSPEC,
+                addresses = socket.getaddrinfo(self.host, self.port,
+                                               socket.AF_UNSPEC,
                                                socket.SOCK_STREAM, 0)
             except socket.gaierror, e:
-                if e[0] in (socket.EAI_AGAIN, socket.EAI_NONAME):
+                # Don't croak on transient DNS resolution issues.
+                if e[0] in (socket.EAI_AGAIN, socket.EAI_NONAME,
+                            socket.EAI_NODATA):
+                    LOG.debug('DNS resolution failure: %s: %s', self.host, e)
                     continue
                 raise
             for family, socktype, proto, canonname, sockaddr in addresses:
