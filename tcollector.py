@@ -328,7 +328,7 @@ class ReaderThread(threading.Thread):
         metric, timestamp, value, tags = parsed.groups()
         timestamp = int(timestamp)
 	if 'host' not in tags:
-	    tags += "host=%s" %(self.default_host_tag)
+	    tags += " host=%s" %(self.default_host_tag)
         # De-dupe detection...  To reduce the number of points we send to the
         # TSD, we suppress sending values of metrics that don't change to
         # only once every 10 minutes (which is also when TSD changes rows
