@@ -268,6 +268,8 @@ class ReaderThread(threading.Thread):
                 combination of (metric, tags).  Values older than
                 evictinterval will be removed from the cache to save RAM.
                 Invariant: evictinterval > dedupinterval
+              default_host_tag: The default host tag to be added if the host tag 
+                is not present.
         """
         assert evictinterval > dedupinterval, "%r <= %r" % (evictinterval,
                                                             dedupinterval)
@@ -327,7 +329,7 @@ class ReaderThread(threading.Thread):
             return
         metric, timestamp, value, tags = parsed.groups()
         timestamp = int(timestamp)
-	if 'host' not in tags:
+	if " host=" not in tags:
 	    tags += " host=%s" %(self.default_host_tag)
         # De-dupe detection...  To reduce the number of points we send to the
         # TSD, we suppress sending values of metrics that don't change to
@@ -868,7 +870,7 @@ def main(argv):
 
     # and setup the sender to start writing out to the tsd
     sender = SenderThread(reader, options.dryrun, options.hosts,
-                          not options.no_tcollector_stats, tagstr, 'host='+default_host)
+                          not options.no_tcollector_stats, tagstr)
     sender.start()
     LOG.info('SenderThread startup complete')
 
