@@ -633,13 +633,14 @@ class SenderThread(threading.Thread):
         out = ''
 
         # in case of logging we use less efficient variant
-	for line in self.sendq:
-	    line = "put %s%s" % (line, self.tagstr)
-				
-	    out += line +"\n"
-	    if LOG.level == logging.DEBUG:
-	        LOG.debug('SENDING: %s', line)
-
+        if LOG.level == logging.DEBUG:
+            for line in self.sendq:
+                line = "put %s%s" % (line, self.tagstr)
+                out += line +"\n"
+                LOG.debug('SENDING: %s', line)
+        else:
+            out = "".join("put %s%s\n" % (line, self.tagstr) for line in self.sendq)
+            
         if not out:
             LOG.debug('send_data no data?')
             return
