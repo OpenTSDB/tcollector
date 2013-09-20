@@ -43,9 +43,6 @@ SEARCH_DIRS = [
   "/var/lib/mysql",
 ]
 
-def err(msg):
-  print >>sys.stderr, msg
-
 class DB(object):
   """Represents a MySQL server (as we can monitor more than 1 MySQL)."""
 
@@ -142,7 +139,7 @@ def get_dbname(sockfile):
     return "default"
   m = re.search("/mysql-(.+)/[^.]+\.sock$", sockfile)
   if not m:
-    err("error: couldn't guess the name of the DB for " + sockfile)
+    utils.err("error: couldn't guess the name of the DB for " + sockfile)
     return None
   return m.group(1)
 
@@ -193,7 +190,7 @@ def find_databases(dbs=None):
       cursor.execute("SELECT VERSION()")
     except (EnvironmentError, EOFError, RuntimeError, socket.error,
             MySQLdb.MySQLError), e:
-      err("Couldn't connect to %s: %s" % (sockfile, e))
+      utils.err("Couldn't connect to %s: %s" % (sockfile, e))
       continue
     version = cursor.fetchone()[0]
     dbs[dbname] = DB(sockfile, dbname, db, cursor, version)
@@ -355,7 +352,7 @@ def main(args):
   if not find_sockfiles():  # Nothing to monitor.
     return 13               # Ask tcollector to not respawn us.
   if MySQLdb is None:
-    err("error: Python module `MySQLdb' is missing")
+    utils.err("error: Python module `MySQLdb' is missing")
     return 1
 
   last_db_refresh = now()
@@ -376,7 +373,7 @@ def main(args):
           # Exit on a broken pipe.  There's no point in continuing
           # because no one will read our stdout anyway.
           return 2
-        err("error: failed to collect data from %s: %s" % (db, e))
+        utils.err("error: failed to collect data from %s: %s" % (db, e))
         errs.append(dbname)
 
     for dbname in errs:
