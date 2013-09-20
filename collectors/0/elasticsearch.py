@@ -44,11 +44,6 @@ STATUS_MAP = {
   "red": 2,
 }
 
-
-def is_numeric(value):
-  return isinstance(value, (int, long, float))
-
-
 def err(msg):
   print >>sys.stderr, msg
 
@@ -145,7 +140,7 @@ def main(argv):
       for stat, value in cstats.iteritems():
         if stat == "status":
           value = STATUS_MAP.get(value, -1)
-        elif not is_numeric(value):
+        elif not utils.is_numeric(value):
           continue
         printmetric("cluster." + stat, value)
 
@@ -248,14 +243,14 @@ def main(argv):
        del d
     if "network" in nstats:
        for stat, value in nstats["network"]["tcp"].iteritems():
-         if is_numeric(value):
+         if utils.is_numeric(value):
            printmetric("network.tcp." + stat, value)
        for stat, value in nstats["transport"].iteritems():
-         if is_numeric(value):
+         if utils.is_numeric(value):
            printmetric("transport." + stat, value)
     # New in ES 0.17:
     for stat, value in nstats.get("http", {}).iteritems():
-      if is_numeric(value):
+      if utils.is_numeric(value):
         printmetric("http." + stat, value)
     del nstats
     time.sleep(COLLECTION_INTERVAL)

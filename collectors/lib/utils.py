@@ -18,6 +18,7 @@ import os
 import stat
 import pwd
 import errno
+import sys
 
 # If we're running as root and this user exists, we'll drop privileges.
 USER = "nobody"
@@ -38,12 +39,20 @@ def drop_privileges(user=USER):
 
 
 def is_sockfile(path):
-  """Returns whether or not the given path is a socket file."""
-  try:
-    s = os.stat(path)
-  except OSError, (no, e):
-    if no == errno.ENOENT:
-      return False
-    err("warning: couldn't stat(%r): %s" % (path, e))
-    return None
-  return s.st_mode & stat.S_IFSOCK == stat.S_IFSOCK
+    """Returns whether or not the given path is a socket file."""
+    try:
+        s = os.stat(path)
+    except OSError, (no, e):
+        if no == errno.ENOENT:
+            return False
+        err("warning: couldn't stat(%r): %s" % (path, e))
+        return None
+    return s.st_mode & stat.S_IFSOCK == stat.S_IFSOCK
+
+
+def err(msg):
+    print >> sys.stderr, msg
+
+
+def is_numeric(value):
+    return isinstance(value, (int, long, float))

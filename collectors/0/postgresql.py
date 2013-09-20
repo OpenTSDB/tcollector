@@ -44,9 +44,6 @@ SEARCH_DIRS = frozenset([
   "/tmp", # custom compilation
 ])
 
-def err(msg):
-  print >>sys.stderr, msg
-
 def find_sockdir():
   """Returns a path to PostgreSQL socket file to monitor."""
   for dir in SEARCH_DIRS:
@@ -67,7 +64,7 @@ def postgres_connect(sockdir):
                             % (sockdir, user, password,
                             CONNECT_TIMEOUT))
   except (EnvironmentError, EOFError, RuntimeError, socket.error), e:
-    err("Couldn't connect to DB :%s" % (e))
+    utils.err("Couldn't connect to DB :%s" % (e))
 
 def collect(db):
   """
@@ -123,18 +120,18 @@ def collect(db):
       # exit on a broken pipe. There is no point in continuing
       # because no one will read our stdout anyway.
       return 2
-    err("error: failed to collect data: %s" % e)
+    utils.err("error: failed to collect data: %s" % e)
 
 def main(args):
   """Collects and dumps stats from a PostgreSQL server."""
 
   if psycopg2 is None:
-    err("error: Python module 'psycopg2' is missing")
+    utils.err("error: Python module 'psycopg2' is missing")
     return 13 # Ask tcollector to not respawn us
 
   sockdir = find_sockdir()
   if not sockdir: # Nothing to monitor
-    err("error: Can't find postgresql socket file")
+    utils.err("error: Can't find postgresql socket file")
     return 13 # Ask tcollector to not respawn us
 
   db = postgres_connect(sockdir)

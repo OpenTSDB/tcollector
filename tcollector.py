@@ -686,7 +686,7 @@ class SenderThread(threading.Thread):
 def setup_logging(logfile=DEFAULT_LOG, max_bytes=None, backup_count=None):
     """Sets up logging and associated handlers."""
 
-    LOG.setLevel(logging.INFO)
+    LOG.setLevel(logging.DEBUG)
     if backup_count is not None and max_bytes is not None:
         assert backup_count > 0
         assert max_bytes > 0
