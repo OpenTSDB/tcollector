@@ -329,8 +329,9 @@ class ReaderThread(threading.Thread):
             return
         metric, timestamp, value, tags = parsed.groups()
         timestamp = int(timestamp)
-	if " host=" not in tags:
-	    tags += " host=%s" %(self.default_host_tag)
+        if " host=" not in tags:
+            tags += " host=%s" % self.default_host_tag
+
         # De-dupe detection...  To reduce the number of points we send to the
         # TSD, we suppress sending values of metrics that don't change to
         # only once every 10 minutes (which is also when TSD changes rows
@@ -640,7 +641,7 @@ class SenderThread(threading.Thread):
         if LOG.level == logging.DEBUG:
             for line in self.sendq:
                 line = "put %s%s" % (line, self.tagstr)
-                out += line +"\n"
+                out += line + "\n"
                 LOG.debug('SENDING: %s', line)
         else:
             out = "".join("put %s%s\n" % (line, self.tagstr) for line in self.sendq)
@@ -827,15 +828,12 @@ def main(argv):
         return 1
     modules = load_etc_dir(options, tags)
 
-    # tsdb does not require a host tag, but we do.  we are always running on a
-    # host.  FIXME: we should make it so that collectors may request to set
-    # their own host tag, or not set one.
     if not 'host' in tags and not options.stdin:
         default_host_tag = socket.gethostname()
         LOG.warning('Tag "host" not specified, defaulting to %s.', tags['host'])
     elif 'host' in tags:
-       default_host_tag = tags['host']
-       del tags['host']
+        default_host_tag = tags['host']
+        del tags['host']
 
     # prebuild the tag string from our tags dict
     tagstr = ''
