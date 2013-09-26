@@ -256,7 +256,7 @@ class ReaderThread(threading.Thread):
        All data read is put into the self.readerq Queue, which is
        consumed by the SenderThread."""
 
-    def __init__(self, dedupinterval, evictinterval):
+    def __init__(self, dedupinterval, evictinterval, default_host_tag):
         """Constructor.
             Args:
               dedupinterval: If a metric sends the same value over successive
@@ -268,6 +268,8 @@ class ReaderThread(threading.Thread):
                 combination of (metric, tags).  Values older than
                 evictinterval will be removed from the cache to save RAM.
                 Invariant: evictinterval > dedupinterval
+              default_host_tag: The default host tag to be added if the host tag 
+                is not present.
         """
         assert evictinterval > dedupinterval, "%r <= %r" % (evictinterval,
                                                             dedupinterval)
@@ -278,6 +280,7 @@ class ReaderThread(threading.Thread):
         self.lines_dropped = 0
         self.dedupinterval = dedupinterval
         self.evictinterval = evictinterval
+        self.default_host_tag = default_host_tag
 
     def run(self):
         """Main loop for this thread.  Just reads from collectors,
@@ -326,7 +329,8 @@ class ReaderThread(threading.Thread):
             return
         metric, timestamp, value, tags = parsed.groups()
         timestamp = int(timestamp)
-
+	if " host=" not in tags:
+	    tags += " host=%s" %(self.default_host_tag)
         # De-dupe detection...  To reduce the number of points we send to the
         # TSD, we suppress sending values of metrics that don't change to
         # only once every 10 minutes (which is also when TSD changes rows
@@ -636,11 +640,11 @@ class SenderThread(threading.Thread):
         if LOG.level == logging.DEBUG:
             for line in self.sendq:
                 line = "put %s%s" % (line, self.tagstr)
-                out += line + '\n'
+                out += line +"\n"
                 LOG.debug('SENDING: %s', line)
         else:
             out = "".join("put %s%s\n" % (line, self.tagstr) for line in self.sendq)
-
+            
         if not out:
             LOG.debug('send_data no data?')
             return
@@ -827,8 +831,11 @@ def main(argv):
     # host.  FIXME: we should make it so that collectors may request to set
     # their own host tag, or not set one.
     if not 'host' in tags and not options.stdin:
-        tags['host'] = socket.gethostname()
+        default_host_tag = socket.gethostname()
         LOG.warning('Tag "host" not specified, defaulting to %s.', tags['host'])
+    elif 'host' in tags:
+       default_host_tag = tags['host']
+       del tags['host']
 
     # prebuild the tag string from our tags dict
     tagstr = ''
@@ -845,7 +852,7 @@ def main(argv):
 
     # at this point we're ready to start processing, so start the ReaderThread
     # so we can have it running and pulling in data for us
-    reader = ReaderThread(options.dedupinterval, options.evictinterval)
+    reader = ReaderThread(options.dedupinterval, options.evictinterval, default_host_tag)
     reader.start()
 
     # prepare list of (host, port) of TSDs given on CLI
