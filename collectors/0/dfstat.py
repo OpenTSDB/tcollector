@@ -78,6 +78,8 @@ def main():
         err("error: can't parse line at /proc/mounts: %s" % e)
         continue
 
+      if fs_spec == "none":
+        continue
       if fs_vfstype in FSTYPE_IGNORE or fs_vfstype.startswith("fuse."):
         continue
       if fs_file.startswith(("/dev", "/sys", "/proc", "/lib")):
