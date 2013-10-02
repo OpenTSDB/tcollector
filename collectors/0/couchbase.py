@@ -55,7 +55,7 @@ def find_couchbase_pid():
 def find_conf_file(pid):
   """Returns config file for beam.smp process"""
   try:
-    fd = open('/proc/%s/cmdline' % pid,'r')
+    fd = open('/proc/%s/cmdline' % (pid),'r')
   except IOError, e:
     err("Couchbase (pid %s) went away ? %s" % (pid, e)) 
     return None
@@ -70,7 +70,7 @@ def find_bindir_path(config_file):
   try:
     fd = open(config_file,'r')
   except IOError, e:
-    err("Config file (%s) doesn't exist" % (config_file, e))
+    err("Error for Config file (%s): %s" % (config_file, e))
     return None
   try:
     for line in fd:
@@ -122,18 +122,19 @@ def collect_stats(couchbase_bindir, bucket):
       print ("couchbase.%s %i %s bucket=%s" % (metric, ts, value, bucket))
 
 def main():
-  config_file = list()
-  couchbase_bindir = list()
-  pids = find_couchbase_pid().split()
+  config_file = []
+  couchbase_bindir = []
+  pids = find_couchbase_pid()
   if not pids:
     err("Error: Couchbase is not running")
     return 13
+  pids = pids.split()
 
   for i in pids:
     cfile = find_conf_file(i)
     if cfile not in config_file:
       config_file.append(cfile)
-  if not config_file:
+  if all(v is None for v in config_file):
     err("Error: Can't find config file")
     return 13
 
@@ -141,7 +142,7 @@ def main():
     bdpath = find_bindir_path(f)
     if bdpath not in couchbase_bindir:
       couchbase_bindir.append(bdpath)
-  if not couchbase_bindir:
+  if all(v is None for v in couchbase_bindir):
     err("Error: Can't find bindir path in config file")
     return 13
 	
