@@ -35,9 +35,6 @@ from collectors.lib import utils
 
 COLLECTION_INTERVAL = 15
 
-def err(e):
-  print >>sys.stderr, e
-
 def haproxy_pid():
   """Finds out the pid of haproxy process"""
   try:
@@ -51,7 +48,7 @@ def find_conf_file(pid):
   try:
      output = subprocess.check_output(["ps", "--no-headers", "-o", "cmd", pid])
   except subprocess.CalledProcessError, e:
-     err("HAProxy (pid %s) went away? %s" % (pid, e))
+     utils.err("HAProxy (pid %s) went away? %s" % (pid, e))
      return None
   return output.split("-f")[1].split()[0]
 
@@ -60,7 +57,7 @@ def find_sock_file(conf_file):
   try:
     fd = open(conf_file)
   except IOError, e:
-    err("Error: %s. Config file path is relative: %s" % (e, conf_file))
+    utils.err("Error: %s. Config file path is relative: %s" % (e, conf_file))
     return None
   try:
     for line in fd:
@@ -93,7 +90,7 @@ def collect_stats(sock):
 def main():
   pid = haproxy_pid()
   if not pid:
-    err("Error: HAProxy is not running")
+    utils.err("Error: HAProxy is not running")
     return 13  # Ask tcollector to not respawn us.
 
   conf_file = find_conf_file(pid)
@@ -102,7 +99,7 @@ def main():
 
   sock_file = find_sock_file(conf_file)
   if sock_file is None:
-    err("Error: HAProxy is not listening on any unix domain socket")
+    utils.err("Error: HAProxy is not listening on any unix domain socket")
     return 13
 
   sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)

@@ -44,17 +44,12 @@ FSTYPE_IGNORE = frozenset([
   "rootfs",
 ])
 
-
-def err(msg):
-  print >> sys.stderr, msg
-
-
 def main():
   """dfstats main loop"""
   try:
     f_mounts = open("/proc/mounts", "r")
   except IOError, e:
-    err("error: can't open /proc/mounts: %s" % e)
+    utils.err("error: can't open /proc/mounts: %s" % e)
     return 13 # Ask tcollector to not respawn us
 
   utils.drop_privileges()
@@ -75,7 +70,7 @@ def main():
       try:
         fs_spec, fs_file, fs_vfstype, fs_mntops, fs_freq, fs_passno = line.split(None)
       except ValueError, e:
-        err("error: can't parse line at /proc/mounts: %s" % e)
+        utils.err("error: can't parse line at /proc/mounts: %s" % e)
         continue
 
       if fs_spec == "none":
@@ -105,7 +100,7 @@ def main():
       try:
         r = os.statvfs(fs_file)
       except OSError, e:
-        err("error: can't get info for mount point: %s" % fs_file)
+        utils.err("error: can't get info for mount point: %s" % fs_file)
         continue
 
       print("df.bytes.total %d %s mount=%s fstype=%s"
