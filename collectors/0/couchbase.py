@@ -20,7 +20,7 @@ KEYS = [ 'bucket_active_conns',
 	 'cas_hits', 
 	 'cas_misses', 
 	 'cmd_get', 
-         'cmd_set', 
+	 'cmd_set', 
 	 'curr_connections', 
 	 'curr_conns_on_port_11209', 
 	 'curr_conns_on_port_11210', 
@@ -36,7 +36,7 @@ KEYS = [ 'bucket_active_conns',
 	 'total_heap_bytes', 
 	 'total_free_bytes', 
 	 'total_allocated_bytes', 
- 	 'total_fragmentation_bytes', 
+	 'total_fragmentation_bytes', 
 	 'tcmalloc_current_thread_cache_bytes', 
 	 'tcmalloc_max_thread_cache_bytes', 
 	 'tcmalloc_unmapped_bytes' ]
@@ -47,7 +47,7 @@ def err(e):
 def find_couchbase_pid():
   """Find out the pid of couchbase"""
   try:
-    pid = subprocess.check_output(["pidof","beam.smp"])
+    pid = subprocess.check_output(["pidof", "beam.smp"])
   except subprocess.CalledProcessError:
     return None
   return pid.rstrip()
@@ -55,7 +55,7 @@ def find_couchbase_pid():
 def find_conf_file(pid):
   """Returns config file for beam.smp process"""
   try:
-    fd = open('/proc/%s/cmdline' % (pid),'r')
+    fd = open('/proc/%s/cmdline' % pid)
   except IOError, e:
     err("Couchbase (pid %s) went away ? %s" % (pid, e)) 
     return None
@@ -68,33 +68,30 @@ def find_conf_file(pid):
 def find_bindir_path(config_file):
   """Returns the bin directory path"""
   try:
-    fd = open(config_file,'r')
+    fd = open(config_file)
   except IOError, e:
     err("Error for Config file (%s): %s" % (config_file, e))
     return None
   try:
     for line in fd:
-      if line.lstrip("{").startswith("path_config_bindir"):
+      if line.startswith("{path_config_bindir"):
         return line.split(",")[1].split("\"")[1]
   finally:
     fd.close()
 
 def list_bucket(couchbase_bindir):
   """Returns the list of memcached or membase buckets"""
-  buckets = list()
+  buckets = []
   for d in couchbase_bindir:
-    try:
-      os.path.isfile("%s/couchbase-cli" % (d))
-      cli = ("%s/couchbase-cli" % (d))
+    if os.path.isfile("%s/couchbase-cli" % d):
+      cli = ("%s/couchbase-cli" % d)
       break
-    except os.error:
-      continue
   try:
     buck = subprocess.check_output([cli, "bucket-list", "--cluster", "localhost:8091"])
   except subprocess.CalledProcessError:
     return None
   buck = iter(buck.splitlines())
-  regex = re.compile("[\s\w]+:[\s\w]+")
+  regex = re.compile("[\s\w]+:[\s\w]+$")
   for i in buck:
     if not regex.match(i):
       buckets.append(i)
