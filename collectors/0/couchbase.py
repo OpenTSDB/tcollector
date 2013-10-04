@@ -100,19 +100,15 @@ def list_bucket(couchbase_bindir):
 def collect_stats(couchbase_bindir, bucket):
   """Returns statistics related to a particular bucket"""
   for d in couchbase_bindir:
-    try:
-      os.path.isfile("%s/cbstats" % (d))
-      cli = ("%s/cbstats" % (d))
+    if os.path.isfile("%s/cbstats" % d):
+      cli = ("%s/cbstats" % d)
       break
-    except os.error:
-      continue
   try:
     ts = time.time()
     stats = subprocess.check_output([cli, "localhost:11211", "-b", bucket, "all"])
   except subprocess.CalledProcessError:
     return None
-  stats = iter(stats.splitlines())
-  for stat in stats:
+  for stat in stats.splitlines():
     metric = stat.split(":")[0].lstrip(" ")
     value = stat.split(":")[1].lstrip(" \t")
     if metric in KEYS:
@@ -129,26 +125,22 @@ def main():
 
   for i in pids:
     cfile = find_conf_file(i)
-    if cfile not in config_file:
+    if cfile is not None and cfile not in config_file:
       config_file.append(cfile)
-  if all(v is None for v in config_file):
+  if not config_file:
     err("Error: Can't find config file")
     return 13
 
   for f in config_file:
     bdpath = find_bindir_path(f)
-    if bdpath not in couchbase_bindir:
+    if bdpath is not None and bdpath not in couchbase_bindir:
       couchbase_bindir.append(bdpath)
-  if all(v is None for v in couchbase_bindir):
+  if not couchbase_bindir:
     err("Error: Can't find bindir path in config file")
     return 13
 	
-  buckets = list_bucket(couchbase_bindir)
-  if not buckets:
-    time.sleep(COLLECTION_INTERVAL)
-    buckets = list_bucket(couchbase_bindir)
-
   while True:
+    buckets = list_bucket(couchbase_bindir)
     for b in buckets:
       collect_stats(couchbase_bindir, b)
     time.sleep(COLLECTION_INTERVAL)
