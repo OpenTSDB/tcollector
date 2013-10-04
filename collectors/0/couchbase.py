@@ -14,7 +14,10 @@ import time
 import subprocess
 import re
 
+from collectors.lib import utils
+
 COLLECTION_INTERVAL = 15
+COUCHBASE_INITFILE = "/etc/init.d/couchbase-server"
 
 KEYS = [ 'bucket_active_conns', 
 	 'cas_hits', 
@@ -46,14 +49,38 @@ def err(e):
 
 def find_couchbase_pid():
   """Find out the pid of couchbase"""
-  try:
-    pid = subprocess.check_output(["pidof", "beam.smp"])
-  except subprocess.CalledProcessError:
+  if os.path.isfile(COUCHBASE_INITFILE):
+    try:
+      fd = open(COUCHBASE_INITFILE)
+      for line in fd:
+        if line.startswith("exec"):
+          init_script = line.split()[1]
+      fd.close()
+    except IOError:
+      err("Check permission of file (%s)" % COUCHBASE_INITFILE)
+
+    try:
+      fd = open(init_script)
+      for line in fd:
+        if line.startswith("PIDFILE"):
+          pid_file = line.split("=")[1].rsplit()[0]
+      fd.close()
+    except IOError:
+      err("Check permission of file (%s)" % init_script)
+
+    try:
+      fd = open(pid_file)
+      pid = fd.read()
+      fd.close()
+    except IOError:
+      err("Check permission of file (%s)" % pid_file)    
+    return pid.split()[0]
+      
+  else:
     return None
-  return pid.rstrip()
 
 def find_conf_file(pid):
-  """Returns config file for beam.smp process"""
+  """Returns config file for couchbase-server """
   try:
     fd = open('/proc/%s/cmdline' % pid)
   except IOError, e:
@@ -79,13 +106,11 @@ def find_bindir_path(config_file):
   finally:
     fd.close()
 
-def list_bucket(couchbase_bindir):
+def list_bucket(bin_dir):
   """Returns the list of memcached or membase buckets"""
   buckets = []
-  for d in couchbase_bindir:
-    if os.path.isfile("%s/couchbase-cli" % d):
-      cli = ("%s/couchbase-cli" % d)
-      break
+  if os.path.isfile("%s/couchbase-cli" % bin_dir):
+    cli = ("%s/couchbase-cli" % bin_dir)
   try:
     buck = subprocess.check_output([cli, "bucket-list", "--cluster", "localhost:8091"])
   except subprocess.CalledProcessError:
@@ -97,12 +122,10 @@ def list_bucket(couchbase_bindir):
       buckets.append(i)
   return buckets	
 
-def collect_stats(couchbase_bindir, bucket):
+def collect_stats(bin_dir, bucket):
   """Returns statistics related to a particular bucket"""
-  for d in couchbase_bindir:
-    if os.path.isfile("%s/cbstats" % d):
-      cli = ("%s/cbstats" % d)
-      break
+  if os.path.isfile("%s/cbstats" % bin_dir):
+    cli = ("%s/cbstats" % bin_dir)
   try:
     ts = time.time()
     stats = subprocess.check_output([cli, "localhost:11211", "-b", bucket, "all"])
@@ -115,34 +138,26 @@ def collect_stats(couchbase_bindir, bucket):
       print ("couchbase.%s %i %s bucket=%s" % (metric, ts, value, bucket))
 
 def main():
-  config_file = []
-  couchbase_bindir = []
-  pids = find_couchbase_pid()
-  if not pids:
-    err("Error: Couchbase is not running")
-    return 13
-  pids = pids.split()
-
-  for i in pids:
-    cfile = find_conf_file(i)
-    if cfile is not None and cfile not in config_file:
-      config_file.append(cfile)
-  if not config_file:
-    err("Error: Can't find config file")
+  utils.drop_privileges()
+  pid = find_couchbase_pid()
+  if not pid:
+    err("Error: Either couchbase-server is not running or file (%s) doesn't exist" % COUCHBASE_INITFILE)
     return 13
 
-  for f in config_file:
-    bdpath = find_bindir_path(f)
-    if bdpath is not None and bdpath not in couchbase_bindir:
-      couchbase_bindir.append(bdpath)
-  if not couchbase_bindir:
+  conf_file = find_conf_file(pid)
+  if not conf_file:
+    err("Error: Can't find config file (%s)" % conf_file)
+    return 13
+
+  bin_dir = find_bindir_path(conf_file)
+  if not bin_dir:
     err("Error: Can't find bindir path in config file")
     return 13
 	
   while True:
-    buckets = list_bucket(couchbase_bindir)
+    buckets = list_bucket(bin_dir)
     for b in buckets:
-      collect_stats(couchbase_bindir, b)
+      collect_stats(bin_dir, b)
     time.sleep(COLLECTION_INTERVAL)
 
 if __name__ == "__main__":
