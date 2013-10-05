@@ -58,6 +58,7 @@ def find_couchbase_pid():
       fd.close()
     except IOError:
       err("Check permission of file (%s)" % COUCHBASE_INITFILE)
+      return None
 
     try:
       fd = open(init_script)
@@ -67,13 +68,16 @@ def find_couchbase_pid():
       fd.close()
     except IOError:
       err("Check permission of file (%s)" % init_script)
+      return None
 
     try:
       fd = open(pid_file)
       pid = fd.read()
       fd.close()
     except IOError:
-      err("Check permission of file (%s)" % pid_file)    
+      err("Couchbase-server is not running, since no pid file exists") 
+      return None
+   
     return pid.split()[0]
       
   else:
@@ -155,7 +159,7 @@ def main():
     return 13
 	
   while True:
-    buckets = list_bucket(bin_dir)
+    buckets = list_bucket(bin_dir)      # Listing bucket everytime so as to start collecting datapoints of any new bucket.
     for b in buckets:
       collect_stats(bin_dir, b)
     time.sleep(COLLECTION_INTERVAL)
