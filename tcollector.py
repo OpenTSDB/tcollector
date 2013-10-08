@@ -331,6 +331,7 @@ class ReaderThread(threading.Thread):
         timestamp = int(timestamp)
         if " host=" not in tags:
             tags += " host=%s" % self.default_host_tag
+            line += " host=%s" % self.default_host_tag
 
         # De-dupe detection...  To reduce the number of points we send to the
         # TSD, we suppress sending values of metrics that don't change to
