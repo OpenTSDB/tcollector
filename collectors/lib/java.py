@@ -20,7 +20,7 @@ __java_args = [JAVA, "-enableassertions", "-enablesystemassertions",  # safe++
         "-cp", ":".join(CLASSPATH), "com.stumbleupon.monitoring.jmx",
         "--watch", str(PERIOD), "--long", "--timestamp"]
 
-def init_jmx_process(jvm_name, *watched_beans):
+def init_jmx_process(jvm_name, *watched_mbeans):
     """Start a process that watches the given JVM and periodically print out
     values of watched beans.
 
