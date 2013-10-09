@@ -20,6 +20,7 @@ import sys
 import time
 
 from collectors.lib import utils
+from collectors.lib import java
 
 # If this user doesn't exist, we'll exit immediately.
 # If we're running as root, we'll drop privileges using this user.
@@ -82,24 +83,7 @@ def do_on_signal(signum, func, *args, **kwargs):
 
 def main(argv):
     utils.drop_privileges(user=USER)
-    # Build the classpath.
-    dir = os.path.dirname(sys.argv[0])
-    jar = os.path.normpath(dir + "/../lib/jmx-1.0.jar")
-    if not os.path.exists(jar):
-        print >>sys.stderr, "WTF?!  Can't run, %s doesn't exist" % jar
-        return 13
-    classpath = [jar]
-    for jar in CLASSPATH:
-        if os.path.exists(jar):
-            classpath.append(jar)
-    classpath = ":".join(classpath)
-
-    jmx = subprocess.Popen(
-        ["java", "-enableassertions", "-enablesystemassertions",  # safe++
-         "-Xmx64m",  # Low RAM limit, to avoid stealing too much from prod.
-         "-cp", classpath, "com.stumbleupon.monitoring.jmx",
-         "--watch", "10", "--long", "--timestamp",
-         "DataNode",  # Name of the process.
+    jmx = java.init_jmx_process("DataNode",
          # The remaining arguments are pairs (mbean_regexp, attr_regexp).
          # The first regexp is used to match one or more MBeans, the 2nd
          # to match one or more attributes of the MBeans matched.
@@ -107,7 +91,7 @@ def main(argv):
          "Threading", "Count|Time$",       # Number of threads and CPU time.
          "OperatingSystem", "OpenFile",    # Number of open files.
          "GarbageCollector", "Collection", # GC runs and time spent GCing.
-         ], stdout=subprocess.PIPE, bufsize=1)
+         )
     do_on_signal(signal.SIGINT, kill, jmx)
     do_on_signal(signal.SIGPIPE, kill, jmx)
     do_on_signal(signal.SIGTERM, kill, jmx)

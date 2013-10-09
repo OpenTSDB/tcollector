@@ -18,20 +18,13 @@ import signal
 import subprocess
 import sys
 import time
+
 from collectors.lib import utils
+from collectors.lib import java
 
 # If this user doesn't exist, we'll exit immediately.
 # If we're running as root, we'll drop privileges using this user.
 USER = "hbase"
-
-# Use JAVA_HOME env variable if set
-JAVA_HOME = os.getenv('JAVA_HOME', '/usr/lib/jvm/java-1.6.0-openjdk-1.6.0.0.x86_64')
-JAVA = "%s/bin/java" % JAVA_HOME
-
-# We add those files to the classpath if they exist.
-CLASSPATH = [
-    "%s/lib/tools.jar" % JAVA_HOME,
-]
 
 # We shorten certain strings to avoid excessively long metric names.
 JMX_SERVICE_RENAMING = {
@@ -77,33 +70,15 @@ def do_on_signal(signum, func, *args, **kwargs):
 
 def main(argv):
     utils.drop_privileges(user=USER)
-    # Build the classpath.
-    dir = os.path.dirname(sys.argv[0])
-    jar = os.path.normpath(dir + "/../lib/jmx-1.0.jar")
-    if not os.path.exists(jar):
-        print >>sys.stderr, "WTF?!  Can't run, %s doesn't exist" % jar
-        return 13
-    classpath = [jar]
-    for jar in CLASSPATH:
-        if os.path.exists(jar):
-            classpath.append(jar)
-    classpath = ":".join(classpath)
 
-    jmx = subprocess.Popen(
-        [JAVA, "-enableassertions", "-enablesystemassertions",  # safe++
-         "-Xmx64m",  # Low RAM limit, to avoid stealing too much from prod.
-         "-cp", classpath, "com.stumbleupon.monitoring.jmx",
-         "--watch", "10", "--long", "--timestamp",
-         "HRegionServer",  # Name of the process.
-         # The remaining arguments are pairs (mbean_regexp, attr_regexp).
-         # The first regexp is used to match one or more MBeans, the 2nd
-         # to match one or more attributes of the MBeans matched.
+    jmx = java.init_jmx_process("HRegionServer",
          "hadoop", "",                     # All HBase / hadoop metrics.
          "Memory$", "",                    # Heap stats
          "Threading", "Count|Time$",       # Number of threads and CPU time.
          "OperatingSystem", "OpenFile",    # Number of open files.
-         "GarbageCollector", "Collection", # GC runs and time spent GCing.
-         ], stdout=subprocess.PIPE, bufsize=1)
+         "GarbageCollector", "Collection"  # GC runs and time spent GCing.
+         )
+
     do_on_signal(signal.SIGINT, kill, jmx)
     do_on_signal(signal.SIGPIPE, kill, jmx)
     do_on_signal(signal.SIGTERM, kill, jmx)
