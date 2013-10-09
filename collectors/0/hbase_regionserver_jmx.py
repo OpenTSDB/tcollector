@@ -22,7 +22,7 @@ from collectors.lib import utils
 
 # If this user doesn't exist, we'll exit immediately.
 # If we're running as root, we'll drop privileges using this user.
-USER = "hadoop"
+USER = "hbase"
 
 # Use JAVA_HOME env variable if set
 JAVA_HOME = os.getenv('JAVA_HOME', '/usr/lib/jvm/java-1.6.0-openjdk-1.6.0.0.x86_64')
