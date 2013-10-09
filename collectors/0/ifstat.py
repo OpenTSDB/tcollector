@@ -35,7 +35,7 @@ FIELDS = ("bytes", "packets", "errs", "dropped",
 
 def main():
     """ifstat main loop"""
-    interval = 15
+    interval = 60
 
     f_netdev = open("/proc/net/dev", "r")
     utils.drop_privileges()
