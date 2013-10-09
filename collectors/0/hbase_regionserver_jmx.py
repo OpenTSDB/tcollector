@@ -43,7 +43,6 @@ REPORTED_OPS = frozenset([
   "balance",
 ])
 
-
 def kill(proc):
   """Kills the subprocess given in argument."""
   # Clean up after ourselves.
@@ -101,6 +100,9 @@ def main(argv):
                 if "java.lang.String" not in line:
                     print >>sys.stderr, "Can't split line: %r" % line
                 continue
+
+            if metric in java.IGNORED_METRICS:
+              continue
 
             # Sanitize the timestamp.
             try:

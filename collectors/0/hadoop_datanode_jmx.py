@@ -33,17 +33,6 @@ JMX_SERVICE_RENAMING = {
   "Threading": "datanode.threads",
 }
 
-IGNORED_METRICS = set(["revision", "hdfsUser", "hdfsDate", "hdfsUrl", "date",
-                       "hdfsRevision", "user", "hdfsVersion", "url", "version",
-                       "NamenodeAddress", "Version", "RpcPort", "HttpPort",
-                       # These are useless as-is because they represent the
-                       # thread that's dedicated to serving JMX RPCs.
-                       "CurrentThreadCpuTime", "CurrentThreadUserTime",
-                       # List of directories used by the DataNode.
-                       "StorageInfo",
-                       "VolumeInfo",
-                      ])
-
 # How many times, maximum, will we attempt to restart the JMX collector.
 # If we reach this limit, we'll exit with an error.
 MAX_RESTARTS = 10
@@ -101,7 +90,18 @@ def main(argv):
                 print >>sys.stderr, "invalid line (too short): %r" % line
                 continue
 
-            timestamp, metric, value, mbean = line.split("\t", 3)
+            try:
+                timestamp, metric, value, mbean = line.split("\t", 3)
+            except ValueError, e:
+                # Temporary workaround for jmx.jar not printing these lines we
+                # don't care about anyway properly.
+                if "java.lang.String" not in line:
+                    print >>sys.stderr, "Can't split line: %r" % line
+                continue
+
+            if metric in java.IGNORED_METRICS:
+              continue
+
             # Sanitize the timestamp.
             try:
                 timestamp = int(timestamp)
@@ -115,9 +115,6 @@ def main(argv):
                                      % (line, e))
                 continue
             prev_timestamp = timestamp
-
-            if metric in IGNORED_METRICS:
-              continue
 
             tags = ""
             # The JMX metrics have per-request-type metrics like so:
