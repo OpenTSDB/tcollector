@@ -26,11 +26,6 @@ from collectors.lib import java
 # If we're running as root, we'll drop privileges using this user.
 USER = "hdfs"
 
-# We add those files to the classpath if they exist.
-CLASSPATH = [
-    "/usr/lib/jvm/java-6-sun/lib/tools.jar",
-]
-
 # Map certain JVM stats so they are unique and shorter
 JMX_SERVICE_RENAMING = {
   "GarbageCollector": "datanode.gc",
