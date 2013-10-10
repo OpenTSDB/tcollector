@@ -24,6 +24,8 @@ IGNORED_METRICS = set(["revision", "hdfsUser", "hdfsDate", "hdfsUrl", "date",
                        # List of directories used by the DataNode.
                        "StorageInfo",
                        "VolumeInfo",
+                       "ServerName",
+                       "ZookeeperQuorum"
                       ])
 
 __java_args = [JAVA, "-enableassertions", "-enablesystemassertions",  # safe++
