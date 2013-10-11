@@ -28,9 +28,9 @@ USER = "flume"
 
 # Map certain JVM stats so they are unique and shorter
 JMX_SERVICE_RENAMING = {
-  "GarbageCollector": "datanode.gc",
-  "OperatingSystem": "datanode.os",
-  "Threading": "datanode.threads",
+  "GarbageCollector": "gc",
+  "OperatingSystem": "os",
+  "Threading": "threads",
 }
 
 # How many times, maximum, will we attempt to restart the JMX collector.
