@@ -20,7 +20,7 @@ import time
 COLLECTION_INTERVAL = 15  # seconds
 
 nfs_client_proc_names = {
-    'proc4': (
+    "proc4": (
         # list of ops taken from nfs-utils / nfsstat.c
         "null", "read", "write", "commit", "open", "open_conf", "open_noat",
         "open_dgrd", "close", "setattr", "fsinfo", "renew", "setclntid", "confirm",
@@ -33,11 +33,11 @@ nfs_client_proc_names = {
         "reclaim_comp", "layoutget", "getdevinfo", "layoutcommit", "layoutreturn",
         "getdevlist",
     ),
-    'proc3': (
-        'null', 'getattr', 'setattr', 'lookup', 'access', 'readlink',
-        'read', 'write', 'create', 'mkdir', 'symlink', 'mknod',
-        'remove', 'rmdir', 'rename', 'link', 'readdir', 'readdirplus',
-        'fsstat', 'fsinfo', 'pathconf', 'commit',
+    "proc3": (
+        "null", "getattr", "setattr", "lookup", "access", "readlink",
+        "read", "write", "create", "mkdir", "symlink", "mknod",
+        "remove", "rmdir", "rename", "link", "readdir", "readdirplus",
+        "fsstat", "fsinfo", "pathconf", "commit",
     ),
 }
 
