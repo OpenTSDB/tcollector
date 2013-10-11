@@ -21,19 +21,27 @@ from collectors.lib import utils
 
 COLLECTION_INTERVAL = 15  # seconds
 
-nfs_client_proc4_names = (
-    # list of ops taken from nfs-utils / nfsstat.c
-    "null", "read", "write", "commit", "open", "open_conf", "open_noat",
-    "open_dgrd", "close", "setattr", "fsinfo", "renew", "setclntid", "confirm",
-    "lock", "lockt", "locku", "access", "getattr", "lookup", "lookup_root",
-    "remove", "rename", "link", "symlink", "create", "pathconf", "statfs",
-    "readlink", "readdir", "server_caps", "delegreturn", "getacl", "setacl",
-    "fs_locations", "rel_lkowner", "secinfo",
-    # nfsv4.1 client ops
-    "exchange_id", "create_ses", "destroy_ses", "sequence", "get_lease_t",
-    "reclaim_comp", "layoutget", "getdevinfo", "layoutcommit", "layoutreturn",
-    "getdevlist",
-)
+nfs_client_proc_names = {
+    "proc4": (
+        # list of ops taken from nfs-utils / nfsstat.c
+        "null", "read", "write", "commit", "open", "open_conf", "open_noat",
+        "open_dgrd", "close", "setattr", "fsinfo", "renew", "setclntid", "confirm",
+        "lock", "lockt", "locku", "access", "getattr", "lookup", "lookup_root",
+        "remove", "rename", "link", "symlink", "create", "pathconf", "statfs",
+        "readlink", "readdir", "server_caps", "delegreturn", "getacl", "setacl",
+        "fs_locations", "rel_lkowner", "secinfo",
+        # nfsv4.1 client ops
+        "exchange_id", "create_ses", "destroy_ses", "sequence", "get_lease_t",
+        "reclaim_comp", "layoutget", "getdevinfo", "layoutcommit", "layoutreturn",
+        "getdevlist",
+    ),
+    "proc3": (
+        "null", "getattr", "setattr", "lookup", "access", "readlink",
+        "read", "write", "create", "mkdir", "symlink", "mknod",
+        "remove", "rmdir", "rename", "link", "readdir", "readdirplus",
+        "fsstat", "fsinfo", "pathconf", "commit",
+    ),
+}
 
 
 def main():
@@ -51,7 +59,7 @@ def main():
         ts = int(time.time())
         for line in f_nfs:
             fields = line.split()
-            if fields[0] == "proc4":
+            if fields[0] in nfs_client_proc_names.keys():
                 # NFSv4
                 # first entry should equal total count of subsequent entries
                 assert int(fields[1]) == len(fields[2:]), (
@@ -59,8 +67,8 @@ def main():
                     % (int(fields[1]), len(fields[2:])))
                 for idx, val in enumerate(fields[2:]):
                     try:
-                        print ("nfs.client.v4.rpc %d %s op=%s"
-                               % (ts, int(val), nfs_client_proc4_names[idx]))
+                        print ("nfs.client.rpc %d %s op=%s version=%s"
+                               % (ts, int(val), nfs_client_proc_names[fields[0]][idx], fields[0][4:]))
                     except IndexError:
                         print >> sys.stderr, ("Warning: name lookup failed"
                                               " at position %d" % idx)
