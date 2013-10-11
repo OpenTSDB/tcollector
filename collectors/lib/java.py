@@ -26,7 +26,8 @@ IGNORED_METRICS = set(["revision", "hdfsUser", "hdfsDate", "hdfsUrl", "date",
                        "VolumeInfo",
                        "ServerName",
                        "ZookeeperQuorum",
-                       "Verbose"
+                       "Verbose",
+                       "Type"
                       ])
 
 __java_args = [JAVA, "-enableassertions", "-enablesystemassertions",  # safe++
