@@ -8,7 +8,7 @@ vcs-Browser: https://github.com/OpenTSDB/tcollector
 Homepage: http://opentsdb.net/
 
 Package: tcollector
-Architecture: any
+Architecture: all
 Depends: ${misc:Depends}, ${python:Depends}, adduser
 Recommends: smartmontools
 Section: utils
