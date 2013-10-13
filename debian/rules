@@ -1,0 +1,16 @@
+#!/usr/bin/make -f
+
+export DH_VERBOSE=1
+
+%:
+	dh $@
+
+build:
+	cp tcollector.py tcollector
+
+clean:
+	dh_clean
+	rm -f tcollector
+
+override_dh_installinit:
+	dh_installinit --no-start

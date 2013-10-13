@@ -1,0 +1,90 @@
+#! /bin/sh
+### BEGIN INIT INFO
+# Provides:          tcollector
+# Required-Start:    $network $remote_fs
+# Required-Stop:     $network $remote_fs
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Starts tcollector
+### END INIT INFO
+
+PATH=/sbin:/bin:/usr/sbin:/usr/bin
+DAEMON=/usr/bin/tcollector
+
+. /lib/lsb/init-functions
+
+if [ -r /etc/default/tcollector ]; then
+    . /etc/default/tcollector
+fi
+
+PIDFILE=${PIDFILE-"/var/run/tcollector.pid"}
+LOGFILE=${LOGFILE-"/var/log/tcollector.log"}
+COLLECTOR_PATH=${COLLECTOR_PATH-"/usr/lib/tcollector/collectors"}
+DEDUP_INTERVAL=${DEDUP_INTERVAL-600}
+EVICT_INTERVAL=${EVICT_INTERVAL-6000}
+HOSTNAME=${HOSTNAME-$(hostname)}
+RUN_AS_USER=${RUN_AS_USER-tcollector}
+RUN_AS_GROUP=${RUN_AS_GROUP-tcollector}
+
+fix_perms() {
+    local file=$1
+        if [ ! -f "$file" ]; then
+            touch "$file"
+        fi
+        chown $RUN_AS_USER:$RUN_AS_GROUP "$file"
+}
+
+case $1 in
+    start)
+        log_daemon_msg "Starting tcollector" "tcollector"
+        if [ -z "$TSD_HOSTS" ]; then
+            log_failure_msg "TSD_HOSTS is empty"
+            exit 6
+        fi
+        fix_perms $LOGFILE
+        fix_perms $PIDFILE
+
+        taskset=""
+        if [ -n "$CPU_LIST" ]; then
+            if which taskset &>/dev/null; then
+                taskset="taskset -c $CPU_LIST"
+            else
+                log_warning_msg "taskset not found, tcollector can't be"
+                    " pinned to $CPU_LIST"
+            fi
+        fi
+
+        $taskset start-stop-daemon --start --quiet -u $RUN_AS_USER\
+            --pidfile "$PIDFILE" --chuid $RUN_AS_USER:$RUN_AS_GROUP\
+            --startas $DAEMON -- -c "$COLLECTOR_PATH" -L $TSD_HOSTS\
+            -t host=$HOSTNAME --dedup-interval=$DEDUP_INTERVAL\
+            --evict-interval=$EVICT_INTERVAL -P "$PIDFILE" -D
+
+        log_end_msg $?
+        ;;
+
+    stop)
+        log_daemon_msg "Stopping tcollector" "tcollector"
+        if [ ! -f "$PIDFILE" ]; then
+            log_failure_msg "$PIDFILE doesn't exist. tcollector not running?"
+            exit 0
+        fi
+        killproc -p "$PIDFILE" "$DAEMON" && rm -f "$PIDFILE"
+        rv=$?
+        log_end_msg 0
+        exit $rv
+        ;;
+    restart|force-reload)
+        $0 stop && $0 start
+        ;;
+
+    status)
+        status_of_proc -p $PIDFILE "NTP server"
+        exit $?
+        ;;
+
+    *)
+        echo "Usage: $0 {start|stop|restart|force-reload|status}"
+        exit 2
+        ;;
+esac
