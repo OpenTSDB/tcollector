@@ -2,9 +2,7 @@ Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: tcollector
 Source: https://github.com/OpenTSDB/tcollector
 
-Files: *
-License: LGPL-3
-
+Copyright: Tcollector authors, 2010-2013
 License: LGPL-3
  This library is free software; you can redistribute it and/or modify
  it under the terms of the GNU Lesser General Public License as published by
