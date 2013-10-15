@@ -831,7 +831,7 @@ def main(argv):
 
     if not 'host' in tags and not options.stdin:
         default_host_tag = socket.gethostname()
-        LOG.warning('Tag "host" not specified, defaulting to %s.', tags['host'])
+        LOG.warning('Tag "host" not specified, defaulting to %s.', default_host_tag)
     elif 'host' in tags:
         default_host_tag = tags['host']
         del tags['host']
