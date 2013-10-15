@@ -784,9 +784,9 @@ def daemonize():
             pass         # ... ignore the exception.
 
 
-def setup_python_path(argv0):
+def setup_python_path(collector_dir):
     """Sets up PYTHONPATH so that collectors can easily import common code."""
-    mydir = os.path.abspath(os.path.dirname(argv0))
+    mydir = os.path.dirname(collector_dir)
     libdir = os.path.join(mydir, 'collectors', 'lib')
     if not os.path.isdir(libdir):
         return
@@ -842,7 +842,7 @@ def main(argv):
         tagstr = ' '.join('%s=%s' % (k, v) for k, v in tags.iteritems())
         tagstr = ' ' + tagstr.strip()
 
-    setup_python_path(argv[0])
+    setup_python_path(options.cdir)
 
     # gracefully handle death for normal termination paths and abnormal
     atexit.register(shutdown)
