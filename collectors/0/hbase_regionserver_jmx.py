@@ -133,8 +133,10 @@ def main(argv):
                 continue                    # time taken by operations.
             elif metric.startswith("tbl."): # Per-table/region/cf metrics
                 continue                    # ignore for now, too much spam
-            elif "BlockedSeconds" in metric or "LatencyHistogram" in metric: 
+            elif "BlockedSeconds" in metric: 
                 continue                    # ignore for now, too much spam
+            elif "LatencyHistogram" in metric: 
+                metric = metric.replace('LatencyHistogram_', '.');
             elif metric.endswith("KB"): 
                 metric = metric[:-2]
                 # Try converting to bytes
