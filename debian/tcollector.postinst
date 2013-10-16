@@ -3,8 +3,8 @@
 set -e
 
 if [ "$1" = "configure" ]; then
-	addgroup --system --quiet tcollector
-	adduser --system --quiet --ingroup tcollector --no-create-home tcollector
+	addgroup --system --quiet tcollector || true
+	adduser --system --quiet --ingroup tcollector --no-create-home tcollector || true
 fi
 
 #DEBHELPER#
