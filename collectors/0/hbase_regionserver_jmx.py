@@ -167,6 +167,11 @@ def main(argv):
                   continue
                 tags = " op=" + op
                 metric = "maxTime"
+            elif metric.startswith("achievementCoprocessor") or \
+                 metric.startswith("achievementBenchmarkCoprocessor"):
+                metric, op, type = metric.split('_', 2)
+                metric = metric + '.' + type
+                tags = " op=" + op
 
             # mbean is of the form "domain:key=value,...,foo=bar"
             mbean_domain, mbean_properties = mbean.rstrip().split(":", 1)
