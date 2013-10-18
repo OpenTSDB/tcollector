@@ -10,6 +10,7 @@
 
 PATH=/sbin:/bin:/usr/sbin:/usr/bin
 DAEMON=/usr/bin/tcollector
+EXTRA_TAGS=""
 
 . /lib/lsb/init-functions
 
@@ -25,6 +26,11 @@ EVICT_INTERVAL=${EVICT_INTERVAL-6000}
 HOSTNAME=${HOSTNAME-$(hostname)}
 RUN_AS_USER=${RUN_AS_USER-tcollector}
 RUN_AS_GROUP=${RUN_AS_GROUP-tcollector}
+
+EXTRA_TAGS_OPTS=""
+for TV in $EXTRA_TAGS; do
+    EXTRA_TAGS_OPTS=${EXTRA_TAGS_OPTS}" -t ${TV}"
+done
 
 fix_perms() {
     local file=$1
@@ -58,7 +64,7 @@ case $1 in
             --pidfile "$PIDFILE" --chuid $RUN_AS_USER:$RUN_AS_GROUP\
             --startas $DAEMON -- -c "$COLLECTOR_PATH" -L $TSD_HOSTS\
             -t host=$HOSTNAME --dedup-interval=$DEDUP_INTERVAL\
-            --evict-interval=$EVICT_INTERVAL -P "$PIDFILE" -D
+            --evict-interval=$EVICT_INTERVAL -P "$PIDFILE" -D $EXTRA_TAGS_OPTS
 
         log_end_msg $?
         ;;

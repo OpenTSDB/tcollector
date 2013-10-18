@@ -20,3 +20,8 @@
 # "The numbers are separated by commas and may include ranges.
 # For example: 0,5,7,9-11.
 #CPU_LIST="0"
+
+# A string containing tags to be appended to all tags recieved from
+# from the collectors
+#EXTRA_TAGS="dc=mydatacenter othertag=somevalue"
+
