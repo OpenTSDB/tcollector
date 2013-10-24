@@ -3,6 +3,7 @@ import time
 import simplejson as json
 import requests
 import re
+import sys
  
  
 # Constants
@@ -27,7 +28,7 @@ def get_json(url):
         r = requests.get(url)
     except Exception, e:
         print 'Unable to query url {} - {}'.format(url, e)
-        raise e
+        sys.exit(13)
     if r.status_code == 200:
         try:
             url_json = r.json()
