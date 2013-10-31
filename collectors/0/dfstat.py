@@ -95,9 +95,9 @@ def main():
               device[1] = fs_file
             break
         if not device_found:
-          devices.append((fs_spec, fs_file, fs_vfstype))
+          devices.append([fs_spec, fs_file, fs_vfstype])
       else:
-        devices.append((fs_spec, fs_file, fs_vfstype))
+        devices.append([fs_spec, fs_file, fs_vfstype])
 
 
     for device in devices:
