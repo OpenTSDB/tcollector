@@ -113,6 +113,8 @@ def main():
         if value is not None:
             print "redis.%s %d %s %s" % (metric, ts, value, tags)
 
+    dbre = re.compile("^db\d+$")
+
     while True:
         ts = int(time.time())
 
@@ -131,6 +133,11 @@ def main():
             for key in KEYS:
                 if key in info:
                     print_stat(key, info[key], tags)
+
+            # per database metrics
+            for db in filter(dbre.match, info.keys()):
+                for db_metric in info[db].keys():
+                    print_stat(db_metric, info[db][db_metric], "%s db=%s" % (tags, db))
 
             # get some instant latency information
             # TODO: might be nice to get 95th, 99th, etc here?
