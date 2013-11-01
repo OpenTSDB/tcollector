@@ -34,8 +34,8 @@ def err(e):
 
 def scan_zk_instances():
 	""" Finding out all the runnings instances of zookeeper 
-		-	Using netstat, finds out all listening java processes.	 
-		-	By sending "ruok" string to each listening port, figures out whether zookeeper is running on that port based on the reply.
+	    - Using netstat, finds out all listening java processes.	 
+	    - By sending "ruok" string to each listening port, figures out whether zookeeper is running on that port based on the reply.
 	"""
 
 	instances = []
