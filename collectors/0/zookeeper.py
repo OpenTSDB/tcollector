@@ -33,9 +33,10 @@ def err(e):
 	print >>sys.stderr, e
 
 def scan_zk_instances():
-	""" Finding out all the runnings instances of zookeeper 
-	    - Using netstat, finds out all listening java processes.	 
-	    - By sending "ruok" string to each listening port, figures out whether zookeeper is running on that port based on the reply.
+	""" 
+	Finding out all the runnings instances of zookeeper 
+	- Using netstat, finds out all listening java processes.	 
+	- By sending "ruok" to each listening port, figures out whether zookeeper is running on that port based on the reply.
 	"""
 
 	instances = []
@@ -68,7 +69,7 @@ def scan_zk_instances():
 def main():
 	last_scan = time.time()
 	instances = scan_zk_instances()
-	if not len(instances):
+	if not instances:
 		return 13			# Ask tcollector not to respawn us
 
 	def print_stat(metric, value, tags=""):
