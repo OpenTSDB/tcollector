@@ -36,18 +36,20 @@ def scan_zk_instances():
 	""" 
 	Finding out all the runnings instances of zookeeper 
 	- Using netstat, finds out all listening java processes.	 
-	- By sending "ruok" to each listening port, figures out whether zookeeper is running on that port based on the reply.
+	- By sending "ruok" to each listening port, figures out whether zookeeper is 
+		running on that port based on the reply.
 	"""
 
 	instances = []
-	listen_proc = subprocess.Popen(["netstat", "-lnpt"], stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+	listen_proc = subprocess.Popen(["netstat", "-lnpt"], stdout = subprocess.PIPE, 
+																	stderr = subprocess.PIPE)
 	stdout, stderr = listen_proc.communicate()
 	if listen_proc.returncode != 0:
 		err("Failed to find any listening process: %r" % listen_proc.returncode)
 		return []
 
 	for line in stdout.split("\n"):
-		if not 'java' in line:
+		if not "java" in line:
 			continue
 		listen_sock = line.split()[3]
 		ip = str(listen_sock.split(":")[0])
@@ -89,7 +91,7 @@ def main():
 			tags = "port=%s" % port
 			sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 			try:
-				sock.connect(('127.0.0.1', port))
+				sock.connect(("127.0.0.1", port))
 			except:
 				err("zk instance running at port %d went away" % port)
 			sock.send("mntr\n")
