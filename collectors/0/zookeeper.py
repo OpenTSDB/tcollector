@@ -30,23 +30,23 @@ KEYS = frozenset( [
 		  ] )
 								
 def err(e):
-	print >>sys.stderr, e
+	print >> sys.stderr, e
 
 def scan_zk_instances():
 	""" 
 	Finding out all the runnings instances of zookeeper 
 	- Using netstat, finds out all listening java processes.	 
-	- By sending "ruok" to each listening port, figures out whether zookeeper is 
-		running on that port based on the reply.
+	- Figures out ZK instances among java processes by looking for the 
+	  string "org.apache.zookeeper.server.quorum.QuorumPeerMain" in cmdline.
 	"""
 
-	instances = []
+	instances = {}
 	listen_proc = subprocess.Popen(["netstat", "-lnpt"], stdout = subprocess.PIPE, 
-																	stderr = subprocess.PIPE)
+								   stderr = subprocess.PIPE)
 	stdout, stderr = listen_proc.communicate()
 	if listen_proc.returncode != 0:
 		err("Failed to find any listening process: %r" % listen_proc.returncode)
-		return []
+		return {}
 
 	for line in stdout.split("\n"):
 		if not "java" in line:
@@ -54,18 +54,29 @@ def scan_zk_instances():
 		listen_sock = line.split()[3]
 		ip = str(listen_sock.split(":")[0])
 		port = int(listen_sock.split(":")[1])
-		sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		pid = int(line.split()[6].split("/")[0])
 		try:
-			sock.settimeout(0.5)
-			sock.connect((ip, port))
-			sock.send("ruok\n")
-			data = sock.recv(1024)
+			fd = open("/proc/%d/cmdline" % pid)
+			cmdline = fd.readline()
+			if "org.apache.zookeeper.server.quorum.QuorumPeerMain" in cmdline:
+				sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+				try:
+					sock.settimeout(0.5)
+					sock.connect((ip, port))
+					sock.send("ruok\n")
+					data = sock.recv(1024)
+				except:
+					pass
+				finally:
+					sock.close()
+				if data == "imok":	
+					instances[port] = ip
+					data = ""
 		except:
-			pass
+			err("Java Process (pid %d) listening at port %d went away" % (pid, port))
+			continue
 		finally:
-			sock.close()
-		if data == "imok":
-			instances.append(port)
+			fd.close()
 	return instances 
 
 def main():
@@ -80,7 +91,7 @@ def main():
 
 	while True:
 		ts = time.time()
-		
+
 		# We haven't looked for zookeeper instance recently, let's do that	
 		if ts - last_scan > SCAN_INTERVAL:
 			instances = scan_zk_instances()
@@ -91,9 +102,9 @@ def main():
 			tags = "port=%s" % port
 			sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 			try:
-				sock.connect(("127.0.0.1", port))
+				sock.connect((instances[port], port))
 			except:
-				err("zk instance running at port %d went away" % port)
+				err("ZK Instance listening at port %d went away" % port)
 			sock.send("mntr\n")
 			data = sock.recv(1024)
 			for stat in data.splitlines():
@@ -101,7 +112,8 @@ def main():
 				value = stat.split()[1]
 				if metric in KEYS:
 					print_stat(metric, value, tags)
-
+			sock.close()
+	
 		time.sleep(COLLECTION_INTERVAL)
 	
 if __name__ == "__main__":
