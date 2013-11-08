@@ -133,7 +133,7 @@ def main(argv):
 
     if "os" in nstats:
        ts = nstats["os"]["timestamp"] / 1000  # ms -> s
-    if "timestamp" in nststs:
+    if "timestamp" in nstats:
        ts = nstats["timestamp"] / 1000  # ms -> s
 
     if "indices" in nstats:
