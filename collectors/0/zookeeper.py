@@ -12,7 +12,6 @@ import sys
 import socket
 import time
 import subprocess
-from socket import timeout
 
 COLLECTION_INTERVAL = 15
 SCAN_INTERVAL = 600
@@ -41,14 +40,13 @@ def scan_zk_instances():
     """
 
     instances = {}
-    listen_proc = subprocess.Popen(["netstat", "-lnpt"], stdout = subprocess.PIPE, 
-                                   stderr = subprocess.PIPE)
-    stdout, stderr = listen_proc.communicate()
-    if listen_proc.returncode != 0:
-        err("Failed to find any listening process: %r" % listen_proc.returncode)
-        return {}
+    try:
+        listen_sock = subprocess.check_output(["netstat", "-lnpt"])
+    except subprocess.CalledProcessError:
+        err("netstat directory doesn't exist in PATH variable")
+        return instances
 
-    for line in stdout.split("\n"):
+    for line in listen_sock.split("\n"):
         if not "java" in line:
             continue
         listen_sock = line.split()[3]
