@@ -40,7 +40,7 @@ JMX_SERVICE_RENAMING = {
   "Threading": "datanode.threads",
 }
 
-IGNORED_METRICS = set(["revision", "hdfsUser", "hdfsDate", "hdfsUrl", "date",
+IGNORED_METRICS = frozenset(["revision", "hdfsUser", "hdfsDate", "hdfsUrl", "date",
                        "hdfsRevision", "user", "hdfsVersion", "url", "version",
                        "NamenodeAddress", "Version", "RpcPort", "HttpPort",
                        # These are useless as-is because they represent the
