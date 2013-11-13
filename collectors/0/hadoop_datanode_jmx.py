@@ -102,7 +102,7 @@ def main(argv):
     for item in jps:
       vals = item.split(" ")
       if len(vals) == 2:
-        if vals[1] == "DatanNode":
+        if vals[1] == "DataNode":
           jpid = vals[0]
           break
 
