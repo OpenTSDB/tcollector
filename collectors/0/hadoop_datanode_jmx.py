@@ -21,13 +21,16 @@ import time
 
 from collectors.lib import utils
 
+# How oftent to poll
+INTERVAL="60"
+
 # If this user doesn't exist, we'll exit immediately.
 # If we're running as root, we'll drop privileges using this user.
 USER = "hadoop"
 
 # We add those files to the classpath if they exist.
 CLASSPATH = [
-    "/usr/lib/jvm/java-6-sun/lib/tools.jar",
+    "/usr/lib/jvm/default-java/lib/tools.jar",
 ]
 
 # Map certain JVM stats so they are unique and shorter
@@ -37,7 +40,7 @@ JMX_SERVICE_RENAMING = {
   "Threading": "datanode.threads",
 }
 
-IGNORED_METRICS = set(["revision", "hdfsUser", "hdfsDate", "hdfsUrl", "date",
+IGNORED_METRICS = frozenset(["revision", "hdfsUser", "hdfsDate", "hdfsUrl", "date",
                        "hdfsRevision", "user", "hdfsVersion", "url", "version",
                        "NamenodeAddress", "Version", "RpcPort", "HttpPort",
                        # These are useless as-is because they represent the
@@ -94,12 +97,21 @@ def main(argv):
             classpath.append(jar)
     classpath = ":".join(classpath)
 
+    jpid = "DataNode"
+    jps = subprocess.check_output("jps").split("\n")
+    for item in jps:
+      vals = item.split(" ")
+      if len(vals) == 2:
+        if vals[1] == "DataNode":
+          jpid = vals[0]
+          break
+
     jmx = subprocess.Popen(
         ["java", "-enableassertions", "-enablesystemassertions",  # safe++
          "-Xmx64m",  # Low RAM limit, to avoid stealing too much from prod.
          "-cp", classpath, "com.stumbleupon.monitoring.jmx",
-         "--watch", "10", "--long", "--timestamp",
-         "DataNode",  # Name of the process.
+         "--watch", INTERVAL, "--long", "--timestamp",
+         jpid,  # Name of the process.
          # The remaining arguments are pairs (mbean_regexp, attr_regexp).
          # The first regexp is used to match one or more MBeans, the 2nd
          # to match one or more attributes of the MBeans matched.

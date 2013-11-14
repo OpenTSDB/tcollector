@@ -20,6 +20,9 @@ import sys
 import time
 from collectors.lib import utils
 
+# How oftent to poll
+INTERVAL="60"
+
 # If this user doesn't exist, we'll exit immediately.
 # If we're running as root, we'll drop privileges using this user.
 USER = "hadoop"
@@ -41,6 +44,12 @@ JMX_SERVICE_RENAMING = {
     # New in 0.92.1, from HBASE-5325:
     "org.apache.hbase": "hbase",
 }
+
+IGNORED_METRICS = set(["revision", "hdfsUser", "hdfsDate", "hdfsUrl", "date",
+                       "hdfsRevision", "user", "hdfsVersion", "url", "version",
+                       "Version", "RpcPort", "HttpPort","HeapMemoryUsage",
+                       "NonHeapMemoryUsage"
+                      ])
 
 REPORTED_OPS = frozenset([
   "append",
@@ -89,12 +98,21 @@ def main(argv):
             classpath.append(jar)
     classpath = ":".join(classpath)
 
+    jpid = "HRegionServer"
+    jps = subprocess.check_output("jps").split("\n")
+    for item in jps:
+      vals = item.split(" ")
+      if len(vals) == 2:
+        if vals[1] == "HRegionServer":
+          jpid = vals[0]
+          break
+
     jmx = subprocess.Popen(
         [JAVA, "-enableassertions", "-enablesystemassertions",  # safe++
          "-Xmx64m",  # Low RAM limit, to avoid stealing too much from prod.
          "-cp", classpath, "com.stumbleupon.monitoring.jmx",
-         "--watch", "10", "--long", "--timestamp",
-         "HRegionServer",  # Name of the process.
+         "--watch", INTERVAL , "--long", "--timestamp",
+         jpid,  # Name of the process.
          # The remaining arguments are pairs (mbean_regexp, attr_regexp).
          # The first regexp is used to match one or more MBeans, the 2nd
          # to match one or more attributes of the MBeans matched.
@@ -140,6 +158,9 @@ def main(argv):
                                      % (line, e))
                 continue
             prev_timestamp = timestamp
+
+            if metric in IGNORED_METRICS:
+              continue
 
             tags = ""
             # The JMX metrics have per-request-type metrics like so:
