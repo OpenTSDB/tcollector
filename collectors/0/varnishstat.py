@@ -20,6 +20,7 @@ import json
 import subprocess
 import sys
 import time
+import re
 
 from collectors.lib import utils
 
@@ -52,6 +53,7 @@ vstats = "all"
 
 def main():
  utils.drop_privileges()
+ bad_regex = re.compile("[,()]+")  # avoid forbidden by TSD symbols
 
  while True:
     try:
@@ -75,7 +77,7 @@ def main():
     for line in stats.stdout.readlines():
       metrics += line
     metrics = json.loads(metrics)
-    
+
     timestamp = ""
     if use_varnishstat_timestamp:
       pattern = "%Y-%m-%dT%H:%M:%S"
@@ -84,7 +86,7 @@ def main():
       timestamp = time.time()
 
     for k, v in metrics.iteritems():
-      if k != "timestamp":
+      if k != "timestamp" and None == bad_regex.search(k):
         metric_name = metric_prefix + "." + k
         print "%s %d %s %s" % \
           (metric_name, timestamp, v['value'], ",".join(tags))
