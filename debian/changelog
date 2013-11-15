@@ -1,3 +1,9 @@
+tcollector (1.0-1+bbm) precise; urgency=low
+
+  * BlinkBox Music customisations
+
+ -- tristan <tristan@clonebase.we7.local>  Fri, 15 Nov 2013 23:19:07 +0000
+
 tcollector (1.0) stable; urgency=low
 
   * Initial release.
