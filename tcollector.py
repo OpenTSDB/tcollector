@@ -52,6 +52,9 @@ ALIVE = True
 MAX_UNCAUGHT_EXCEPTIONS = 100
 DEFAULT_PORT = 4242
 MAX_REASONABLE_TIMESTAMP = 1600000000  # Good until September 2020 :)
+#: How long to wait for datapoints before assuming
+#: a collector is dead and restarting it
+ALLOWED_INACTIVITY_TIME = 600
 
 def register_collector(collector):
     """Register a collector with the COLLECTORS global"""
@@ -1112,7 +1115,7 @@ def check_children():
     for col in all_living_collectors():
         now = int(time.time())
 
-        if col.last_datapoint < (now - 600):
+        if col.last_datapoint < (now - ALLOWED_INACTIVITY_TIME):
             # It's too old, kill it
             LOG.warning('Terminating collector %s after %d seconds of inactivity',
                         col.name, now - col.last_datapoint)
