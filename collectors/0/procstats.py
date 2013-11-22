@@ -105,10 +105,15 @@ def main():
         f_meminfo.seek(0)
         ts = int(time.time())
         for line in f_meminfo:
-            m = re.match("(\w+):\s+(\d+)", line)
+            m = re.match("(\w+):\s+(\d+)\s+(\w+)", line)
             if m:
+                if m.group(3).lower() == 'kb':
+                    # convert from kB to B for easier graphing
+                    value = str(int(m.group(2)) * 1000)
+                else:
+                    value = m.group(2)
                 print ("proc.meminfo.%s %d %s"
-                        % (m.group(1).lower(), ts, m.group(2)))
+                        % (m.group(1).lower(), ts, value))
 
         # proc.vmstat
         f_vmstat.seek(0)
