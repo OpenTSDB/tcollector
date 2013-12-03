@@ -87,25 +87,21 @@ def scan_zk_instances():
                     instances.append([ip, port, tcp_version])
                     data = ""
         except:
-            err("Java Process (pid %d) listening at port %d went away" % (pid, port))
             continue
         finally:
             fd.close()
     return instances 
 
-def main():
+def print_stat(metric, ts, value, tags=""):
+    if value is not None:
+        print "zookeeper.%s %i %s %s" % (metric, ts, value, tags)
 
+def main():
     if USER != "root":
         utils.drop_privileges(user=USER)
 
     last_scan = time.time()
     instances = scan_zk_instances()
-    if not instances:
-        return 13  # Ask tcollector not to respawn us
-
-    def print_stat(metric, value, tags=""):
-        if value is not None:
-            print "zookeeper.%s %i %s %s" % (metric, ts, value, tags)
 
     while True:
         ts = time.time()
@@ -114,6 +110,9 @@ def main():
         if ts - last_scan > SCAN_INTERVAL:
             instances = scan_zk_instances()
             last_scan = ts
+
+        if not instances:
+            return 13  # Ask tcollector not to respawn us
 
         # Iterate over every zookeeper instance and get statistics
         for ip, port, tcp_version in instances:
@@ -126,14 +125,16 @@ def main():
                 sock.connect((ip, port))
             except:
                 err("ZK Instance listening at port %d went away" % port)
-            sock.send("mntr\n")
+                instances.remove([ip, port, tcp_version])
+                break
 
+            sock.send("mntr\n")
             data = sock.recv(1024)
             for stat in data.splitlines():
                 metric = stat.split()[0]
                 value = stat.split()[1]
                 if metric in KEYS:
-                    print_stat(metric, value, tags)
+                    print_stat(metric, ts, value, tags)
             sock.close()
 
         time.sleep(COLLECTION_INTERVAL)
