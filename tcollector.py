@@ -742,7 +742,7 @@ def parse_cmdline(argv):
                       default=300, metavar='DEDUPINTERVAL',
                       help='Number of seconds in which successive duplicate '
                            'datapoints are suppressed before sending to the TSD. '
-                           'Zero value turn off it. '
+                           'Use zero to disable. '
                            'default=%default')
     parser.add_option('--evict-interval', dest='evictinterval', type='int',
                       default=6000, metavar='EVICTINTERVAL',
