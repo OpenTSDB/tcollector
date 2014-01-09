@@ -28,9 +28,9 @@ USER = "hadoop"
 
 # Map certain JVM stats so they are unique and shorter
 JMX_SERVICE_RENAMING = {
-  "GarbageCollector": "datanode.gc",
-  "OperatingSystem": "datanode.os",
-  "Threading": "datanode.threads",
+  "GarbageCollector": "master.gc",
+  "OperatingSystem": "master.os",
+  "Threading": "master.threads",
 }
 
 # How many times, maximum, will we attempt to restart the JMX collector.
@@ -67,7 +67,7 @@ def do_on_signal(signum, func, *args, **kwargs):
 
 def main(argv):
     utils.drop_privileges(user=USER)
-    jmx = java.init_jmx_process("DataNode",
+    jmx = java.init_jmx_process("HMaster",
          # The remaining arguments are pairs (mbean_regexp, attr_regexp).
          # The first regexp is used to match one or more MBeans, the 2nd
          # to match one or more attributes of the MBeans matched.
@@ -153,7 +153,7 @@ def main(argv):
               # RegionServer or Replication and such.
               jmx_service = mbean_properties.get("service", "HBase")
               if jmx_service == "HBase":
-                  jmx_service = "regionserver"
+                  jmx_service = "master"
             elif mbean_domain == "java.lang":
                 jmx_service = mbean_properties.pop("type", "jvm")
                 if mbean_properties:
