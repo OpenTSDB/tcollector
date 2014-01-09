@@ -24,7 +24,7 @@ from collectors.lib import java
 
 # If this user doesn't exist, we'll exit immediately.
 # If we're running as root, we'll drop privileges using this user.
-USER = "hbase"
+USER = os.getenv('HADOOP_USER', 'hadoop') 
 
 # We shorten certain strings to avoid excessively long metric names.
 JMX_SERVICE_RENAMING = {
