@@ -5,7 +5,21 @@
 import os
 import subprocess
 
-JAVA_HOME = os.getenv('JAVA_HOME', '/usr/lib/jvm/default-java')
+# use the first directory that exists and appears to be a JDK (not a JRE).
+
+JAVA_HOME = None
+TRY_PATHS = [os.getenv('JAVA_HOME'), '/usr/java/latest', '/usr/lib/jvm/default-java']
+
+for path in TRY_PATHS:
+    # a JDK will have a lib/tools.jar available
+    tools_jar = "%s/lib/tools.jar" % path
+    if os.path.isfile(tools_jar):
+        JAVA_HOME = path
+        break 
+
+if not JAVA_HOME:
+    raise Exception("Cannot find a Java installation which looks like a JDK")
+
 JAVA = "%s/bin/java" % JAVA_HOME
 
 CLASSPATH = [
