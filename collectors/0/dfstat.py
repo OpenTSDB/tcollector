@@ -108,20 +108,29 @@ def main():
         err("error: can't get info for mount point: %s" % fs_file)
         continue
 
+      used_blocks = (r.f_blocks - r.f_bfree)
       print("df.bytes.total %d %s mount=%s fstype=%s"
             % (ts, r.f_frsize * r.f_blocks, fs_file, fs_vfstype))
       print("df.bytes.used %d %s mount=%s fstype=%s"
-            % (ts, r.f_frsize * (r.f_blocks - r.f_bfree), fs_file,
+            % (ts, r.f_frsize * used_blocks, fs_file,
                fs_vfstype))
       print("df.bytes.free %d %s mount=%s fstype=%s"
             % (ts, r.f_frsize * r.f_bfree, fs_file, fs_vfstype))
+      # usage is calculated by using the non-reserved notion of free space (ie f_bavail instead f_bfree)
+      print("df.bytes.usage %d %f mount=%s fstype=%s"
+            % (ts, (used_blocks  * 100.0) / (used_blocks + r.f_bavail), fs_file, fs_vfstype))
 
+      used_inodes = r.f_files - r.f_ffree
       print("df.inodes.total %d %s mount=%s fstype=%s"
             % (ts, r.f_files, fs_file, fs_vfstype))
       print("df.inodes.used %d %s mount=%s fstype=%s"
-            % (ts, (r.f_files - r.f_ffree), fs_file, fs_vfstype))
+            % (ts, used_inodes, fs_file, fs_vfstype))
       print("df.inodes.free %d %s mount=%s fstype=%s"
             % (ts, r.f_ffree, fs_file, fs_vfstype))
+      # see note above
+      print("df.inodes.usage %d %f mount=%s fstype=%s"
+            % (ts, (used_inodes * 100.0) / (used_inodes + r.f_favail), fs_file, fs_vfstype))
+
 
     sys.stdout.flush()
     time.sleep(COLLECTION_INTERVAL)
