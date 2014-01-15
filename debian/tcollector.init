@@ -26,6 +26,8 @@ EVICT_INTERVAL=${EVICT_INTERVAL-6000}
 HOSTNAME=${HOSTNAME-$(hostname)}
 RUN_AS_USER=${RUN_AS_USER-tcollector}
 RUN_AS_GROUP=${RUN_AS_GROUP-tcollector}
+LOGFILE_MAX_BYTES=${LOGFILE_MAX_BYTES-67108864}
+LOGFILE_BACKUP_COUNT=${LOGFILE_BACKUP_COUNT-0}
 
 EXTRA_TAGS_OPTS=""
 for TV in $EXTRA_TAGS; do
@@ -64,6 +66,7 @@ case $1 in
             --pidfile "$PIDFILE" --chuid $RUN_AS_USER:$RUN_AS_GROUP\
             --startas $DAEMON -- -c "$COLLECTOR_PATH" -L $TSD_HOSTS\
             -t host=$HOSTNAME --dedup-interval=$DEDUP_INTERVAL\
+            --max-bytes $LOGFILE_MAX_BYTES --backup-count $LOGFILE_BACKUP_COUNT\
             --evict-interval=$EVICT_INTERVAL -P "$PIDFILE" -D $EXTRA_TAGS_OPTS
 
         log_end_msg $?
