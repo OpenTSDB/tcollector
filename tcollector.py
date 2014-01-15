@@ -273,7 +273,7 @@ class ReaderThread(threading.Thread):
                 combination of (metric, tags).  Values older than
                 evictinterval will be removed from the cache to save RAM.
                 Invariant: evictinterval > dedupinterval
-              default_host_tag: The default host tag to be added if the host tag 
+              default_host_tag: The default host tag to be added if the host tag
                 is not present.
         """
         assert evictinterval > dedupinterval, "%r <= %r" % (evictinterval,
@@ -408,7 +408,7 @@ class SenderThread(threading.Thread):
        buffering we might need to do if we can't establish a connection
        and we need to spool to disk.  That isn't implemented yet."""
 
-    def __init__(self, reader, dryrun, hosts, self_report_stats, tags):
+    def __init__(self, reader, dryrun, hosts, self_report_stats, tags, default_host_tag):
         """Constructor.
 
         Args:
@@ -437,6 +437,7 @@ class SenderThread(threading.Thread):
         self.last_verify = 0
         self.sendq = []
         self.self_report_stats = self_report_stats
+        self.default_host_tag = default_host_tag
 
     def pick_connection(self):
         """Picks up a random host/port connection."""
@@ -575,8 +576,8 @@ class SenderThread(threading.Thread):
                                  + col.name, col.lines_invalid))
 
                 ts = int(time.time())
-                strout = ["tcollector.%s %d %d %s"
-                          % (x[0], ts, x[2], x[1]) for x in strs]
+                strout = ["tcollector.%s %d %d host=%s %s"
+                          % (x[0], ts, x[2], self.default_host_tag, x[1]) for x in strs]
                 for string in strout:
                     self.sendq.append(string)
 
@@ -654,7 +655,7 @@ class SenderThread(threading.Thread):
                 LOG.debug('SENDING: %s', line)
         else:
             out = "".join("put %s%s\n" % (line, self.tagstr) for line in self.sendq)
-            
+
         if not out:
             LOG.debug('send_data no data?')
             return
@@ -883,7 +884,7 @@ def main(argv):
 
     # and setup the sender to start writing out to the tsd
     sender = SenderThread(reader, options.dryrun, options.hosts,
-                          not options.no_tcollector_stats, tagstr)
+                          not options.no_tcollector_stats, tagstr, default_host_tag)
     sender.start()
     LOG.info('SenderThread startup complete')
 
@@ -1148,7 +1149,7 @@ def check_children():
             col.shutdown()
             register_collector(Collector(col.name, col.interval, col.filename,
                                          col.mtime, col.lastspawn))
-        
+
 
 def set_nonblocking(fd):
     """Sets the given file descriptor to non-blocking mode."""
