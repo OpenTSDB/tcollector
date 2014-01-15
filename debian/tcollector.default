@@ -25,3 +25,6 @@
 # from the collectors
 #EXTRA_TAGS="dc=mydatacenter othertag=somevalue"
 
+# Logfile rotation settings
+#LOGFILE_MAX_BYTES=67108864
+#LOGFILE_BACKUP_COUNT=0
