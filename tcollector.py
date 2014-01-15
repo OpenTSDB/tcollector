@@ -319,6 +319,8 @@ class ReaderThread(threading.Thread):
     def process_line(self, col, line):
         """Parses the given line and appends the result to the reader queue."""
 
+        self.lines_collected += 1
+
         col.lines_received += 1
         if len(line) >= 1024:  # Limit in net.opentsdb.tsd.PipelineFactory
             LOG.warning('%s line too long: %s', col.name, line)
