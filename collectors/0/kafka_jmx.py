@@ -93,7 +93,7 @@ def main(argv):
          # The remaining arguments are pairs (mbean_regexp, attr_regexp).
          # The first regexp is used to match one or more MBeans, the 2nd
          # to match one or more attributes of the MBeans matched.
-         "kafka", "",                     # All HBase / hadoop metrics.
+         "kafka", "",                     # All kafka metrics.
          "Threading", "Count|Time$",       # Number of threads and CPU time.
          "OperatingSystem", "OpenFile",    # Number of open files.
          "GarbageCollector", "Collection", # GC runs and time spent GCing.
