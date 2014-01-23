@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2.7
 #
 # Copyright (C) 2013  The tcollector Authors.
 #
@@ -28,7 +28,7 @@ TIME = int(time.time())
 URL = 'http://127.0.0.1:60030/jmx?qry='
 TIMEOUT=5
 # Prefixes
-METRIC_PREFIX = 'hbase.regionserver'
+METRIC_PREFIX = 'hbase.rs'
 TABLE_PREFIX = 'tbl\.'
 CF_PREFIX = 'cf\.'
 BLOCK_TYPE_PREFIX = 'bt\.'
