@@ -22,7 +22,7 @@ import urllib2
 import json
 
 # MBean Data Structure
-Bean = collections.namedtuple('Bean', 'prefix uri filters')
+Bean = collections.namedtuple('Bean', 'prefix uri filters deep')
 # CONST
 TIME = int(time.time())
 URL = 'http://127.0.0.1:60030/jmx?qry='
@@ -49,14 +49,16 @@ FILTER_OPERATIONS = {
 }
 # Key Value MBeans to Query
 MBEANS = [
-    Bean(prefix='rpc', uri=URL + 'hadoop:service=HBase,name=RPCStatistics-60020', filters=['extract_tags', 'extract_operations']),
-    Bean(prefix='dynamic', uri=URL + 'hadoop:service=RegionServer,name=RegionServerDynamicStatistics', filters=['extract_tags', 'extract_operations']),
-    Bean(prefix='stats', uri=URL + 'hadoop:service=RegionServer,name=RegionServerStatistics', filters=['extract_tags', 'extract_operations']),
-    Bean(prefix='replication', uri=URL + 'hadoop:service=Replication,name=ReplicationSink', filters=[]),
-    Bean(prefix='replication.peer', uri=URL + 'hadoop:service=Replication,name=ReplicationSource*', filters=['extract_replication_peers']),
-    Bean(prefix='threads', uri=URL + 'java.lang:type=Threading', filters=[]),
-    Bean(prefix='gc', uri=URL + 'java.lang:type=GarbageCollector,name=*', filters=['extract_garbage_collectors']),
-    Bean(prefix='os', uri=URL + 'java.lang:type=OperatingSystem', filters=[])
+    Bean(prefix='rpc', uri=URL + 'hadoop:service=HBase,name=RPCStatistics-60020', filters=['extract_tags', 'extract_operations'], deep=False),
+    Bean(prefix='dynamic', uri=URL + 'hadoop:service=RegionServer,name=RegionServerDynamicStatistics', filters=['extract_tags', 'extract_operations'], deep=False),
+    Bean(prefix='stats', uri=URL + 'hadoop:service=RegionServer,name=RegionServerStatistics', filters=['extract_tags', 'extract_operations'], deep=False),
+    Bean(prefix='replication', uri=URL + 'hadoop:service=Replication,name=ReplicationSink', filters=[], deep=False),
+    Bean(prefix='replication.peer', uri=URL + 'hadoop:service=Replication,name=ReplicationSource*', filters=['extract_replication_peers'], deep=False),
+    Bean(prefix='threads', uri=URL + 'java.lang:type=Threading', filters=[], deep=False),
+    Bean(prefix='gc', uri=URL + 'java.lang:type=GarbageCollector,name=*', filters=['extract_garbage_collectors'], deep=False),
+    Bean(prefix='os', uri=URL + 'java.lang:type=OperatingSystem', filters=[], deep=False),
+    Bean(prefix='memory', uri=URL + 'java.lang:type=Memory', filters=[], deep=True)
+#    Bean(prefix='optimizely', uri=URL + 'hadoop:service=Optimizely,name=OptlyStats', filters=['extract_optly_metrics'], deep=True) TODO
 ]
 
 def get_json(uri):
@@ -182,6 +184,11 @@ def extract_operations(string, tags, bean):
     return (metric_string, metric_tags)
 
 
+def deep_extract(string, values, bean):
+    for value_key, value_value in values.iteritems():
+        metric_tags = {'type': value_key}
+        yield string, metric_tags, value_value
+
 def extract(string, extractors, bean):
     """ Call methods for each extractor specified
     for this mbean. Return a tuple of (string, dict)
@@ -211,7 +218,10 @@ def main():
         for results in json:
             bean_name = results['name']
             for metric_key, metric_value in results.iteritems():
-                if is_numeric(metric_value):
+                if bean.deep and type(metric_value) is dict:
+                    for metric_string, metric_tags, metric_value in deep_extract(metric_key, metric_value, bean_name):
+                        metrics.append(format_tsd_key('.'.join([METRIC_PREFIX, bean.prefix, metric_string]), metric_value, tags=metric_tags))
+                elif is_numeric(metric_value):
                     (metric_string, metric_tags) = extract(metric_key, bean.filters, bean_name)
                     metrics.append(format_tsd_key('.'.join([METRIC_PREFIX, bean.prefix, metric_string]), metric_value, tags=metric_tags))
 
