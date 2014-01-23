@@ -57,8 +57,8 @@ MBEANS = [
     Bean(prefix='threads', uri=URL + 'java.lang:type=Threading', filters=[], deep=False),
     Bean(prefix='gc', uri=URL + 'java.lang:type=GarbageCollector,name=*', filters=['extract_garbage_collectors'], deep=False),
     Bean(prefix='os', uri=URL + 'java.lang:type=OperatingSystem', filters=[], deep=False),
-    Bean(prefix='memory', uri=URL + 'java.lang:type=Memory', filters=[], deep=True)
-#    Bean(prefix='optimizely', uri=URL + 'hadoop:service=Optimizely,name=OptlyStats', filters=['extract_optly_metrics'], deep=True) TODO
+    Bean(prefix='memory', uri=URL + 'java.lang:type=Memory', filters=[], deep=True),
+    Bean(prefix='optimizely', uri=URL + 'hadoop:service=Optimizely,name=OptlyStats', filters=['extract_optly_metrics'], deep=False)
 ]
 
 def get_json(uri):
@@ -123,6 +123,17 @@ def extract_tags(string, tags, bean):
             metric_tags.update(new_tag)
     return (metric_string, metric_tags)
 
+
+def extract_optly_metrics(string, tags, bean):
+    metric_string = string
+    metric_tags = tags
+
+    parts = string.split('_', 2)
+    if len(parts) == 3:
+        metric_string = parts[0]
+        metric_tags.update({"op": parts[1], "type": parts[2]})
+
+    return (metric_string, metric_tags)
 
 def extract_replication_peers(string, tags, bean):
     """ Extract replication stats for each
