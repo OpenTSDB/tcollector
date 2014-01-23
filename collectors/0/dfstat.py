@@ -17,9 +17,11 @@
 #
 # df.bytes.total        total size of fs
 # df.bytes.used         bytes used
+# df.bytes.percentused  percentage of bytes used
 # df.bytes.free         bytes free
 # df.inodes.total       number of inodes
 # df.inodes.used        number of inodes
+# df.inodes.percentused percentage of inodes used
 # df.inodes.free        number of inodes
 
 # All metrics are tagged with mount= and fstype=
@@ -108,18 +110,25 @@ def main():
         err("error: can't get info for mount point: %s" % fs_file)
         continue
 
+      used = r.f_blocks - r.f_bfree
+      percent_used = 100 if r.f_blocks == 0 else used * 100.0 / r.f_blocks
       print("df.bytes.total %d %s mount=%s fstype=%s"
             % (ts, r.f_frsize * r.f_blocks, fs_file, fs_vfstype))
       print("df.bytes.used %d %s mount=%s fstype=%s"
-            % (ts, r.f_frsize * (r.f_blocks - r.f_bfree), fs_file,
-               fs_vfstype))
+            % (ts, r.f_frsize * used, fs_file, fs_vfstype))
+      print("df.bytes.percentused %d %s mount=%s fstype=%s"
+            % (ts, percent_used, fs_file, fs_vfstype))
       print("df.bytes.free %d %s mount=%s fstype=%s"
             % (ts, r.f_frsize * r.f_bfree, fs_file, fs_vfstype))
 
+      used = r.f_files - r.f_ffree
+      percent_used = 100 if r.f_files == 0 else used * 100.0 / r.f_files
       print("df.inodes.total %d %s mount=%s fstype=%s"
             % (ts, r.f_files, fs_file, fs_vfstype))
       print("df.inodes.used %d %s mount=%s fstype=%s"
-            % (ts, (r.f_files - r.f_ffree), fs_file, fs_vfstype))
+            % (ts, used, fs_file, fs_vfstype))
+      print("df.inodes.percentused %d %s mount=%s fstype=%s"
+            % (ts, percent_used,  fs_file, fs_vfstype))
       print("df.inodes.free %d %s mount=%s fstype=%s"
             % (ts, r.f_ffree, fs_file, fs_vfstype))
 
