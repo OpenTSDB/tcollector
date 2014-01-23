@@ -111,7 +111,7 @@ def main():
         continue
 
       used = r.f_blocks - r.f_bfree
-      percent_used = 100 if r.f_bfree == 0 else int(used / float(r.f_frsize) * 100)
+      percent_used = 100 if r.f_blocks == 0 else int(used / float(r.f_blocks) * 100)
       print("df.bytes.total %d %s mount=%s fstype=%s"
             % (ts, r.f_frsize * r.f_blocks, fs_file, fs_vfstype))
       print("df.bytes.used %d %s mount=%s fstype=%s"
