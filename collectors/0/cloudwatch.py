@@ -93,7 +93,7 @@ def emit(name, value, tags=None, ts=None):
     sys.stdout.write("\n")
 
 
-def emit_metric_for_instance(cw, metric, instance):
+def emit_metric_for_instance(cw, metric, instance, region_name):
     results = cw.get_metric_statistics(
         60,
         datetime.datetime.now() - datetime.timedelta(seconds=600),
@@ -107,7 +107,10 @@ def emit_metric_for_instance(cw, metric, instance):
     for result in results:
         name = 'aws.ec2.instance.%s' % (metric['name'])
         value = result[metric['stat']]
-        tags = {'instance-id': instance.id, 'placement': instance.placement, 'instance-type': instance.instance_type}
+        tags = {'instance-id': instance.id,
+                'placement': instance.placement,
+                'instance-type': instance.instance_type,
+                'region': region_name}
         if 'Name' in instance.tags:
             tags['host'] = instance.tags['Name']
         emit(name, value, tags=tags, ts=result['Timestamp'])
@@ -146,7 +149,7 @@ def emit_ec2_metrics(pool, cw, region_name):
 
     for instance in all_instances:
         for metric in EC2_METRICS:
-            pool.spawn(emit_metric_for_instance, cw, metric, instance)
+            pool.spawn(emit_metric_for_instance, cw, metric, instance, region_name)
 
 
 def emit_elb_metrics(pool, cw, region_name):
