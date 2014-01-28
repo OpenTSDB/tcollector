@@ -48,6 +48,8 @@ class Interface(object):
     statistics = counters.statistics
     for counter in statistics.attributes:
       value = getattr(statistics, counter)
+      if value is None:
+        continue
       m = re.match("(in|out)([A-Z])(.*)", counter)
       if m:
         tag, first, rest = m.groups()
