@@ -22,6 +22,8 @@ from boto.ec2.elb import ELBConnection
 import gevent
 from gevent.pool import Pool
 
+REGION_LIST = os.environ.get('CLOUDWATCH_REGION_LIST', 'us-east-1').split(',')
+
 ELB_METRICS = {
         "RequestCount": "Sum",
         "HealthyHostCount": "Minimum",
@@ -31,7 +33,8 @@ ELB_METRICS = {
         "HTTPCode_Backend_2XX": "Sum",
         "HTTPCode_Backend_3XX": "Sum",
         "HTTPCode_Backend_4XX": "Sum",
-        "HTTPCode_Backend_5XX": "Sum"
+        "HTTPCode_Backend_5XX": "Sum",
+        "Latency": "Average",
     }
 
 
@@ -95,7 +98,7 @@ def emit(name, value, tags=None, ts=None):
 
 def emit_metric_for_instance(cw, metric, instance, region_name):
     results = cw.get_metric_statistics(
-        60,
+        60, # period = 1 min
         datetime.datetime.now() - datetime.timedelta(seconds=600),
         datetime.datetime.now(),
         metric['name'],
@@ -116,17 +119,22 @@ def emit_metric_for_instance(cw, metric, instance, region_name):
         emit(name, value, tags=tags, ts=result['Timestamp'])
 
 
-# work in progress
-def emit_metric_for_loadbalancer(cw, metric, lb_name):
+def emit_metric_for_loadbalancer(cw, metric, lb_name, region_name):
     results = cw.get_metric_statistics(
-        60,
-        datetime.datetime.now() - datetime.timedelta(seconds=600),
+        60, # period = 1 min
+        datetime.datetime.now() - datetime.timedelta(seconds=600), # 10 mins ago
         datetime.datetime.now(),
         metric['name'],
         'AWS/ELB',
         metric['stat'],
-        dimensions={'Name': 'LoadBalancerName', 'value': lb_name})
-    print(results, file=sys.stderr)
+        dimensions={'LoadBalancerName': lb_name})
+
+    for result in results:
+        name = 'aws.ec2.elb.%s' % (metric['name'])
+        value = result[metric['stat']]
+        tags = {'elb_name': lb_name,
+                'region': region_name}
+        emit(name, value, tags=tags, ts=result['Timestamp'])
 
 
 # work in progress
@@ -143,13 +151,15 @@ def emit_metric_for_billing(cw, item_name):
 
 
 def emit_ec2_metrics(pool, cw, region_name):
-    ec2 = boto.ec2.connect_to_region(region_name=region_name)
-    chain = itertools.chain.from_iterable
-    all_instances = list(chain([res.instances for res in ec2.get_all_instances()]))
-
-    for instance in all_instances:
-        for metric in EC2_METRICS:
-            pool.spawn(emit_metric_for_instance, cw, metric, instance, region_name)
+    try:
+        ec2 = boto.ec2.connect_to_region(region_name=region_name)
+        chain = itertools.chain.from_iterable
+        all_instances = list(chain([res.instances for res in ec2.get_all_instances()]))
+        for instance in all_instances:
+            for metric in EC2_METRICS:
+                pool.spawn(emit_metric_for_instance, cw, metric, instance, region_name)
+    except Exception as e:
+        print(e, file=sys.stderr)
 
 
 def emit_elb_metrics(pool, cw, region_name):
@@ -159,10 +169,9 @@ def emit_elb_metrics(pool, cw, region_name):
         for name in lbs:
             for metric_name in ELB_METRICS:
                 metric = {'name': metric_name, 'stat': ELB_METRICS[metric_name]}
-                pool.spawn(emit_metric_for_loadbalancer, cw, metric, name)
+                pool.spawn(emit_metric_for_loadbalancer, cw, metric, name, region_name)
     except Exception as e:
         print(e, file=sys.stderr)
-        pass
 
 
 def emit_billing_metrics(pool, cw):
@@ -175,16 +184,16 @@ def main():
 
     while True:
         pool = Pool(10)
-        for region in regions():
-            cw = boto.ec2.cloudwatch.CloudWatchConnection(region=region)
+        for region_name in REGION_LIST:
+            cw = boto.ec2.cloudwatch.connect_to_region(region_name=region_name)
             # emit_billing_metrics(pool, cw)
-            emit_ec2_metrics(pool, cw, region.name)
-            # emit_elb_metrics(pool, cw, region.name)
+            emit_ec2_metrics(pool, cw, region_name)
+            emit_elb_metrics(pool, cw, region_name)
 
         pool.join()
 
         print("Sleeping...", file=sys.stderr)
-        gevent.sleep(300)  # sleep for 1 minute
+        gevent.sleep(300)  # sleep for 5 minutes
 
 if __name__ == '__main__':
     main()
