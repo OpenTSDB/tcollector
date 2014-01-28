@@ -158,7 +158,7 @@ def emit_ec2_metrics(pool, cw, region_name):
     try:
         ec2 = boto.ec2.connect_to_region(region_name=region_name)
         chain = itertools.chain.from_iterable
-        all_instances = list(chain([res.instances for res in ec2.get_all_instances()]))
+        all_instances = chain([res.instances for res in ec2.get_all_instances()])
         for instance in all_instances:
             for metric in EC2_METRICS:
                 pool.spawn(emit_metric_for_instance, cw, metric, instance, region_name)
