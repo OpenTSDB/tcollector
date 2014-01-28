@@ -97,9 +97,11 @@ def emit(name, value, tags=None, ts=None):
 
 
 def emit_metric_for_instance(cw, metric, instance, region_name):
+    # 1 minute periods come at an extra charge
+    # 5 minute period available for free
     results = cw.get_metric_statistics(
-        60, # period = 1 min
-        datetime.datetime.now() - datetime.timedelta(seconds=600),
+        300, # period = 5 min
+        datetime.datetime.now() - datetime.timedelta(seconds=600), # 10 mins ago
         datetime.datetime.now(),
         metric['name'],
         'AWS/EC2',
@@ -120,8 +122,10 @@ def emit_metric_for_instance(cw, metric, instance, region_name):
 
 
 def emit_metric_for_loadbalancer(cw, metric, lb_name, region_name):
+    # 1 minute periods come at an extra charge
+    # 5 minute period available for free
     results = cw.get_metric_statistics(
-        60, # period = 1 min
+        300, # period = 5 min
         datetime.datetime.now() - datetime.timedelta(seconds=600), # 10 mins ago
         datetime.datetime.now(),
         metric['name'],
