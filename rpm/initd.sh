@@ -41,7 +41,7 @@ if [ -z "$OPTIONS" ]; then
 fi
 
 sanity_check() {
-  for i in "$PIDFILE" "$LOG"; do
+  for i in "$PIDFILE" "$LOGFILE"; do
     # If the file doesn't exist, check that we have write access to its parent
     # directory to be able to create it.
     test -e "$i" || i=`dirname "$i"`

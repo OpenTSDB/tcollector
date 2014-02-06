@@ -48,7 +48,8 @@ JMX_SERVICE_RENAMING = {
 IGNORED_METRICS = set(["revision", "hdfsUser", "hdfsDate", "hdfsUrl", "date",
                        "hdfsRevision", "user", "hdfsVersion", "url", "version",
                        "Version", "RpcPort", "HttpPort","HeapMemoryUsage",
-                       "NonHeapMemoryUsage"
+                       "NonHeapMemoryUsage", "tag.Context", "tag.Hostname",
+                       "tag.SessionId"
                       ])
 
 REPORTED_OPS = frozenset([
@@ -107,6 +108,8 @@ def main(argv):
           jpid = vals[0]
           break
 
+    # in HBase 0.94 the mbean domain is hadoop
+    # in HBase 0.96 it is Hadoop (captical H)
     jmx = subprocess.Popen(
         [JAVA, "-enableassertions", "-enablesystemassertions",  # safe++
          "-Xmx64m",  # Low RAM limit, to avoid stealing too much from prod.
@@ -116,7 +119,7 @@ def main(argv):
          # The remaining arguments are pairs (mbean_regexp, attr_regexp).
          # The first regexp is used to match one or more MBeans, the 2nd
          # to match one or more attributes of the MBeans matched.
-         "hadoop", "",                     # All HBase / hadoop metrics.
+         "[Hh]adoop", "",                  # All HBase / hadoop metrics.
          "Memory$", "",                    # Heap stats
          "Threading", "Count|Time$",       # Number of threads and CPU time.
          "OperatingSystem", "OpenFile",    # Number of open files.
@@ -214,16 +217,18 @@ def main(argv):
 
             # mbean is of the form "domain:key=value,...,foo=bar"
             mbean_domain, mbean_properties = mbean.rstrip().split(":", 1)
-            if mbean_domain not in ("hadoop", "java.lang"):
+            if mbean_domain not in ("Hadoop", "hadoop", "java.lang"):
                 print >>sys.stderr, ("Unexpected mbean domain = %r on line %r"
                                      % (mbean_domain, line))
                 continue
             mbean_properties = dict(prop.split("=", 1)
                                     for prop in mbean_properties.split(","))
-            if mbean_domain == "hadoop":
-              # Ignore metrics from RegionServerDynamicStatistics which
-              # contain some metrics on per-region or per-column-family bases
-              if  mbean_properties.get("name") == "RegionServerDynamicStatistics":
+            if mbean_domain in ("Hadoop", "hadoop"):
+              # Ignore metrics from RegionServerDynamicStatistics (0.94) or
+              # Regions (0.96 and later), which contain some metrics on
+              # per-region or per-column-family bases
+              if (mbean_properties.get("name") == "RegionServerDynamicStatistics"
+                  or mbean_properties.get("sub") == "Regions"):
                 continue
 
               # jmx_service is HBase by default, but we can also have
