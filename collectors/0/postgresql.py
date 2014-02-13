@@ -89,29 +89,24 @@ def collect(db):
     ts = time.time()
     stats = cursor.fetchall()
 
+#  datid |  datname   | numbackends | xact_commit | xact_rollback | blks_read  |  blks_hit   | tup_returned | tup_fetched | tup_inserted | tup_updated | tup_deleted | conflicts | temp_files |  temp_bytes  | deadlocks | blk_read_time | blk_write_time |          stats_reset          |     size     
     result = {}
     for stat in stats:
-      info = {}
-      info["numbackends"] = stat[2]
-      info["xact_commit"] = stat[3]
-      info["xact_rollback"] = stat[4]
-      info["blks_read"] = stat[5]
-      info["blks_hit"] = stat[6]
-      info["tup_returned"] = stat[7]
-      info["tup_fetched"] = stat[8]
-      info["tup_inserted"] = stat[9]
-      info["tup_updated"] = stat[10]
-      info["tup_deleted"] = stat[11]
-      info["conflicts"] = stat[12]
-      info["size"] = stat[14]
-
       database = stat[1]
-      result[database] = info
+      result[database] = stat
 
     for database in result:
-      for metric, value in info.iteritems():
-        print ("postgresql.%s %i %s database=%s"
-               % (metric, ts, value, database))
+      for i in range(2,len(cursor.description)):
+        metric = cursor.description[i].name
+        value = result[database][i]
+        try:
+          if metric in ("stats_reset"):
+            continue
+          print ("postgresql.%s %i %s database=%s"
+                 % (metric, ts, value, database))
+        except:
+          err("got here")
+          continue
 
     # connections
     cursor.execute("SELECT datname, count(datname) FROM pg_stat_activity"
@@ -122,8 +117,6 @@ def collect(db):
     for database, connection in connections:
       print ("postgresql.connections %i %s database=%s"
              % (ts, connection, database))
-
-    cursor.close()
 
   except (EnvironmentError, EOFError, RuntimeError, socket.error), e:
     if isinstance(e, IOError) and e[0] == errno.EPIPE:
@@ -145,6 +138,7 @@ def main(args):
     return 13 # Ask tcollector to not respawn us
 
   db = postgres_connect(sockdir)
+  db.autocommit=True
 
   while True:
     collect(db)
