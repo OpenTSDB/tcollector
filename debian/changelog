@@ -1,3 +1,9 @@
+tcollector (1.0-3+bbm) precise; urgency=low
+
+  * Fix postgresql colletor
+
+ -- tristan <tristan@clonebase.we7.local>  Thu, 06 Feb 2014 08:09:24 +0000
+
 tcollector (1.0-2+bbm) precise; urgency=low
 
   * Rebase on new upstream, includes fixes, and zookeeper collector 
