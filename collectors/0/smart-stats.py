@@ -192,6 +192,10 @@ def main():
 
   # Get the list of block devices.
   drives = [dev[5:] for dev in glob.glob("/dev/[hs]d[a-z]")]
+  # Exit gracefully if no block devices found
+  if not drives:
+    sys.exit(13)
+
 
   # to make sure we are done with smartctl in COMMAND_TIMEOUT seconds
   signal.signal(signal.SIGALRM, alarm_handler)
