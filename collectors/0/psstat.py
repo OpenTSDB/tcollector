@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
- v 0.1-4
+ v 0.1-6
  This requires a configuration file to be placed a /<class>/shared/conf/psstat.conf
  The format of the configuration is:
  imagename<white space>regex
@@ -32,12 +32,15 @@ METRIC_PREFIX = "proc.stat.ps"
 #Maximum length of input lines
 MAX_LINE_LEN = 2048
 CLOCKTICK = os.sysconf('SC_CLK_TCK')
+PAGESIZE = os.sysconf('SC_PAGESIZE')
 THREADS = 15
 #Time to wait in a loop for config file to be populated
 CONF_WAIT = 180
 #To speficy a custom path and file for configuration, place it here. eg. CONF_OVERRIDE = "/my/path/to/myconf.conf"
 #Otherwise leave this as key word None for normal operation
 CONF_OVERRIDE = None
+#Time period we use to calculate % CPU usage, in seconds
+CPU_SLEEP = 1
 
 
 class Worker(Thread):
@@ -178,6 +181,8 @@ def getmem(proc, pidlist):
         oneline = oneline.split()
         total += int(oneline[0])
         resident += int(oneline[1])
+    total *= PAGESIZE
+    resident *= PAGESIZE
     tnow = time()
     data = METRIC_PREFIX + ".mem %0.0f %0.0f image=%s type=total\n" % (tnow, total, proc)
     data += METRIC_PREFIX + ".mem %0.0f %0.0f image=%s type=resident\n" % (tnow, resident, proc)
@@ -212,7 +217,7 @@ def getcputicktime(pid):
 
 def getpcpu(proc, pid):
     (tt1, t1) = getcputicktime(pid)
-    sleep(1)
+    sleep(CPU_SLEEP)
     (tt2, t2) = getcputicktime(pid)
     if (t2 is None or t1 is None): return None
     t = (tt2 - tt1) / float(CLOCKTICK)
