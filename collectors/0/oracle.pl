@@ -248,9 +248,9 @@ while (!$killed) {
   while (($sid,$connection_info) = each(%$connections)) {
     next if !$connection_info->{DBH};
     if ($report_instance_tag) {
-       collect_stats($connection_info->{STATEMENTS}[0],$connection_info->{STATEMENTS}[1],$sid); 
+       collect_stats($connection_info,$sid); 
     } else {
-       collect_stats($connection_info->{STATEMENTS}[0],$connection_info->{STATEMENTS}[1],0); 
+       collect_stats($connection_info,0); 
     }
   }
  
@@ -307,7 +307,7 @@ sub maintain_connections {
 sub prepare_statements {
 
   my $dbh = shift;
-  my ($sql,$stat_sth,$wait_sth);
+  my ($sql,$stat_sth,$wait_sth,$dataguard_sth);
 
   # Fetch data from v$sysstat
   $sql = q{
@@ -342,14 +342,51 @@ sub prepare_statements {
 
   $wait_sth = $dbh->prepare($sql);
 
-  return ($stat_sth,$wait_sth);
+  $sql = q{
+    select 
+      d.destination,
+      current_log.seq-max_applied_log.seq seq_diff
+    from 
+    (
+     -- Current max archived log on primary for this incarnation
+      select max(sequence#) seq
+      from V$ARCHIVED_LOG l
+      where resetlogs_change# = (
+        select resetlogs_change# from V$DATABASE
+      )
+      and standby_dest = 'NO'  
+    ) current_log, 
+    (
+     -- Max applied log on each standby 
+     select dest_id,max(sequence#) seq
+     from V$ARCHIVED_LOG
+     where resetlogs_change# = (
+       select resetlogs_change# from V$DATABASE
+     )
+     and applied = 'YES'
+     group by dest_id 
+    ) max_applied_log, 
+    (
+     -- Active standbys
+     select dest_id,destination,delay_mins
+     from V$ARCHIVE_DEST
+     where target = 'STANDBY'
+     and status in ('VALID','ERROR','DEFERRED')
+    ) d
+    where d.dest_id = max_applied_log.dest_id
+  };
+
+  $dataguard_sth = $dbh->prepare($sql);
+
+  return ($stat_sth,$wait_sth,$dataguard_sth);
 
 }
 
 # Collect stats from particular instance
 sub collect_stats {
 
-  my ($stat_sth,$wait_sth,$instance_tag) = @_;
+  my ($connection_info,$instance_tag) = @_;
+  my ($stat_sth,$wait_sth,$dataguard_sth) = @{$connection_info->{STATEMENTS}};
 
   # Add instance tag if requested
   $instance_tag = $instance_tag ? "instance=$instance_tag" : "" ;
@@ -405,6 +442,12 @@ sub collect_stats {
     print("oracle.wait.waits $current_time $row->{TOTAL_WAITS} class=$row->{WAIT_CLASS} $instance_tag\n");
     print("oracle.wait.timeouts $current_time $row->{TOTAL_TIMEOUTS} class=$row->{WAIT_CLASS} $instance_tag\n");
     print("oracle.wait.time_waited $current_time $row->{TIME_WAITED} class=$row->{WAIT_CLASS} $instance_tag\n");
+  }
+
+  # Dataguard stats
+  $dataguard_sth->execute() or return(0);
+  while ($row = $dataguard_sth->fetchrow_hashref()) {
+    print("oracle.standby_gap $current_time $row->{SEQ_DIFF} dest=$row->{DESTINATION} $instance_tag\n");
   }
   
   return 1;
