@@ -24,6 +24,7 @@ except ImportError:
 import socket
 import sys
 import time
+import re
 
 from collectors.lib import utils
 
@@ -32,6 +33,10 @@ COLLECTION_INTERVAL = 15  # seconds
 DEFAULT_TIMEOUT = 10.0    # seconds
 ES_HOST = "localhost"
 ES_PORT = 9200  # TCP port on which ES listens.
+
+# regexes to separate differences in version numbers
+PRE_VER1 = re.compile(r'^0\.')
+VER1 = re.compile(r'^1\.')
 
 STATUS_MAP = {
   "green": 0,
@@ -74,8 +79,19 @@ def cluster_state(server):
                  + "?filter_routing_table=true&filter_metadata=true&filter_blocks=true")
 
 
-def node_stats(server):
-  return request(server, "/_cluster/nodes/_local/stats")
+def node_status(server):
+  return request(server, "/")
+
+
+def node_stats(server, version):
+  # API changed in v1.0
+  if PRE_VER1.match(version):
+    url = "/_cluster/nodes/_local/stats"
+  # elif VER1.match(version):
+  #   url = "/_nodes/_local/stats"
+  else:
+    url = "/_nodes/_local/stats"
+  return request(server, url)
 
 
 def main(argv):
@@ -92,7 +108,9 @@ def main(argv):
     err("This collector requires the `json' Python module.")
     return 1
 
-  nstats = node_stats(server)
+  status = node_status(server)
+  version = status["version"]["number"]
+  nstats = node_stats(server, version)
   cluster_name = nstats["cluster_name"]
   nodeid, nstats = nstats["nodes"].popitem()
 
@@ -108,7 +126,7 @@ def main(argv):
 
   while True:
     ts = int(time.time())
-    nstats = node_stats(server)
+    nstats = node_stats(server, version)
     # Check that the node's identity hasn't changed in the mean time.
     if nstats["cluster_name"] != cluster_name:
       err("cluster_name changed from %r to %r"
