@@ -18,7 +18,7 @@ import sys
 import time
 import re
 
-from collectors.lib import utils
+from lib import utils
 
 
 # /proc/net/dev has 16 fields, 8 for receive and 8 for transmit,

@@ -19,7 +19,7 @@ import re
 import sys
 import time
 
-from collectors.lib import utils
+from lib import utils
 
 COLLECTION_INTERVAL = 60  # seconds
 NUMADIR = "/sys/devices/system/node"

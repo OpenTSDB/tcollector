@@ -62,7 +62,7 @@ import resource
 import sys
 import time
 
-from collectors.lib import utils
+from lib import utils
 
 
 def main():

@@ -19,8 +19,8 @@ import subprocess
 import sys
 import time
 
-from collectors.lib import utils
-from collectors.lib import java
+from lib import utils
+from lib import java
 
 # If this user doesn't exist, we'll exit immediately.
 # If we're running as root, we'll drop privileges using this user.

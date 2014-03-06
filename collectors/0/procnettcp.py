@@ -53,7 +53,7 @@ import pwd
 import sys
 import time
 
-from collectors.lib import utils
+from lib import utils
 
 
 USERS = ("root", "www-data", "mysql")

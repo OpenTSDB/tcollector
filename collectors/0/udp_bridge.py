@@ -15,7 +15,7 @@
 
 import socket
 import sys
-from collectors.lib import utils
+from lib import utils
 
 try:
   from collectors.etc import udp_bridge_conf
