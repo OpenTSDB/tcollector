@@ -47,10 +47,10 @@ def add_collectors_for_role(role):
         for file in files:
             source = "%s/%s" % (freq_collectors_dir, file)
             name = '%s/%s' % (base_dir, file)
-            shutil.copyfile(source, name)
+            shutil.copy(source, name)
 
 def create_tarball(role):
-    shutil.copyfile('tcollector.py', '%s/tcollector.py' % temp_dir)
+    shutil.copy('tcollector.py', '%s/tcollector.py' % temp_dir)
     shutil.copytree('lib', '%s/lib' % temp_dir)
 
     filename = '%s/tcollector-%s.tar.gz' % (build_dir, role)
