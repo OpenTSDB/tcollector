@@ -24,7 +24,7 @@ from collectors.lib import java
 
 # If this user doesn't exist, we'll exit immediately.
 # If we're running as root, we'll drop privileges using this user.
-USER = "flume"
+USER = "optimizely"
 
 # Map certain JVM stats so they are unique and shorter
 JMX_SERVICE_RENAMING = {
