@@ -61,7 +61,12 @@ def create_tarball_for_role(role):
 
     create_tarball(role)
 
+def clean():
+  shutil.rmtree(build_dir)
+
 def main():
+    clean()
+
     os.mkdir(tcollector_dir)
     os.mkdir("%s/collectors" % tcollector_dir)
 
