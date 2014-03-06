@@ -792,9 +792,9 @@ def daemonize():
 def setup_python_path(argv0):
     """Sets up PYTHONPATH so that collectors can easily import common code."""
     mydir = os.path.abspath(os.path.dirname(argv0))
-    libdir = os.path.join(mydir, 'collectors', 'lib')
+    libdir = os.path.join(mydir, 'lib')
     if not os.path.isdir(libdir):
-        return
+      raise Exception("Unable to find lib directory in expected location (at [cwd]/lib)")
     pythonpath = os.environ.get('PYTHONPATH', '')
     if pythonpath:
         pythonpath += ':'

@@ -52,6 +52,7 @@ def add_collectors_for_role(role):
 def create_tarball(role):
     shutil.copy('tcollector.py', '%s/tcollector.py' % temp_dir)
     shutil.copytree('lib', '%s/lib' % temp_dir)
+    shutil.copytree('collectors/etc', '%s/collectors/etc' % temp_dir)
 
     filename = '%s/tcollector-%s.tar.gz' % (build_dir, role)
     subprocess.call(['tar', 'chfz', filename, '-C', temp_dir, '.'])
