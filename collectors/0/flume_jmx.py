@@ -25,6 +25,7 @@ from lib import java
 # If this user doesn't exist, we'll exit immediately.
 # If we're running as root, we'll drop privileges using this user.
 USER = "optimizely"
+NUMBERED_PATTERN = re.compile(r'^(.*-)(\d+)$')
 
 # Map certain JVM stats so they are unique and shorter
 JMX_SERVICE_RENAMING = {
@@ -139,6 +140,7 @@ def main(argv):
                 tags = " op=" + metric[:-7]
                 metric = "maxTime"
 
+
             # mbean is of the form "domain:key=value,...,foo=bar"
             # some tags can have spaces, so we need to fix that.
             mbean_domain, mbean_properties = mbean.rstrip().replace(" ", "_").split(":", 1)
@@ -152,7 +154,17 @@ def main(argv):
                 # for flume we use the mbean domain as the prefix
                 # this has the form org.apache.flume.source, we strip out the org.apache.flume. part
                 jmx_service = mbean_domain[len("org.apache.flume."):]
-                tags += " type=" + mbean_properties['type']
+
+                # convert channel/sink/source names that are formatted like 'channel-type-1' into
+                # two tags type=channel-type num=1
+                # this is useful for combining channels/sources/sinks of the same type
+                match = NUMBERED_PATTERN.match(type)
+                type = mbean_properties['type']
+                if match:
+                  type = match.group(1)[:-1]
+                  tags += " type=%s num=%s" % (type, match.group(2))
+                else:
+                  tags += " type=" + type
 
             jmx_service = JMX_SERVICE_RENAMING.get(jmx_service, jmx_service)
             metric = jmx_service.lower() + "." + metric
