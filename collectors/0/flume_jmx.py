@@ -180,13 +180,13 @@ def main(argv):
                 # convert channel/sink/source names that are formatted like 'channel-type-1' into
                 # two tags type=channel-type num=1
                 # this is useful for combining channels/sources/sinks of the same type
-                match = NUMBERED_PATTERN.match(type)
-                type = mbean_properties['type']
+                type_ = mbean_properties['type']
+                match = NUMBERED_PATTERN.match(type_)
                 if match:
-                  type = match.group(1)[:-1]
-                  tags += " type=%s num=%s" % (type, match.group(2))
+                  type_ = match.group(1)[:-1]
+                  tags += " type=%s num=%s" % (type_, match.group(2))
                 else:
-                  tags += " type=" + type
+                  tags += " type=" + type_
 
             jmx_service = JMX_SERVICE_RENAMING.get(jmx_service, jmx_service)
             metric = jmx_service.lower() + "." + metric
