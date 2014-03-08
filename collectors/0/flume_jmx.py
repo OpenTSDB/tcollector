@@ -77,7 +77,7 @@ def get_max_version_pid(procs):
         # org.apache.flume.node.Application -n agent -f /opt/backend/versions/212/resources/flume/flume.conf
         # we ant to extract 212 from the above line
         flume_path = cmd.split(' ')[-1]
-        ver = int(flume_path..split('/')[3])
+        ver = int(flume_path.split('/')[3])
         if ver > max_ver:
             ret = pid
     return ret
