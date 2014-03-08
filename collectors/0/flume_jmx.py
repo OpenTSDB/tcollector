@@ -97,6 +97,8 @@ def main(argv):
         do_on_signal(signal.SIGPIPE, kill, jmx)
         do_on_signal(signal.SIGTERM, kill, jmx)
         jmxs[version] = jmx
+
+    print >>sys.stderr, "Versions: %s" % jmxs.keys()
     try:
         prev_timestamp = 0
         while jmxs:
