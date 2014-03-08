@@ -66,9 +66,27 @@ def do_on_signal(signum, func, *args, **kwargs):
   signal.signal(signum, signal_shutdown)
 
 
+def get_max_version_pid(procs):
+    """Look through a dictionary of pid to flume agent commands and find the
+    pid of the latest version flume agent
+    """
+    max_ver = -1
+    ret = None
+    for pid, cmd in procs.iteritems():
+        # Flume paths are formatted like so
+        # org.apache.flume.node.Application -n agent -f /opt/backend/versions/212/resources/flume/flume.conf
+        # we ant to extract 212 from the above line
+        flume_path = cmd.split(' ')[-1]
+        ver = int(flume_path..split('/')[3])
+        if ver > max_ver:
+            ret = pid
+    return ret
+
+
 def main(argv):
     utils.drop_privileges(user=USER)
-    jmx = java.init_jmx_process("org.apache.flume.node.Application",
+    max_version_flume_pid = get_max_version_pid(java.list_procs("org.apache.flume.node.Application"))
+    jmx = java.init_jmx_process(max_version_flume_pid,
             "org.apache.flume.channel", "",
             "org.apache.flume.sink", "",
             "org.apache.flume.sink", "",
