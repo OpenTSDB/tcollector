@@ -4,6 +4,7 @@
 
 import os
 import subprocess
+import sys
 
 # use the first directory that exists and appears to be a JDK (not a JRE).
 
@@ -74,4 +75,5 @@ def init_jmx_process(jvm_name, *watched_mbeans):
     Returns: Popen for running process
     """
     cmd_args = __java_args + __java_watch_args + [jvm_name] + list(watched_mbeans)
+    print >>sys.stderr, "Starting jmx watch process: %s" % ' '.join(cmd_args)
     return subprocess.Popen(cmd_args, stdout=subprocess.PIPE, bufsize=1)

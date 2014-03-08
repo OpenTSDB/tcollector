@@ -19,6 +19,8 @@ import subprocess
 import sys
 import time
 
+from collections import defaultdict
+
 from lib import utils
 from lib import java
 
@@ -100,7 +102,7 @@ def main(argv):
 
     print >>sys.stderr, "Versions: %s" % jmxs.keys()
     try:
-        prev_timestamp = 0
+        prev_timestamps = defaultdict(lambda: 0)
         while jmxs:
             for version, jmx in jmxs.iteritems():
                 line = jmx.stdout.readline()
@@ -130,14 +132,14 @@ def main(argv):
                     timestamp = int(timestamp)
                     if timestamp < time.time() - 600:
                         raise ValueError("timestamp too old: %d" % timestamp)
-                    if timestamp < prev_timestamp:
+                    if timestamp < prev_timestamps[version]:
                         raise ValueError("timestamp out of order: prev=%d, new=%d"
-                                         % (prev_timestamp, timestamp))
+                                         % (prev_timestamps[version], timestamp))
                 except ValueError, e:
                     print >>sys.stderr, ("Invalid timestamp on line: %r -- %s"
                                          % (line, e))
                     continue
-                prev_timestamp = timestamp
+                prev_timestamps[version] = timestamp
 
                 tags = ""
                 # The JMX metrics have per-request-type metrics like so:
