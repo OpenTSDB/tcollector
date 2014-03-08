@@ -72,7 +72,7 @@ def get_flume_version(flume_cmd):
     # Flume paths are formatted like so
     # org.apache.flume.node.Application -n agent -f /opt/backend/versions/212/resources/flume/flume.conf
     # we ant to extract 212 from the above line
-    flume_path = cmd.split(' ')[-1]
+    flume_path = flume_cmd.split(' ')[-1]
     flume_path_parts = flume_path.split('/')
     # the index of the version number is 1 + the index of the 'versions' directory
     version_index = flume_path_parts.index('versions') + 1
