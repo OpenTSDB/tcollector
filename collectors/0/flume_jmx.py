@@ -84,7 +84,7 @@ def main(argv):
     jmxs = {}
     for pid, cmd in procs.iteritems():
         version = get_flume_version(cmd)
-        jmx = java.init_jmx_process(pid,
+        jmx = java.init_jmx_process(str(pid),
                 "org.apache.flume.channel", "",
                 "org.apache.flume.sink", "",
                 "org.apache.flume.sink", "",
@@ -99,12 +99,14 @@ def main(argv):
         jmxs[version] = jmx
     try:
         prev_timestamp = 0
-        while True:
+        while jmxs:
             for version, jmx in jmxs.iteritems():
                 line = jmx.stdout.readline()
 
                 if not line and jmx.poll() is not None:
-                    break  # Nothing more to read and process exited.
+                    print >>sys.stderr, "removing version: %s" % version
+                    del jmxs[version]
+                    continue  # Nothing more to read and process exited.
                 elif len(line) < 4:
                     print >>sys.stderr, "invalid line (too short): %r" % line
                     continue
