@@ -83,7 +83,7 @@ def main(argv):
     procs = java.list_procs("org.apache.flume.node.Application")
     jmxs = {}
     for pid, cmd in procs.iteritems():
-        version = get_flume_version(flume_cmd)
+        version = get_flume_version(cmd)
         jmx = java.init_jmx_process(pid,
                 "org.apache.flume.channel", "",
                 "org.apache.flume.sink", "",
