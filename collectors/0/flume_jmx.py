@@ -192,7 +192,7 @@ def main(argv):
 
                 jmx_service = JMX_SERVICE_RENAMING.get(jmx_service, jmx_service)
                 metric = jmx_service.lower() + "." + metric
-                tags += " version=" + version
+                tags += " version=" + str(version)
 
                 sys.stdout.write("flume.%s %d %s%s\n"
                                  % (metric, timestamp, value, tags))
