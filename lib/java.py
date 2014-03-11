@@ -4,6 +4,7 @@
 
 import os
 import subprocess
+import sys
 
 # use the first directory that exists and appears to be a JDK (not a JRE).
 
@@ -46,8 +47,22 @@ IGNORED_METRICS = set(["revision", "hdfsUser", "hdfsDate", "hdfsUrl", "date",
 
 __java_args = [JAVA, "-enableassertions", "-enablesystemassertions",  # safe++
         "-Xmx64m",  # Low RAM limit, to avoid stealing too much from prod.
-        "-cp", ":".join(CLASSPATH), "com.stumbleupon.monitoring.jmx",
-        "--watch", str(PERIOD), "--long", "--timestamp"]
+        "-cp", ":".join(CLASSPATH), "com.stumbleupon.monitoring.jmx"]
+
+__java_watch_args = ["--watch", str(PERIOD), "--long", "--timestamp"]
+
+def list_procs(jvm_name):
+    """Get all pids that match the given jvm_name
+
+    Returns:
+      Dictionary that maps pid to process name and arguments
+    """
+    proc = subprocess.Popen(__java_args + [jvm_name], stdout=subprocess.PIPE, bufsize=1)
+    ret = {}
+    for line in proc.stdout:
+        pid, cmd = line.strip().split('\t')
+        ret[pid] = cmd
+    return ret
 
 def init_jmx_process(jvm_name, *watched_mbeans):
     """Start a process that watches the given JVM and periodically print out
@@ -59,5 +74,6 @@ def init_jmx_process(jvm_name, *watched_mbeans):
 
     Returns: Popen for running process
     """
-    cmd_args = __java_args + [jvm_name] + list(watched_mbeans)
+    cmd_args = __java_args + __java_watch_args + [jvm_name] + list(watched_mbeans)
+    print >>sys.stderr, "Starting jmx watch process: %s" % ' '.join(cmd_args)
     return subprocess.Popen(cmd_args, stdout=subprocess.PIPE, bufsize=1)
