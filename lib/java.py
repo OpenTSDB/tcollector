@@ -57,11 +57,12 @@ def list_procs(jvm_name):
     Returns:
       Dictionary that maps pid to process name and arguments
     """
-    proc = subprocess.Popen(__java_args + [jvm_name], stdout=subprocess.PIPE, bufsize=1)
+    proc = subprocess.Popen(__java_args + ['-l'], stdout=subprocess.PIPE, bufsize=1)
     ret = {}
     for line in proc.stdout:
         pid, cmd = line.strip().split('\t')
-        ret[pid] = cmd
+        if cmd.startswith(jvm_name):
+          ret[pid] = cmd
     return ret
 
 def init_jmx_process(jvm_name, *watched_mbeans):
