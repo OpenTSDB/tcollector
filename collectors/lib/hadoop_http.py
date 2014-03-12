@@ -13,7 +13,10 @@
 # see <http://www.gnu.org/licenses/>.
 
 import httplib
-import json
+try:
+    import json
+except ImportError:
+    json = None
 try:
     from collections import OrderedDict  # New in Python 2.7
 except ImportError:
