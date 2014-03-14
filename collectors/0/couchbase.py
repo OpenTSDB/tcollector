@@ -46,9 +46,6 @@ KEYS = frozenset( [
                   'tcmalloc_unmapped_bytes',
                   ] )
 
-def err(e):
-  print >>sys.stderr, e
-
 def find_couchbase_pid():
   """Find out the pid of couchbase"""
   if not os.path.isfile(COUCHBASE_INITFILE):
@@ -61,7 +58,7 @@ def find_couchbase_pid():
         init_script = line.split()[1]
     fd.close()
   except IOError:
-    err("Check permission of file (%s)" % COUCHBASE_INITFILE)
+    utils.err("Check permission of file (%s)" % COUCHBASE_INITFILE)
     return
 
   try:
@@ -71,7 +68,7 @@ def find_couchbase_pid():
         pid_file = line.split("=")[1].rsplit()[0]
     fd.close()
   except IOError:
-    err("Check permission of file (%s)" % init_script)
+    utils.err("Check permission of file (%s)" % init_script)
     return
 
   try:
@@ -79,7 +76,7 @@ def find_couchbase_pid():
     pid = fd.read()
     fd.close()
   except IOError:
-    err("Couchbase-server is not running, since no pid file exists")
+    utils.err("Couchbase-server is not running, since no pid file exists")
     return
 
   return pid.split()[0]
@@ -89,7 +86,7 @@ def find_conf_file(pid):
   try:
     fd = open('/proc/%s/cmdline' % pid)
   except IOError, e:
-    err("Couchbase (pid %s) went away ? %s" % (pid, e))
+    utils.err("Couchbase (pid %s) went away ? %s" % (pid, e))
     return
   try:
     config = fd.read().split("config_path")[1].split("\"")[1]
@@ -102,7 +99,7 @@ def find_bindir_path(config_file):
   try:
     fd = open(config_file)
   except IOError, e:
-    err("Error for Config file (%s): %s" % (config_file, e))
+    utils.err("Error for Config file (%s): %s" % (config_file, e))
     return None
   try:
     for line in fd:
@@ -149,18 +146,18 @@ def main():
   utils.drop_privileges()
   pid = find_couchbase_pid()
   if not pid:
-    err("Error: Either couchbase-server is not running or file (%s)"
+    utils.err("Error: Either couchbase-server is not running or file (%s)"
         " doesn't exist" % COUCHBASE_INITFILE)
     return 13
 
   conf_file = find_conf_file(pid)
   if not conf_file:
-    err("Error: Can't find config file (%s)" % conf_file)
+    utils.err("Error: Can't find config file (%s)" % conf_file)
     return 13
 
   bin_dir = find_bindir_path(conf_file)
   if not bin_dir:
-    err("Error: Can't find bindir path in config file")
+    utils.err("Error: Can't find bindir path in config file")
     return 13
 
   while True:
