@@ -44,9 +44,6 @@ STATUS_MAP = {
   "red": 2,
 }
 
-def err(msg):
-  print >>sys.stderr, msg
-
 
 class ESError(RuntimeError):
   """Exception raised if we don't get a 200 OK from ElasticSearch."""
@@ -100,7 +97,7 @@ def main(argv):
       return 13  # No ES running, ask tcollector to not respawn us.
     raise
   if json is None:
-    err("This collector requires the `json' Python module.")
+    utils.err("This collector requires the `json' Python module.")
     return 1
 
   status = node_status(server)
@@ -124,12 +121,12 @@ def main(argv):
     nstats = node_stats(server, version)
     # Check that the node's identity hasn't changed in the mean time.
     if nstats["cluster_name"] != cluster_name:
-      err("cluster_name changed from %r to %r"
+      utils.err("cluster_name changed from %r to %r"
           % (cluster_name, nstats["cluster_name"]))
       return 1
     this_nodeid, nstats = nstats["nodes"].popitem()
     if this_nodeid != nodeid:
-      err("node ID changed from %r to %r" % (nodeid, this_nodeid))
+      utils.err("node ID changed from %r to %r" % (nodeid, this_nodeid))
       return 1
 
     is_master = nodeid == cluster_state(server)["master_node"]

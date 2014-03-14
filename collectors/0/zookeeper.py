@@ -37,9 +37,6 @@ KEYS = frozenset([
     "zk_open_file_descriptor_count",
     ])
 
-def err(e):
-    print >> sys.stderr, e
-
 def scan_zk_instances():
     """ 
     Finding out all the running instances of zookeeper
@@ -52,7 +49,7 @@ def scan_zk_instances():
     try:
         listen_sock = subprocess.check_output(["netstat", "-lnpt"], stderr=subprocess.PIPE)
     except subprocess.CalledProcessError:
-        err("netstat directory doesn't exist in PATH variable")
+        utils.err("netstat directory doesn't exist in PATH variable")
         return instances
 
     for line in listen_sock.split("\n"):
@@ -124,7 +121,7 @@ def main():
             try:
                 sock.connect((ip, port))
             except:
-                err("ZK Instance listening at port %d went away" % port)
+                utils.err("ZK Instance listening at port %d went away" % port)
                 instances.remove([ip, port, tcp_version])
                 break
 
