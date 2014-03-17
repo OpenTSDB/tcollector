@@ -87,22 +87,30 @@ def main(argv):
             threading.Thread.__init__(self)
             self.procs = procs
             self.procs_lock = procs_lock
-            self.shutdown = False
+            self.is_shutdown = False
+            self.completed_first_run = threading.Semaphore(0)
 
         def shutdown(self):
-            self.shutdown = True
+            self.is_shutdown = True
 
         def run(self):
-            while not self.shutdown:
+            while not self.is_shutdown:
                 self.procs_lock.acquire()
                 self.update_flume_processes()
                 self.procs_lock.release()
+                self.completed_first_run.release()
 
                 # for faster responsiveness on shutdown
                 for i in range(UpdateFlumeProcesses.UPDATE_INTERVAL):
-                    if self.shutdown:
+                    if self.is_shutdown:
                         break
                     time.sleep(1)
+
+        def kill(self):
+            for jmx in self.procs.values():
+                kill(jmx)
+            self.shutdown()
+            self.join()
 
         def update_flume_processes(self):
             procs = java.list_procs("org.apache.flume.node.Application")
@@ -118,15 +126,17 @@ def main(argv):
                             "OperatingSystem", "OpenFile",    # Number of open files.
                             "GarbageCollector", "Collection", # GC runs and time spent GCing.
                             )
-                    do_on_signal(signal.SIGINT, kill, jmx)
-                    do_on_signal(signal.SIGPIPE, kill, jmx)
-                    do_on_signal(signal.SIGTERM, kill, jmx)
                     self.procs[version] = jmx
 
     jmxs = {}
     jmxs_lock = threading.Lock()
     updater = UpdateFlumeProcesses(jmxs, jmxs_lock)
+    do_on_signal(signal.SIGINT, updater.kill)
+    do_on_signal(signal.SIGPIPE, updater.kill)
+    do_on_signal(signal.SIGTERM, updater.kill)
+
     updater.start()
+    updater.completed_first_run.acquire()
 
     print >>sys.stderr, "Versions: %s" % jmxs.keys()
     try:
