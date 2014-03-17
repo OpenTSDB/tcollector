@@ -40,7 +40,7 @@ COLLECTION_INTERVAL = 15
 # Which statistics to report. See Section 9.1 of the the following URL
 # for information:
 # http://haproxy.1wt.eu/download/1.4/doc/configuration.txt
-METRICS_TO_REPORT = ["scur", "dreq", "ereq", "rate"]
+METRICS_TO_REPORT = ["scur", "rate"]
 
 METRIC_NAMES = {
     "pxname": "proxy_name",
