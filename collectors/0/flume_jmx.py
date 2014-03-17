@@ -18,6 +18,7 @@ import signal
 import sys
 import time
 import threading
+import traceback
 
 from collections import defaultdict
 
@@ -143,7 +144,7 @@ def main(argv):
         prev_timestamps = defaultdict(lambda: 0)
         while jmxs:
             jmxs_lock.acquire()
-            versions = jmx.items()
+            versions = jmxs.items()
             jmxs_lock.release()
 
             for version, jmx in versions:
@@ -240,10 +241,13 @@ def main(argv):
                 sys.stdout.write("flume.%s %d %s%s\n"
                                  % (metric, timestamp, value, tags))
                 sys.stdout.flush()
+    except Exception as e:
+        print >>sys.stderr, 'Caught exception: %s' % e
+        traceback.print_exc(file=sys.stderr)
     finally:
         updater.shutdown()
         updater.join()
-        for version, jmx in jmxs:
+        for jmx in jmxs.values():
             kill(jmx)
         time.sleep(300)
         return 0  # Ask the tcollector to re-spawn us.
