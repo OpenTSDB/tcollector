@@ -121,7 +121,7 @@ def main(argv):
                     do_on_signal(signal.SIGINT, kill, jmx)
                     do_on_signal(signal.SIGPIPE, kill, jmx)
                     do_on_signal(signal.SIGTERM, kill, jmx)
-                    jmxs[version] = jmx
+                    self.procs[version] = jmx
 
     jmxs = {}
     jmxs_lock = threading.Lock()
@@ -231,7 +231,10 @@ def main(argv):
                                  % (metric, timestamp, value, tags))
                 sys.stdout.flush()
     finally:
-        kill(jmx)
+        updater.shutdown()
+        updater.join()
+        for version, jmx in jmxs:
+            kill(jmx)
         time.sleep(300)
         return 0  # Ask the tcollector to re-spawn us.
 
