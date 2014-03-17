@@ -140,7 +140,9 @@ def main(argv):
                 line = jmx.stdout.readline()
                 if not line and jmx.poll() is not None:
                     print >>sys.stderr, "removing version: %s" % version
+                    jmxs_lock.acquire()
                     del jmxs[version]
+                    jmxs_lock.release()
                     continue  # Nothing more to read and process exited.
                 elif len(line) < 4:
                     print >>sys.stderr, "invalid line (too short): %r" % line
