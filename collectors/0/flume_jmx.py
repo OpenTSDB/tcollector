@@ -15,13 +15,12 @@
 import os
 import re
 import signal
-import subprocess
 import sys
 import time
+import threading
 
 from collections import defaultdict
 
-from lib import utils
 from lib import java
 
 # If this user doesn't exist, we'll exit immediately.
@@ -81,32 +80,64 @@ def get_flume_version(flume_cmd):
     return int(flume_path_parts[version_index])
 
 def main(argv):
-    utils.drop_privileges(user=USER)
-    procs = java.list_procs("org.apache.flume.node.Application")
+    class UpdateFlumeProcesses(threading.Thread):
+        UPDATE_INTERVAL = 60
+
+        def __init__(self, procs, procs_lock):
+            threading.Thread.__init__(self)
+            self.procs = procs
+            self.procs_lock = procs_lock
+            self.shutdown = False
+
+        def shutdown(self):
+            self.shutdown = True
+
+        def run(self):
+            while not self.shutdown:
+                self.procs_lock.acquire()
+                self.update_flume_processes()
+                self.procs_lock.release()
+
+                # for faster responsiveness on shutdown
+                for i in range(UpdateFlumeProcesses.UPDATE_INTERVAL):
+                    if self.shutdown:
+                        break
+                    time.sleep(1)
+
+        def update_flume_processes(self):
+            procs = java.list_procs("org.apache.flume.node.Application")
+            for pid, cmd in procs.iteritems():
+                version = get_flume_version(cmd)
+                if version not in self.procs:
+                    jmx = java.init_jmx_process(str(pid),
+                            "org.apache.flume.channel", "",
+                            "org.apache.flume.sink", "",
+                            "org.apache.flume.sink", "",
+                            "org.apache.flume.source", "",
+                            "Threading", "Count|Time$",       # Number of threads and CPU time.
+                            "OperatingSystem", "OpenFile",    # Number of open files.
+                            "GarbageCollector", "Collection", # GC runs and time spent GCing.
+                            )
+                    do_on_signal(signal.SIGINT, kill, jmx)
+                    do_on_signal(signal.SIGPIPE, kill, jmx)
+                    do_on_signal(signal.SIGTERM, kill, jmx)
+                    jmxs[version] = jmx
+
     jmxs = {}
-    for pid, cmd in procs.iteritems():
-        version = get_flume_version(cmd)
-        jmx = java.init_jmx_process(str(pid),
-                "org.apache.flume.channel", "",
-                "org.apache.flume.sink", "",
-                "org.apache.flume.sink", "",
-                "org.apache.flume.source", "",
-                "Threading", "Count|Time$",       # Number of threads and CPU time.
-                "OperatingSystem", "OpenFile",    # Number of open files.
-                "GarbageCollector", "Collection", # GC runs and time spent GCing.
-                )
-        do_on_signal(signal.SIGINT, kill, jmx)
-        do_on_signal(signal.SIGPIPE, kill, jmx)
-        do_on_signal(signal.SIGTERM, kill, jmx)
-        jmxs[version] = jmx
+    jmxs_lock = threading.Lock()
+    updater = UpdateFlumeProcesses(jmxs, jmxs_lock)
+    updater.start()
 
     print >>sys.stderr, "Versions: %s" % jmxs.keys()
     try:
         prev_timestamps = defaultdict(lambda: 0)
         while jmxs:
-            for version, jmx in jmxs.iteritems():
-                line = jmx.stdout.readline()
+            jmxs_lock.acquire()
+            versions = jmx.items()
+            jmxs_lock.release()
 
+            for version, jmx in versions:
+                line = jmx.stdout.readline()
                 if not line and jmx.poll() is not None:
                     print >>sys.stderr, "removing version: %s" % version
                     del jmxs[version]
