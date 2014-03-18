@@ -15,13 +15,13 @@
 import os
 import re
 import signal
-import subprocess
 import sys
 import time
+import threading
+import traceback
 
 from collections import defaultdict
 
-from lib import utils
 from lib import java
 
 # If this user doesn't exist, we'll exit immediately.
@@ -81,35 +81,76 @@ def get_flume_version(flume_cmd):
     return int(flume_path_parts[version_index])
 
 def main(argv):
-    utils.drop_privileges(user=USER)
-    procs = java.list_procs("org.apache.flume.node.Application")
-    jmxs = {}
-    for pid, cmd in procs.iteritems():
-        version = get_flume_version(cmd)
-        jmx = java.init_jmx_process(str(pid),
-                "org.apache.flume.channel", "",
-                "org.apache.flume.sink", "",
-                "org.apache.flume.sink", "",
-                "org.apache.flume.source", "",
-                "Threading", "Count|Time$",       # Number of threads and CPU time.
-                "OperatingSystem", "OpenFile",    # Number of open files.
-                "GarbageCollector", "Collection", # GC runs and time spent GCing.
-                )
-        do_on_signal(signal.SIGINT, kill, jmx)
-        do_on_signal(signal.SIGPIPE, kill, jmx)
-        do_on_signal(signal.SIGTERM, kill, jmx)
-        jmxs[version] = jmx
+    class UpdateFlumeProcesses(threading.Thread):
+        UPDATE_INTERVAL_SECONDS = 60
 
-    print >>sys.stderr, "Versions: %s" % jmxs.keys()
+        def __init__(self, procs, procs_lock):
+            threading.Thread.__init__(self)
+            self.procs = procs
+            self.procs_lock = procs_lock
+            self.is_shutdown = False
+            self.completed_first_run = threading.Semaphore(0)
+
+        def shutdown(self):
+            self.is_shutdown = True
+
+        def run(self):
+            while not self.is_shutdown:
+                with self.procs_lock:
+                    self.update_flume_processes()
+                self.completed_first_run.release()
+
+                # for faster responsiveness on shutdown
+                for i in range(UpdateFlumeProcesses.UPDATE_INTERVAL_SECONDS):
+                    if self.is_shutdown:
+                        break
+                    time.sleep(1)
+
+        def kill(self):
+            for jmx in self.procs.values():
+                kill(jmx)
+            self.shutdown()
+            self.join()
+
+        def update_flume_processes(self):
+            procs = java.list_procs("org.apache.flume.node.Application")
+            for pid, cmd in procs.iteritems():
+                version = get_flume_version(cmd)
+                if version not in self.procs:
+                    jmx = java.init_jmx_process(str(pid),
+                            "org.apache.flume.channel", "",
+                            "org.apache.flume.sink", "",
+                            "org.apache.flume.sink", "",
+                            "org.apache.flume.source", "",
+                            "Threading", "Count|Time$",       # Number of threads and CPU time.
+                            "OperatingSystem", "OpenFile",    # Number of open files.
+                            "GarbageCollector", "Collection", # GC runs and time spent GCing.
+                            )
+                    print >>sys.stderr, "Adding version: %s Cmd: %s" % (version, cmd)
+                    self.procs[version] = jmx
+
+    jmxs = {}
+    jmxs_lock = threading.Lock()
+    updater = UpdateFlumeProcesses(jmxs, jmxs_lock)
+    do_on_signal(signal.SIGINT, updater.kill)
+    do_on_signal(signal.SIGPIPE, updater.kill)
+    do_on_signal(signal.SIGTERM, updater.kill)
+
+    updater.start()
+    updater.completed_first_run.acquire()
+
     try:
         prev_timestamps = defaultdict(lambda: 0)
         while jmxs:
-            for version, jmx in jmxs.iteritems():
-                line = jmx.stdout.readline()
+            with jmxs_lock:
+                versions = jmxs.items()
 
+            for version, jmx in versions:
+                line = jmx.stdout.readline()
                 if not line and jmx.poll() is not None:
                     print >>sys.stderr, "removing version: %s" % version
-                    del jmxs[version]
+                    with jmxs_lock:
+                        del jmxs[version]
                     continue  # Nothing more to read and process exited.
                 elif len(line) < 4:
                     print >>sys.stderr, "invalid line (too short): %r" % line
@@ -197,8 +238,14 @@ def main(argv):
                 sys.stdout.write("flume.%s %d %s%s\n"
                                  % (metric, timestamp, value, tags))
                 sys.stdout.flush()
+    except Exception as e:
+        print >>sys.stderr, 'Caught exception: %s' % e
+        traceback.print_exc(file=sys.stderr)
     finally:
-        kill(jmx)
+        updater.shutdown()
+        updater.join()
+        for jmx in jmxs.values():
+            kill(jmx)
         time.sleep(300)
         return 0  # Ask the tcollector to re-spawn us.
 
