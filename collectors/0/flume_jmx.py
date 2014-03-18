@@ -127,7 +127,7 @@ def main(argv):
                             "OperatingSystem", "OpenFile",    # Number of open files.
                             "GarbageCollector", "Collection", # GC runs and time spent GCing.
                             )
-                    print >>sys.stderr, "started monitoring process for version %d" % version
+                    print >>sys.stderr, "Adding version: %s Cmd: %s" % (version, cmd)
                     self.procs[version] = jmx
 
     jmxs = {}
