@@ -96,9 +96,8 @@ def main(argv):
 
         def run(self):
             while not self.is_shutdown:
-                self.procs_lock.acquire()
-                self.update_flume_processes()
-                self.procs_lock.release()
+                with self.procs_lock:
+                    self.update_flume_processes()
                 self.completed_first_run.release()
 
                 # for faster responsiveness on shutdown
@@ -143,17 +142,15 @@ def main(argv):
     try:
         prev_timestamps = defaultdict(lambda: 0)
         while jmxs:
-            jmxs_lock.acquire()
-            versions = jmxs.items()
-            jmxs_lock.release()
+            with jmxs_lock:
+                versions = jmxs.items()
 
             for version, jmx in versions:
                 line = jmx.stdout.readline()
                 if not line and jmx.poll() is not None:
                     print >>sys.stderr, "removing version: %s" % version
-                    jmxs_lock.acquire()
-                    del jmxs[version]
-                    jmxs_lock.release()
+                    with jmxs_lock:
+                        del jmxs[version]
                     continue  # Nothing more to read and process exited.
                 elif len(line) < 4:
                     print >>sys.stderr, "invalid line (too short): %r" % line
