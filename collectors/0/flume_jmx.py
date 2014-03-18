@@ -82,7 +82,7 @@ def get_flume_version(flume_cmd):
 
 def main(argv):
     class UpdateFlumeProcesses(threading.Thread):
-        UPDATE_INTERVAL = 60
+        UPDATE_INTERVAL_SECONDS = 60
 
         def __init__(self, procs, procs_lock):
             threading.Thread.__init__(self)
@@ -102,7 +102,7 @@ def main(argv):
                 self.completed_first_run.release()
 
                 # for faster responsiveness on shutdown
-                for i in range(UpdateFlumeProcesses.UPDATE_INTERVAL):
+                for i in range(UpdateFlumeProcesses.UPDATE_INTERVAL_SECONDS):
                     if self.is_shutdown:
                         break
                     time.sleep(1)
@@ -127,6 +127,7 @@ def main(argv):
                             "OperatingSystem", "OpenFile",    # Number of open files.
                             "GarbageCollector", "Collection", # GC runs and time spent GCing.
                             )
+                    print >>sys.stderr, "started monitoring process for version %d" % version
                     self.procs[version] = jmx
 
     jmxs = {}
@@ -139,7 +140,6 @@ def main(argv):
     updater.start()
     updater.completed_first_run.acquire()
 
-    print >>sys.stderr, "Versions: %s" % jmxs.keys()
     try:
         prev_timestamps = defaultdict(lambda: 0)
         while jmxs:
