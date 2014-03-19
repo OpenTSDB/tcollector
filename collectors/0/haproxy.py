@@ -159,6 +159,9 @@ def collect_stats(sock):
           print ("haproxy.%s %i %s server=%s cluster=%s"
                  % (METRIC_NAMES[key], ts, value, line["svname"], line["pxname"]))
 
+  # make sure that we get our output
+  sys.stdout.flush()
+
 
 def main():
   pid = haproxy_pid()
