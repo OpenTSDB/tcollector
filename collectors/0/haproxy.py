@@ -40,7 +40,11 @@ COLLECTION_INTERVAL = 15
 # Which statistics to report. See Section 9.1 of the the following URL
 # for information:
 # http://haproxy.1wt.eu/download/1.4/doc/configuration.txt
-METRICS_TO_REPORT = ["scur", "rate"]
+METRICS_TO_REPORT = {
+    "FRONTEND": [],
+    "BACKEND": ["scur", "rate"],
+    "servers": ["scur", "rate"]
+}
 
 METRIC_NAMES = {
     "pxname": "proxy_name",
@@ -60,8 +64,10 @@ METRIC_NAMES = {
     "wretr": "retries_warning",
     "wredis": "redispatches_warning",
     "weight": "server_weight",
-    "chkfail": "number_of_failed_checks",
-    "chkdown": "number_of_UP_to_DOWN_transitions",
+    "act": "active_servers",
+    "bck": "backup_servers",
+    "chkfail": "failed_checks",
+    "chkdown": "UP_to_DOWN_transitions",
     "lastchg": "last_status_change_in_seconds",
     "downtime": "total_downtime_in_seconds",
     "qlimit": "queue_limit",
@@ -124,43 +130,63 @@ def find_sock_file(conf_file):
 
 
 def collect_stats(sock):
-  """Collects stats from haproxy unix domain socket"""
-  sock.send("show stat\n")
-  statlines = sock.recv(10240).split('\n')
-  ts = time.time()  
+    """Collects stats from haproxy unix domain socket"""
+    sock.send("show stat\n")
+    statlines = sock.recv(10240).split('\n')
+    ts = time.time()
 
-  # eat up any empty lines that may be present
-  statlines = [line for line in statlines if line != ""]
+    # eat up any empty lines that may be present
+    statlines = [line for line in statlines if line != ""]
 
-  # headers are given first, with or without the prompt present
-  headers = None
-  if statlines[0].startswith("> # "):
-    headers = statlines[0][4:].split(',')
-  elif statlines[0].startswith("# "):
-    headers = statlines[0][2:].split(',')
-  else:
-    utils.err("No headers found in HAProxy output: %s" % (statlines[0],))
-    return
+    # headers are given first, with or without the prompt present
+    headers = None
+    if statlines[0].startswith("> # "):
+        headers = statlines[0][4:].split(',')
+    elif statlines[0].startswith("# "):
+        headers = statlines[0][2:].split(',')
+    else:
+        utils.err("No headers found in HAProxy output: %s" % (statlines[0],))
+        return
 
-  reader = csv.DictReader(statlines[1:], fieldnames=headers)
+    reader = csv.DictReader(statlines[1:], fieldnames=headers)
 
-  # each line is a dict, due to the use of DictReader
-  for line in reader:
-      if "svname" not in line:
-          continue  # skip output from non-expected lines
-      if line["svname"] in ["FRONTEND", "BACKEND"]:
-          continue  # skip output not related to specific server
-      for key in METRICS_TO_REPORT:
-          if not line["svname"]:
-            continue  # no associated server, junk output
-          value = line[key]
-          if not value:
-              value = 0
-          print ("haproxy.%s %i %s server=%s cluster=%s"
-                 % (METRIC_NAMES[key], ts, value, line["svname"], line["pxname"]))
+    # each line is a dict, due to the use of DictReader
+    for line in reader:
+        if "svname" not in line:
+            continue  # skip output from non-expected lines
+        if line["svname"] in ["FRONTEND", "BACKEND"]:
+            for key in METRICS_TO_REPORT[line["svname"]]:
+                print_metric(line, key, ts)
+        else:  # svname apparently points to individual server
+            for key in METRICS_TO_REPORT["servers"]:
+                print_metric(line, key, ts)
 
-  # make sure that we get our output
-  sys.stdout.flush()
+    # make sure that we get our output quickly
+    sys.stdout.flush()
+
+
+def print_metric(line, metric, timestamp):
+    """Print metric to stdout in tcollector format.
+
+    :param line: The HAProxy output line, as a dict.
+    :type line: dict
+    :param metric: The HAProxy name of the metric, i.e. the key.
+    :type metric: str
+    :param timestamp: The time stamp of the metric.
+    :type timestamp: float
+    """
+
+    if not line["svname"]:
+        return  # no associated server, junk output
+    value = line[metric]
+    if not value:
+        value = 0
+    print ("haproxy.%s %i %s source=%s cluster=%s"
+           % (METRIC_NAMES[metric],
+              timestamp,
+              value,
+              line["svname"],
+              line["pxname"]))
 
 
 def main():
