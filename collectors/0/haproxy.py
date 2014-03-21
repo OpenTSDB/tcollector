@@ -41,7 +41,7 @@ COLLECTION_INTERVAL = 15
 # for information:
 # http://haproxy.1wt.eu/download/1.4/doc/configuration.txt
 METRICS_TO_REPORT = {
-    "FRONTEND": [],
+    "FRONTEND": ["scur", "rate"],
     "BACKEND": ["scur", "rate"],
     "servers": ["scur", "rate"]
 }
@@ -77,7 +77,7 @@ METRIC_NAMES = {
     "throttle": "warm_up_status",
     "lbtot": "load_balancer_selection_count",
     "tracked": "id_of_tracked_server",
-    "rate": "sessions_per_second",
+    "rate": "session_rate",
     "rate_lim": "limit_on_new_sessions_per_second",
     "rate_max": "max_number_of_new_sessions_per_second",
     "check_code": "health_check_code",
