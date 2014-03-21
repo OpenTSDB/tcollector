@@ -16,10 +16,6 @@
 # Script uses UNIX socket opened by haproxy, you need to setup one with
 # "stats socket" config parameter.
 #
-# You need to ensure that "stats timeout" (socket timeout) is big
-# enough to work well with collector COLLECTION_INTERVAL constant.
-# The default timeout on the "stats socket" is set to 10 seconds!
-#
 # See haproxy documentation for details:
 # http://haproxy.1wt.eu/download/1.4/doc/configuration.txt
 # section 3.1. Process management and security.
@@ -129,12 +125,18 @@ def find_sock_file(conf_file):
     fd.close()
 
 
-def collect_stats(sock):
+def collect_stats(sock_file):
     """Collects stats from haproxy unix domain socket"""
-    sock.send("show stat\n")
-    statlines = sock.recv(10240).split('\n')
-    ts = time.time()
+    sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)  
+    try:
+      sock.settimeout(COLLECTION_INTERVAL)
+      sock.connect(sock_file)
+      sock.send("show stat\n")
+      statlines = sock.recv(10240).split('\n')
+    finally:
+      sock.close()
 
+    ts = time.time()
     # eat up any empty lines that may be present
     statlines = [line for line in statlines if line != ""]
 
@@ -204,16 +206,9 @@ def main():
     utils.err("Error: HAProxy is not listening on any unix domain socket")
     return 13
 
-  sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-  sock.connect(sock_file)
-
-  # put haproxy to interactive mode, otherwise haproxy closes
-  # connection after first command.
-  # See haproxy documentation section 9.2. Unix Socket commands.
-  sock.send("prompt\n")
 
   while True:
-    collect_stats(sock)
+    collect_stats(sock_file)
     time.sleep(COLLECTION_INTERVAL)
 
 if __name__ == "__main__":
