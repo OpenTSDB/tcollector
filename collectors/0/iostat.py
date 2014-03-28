@@ -68,8 +68,7 @@
 # %util.  These need to pull in cpu idle counters from /proc.
 
 
-import sys
-import time
+import sys, os, stat, time
 
 from collectors.lib import utils
 
@@ -96,6 +95,13 @@ FIELDS_PART = ("read_issued",
                "write_sectors",
               )
 
+mapper_path     = '/dev/mapper'
+dm2lv           = {}
+mapper_path_dir = os.listdir(mapper_path)
+for dir in mapper_path_dir:
+    if dir != 'control':
+        s = os.stat(mapper_path + '/' + dir)
+        dm2lv[(os.major(s.st_rdev),os.minor(s.st_rdev))] = dir
 
 def main():
     """iostats main loop."""
@@ -122,6 +128,8 @@ def main():
                 metric = "iostat.part."
 
             device = values[2]
+            if (int(values[0]),int(values[1])) in dm2lv:
+                device = dm2lv[(int(values[0]),int(values[1]))]
             if len(values) == 14:
                 # full stats line
                 for i in range(11):
