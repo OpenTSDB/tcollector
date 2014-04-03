@@ -42,6 +42,7 @@ FSTYPE_IGNORE = frozenset([
   "cgroup",
   "debugfs",
   "devtmpfs",
+  "nfs",
   "rpc_pipefs",
   "rootfs",
 ])
