@@ -4,6 +4,8 @@
 # to grab metrics from a java process using
 # jolokia.
 #
+# Requires pyjolokia > 0.3.1
+#
 # Author: stuart-warren
 # Additional work: mikebryant
 """
@@ -20,7 +22,7 @@ from collectors.lib import utils
 try:
     from pyjolokia import Jolokia, JolokiaError
 except ImportError:
-    utils.err('requires pyjolokia python module')
+    utils.err('requires pyjolokia python module > 0.3.1')
     sys.exit(13)
 
 try:
@@ -54,6 +56,7 @@ class JolokiaCollector():
 
     def _set_monitors(self, monitors, tags):
         self.j4p = Jolokia(self.url)
+        self.j4p.config(ignoreErrors=True)
         for m in monitors:
             if 'tags' in m:
                 m['tags'].update(tags)
