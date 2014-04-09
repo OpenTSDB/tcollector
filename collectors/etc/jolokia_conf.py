@@ -37,11 +37,16 @@ def get_config():
     #     'instances': [{
     #         ## url: required
     #         'url': 'http://localhost:8778/jolokia/',
-    #         ## list of additional tags
+    #         ## optional basic auth credentials
+    #         'auth': {
+    #             'username': 'adminRole',
+    #             'password': 'passwordhere'
+    #         }
+    #         ## list of additional tags for this instance
     #         'tags': {
     #             'cluster': 'cluster01'
     #         },
-    #         ## list of additional mbeans
+    #         ## list of additional mbeans to monitor for this instance
     #         'monitors': [{
     #             'mbean': 'org.apache.cassandra.*:*',
     #             'metric': 'cassandra.metrics',
@@ -80,7 +85,7 @@ def get_config():
             'not_tags': ['type']
         }],
         'instances': [{
-            'url': 'http://localhost:8778/jolokia/',
+            'url': 'http://localhost:8778/jolokia/'
         }]
     }
 
