@@ -13,6 +13,7 @@
 # see <http://www.gnu.org/licenses/>.
 
 import time
+import re
 
 try:
     import json
@@ -25,21 +26,22 @@ from collectors.lib.hadoop_http import HadoopHttp
 EMIT_REGION = True
 
 EXCLUDED_CONTEXTS = ("master")
+REGION_METRIC_PATTERN = re.compile(r"[N|n]amespace_(.*)_table_(.*)_region_(.*)_metric_(.*)")
 
 class HBaseRegionserver(HadoopHttp):
     def __init__(self):
         super(HBaseRegionserver, self).__init__("hbase", "regionserver", "localhost", 60030)
 
     def emit_region_metric(self, context, current_time, full_metric_name, value):
-        split_metric = full_metric_name.split("_")
-        if len(split_metric) < 7:
+	match = REGION_METRIC_PATTERN.match(full_metric_name)
+        if not match:
             utils.err("Error splitting %s" % full_metric_name)
             return
 
-        namespace = split_metric[1]
-        table = split_metric[3]
-        region = split_metric[5]
-        metric_name = "_".join(split_metric[7:])
+        namespace = match.group(1)
+        table = match.group(2)
+        region = match.group(3)
+        metric_name = match.group(4)
         tag_dict = {"namespace": namespace, "table": table, "region": region}
 
         if any( not v for k,v in tag_dict.iteritems()):
