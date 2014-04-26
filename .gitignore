@@ -1,0 +1,9 @@
+debian/files
+debian/files
+debian/tcollector.debhelper.log
+debian/tcollector.postinst.debhelper
+debian/tcollector.postrm.debhelper
+debian/tcollector.prerm.debhelper
+debian/tcollector.substvars
+debian/tcollector/
+
