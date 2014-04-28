@@ -37,9 +37,9 @@ COLLECTION_INTERVAL = 15
 # for information:
 # http://haproxy.1wt.eu/download/1.4/doc/configuration.txt
 METRICS_TO_REPORT = {
-    "FRONTEND": ["scur", "rate"],
-    "BACKEND": ["scur", "rate"],
-    "servers": ["scur", "rate"]
+    "FRONTEND": ["scur", "rate", "req_tot", "req_rate"],
+    "BACKEND": ["scur", "rate", "req_tot", "req_rate"],
+    "servers": ["scur", "rate", "req_tot", "req_rate"]
 }
 
 METRIC_NAMES = {
