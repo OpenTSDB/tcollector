@@ -70,6 +70,7 @@
 
 import sys
 import time
+import os
 
 from collectors.lib import utils
 
@@ -96,6 +97,14 @@ FIELDS_PART = ("read_issued",
                "write_sectors",
               )
 
+def get_system_hz():
+    """Return system hz use SC_CLK_TCK."""
+    ticks = os.sysconf(os.sysconf_names['SC_CLK_TCK'])
+
+    if ticks == -1:
+        return 100
+    else:
+        return ticks
 
 def main():
     """iostats main loop."""
