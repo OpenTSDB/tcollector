@@ -62,14 +62,14 @@ import resource
 import sys
 import time
 
-from collectors.lib import utils
+from lib import utils
 
 
 def main():
     """Main loop"""
     sys.stdin.close()
 
-    interval = 15
+    interval = 60
     page_size = resource.getpagesize()
 
     try:

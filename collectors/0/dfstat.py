@@ -33,7 +33,7 @@ import os
 import sys
 import time
 
-from collectors.lib import utils
+from lib import utils
 
 COLLECTION_INTERVAL = 60  # seconds
 
@@ -115,6 +115,9 @@ def main():
             % (ts, percent_used, fs_file, fs_vfstype))
       print("df.bytes.free %d %s mount=%s fstype=%s"
             % (ts, r.f_frsize * r.f_bfree, fs_file, fs_vfstype))
+      # usage is calculated by using the non-reserved notion of free space (ie f_bavail instead f_bfree)
+      print("df.bytes.usage %d %f mount=%s fstype=%s"
+            % (ts, (used_blocks  * 100.0) / (used_blocks + r.f_bavail), fs_file, fs_vfstype))
 
       used = r.f_files - r.f_ffree
       percent_used = 100 if r.f_files == 0 else used * 100.0 / r.f_files
@@ -126,6 +129,10 @@ def main():
             % (ts, percent_used,  fs_file, fs_vfstype))
       print("df.inodes.free %d %s mount=%s fstype=%s"
             % (ts, r.f_ffree, fs_file, fs_vfstype))
+      # see note above
+      print("df.inodes.usage %d %f mount=%s fstype=%s"
+            % (ts, (used_inodes * 100.0) / (used_inodes + r.f_favail), fs_file, fs_vfstype))
+
 
     sys.stdout.flush()
     time.sleep(COLLECTION_INTERVAL)
