@@ -20,8 +20,8 @@ try:
 except ImportError:
     json = None
 
-from collectors.lib import utils
-from collectors.lib.hadoop_http import HadoopHttp
+from lib import utils
+from lib.hadoop_http import HadoopHttp
 
 EMIT_REGION = True
 
