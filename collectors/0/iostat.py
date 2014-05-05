@@ -71,6 +71,7 @@
 import sys
 import time
 import os
+import re
 
 from collectors.lib import utils
 
@@ -105,6 +106,17 @@ def get_system_hz():
         return 100
     else:
         return ticks
+
+def is_device(device_name, allow_virtual):
+    """Test whether given name is a device or a partition, using sysfs."""
+    device_name = re.sub('/', '!', device_name)
+
+    if allow_virtual:
+        devicename = "/sys/block/" + device_name + "/device"
+    else:
+        devicename = "/sys/block/" + device_name
+
+    return (os.access(devicename, os.F_OK))
 
 def main():
     """iostats main loop."""
