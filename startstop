@@ -21,7 +21,7 @@ COMMAND=$1
 test "$#" -gt 0 && {
     shift
 }
-ARGS="-c $TCOLLECTOR_PATH/collectors -H $TSD_HOST -t host=$HOSTNAME -P $PIDFILE"
+ARGS="-c $TCOLLECTOR_PATH/collectors -H $TSD_HOST -t host=$HOSTNAME -P $PIDFILE --logfile $LOG"
 ARGS="$ARGS $@"
 
 # Sanity checks.
