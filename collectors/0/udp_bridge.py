@@ -46,6 +46,7 @@ def main():
                 sys.stderr.write("invalid data\n")
                 break
             print data
+            sys.stdout.flush()
     except KeyboardInterrupt:
         sys.stderr.write("keyboard interrupt, exiting\n")
     finally:
