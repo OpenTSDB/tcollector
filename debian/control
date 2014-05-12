@@ -1,0 +1,22 @@
+Source: tcollector
+Priority: optional
+Maintainer: Fabian Holler <fabian.holler@profitbricks.com>
+Standards-Version: 3.9.4
+Section: utils
+Build-Depends: debhelper ( >= 8 ), python-support
+vcs-Browser: https://github.com/OpenTSDB/tcollector
+Homepage: http://opentsdb.net/
+
+Package: tcollector
+Architecture: all
+Depends: ${misc:Depends}, ${python:Depends}, adduser
+Recommends: smartmontools
+Section: utils
+Description: data collection framework for OpenTSDB
+ OpenTSDB is a distributed, scalable Time Series Database (TSDB) written on 
+ top of HBase. OpenTSDB was written to address a common need: store, index
+ and serve metrics collected from computer systems (network gear, operating
+ systems, applications) at a large scale, and make this data easily 
+ accessible and graphable.
+ .
+ tcollector is the data collection framework for OpenTSDB.

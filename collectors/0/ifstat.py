@@ -20,12 +20,21 @@ import re
 
 from lib import utils
 
+interval = 60 # seconds
 
 # /proc/net/dev has 16 fields, 8 for receive and 8 for transmit,
 # defined below.
 # So we can aggregate up the total bytes, packets, etc
 # we tag each metric with direction=in or =out
 # and iface=
+
+# The new naming scheme of network interfaces
+# Lan-On-Motherboard interfaces
+# em<port number>_< virtual function instance / NPAR Index >
+#
+# PCI add-in interfaces
+# p<slot number>p<port number>_<virtual function instance / NPAR Index>
+
 
 FIELDS = ("bytes", "packets", "errs", "dropped",
           "fifo.errs", "frame.errs", "compressed", "multicast",
@@ -35,9 +44,8 @@ FIELDS = ("bytes", "packets", "errs", "dropped",
 
 def main():
     """ifstat main loop"""
-    interval = 60
 
-    f_netdev = open("/proc/net/dev", "r")
+    f_netdev = open("/proc/net/dev")
     utils.drop_privileges()
 
     # We just care about ethN and emN interfaces.  We specifically
@@ -48,7 +56,8 @@ def main():
         f_netdev.seek(0)
         ts = int(time.time())
         for line in f_netdev:
-            m = re.match("\s+(eth\d+|em\d+):(.*)", line)
+            m = re.match("\s+(eth\d+|em\d+_\d+/\d+|em\d+_\d+|em\d+|"
+                         "p\d+p\d+_\d+/\d+|p\d+p\d+_\d+|p\d+p\d+):(.*)", line)
             if not m:
                 continue
             intf = m.group(1)
@@ -65,4 +74,4 @@ def main():
         time.sleep(interval)
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

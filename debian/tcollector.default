@@ -1,0 +1,30 @@
+# List of comma-seperated TSD hosts (host:port)
+#TSD_HOSTS="127.0.0.1:4242"
+
+#COLLECTOR_PATH=/usr/lib/tcollector/collectors
+#LOGFILE=/var/log/tcollector.log
+#PIDFILE=/var/run/tcollector.pid
+
+#DEDUP_INTERVAL=600
+#EVICT_INTERVAL=6000
+
+#RUN_AS_USER=tcollector
+#RUN_AS_GROUP=tcollector
+
+# uncomment to override the value of the recorded hostname tag
+#HOSTNAME=mynameispeter
+
+# Numerical list of processors tcollector and his children processes are pinned
+# to. taskset has to be installed and the processors list has to be specified
+# in taskset format:
+# "The numbers are separated by commas and may include ranges.
+# For example: 0,5,7,9-11.
+#CPU_LIST="0"
+
+# A string containing tags to be appended to all tags recieved from
+# from the collectors
+#EXTRA_TAGS="dc=mydatacenter othertag=somevalue"
+
+# Logfile rotation settings
+#LOGFILE_MAX_BYTES=67108864
+#LOGFILE_BACKUP_COUNT=0

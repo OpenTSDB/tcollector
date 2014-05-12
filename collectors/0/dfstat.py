@@ -17,9 +17,11 @@
 #
 # df.bytes.total        total size of fs
 # df.bytes.used         bytes used
+# df.bytes.percentused  percentage of bytes used
 # df.bytes.free         bytes free
 # df.inodes.total       number of inodes
 # df.inodes.used        number of inodes
+# df.inodes.percentused percentage of inodes used
 # df.inodes.free        number of inodes
 
 # All metrics are tagged with mount= and fstype=
@@ -44,17 +46,12 @@ FSTYPE_IGNORE = frozenset([
   "rootfs",
 ])
 
-
-def err(msg):
-  print >> sys.stderr, msg
-
-
 def main():
   """dfstats main loop"""
   try:
     f_mounts = open("/proc/mounts", "r")
   except IOError, e:
-    err("error: can't open /proc/mounts: %s" % e)
+    utils.err("error: can't open /proc/mounts: %s" % e)
     return 13 # Ask tcollector to not respawn us
 
   utils.drop_privileges()
@@ -75,7 +72,7 @@ def main():
       try:
         fs_spec, fs_file, fs_vfstype, fs_mntops, fs_freq, fs_passno = line.split(None)
       except ValueError, e:
-        err("error: can't parse line at /proc/mounts: %s" % e)
+        utils.err("error: can't parse line at /proc/mounts: %s" % e)
         continue
 
       if fs_spec == "none":
@@ -95,9 +92,9 @@ def main():
               device[1] = fs_file
             break
         if not device_found:
-          devices.append((fs_spec, fs_file, fs_vfstype))
+          devices.append([fs_spec, fs_file, fs_vfstype])
       else:
-        devices.append((fs_spec, fs_file, fs_vfstype))
+        devices.append([fs_spec, fs_file, fs_vfstype])
 
 
     for device in devices:
@@ -105,26 +102,31 @@ def main():
       try:
         r = os.statvfs(fs_file)
       except OSError, e:
-        err("error: can't get info for mount point: %s" % fs_file)
+        utils.err("error: can't get info for mount point: %s" % fs_file)
         continue
 
-      used_blocks = (r.f_blocks - r.f_bfree)
+      # usage is calculated by using the non-reserved notion of free space (ie f_bavail instead f_bfree)
+      used_blocks = r.f_blocks - r.f_bfree
+      percent_used = 100 if r.f_blocks == 0 else used * 100.0 / r.f_blocks
+      used_inodes = r.f_files - r.f_ffree
+
       print("df.bytes.total %d %s mount=%s fstype=%s"
             % (ts, r.f_frsize * r.f_blocks, fs_file, fs_vfstype))
       print("df.bytes.used %d %s mount=%s fstype=%s"
-            % (ts, r.f_frsize * used_blocks, fs_file,
-               fs_vfstype))
+            % (ts, r.f_frsize * used_blocks, fs_file, fs_vfstype))
+      print("df.bytes.percentused %d %s mount=%s fstype=%s"
+            % (ts, percent_used, fs_file, fs_vfstype))
       print("df.bytes.free %d %s mount=%s fstype=%s"
             % (ts, r.f_frsize * r.f_bfree, fs_file, fs_vfstype))
-      # usage is calculated by using the non-reserved notion of free space (ie f_bavail instead f_bfree)
       print("df.bytes.usage %d %f mount=%s fstype=%s"
             % (ts, (used_blocks  * 100.0) / (used_blocks + r.f_bavail), fs_file, fs_vfstype))
 
-      used_inodes = r.f_files - r.f_ffree
       print("df.inodes.total %d %s mount=%s fstype=%s"
             % (ts, r.f_files, fs_file, fs_vfstype))
       print("df.inodes.used %d %s mount=%s fstype=%s"
             % (ts, used_inodes, fs_file, fs_vfstype))
+      print("df.inodes.percentused %d %s mount=%s fstype=%s"
+            % (ts, percent_used,  fs_file, fs_vfstype))
       print("df.inodes.free %d %s mount=%s fstype=%s"
             % (ts, r.f_ffree, fs_file, fs_vfstype))
       # see note above

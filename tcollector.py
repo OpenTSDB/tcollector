@@ -52,6 +52,9 @@ ALIVE = True
 MAX_UNCAUGHT_EXCEPTIONS = 100
 DEFAULT_PORT = 4242
 MAX_REASONABLE_TIMESTAMP = 1600000000  # Good until September 2020 :)
+# How long to wait for datapoints before assuming
+# a collector is dead and restarting it
+ALLOWED_INACTIVITY_TIME = 600  # seconds
 MAX_SENDQ_SIZE = 10000
 MAX_READQ_SIZE = 100000
 
@@ -120,6 +123,7 @@ class Collector(object):
         self.lines_sent = 0
         self.lines_received = 0
         self.lines_invalid = 0
+        self.last_datapoint = int(time.time())
 
     def read(self):
         """Read bytes from our subprocess and store them in our temporary
@@ -171,6 +175,7 @@ class Collector(object):
             line = self.buffer[0:idx].strip()
             if line:
                 self.datalines.append(line)
+                self.last_datapoint = int(time.time())
             self.buffer = self.buffer[idx+1:]
 
     def collect(self):
@@ -268,7 +273,7 @@ class ReaderThread(threading.Thread):
                 combination of (metric, tags).  Values older than
                 evictinterval will be removed from the cache to save RAM.
                 Invariant: evictinterval > dedupinterval
-              default_host_tag: The default host tag to be added if the host tag 
+              default_host_tag: The default host tag to be added if the host tag
                 is not present.
         """
         assert evictinterval > dedupinterval, "%r <= %r" % (evictinterval,
@@ -299,12 +304,13 @@ class ReaderThread(threading.Thread):
                 for line in col.collect():
                     self.process_line(col, line)
 
-            now = int(time.time())
-            if now - lastevict_time > self.evictinterval:
-                lastevict_time = now
-                now -= self.evictinterval
-                for col in all_collectors():
-                    col.evict_old_keys(now)
+            if self.dedupinterval != 0:  # if 0 we do not use dedup
+                now = int(time.time())
+                if now - lastevict_time > self.evictinterval:
+                    lastevict_time = now
+                    now -= self.evictinterval
+                    for col in all_collectors():
+                        col.evict_old_keys(now)
 
             # and here is the loop that we really should get rid of, this
             # just prevents us from spinning right now
@@ -312,6 +318,8 @@ class ReaderThread(threading.Thread):
 
     def process_line(self, col, line):
         """Parses the given line and appends the result to the reader queue."""
+
+        self.lines_collected += 1
 
         col.lines_received += 1
         if len(line) >= 1024:  # Limit in net.opentsdb.tsd.PipelineFactory
@@ -342,52 +350,54 @@ class ReaderThread(threading.Thread):
         # with what the timestamp was when it first became that value (to keep
         # slopes of graphs correct).
         #
-        key = (metric, tags)
-        if key in col.values:
-            # if the timestamp isn't > than the previous one, ignore this value
-            if timestamp <= col.values[key][3]:
-                LOG.error("Timestamp out of order: metric=%s%s,"
-                          " old_ts=%d >= new_ts=%d - ignoring data point"
-                          " (value=%r, collector=%s)", metric, tags,
-                          col.values[key][3], timestamp, value, col.name)
-                col.lines_invalid += 1
-                return
-            elif timestamp >= MAX_REASONABLE_TIMESTAMP:
-                LOG.error("Timestamp is too far out in the future: metric=%s%s"
-                          " old_ts=%d, new_ts=%d - ignoring data point"
-                          " (value=%r, collector=%s)", metric, tags,
-                          col.values[key][3], timestamp, value, col.name)
-                return
+        if self.dedupinterval != 0:  # if 0 we do not use dedup
+            key = (metric, tags)
+            if key in col.values:
+                # if the timestamp isn't > than the previous one, ignore this value
+                if timestamp <= col.values[key][3]:
+                    LOG.error("Timestamp out of order: metric=%s%s,"
+                              " old_ts=%d >= new_ts=%d - ignoring data point"
+                              " (value=%r, collector=%s)", metric, tags,
+                              col.values[key][3], timestamp, value, col.name)
+                    col.lines_invalid += 1
+                    return
+                elif timestamp >= MAX_REASONABLE_TIMESTAMP:
+                    LOG.error("Timestamp is too far out in the future: metric=%s%s"
+                              " old_ts=%d, new_ts=%d - ignoring data point"
+                              " (value=%r, collector=%s)", metric, tags,
+                              col.values[key][3], timestamp, value, col.name)
+                    return
 
-            # if this data point is repeated, store it but don't send.
-            # store the previous timestamp, so when/if this value changes
-            # we send the timestamp when this metric first became the current
-            # value instead of the last.  Fall through if we reach
-            # the dedup interval so we can print the value.
-            if (col.values[key][0] == value and
-                (timestamp - col.values[key][3] < self.dedupinterval)):
-                col.values[key] = (value, True, line, col.values[key][3])
-                return
+                # if this data point is repeated, store it but don't send.
+                # store the previous timestamp, so when/if this value changes
+                # we send the timestamp when this metric first became the current
+                # value instead of the last.  Fall through if we reach
+                # the dedup interval so we can print the value.
+                if (col.values[key][0] == value and
+                    (timestamp - col.values[key][3] < self.dedupinterval)):
+                    col.values[key] = (value, True, line, col.values[key][3])
+                    return
 
-            # we might have to append two lines if the value has been the same
-            # for a while and we've skipped one or more values.  we need to
-            # replay the last value we skipped (if changed) so the jumps in
-            # our graph are accurate,
-            if ((col.values[key][1] or
-                (timestamp - col.values[key][3] >= self.dedupinterval))
-                and col.values[key][0] != value):
-                col.lines_sent += 1
-                if not self.readerq.nput(col.values[key][2]):
-                    self.lines_dropped += 1
+                # we might have to append two lines if the value has been the same
+                # for a while and we've skipped one or more values.  we need to
+                # replay the last value we skipped (if changed) so the jumps in
+                # our graph are accurate,
+                if ((col.values[key][1] or
+                    (timestamp - col.values[key][3] >= self.dedupinterval))
+                    and col.values[key][0] != value):
+                    col.lines_sent += 1
+                    if not self.readerq.nput(col.values[key][2]):
+                        self.lines_dropped += 1
 
-        # now we can reset for the next pass and send the line we actually
-        # want to send
-        # col.values is a dict of tuples, with the key being the metric and
-        # tags (essentially the same as wthat TSD uses for the row key).
-        # The array consists of:
-        # [ the metric's value, if this value was repeated, the line of data,
-        #   the value's timestamp that it last changed ]
-        col.values[key] = (value, False, line, timestamp)
+            # now we can reset for the next pass and send the line we actually
+            # want to send
+            # col.values is a dict of tuples, with the key being the metric and
+            # tags (essentially the same as wthat TSD uses for the row key).
+            # The array consists of:
+            # [ the metric's value, if this value was repeated, the line of data,
+            #   the value's timestamp that it last changed ]
+            col.values[key] = (value, False, line, timestamp)
+
         col.lines_sent += 1
         if not self.readerq.nput(line):
             self.lines_dropped += 1
@@ -400,7 +410,7 @@ class SenderThread(threading.Thread):
        buffering we might need to do if we can't establish a connection
        and we need to spool to disk.  That isn't implemented yet."""
 
-    def __init__(self, reader, dryrun, hosts, self_report_stats, tags):
+    def __init__(self, reader, dryrun, hosts, self_report_stats, tags, default_host_tag):
         """Constructor.
 
         Args:
@@ -429,6 +439,7 @@ class SenderThread(threading.Thread):
         self.last_verify = 0
         self.sendq = []
         self.self_report_stats = self_report_stats
+        self.default_host_tag = default_host_tag
 
     def pick_connection(self):
         """Picks up a random host/port connection."""
@@ -567,8 +578,8 @@ class SenderThread(threading.Thread):
                                  + col.name, col.lines_invalid))
 
                 ts = int(time.time())
-                strout = ["tcollector.%s %d %d %s"
-                          % (x[0], ts, x[2], x[1]) for x in strs]
+                strout = ["tcollector.%s %d %d host=%s %s"
+                          % (x[0], ts, x[2], self.default_host_tag, x[1]) for x in strs]
                 for string in strout:
                     self.sendq.append(string)
 
@@ -646,7 +657,7 @@ class SenderThread(threading.Thread):
                 LOG.debug('SENDING: %s', line)
         else:
             out = "".join("put %s%s\n" % (line, self.tagstr) for line in self.sendq)
-            
+
         if not out:
             LOG.debug('send_data no data?')
             return
@@ -736,6 +747,7 @@ def parse_cmdline(argv):
                       default=300, metavar='DEDUPINTERVAL',
                       help='Number of seconds in which successive duplicate '
                            'datapoints are suppressed before sending to the TSD. '
+                           'Use zero to disable. '
                            'default=%default')
     parser.add_option('--evict-interval', dest='evictinterval', type='int',
                       default=6000, metavar='EVICTINTERVAL',
@@ -754,8 +766,8 @@ def parse_cmdline(argv):
                       default=False,
                       help='Print logs to stdout.')
     (options, args) = parser.parse_args(args=argv[1:])
-    if options.dedupinterval < 2:
-        parser.error('--dedup-interval must be at least 2 seconds')
+    if options.dedupinterval < 0:
+        parser.error('--dedup-interval must be at least 0 seconds')
     if options.evictinterval <= options.dedupinterval:
         parser.error('--evict-interval must be strictly greater than '
                      '--dedup-interval')
@@ -789,9 +801,9 @@ def daemonize():
             pass         # ... ignore the exception.
 
 
-def setup_python_path(argv0):
+def setup_python_path(collector_dir):
     """Sets up PYTHONPATH so that collectors can easily import common code."""
-    mydir = os.path.abspath(os.path.dirname(argv0))
+    mydir = os.path.dirname(collector_dir)
     libdir = os.path.join(mydir, 'lib')
     if not os.path.isdir(libdir):
       raise Exception("Unable to find lib directory in expected location (at [cwd]/lib)")
@@ -847,7 +859,7 @@ def main(argv):
         tagstr = ' '.join('%s=%s' % (k, v) for k, v in tags.iteritems())
         tagstr = ' ' + tagstr.strip()
 
-    setup_python_path(argv[0])
+    setup_python_path(options.cdir)
 
     # gracefully handle death for normal termination paths and abnormal
     atexit.register(shutdown)
@@ -879,7 +891,7 @@ def main(argv):
 
     # and setup the sender to start writing out to the tsd
     sender = SenderThread(reader, options.dryrun, options.hosts,
-                          not options.no_tcollector_stats, tagstr)
+                          not options.no_tcollector_stats, tagstr, default_host_tag)
     sender.start()
     LOG.info('SenderThread startup complete')
 
@@ -922,6 +934,7 @@ def main_loop(options, modules, sender, tags):
         populate_collectors(options.cdir)
         reload_changed_config_modules(modules, options, sender, tags)
         reap_children()
+        check_children()
         spawn_children()
         time.sleep(15)
         now = int(time.time())
@@ -1126,6 +1139,21 @@ def reap_children():
                         col.name, now - col.lastspawn, status)
             col.dead = True
         else:
+            register_collector(Collector(col.name, col.interval, col.filename,
+                                         col.mtime, col.lastspawn))
+
+def check_children():
+    """When a child process hasn't received a datapoint in a while,
+       assume it's died in some fashion and restart it."""
+
+    for col in all_living_collectors():
+        now = int(time.time())
+
+        if col.last_datapoint < (now - ALLOWED_INACTIVITY_TIME):
+            # It's too old, kill it
+            LOG.warning('Terminating collector %s after %d seconds of inactivity',
+                        col.name, now - col.last_datapoint)
+            col.shutdown()
             register_collector(Collector(col.name, col.interval, col.filename,
                                          col.mtime, col.lastspawn))
 

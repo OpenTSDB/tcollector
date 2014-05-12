@@ -18,6 +18,7 @@ import os
 import re
 import sys
 import time
+import glob
 
 from lib import utils
 
@@ -88,6 +89,21 @@ def main():
     f_loadavg = open("/proc/loadavg", "r")
     f_entropy_avail = open("/proc/sys/kernel/random/entropy_avail", "r")
     f_interrupts = open("/proc/interrupts", "r")
+
+    f_scaling = "/sys/devices/system/cpu/cpu%s/cpufreq/cpuinfo_%s_freq"
+    f_scaling_min  = dict([])
+    f_scaling_max  = dict([])
+    f_scaling_cur  = dict([])
+    for cpu in glob.glob("/sys/devices/system/cpu/cpu[0-9]*/cpufreq/cpuinfo_cur_freq"):
+        m = re.match("/sys/devices/system/cpu/cpu([0-9]*)/cpufreq/cpuinfo_cur_freq", cpu)
+        if not m:
+            continue
+        cpu_no = m.group(1)
+        sys.stderr.write(f_scaling % (cpu_no,"min"))
+        f_scaling_min[cpu_no] = open(f_scaling % (cpu_no,"min"), "r")
+        f_scaling_max[cpu_no] = open(f_scaling % (cpu_no,"max"), "r")
+        f_scaling_cur[cpu_no] = open(f_scaling % (cpu_no,"cur"), "r")
+
     numastats = open_sysfs_numa_stats()
     utils.drop_privileges()
 
@@ -105,10 +121,15 @@ def main():
         f_meminfo.seek(0)
         ts = int(time.time())
         for line in f_meminfo:
-            m = re.match("(\w+):\s+(\d+)", line)
+            m = re.match("(\w+):\s+(\d+)\s+(\w+)", line)
             if m:
+                if m.group(3).lower() == 'kb':
+                    # convert from kB to B for easier graphing
+                    value = str(int(m.group(2)) * 1000)
+                else:
+                    value = m.group(2)
                 print ("proc.meminfo.%s %d %s"
-                        % (m.group(1).lower(), ts, m.group(2)))
+                        % (m.group(1).lower(), ts, value))
 
         # proc.vmstat
         f_vmstat.seek(0)
@@ -199,6 +220,26 @@ def main():
                            % (ts, val, irq_type, i))
 
         print_numa_stats(numastats)
+
+        # Print scaling stats
+        ts = int(time.time())
+        for cpu_no in f_scaling_min.keys():
+            f = f_scaling_min[cpu_no]
+            f.seek(0)
+            for line in f:
+                print "proc.scaling.min %d %s cpu=%s" % (ts, line.rstrip('\n'), cpu_no)
+        ts = int(time.time())
+        for cpu_no in f_scaling_max.keys():
+            f = f_scaling_max[cpu_no]
+            f.seek(0)
+            for line in f:
+                print "proc.scaling.max %d %s cpu=%s" % (ts, line.rstrip('\n'), cpu_no)
+        ts = int(time.time())
+        for cpu_no in f_scaling_cur.keys():
+            f = f_scaling_cur[cpu_no]
+            f.seek(0)
+            for line in f:
+                print "proc.scaling.cur %d %s cpu=%s" % (ts, line.rstrip('\n'), cpu_no)
 
         sys.stdout.flush()
         time.sleep(COLLECTION_INTERVAL)

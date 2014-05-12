@@ -263,24 +263,26 @@ def main():
         #   Header: 1 2
         #   OtherHeader: ThirdMetric FooBar
         #   OtherHeader: 42 51
-        # We first group all the lines for each header together:
-        #   {"Header:": [["SomeMetric", "OtherHeader"], ["1", "2"]],
-        #    "OtherHeader:": [["ThirdMetric", "FooBar"], ["42", "51"]]}
-        # Then we'll create a dict for each type:
-        #   {"SomeMetric": "1", "OtherHeader": "2"}
-        for line in stats.splitlines():
-            line = line.split()
-            if line[0] not in known_statstypes:
+        #   OtherHeader: FourthMetric
+        #   OtherHeader: 4
+        # We first pair the lines together, then create a dict for each type:
+        #   {"SomeMetric": "1", "OtherMetric": "2"}
+        lines = stats.splitlines()
+        assert len(lines) % 2 == 0, repr(lines)
+        for header, data in zip(*(iter(lines),) * 2):
+            header = header.split()
+            data = data.split()
+            assert header[0] == data[0], repr((header, data))
+            assert len(header) == len(data), repr((header, data))
+            if header[0] not in known_statstypes:
                 print >>sys.stderr, ("Unrecoginized line in %s:"
-                                     " %r (file=%r)" % (filename, line, stats))
+                                     " %r (file=%r)" % (filename, header, stats))
                 continue
-            statstype = line.pop(0)
-            statsdikt.setdefault(known_statstypes[statstype], []).append(line)
+            statstype = header.pop(0)
+            data.pop(0)
+            stats = dict(zip(header, data))
+            statsdikt.setdefault(known_statstypes[statstype], {}).update(stats)
         for statstype, stats in statsdikt.iteritems():
-            # stats is now:
-            # [["SyncookiesSent", "SyncookiesRecv", ...], ["1", "2", ....]]
-            assert len(stats) == 2, repr(statsdikt)
-            stats = dict(zip(*stats))
             # Undo the kernel's double counting
             if "ListenDrops" in stats:
                 stats["ListenDrops"] = int(stats["ListenDrops"]) - int(stats.get("ListenOverflows", 0))
