@@ -70,6 +70,8 @@
 
 import sys
 import time
+import os
+import re
 
 from collectors.lib import utils
 
@@ -96,15 +98,46 @@ FIELDS_PART = ("read_issued",
                "write_sectors",
               )
 
+def read_uptime():
+    try:
+        f_uptime = open("/proc/uptime", "r")
+        line = f_uptime.readline()
+
+        return line.split(None)
+    finally:
+        f_uptime.close();
+
+def get_system_hz():
+    """Return system hz use SC_CLK_TCK."""
+    ticks = os.sysconf(os.sysconf_names['SC_CLK_TCK'])
+
+    if ticks == -1:
+        return 100
+    else:
+        return ticks
+
+def is_device(device_name, allow_virtual):
+    """Test whether given name is a device or a partition, using sysfs."""
+    device_name = re.sub('/', '!', device_name)
+
+    if allow_virtual:
+        devicename = "/sys/block/" + device_name + "/device"
+    else:
+        devicename = "/sys/block/" + device_name
+
+    return (os.access(devicename, os.F_OK))
 
 def main():
     """iostats main loop."""
     f_diskstats = open("/proc/diskstats", "r")
+    HZ = get_system_hz()
+    itv = 1.0
     utils.drop_privileges()
 
     while True:
         f_diskstats.seek(0)
         ts = int(time.time())
+        itv = read_uptime()[1]
         for line in f_diskstats:
             # maj, min, devicename, [list of stats, see above]
             values = line.split(None)
@@ -128,6 +161,19 @@ def main():
                     print ("%s%s %d %s dev=%s"
                            % (metric, FIELDS_DISK[i], ts, values[i+3],
                               device))
+
+                ret = is_device(device, 0)
+                if ret:
+                    stats = dict(zip(FIELDS_DISK, values[3:]))
+                    nr_ios = float(stats.get("read_requests")) + float(stats.get("write_requests"))
+                    tput = ((nr_ios) * float(HZ) / float(itv))
+                    util = (float(stats.get("msec_total")) * float(HZ) / float(itv))
+                    if tput:
+                        svctm = util / tput
+                    else:
+                        svctm = 0.00
+                    print ("%s%s %d %.2f dev=%s" % (metric, "svctm", ts, svctm, device))
+
             elif len(values) == 7:
                 # partial stats line
                 for i in range(4):
