@@ -21,7 +21,7 @@ try:
     from collections import OrderedDict  # New in Python 2.7
 except ImportError:
     from ordereddict import OrderedDict  # Can be easy_install'ed for <= 2.6
-from lib.utils import is_numeric
+from collectors.lib.utils import is_numeric
 
 EXCLUDED_KEYS = (
     "Name",

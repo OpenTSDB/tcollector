@@ -18,7 +18,7 @@ import sys
 import time
 import re
 
-from lib import utils
+from collectors.lib import utils
 
 interval = 60 # seconds
 

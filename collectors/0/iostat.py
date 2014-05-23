@@ -71,7 +71,7 @@
 import sys
 import time
 
-from lib import utils
+from collectors.lib import utils
 
 COLLECTION_INTERVAL = 60  # seconds
 
