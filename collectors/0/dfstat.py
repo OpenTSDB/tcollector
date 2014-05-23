@@ -33,7 +33,7 @@ import os
 import sys
 import time
 
-from lib import utils
+from collectors.lib import utils
 
 COLLECTION_INTERVAL = 60  # seconds
 
@@ -105,34 +105,27 @@ def main():
         utils.err("error: can't get info for mount point: %s" % fs_file)
         continue
 
-      # usage is calculated by using the non-reserved notion of free space (ie f_bavail instead f_bfree)
-      used_blocks = r.f_blocks - r.f_bfree
+      used = r.f_blocks - r.f_bfree
       percent_used = 100 if r.f_blocks == 0 else used * 100.0 / r.f_blocks
-      used_inodes = r.f_files - r.f_ffree
-
       print("df.bytes.total %d %s mount=%s fstype=%s"
             % (ts, r.f_frsize * r.f_blocks, fs_file, fs_vfstype))
       print("df.bytes.used %d %s mount=%s fstype=%s"
-            % (ts, r.f_frsize * used_blocks, fs_file, fs_vfstype))
+            % (ts, r.f_frsize * used, fs_file, fs_vfstype))
       print("df.bytes.percentused %d %s mount=%s fstype=%s"
             % (ts, percent_used, fs_file, fs_vfstype))
       print("df.bytes.free %d %s mount=%s fstype=%s"
             % (ts, r.f_frsize * r.f_bfree, fs_file, fs_vfstype))
-      print("df.bytes.usage %d %f mount=%s fstype=%s"
-            % (ts, (used_blocks  * 100.0) / (used_blocks + r.f_bavail), fs_file, fs_vfstype))
 
+      used = r.f_files - r.f_ffree
+      percent_used = 100 if r.f_files == 0 else used * 100.0 / r.f_files
       print("df.inodes.total %d %s mount=%s fstype=%s"
             % (ts, r.f_files, fs_file, fs_vfstype))
       print("df.inodes.used %d %s mount=%s fstype=%s"
-            % (ts, used_inodes, fs_file, fs_vfstype))
+            % (ts, used, fs_file, fs_vfstype))
       print("df.inodes.percentused %d %s mount=%s fstype=%s"
             % (ts, percent_used,  fs_file, fs_vfstype))
       print("df.inodes.free %d %s mount=%s fstype=%s"
             % (ts, r.f_ffree, fs_file, fs_vfstype))
-      # see note above
-      print("df.inodes.usage %d %f mount=%s fstype=%s"
-            % (ts, (used_inodes * 100.0) / (used_inodes + r.f_favail), fs_file, fs_vfstype))
-
 
     sys.stdout.flush()
     time.sleep(COLLECTION_INTERVAL)
