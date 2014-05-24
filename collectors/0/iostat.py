@@ -168,11 +168,19 @@ def main():
                     nr_ios = float(stats.get("read_requests")) + float(stats.get("write_requests"))
                     tput = ((nr_ios) * float(HZ) / float(itv))
                     util = (float(stats.get("msec_total")) * float(HZ) / float(itv))
+                    svctm = 0.0
+                    await = 0.0
+
                     if tput:
                         svctm = util / tput
-                    else:
-                        svctm = 0.00
                     print ("%s%s %d %.2f dev=%s" % (metric, "svctm", ts, svctm, device))
+
+                    if nr_ios:
+                        rd_ticks = stats.get("msec_read")
+                        wr_ticks = stats.get("msec_write")
+                        await = (float(rd_ticks) + float(wr_ticks)) / float(nr_ios)
+                    print ("%s%s %d %.2f dev=%s" % (metric, "await", ts, await, device))
+                    #print ("%s%s %d %.2f dev=%s" % (metric, "util", ts, float(util/10.0), device))
 
             elif len(values) == 7:
                 # partial stats line
