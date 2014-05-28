@@ -78,7 +78,7 @@ def get_flume_version(flume_cmd):
     flume_path_parts = flume_path.split('/')
     # the index of the version number is 1 + the index of the 'versions' directory
     version_index = flume_path_parts.index('versions') + 1
-    return int(flume_path_parts[version_index])
+    return flume_path_parts[version_index]
 
 def main(argv):
     class UpdateFlumeProcesses(threading.Thread):
