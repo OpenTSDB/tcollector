@@ -47,13 +47,15 @@ def main():
     for metric_type in metric_types:
         for classpath, metrics in json[metric_type].iteritems():
             splitpath = classpath.split(".")
+            if len(splitpath) < 2:
+              continue
             class_name = splitpath[-2]
             method_name = splitpath[-1]
             for metric, value in metrics.iteritems():
                 if metric in not_metrics:
                     continue
                 print format_tsd_key(METRIC_PREFIX + metric_type + "." + metric, value, {
-                                     'class_name': class_name,
+                                     'class': class_name,
                                      'method': method_name})
  
  
