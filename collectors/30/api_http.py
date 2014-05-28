@@ -7,19 +7,10 @@ import sys
  
  
 # Constants
-METRIC_PREFIX = 'optimizely.api.'
 TIME = int(time.time())
-URL_FORMAT = 'http://127.0.0.1:8080/v1/{}/stats'
+URL = 'http://127.0.0.1:8081/metrics'
+METRIC_PREFIX = 'optimizely.codahale.'
 
-KEYS = {
-    'opCount': "^(.*)Count$",
-    'opTime': "^(.*)Time$",
-    'opDuration': "^(.*)Duration$"
-}
-
-PATHS = [
-    "results"
-]
  
 def get_json(url):
     """ Request URL, load JSON, exit if error. """
@@ -48,16 +39,22 @@ def format_tsd_key(metric_key, metric_value, tags={}):
  
  
 def main():
-    # Collect statistics
-    for path in PATHS:
-        json = get_json(URL_FORMAT.format(path))
-
-        for item, value in json.iteritems():
-            for key, tag_expression in KEYS.iteritems():
-                matches = re.match(tag_expression, item)
-                if matches:
-                    tag = matches.group(1)
-                    print format_tsd_key(METRIC_PREFIX + path + "." + key, value, {'type': tag})
+    json = get_json(URL)
+    # We only have timers now - not sure if 
+    # the other ones look the same
+    metric_types = ['timers']
+    not_metrics = ['duration_units', 'rate_units']
+    for metric_type in metric_types:
+        for classpath, metrics in json[metric_type].iteritems():
+            splitpath = classpath.split(".")
+            class_name = splitpath[-2]
+            method_name = splitpath[-1]
+            for metric, value in metrics.iteritems():
+                if metric in not_metrics:
+                    continue
+                print format_tsd_key(METRIC_PREFIX + metric_type + "." + metric, value, {
+                                     'class_name': class_name,
+                                     'method': method_name})
  
  
 if __name__ == '__main__':
