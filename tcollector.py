@@ -682,11 +682,13 @@ class SenderThread(threading.Thread):
         # the packets out of the kernel's queue
 
 
-def setup_logging(logfile=DEFAULT_LOG, max_bytes=None, backup_count=None):
+def setup_logging(logfile=DEFAULT_LOG, max_bytes=None, backup_count=None, stdout=False):
     """Sets up logging and associated handlers."""
 
     LOG.setLevel(logging.INFO)
-    if backup_count is not None and max_bytes is not None:
+    if stdout:
+        ch = logging.StreamHandler(sys.stdout)
+    elif backup_count is not None and max_bytes is not None:
         assert backup_count > 0
         assert max_bytes > 0
         ch = RotatingFileHandler(logfile, 'a', max_bytes, backup_count)
@@ -759,6 +761,9 @@ def parse_cmdline(argv):
     parser.add_option('--logfile', dest='logfile', type='str',
                       default=DEFAULT_LOG,
                       help='Filename where logs are written to.')
+    parser.add_option('--stdout', dest='stdout', action='store_true',
+                      default=False,
+                      help='Print logs to stdout.')
     (options, args) = parser.parse_args(args=argv[1:])
     if options.dedupinterval < 0:
         parser.error('--dedup-interval must be at least 0 seconds')
@@ -816,7 +821,7 @@ def main(argv):
     if options.daemonize:
         daemonize()
     setup_logging(options.logfile, options.max_bytes or None,
-                  options.backup_count or None)
+                  options.backup_count or None, stdout=options.stdout)
 
     if options.verbose:
         LOG.setLevel(logging.DEBUG)  # up our level

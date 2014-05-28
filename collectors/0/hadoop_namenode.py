@@ -12,6 +12,7 @@
 # of the GNU Lesser General Public License along with this program.  If not,
 # see <http://www.gnu.org/licenses/>.
 
+import socket
 import sys
 import time
 
@@ -29,6 +30,8 @@ REPLACEMENTS = {
     "rpcactivityforport": ["rpc_activity"]
 }
 
+HOST_NAME = socket.gethostname()
+
 
 class HadoopNameNode(HadoopHttp):
     """
@@ -39,7 +42,7 @@ class HadoopNameNode(HadoopHttp):
     """
 
     def __init__(self):
-        super(HadoopNameNode, self).__init__('hadoop', 'namenode', 'localhost', 50070)
+        super(HadoopNameNode, self).__init__('hadoop', 'namenode', HOST_NAME, 50070)
 
     def emit(self):
         current_time = int(time.time())
