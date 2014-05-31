@@ -129,7 +129,12 @@ def is_device(device_name, allow_virtual):
 
 def main():
     """iostats main loop."""
-    f_diskstats = open("/proc/diskstats", "r")
+    try:
+        f_diskstats = open("/proc/diskstats", "r")
+    except IOError, e:
+        utils.err("error: can't open /proc/diskstats: %s" % e)
+        return 13 # Ask tcollector to not respawn us
+
     HZ = get_system_hz()
     itv = 1.0
     utils.drop_privileges()
@@ -163,7 +168,7 @@ def main():
                               device))
 
                 ret = is_device(device, 0)
-                # if a device or a partition, calculate the svctm/await/util"""
+                # if a device or a partition, calculate the svctm/await/util
                 if ret:
                     stats = dict(zip(FIELDS_DISK, values[3:]))
                     nr_ios = float(stats.get("read_requests")) + float(stats.get("write_requests"))
@@ -179,9 +184,13 @@ def main():
                         rd_ticks = stats.get("msec_read")
                         wr_ticks = stats.get("msec_write")
                         await = (float(rd_ticks) + float(wr_ticks)) / float(nr_ios)
-                    print ("%s%s %d %.2f dev=%s" % (metric, "svctm", ts, svctm, device))
-                    print ("%s%s %d %.2f dev=%s" % (metric, "await", ts, await, device))
-                    print ("%s%s %d %.2f dev=%s" % (metric, "util", ts, float(util/1000.0), device))
+
+                    print ("%s%s %d %.2f dev=%s" 
+                            % (metric, "svctm", ts, svctm, device))
+                    print ("%s%s %d %.2f dev=%s" 
+                            % (metric, "await", ts, await, device))
+                    print ("%s%s %d %.2f dev=%s" 
+                            % (metric, "util", ts, float(util/1000.0), device))
 
             elif len(values) == 7:
                 # partial stats line

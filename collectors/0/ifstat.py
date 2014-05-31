@@ -45,8 +45,13 @@ FIELDS = ("bytes", "packets", "errs", "dropped",
 def main():
     """ifstat main loop"""
 
-    f_netdev = open("/proc/net/dev")
-    utils.drop_privileges()
+    try:
+        f_netdev = open("/proc/net/dev")
+    except IOError, e:
+        utils.err("error: can't open /proc/net/dev: %s" % e)
+        return 13 # Ask tcollector to not respawn us
+
+    utils.drop_privileges()    
 
     # We just care about ethN and emN interfaces.  We specifically
     # want to avoid bond interfaces, because interface
