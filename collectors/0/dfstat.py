@@ -40,6 +40,7 @@ COLLECTION_INTERVAL = 60  # seconds
 # File system types to ignore
 FSTYPE_IGNORE = frozenset([
   "cgroup",
+  "cgroups",
   "debugfs",
   "devtmpfs",
   "rpc_pipefs",
