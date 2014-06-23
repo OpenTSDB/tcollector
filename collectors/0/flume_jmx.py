@@ -39,7 +39,6 @@ JMX_SERVICE_RENAMING = {
 def kill(proc):
     """Kills the subprocess given in argument."""
     # Clean up after ourselves.
-    proc.stdout.close()
     rv = proc.poll()
     if rv is None:
         os.kill(proc.pid, signal.SIGTERM)
@@ -47,6 +46,7 @@ def kill(proc):
         if rv is None:
             os.kill(proc.pid, signal.SIGKILL)  # Bang bang!
             rv = proc.wait()  # This shouldn't block too long.
+    proc.stdout.close()
     utils.err("warning: proc exited %d" % rv)
     return rv
 
@@ -230,7 +230,6 @@ def main(argv):
     except Exception as e:
         utils.err('Caught exception: %s' % e)
         traceback.print_exc(file=sys.stderr)
-    finally:
         kill_monitors(join=False)
         time.sleep(300)
         return 0  # Ask the tcollector to re-spawn us.
