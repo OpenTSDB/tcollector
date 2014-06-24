@@ -788,6 +788,7 @@ def daemonize():
     os.dup2(stdout.fileno(), 2)
     stdin.close()
     stdout.close()
+    os.umask(022)
     for fd in xrange(3, 1024):
         try:
             os.close(fd)
