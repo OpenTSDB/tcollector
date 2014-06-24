@@ -231,7 +231,7 @@ def main(argv):
         utils.err('Caught exception: %s' % e)
         traceback.print_exc(file=sys.stderr)
         kill_monitors(join=False)
-        time.sleep(300)
+        time.sleep(60)
         return 0  # Ask the tcollector to re-spawn us.
 
 
