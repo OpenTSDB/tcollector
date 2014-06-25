@@ -42,8 +42,8 @@ def main():
     json = get_json(URL)
     # We only have timers now - not sure if 
     # the other ones look the same
-    metric_types = ['timers']
-    not_metrics = ['duration_units', 'rate_units']
+    metric_types = ['timers', 'meters', 'counters', 'gauges']
+    not_metrics = ['duration_units', 'rate_units', 'units']
     for metric_type in metric_types:
         for classpath, metrics in json[metric_type].iteritems():
             splitpath = classpath.split(".")
