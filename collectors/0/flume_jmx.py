@@ -214,17 +214,23 @@ def main(argv):
     do_on_signal(signal.SIGTERM, kill_monitors, join=True)
 
     try:
+        procs = {}
+
         while True:
             for pid, monitor in flume_monitors.items():
                 if not monitor.is_alive():
                     monitor.kill_jmx()
                     del flume_monitors[pid]
 
-            procs = java.list_procs("org.apache.flume.node.Application")
             for pid, cmd in procs.iteritems():
                 if pid not in flume_monitors:
                     flume_monitors[pid] = FlumeJmxMonitor(pid, cmd)
                     flume_monitors[pid].start()
+
+            # HACK
+            # jmx monitor seems not to emit results if attached too early, so
+            # we wait one interval before we start monitoring
+            procs = java.list_procs("org.apache.flume.node.Application")
 
             time.sleep(60)
     except Exception as e:
