@@ -20,7 +20,7 @@ import re
 
 from collectors.lib import utils
 
-interval = 15 # seconds
+interval = 15  # seconds
 
 # /proc/net/dev has 16 fields, 8 for receive and 8 for transmit,
 # defined below.
@@ -62,13 +62,14 @@ def main():
                 continue
             intf = m.group(1)
             stats = m.group(2).split(None)
+
             def direction(i):
                 if i >= 8:
                     return "out"
                 return "in"
             for i in xrange(16):
-                print ("proc.net.%s %d %s iface=%s direction=%s"
-                       % (FIELDS[i], ts, stats[i], intf, direction(i)))
+                print("proc.net.%s %d %s iface=%s direction=%s"
+                      % (FIELDS[i], ts, stats[i], intf, direction(i)))
 
         sys.stdout.flush()
         time.sleep(interval)
