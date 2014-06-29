@@ -26,7 +26,8 @@ THIS_HOST=${THIS_HOST%%.*}
 TCOLLECTOR=${TCOLLECTOR-/usr/local/tcollector/tcollector.py}
 PIDFILE=${PIDFILE-/var/run/tcollector.pid}
 LOGFILE=${LOGFILE-/var/log/tcollector.log}
-NUMLOGFILES=3
+LOGFILE_MAX_BYTES=${LOGFILE_MAX_BYTES-67108864}
+LOGFILE_BACKUP_COUNT=${LOGFILE_BACKUP_COUNT-0}
 
 prog=tcollector
 if [ -f /etc/sysconfig/$prog ]; then
@@ -35,9 +36,21 @@ fi
 
 lockfile=${LOCKFILE-/var/lock/subsys/tcollector}
 
+EXTRA_TAGS_OPTS=""
+for TV in $EXTRA_TAGS; do
+    EXTRA_TAGS_OPTS=${EXTRA_TAGS_OPTS}" -t ${TV}"
+done
+
 if [ -z "$OPTIONS" ]; then
-  OPTIONS="-D -H $TSD_HOST -t host=$THIS_HOST -P $PIDFILE"
-  OPTIONS="$OPTIONS --logfile=$LOGFILE --backup-count=$NUMLOGFILES"
+  OPTIONS="-D"
+  if [ -n "$TSD_HOSTS" ]; then
+    OPTIONS="$OPTIONS -L $TSD_HOSTS"
+  else
+    OPTIONS="$OPTIONS -H $TSD_HOST"
+  fi
+  OPTIONS="$OPTIONS -t host=$THIS_HOST -P $PIDFILE"
+  OPTIONS="$OPTIONS --max-bytes $LOGFILE_MAX_BYTES --backup-count $LOGFILE_BACKUP_COUNT"
+  OPTIONS="$OPTIONS --logfile=$LOGFILE $EXTRA_TAGS_OPTS"
 fi
 
 sanity_check() {
