@@ -64,9 +64,6 @@
 # when you have to handle mapping of /dev/mapper to dm-N, pulling out
 # swap partitions from /proc/swaps, etc.
 
-# TODO: add some generated stats from iostat -x like svctm, await,
-# %util.  These need to pull in cpu idle counters from /proc.
-
 
 import sys
 import time
@@ -90,22 +87,25 @@ FIELDS_DISK = (
     "ios_in_progress",      # Number of actual I/O requests currently in flight.
     "msec_total",           # Amount of time during which ios_in_progress >= 1.
     "msec_weighted_total",  # Measure of recent I/O completion time and backlog.
-    )
+)
 
-FIELDS_PART = ("read_issued",
-               "read_sectors",
-               "write_issued",
-               "write_sectors",
-              )
+FIELDS_PART = (
+    "read_issued",
+    "read_sectors",
+    "write_issued",
+    "write_sectors",
+)
+
 
 def read_uptime():
     try:
-        f_uptime = open("/proc/uptime", "r")
+        f_uptime = open("/proc/uptime")
         line = f_uptime.readline()
 
         return line.split(None)
     finally:
         f_uptime.close();
+
 
 def get_system_hz():
     """Return system hz use SC_CLK_TCK."""
@@ -116,6 +116,7 @@ def get_system_hz():
     else:
         return ticks
 
+
 def is_device(device_name, allow_virtual):
     """Test whether given name is a device or a partition, using sysfs."""
     device_name = re.sub('/', '!', device_name)
@@ -125,11 +126,12 @@ def is_device(device_name, allow_virtual):
     else:
         devicename = "/sys/block/" + device_name
 
-    return (os.access(devicename, os.F_OK))
+    return os.access(devicename, os.F_OK)
+
 
 def main():
     """iostats main loop."""
-    f_diskstats = open("/proc/diskstats", "r")
+    f_diskstats = open("/proc/diskstats")
     HZ = get_system_hz()
     itv = 1.0
     utils.drop_privileges()
@@ -142,7 +144,7 @@ def main():
             # maj, min, devicename, [list of stats, see above]
             values = line.split(None)
             # shortcut the deduper and just skip disks that
-            # haven't done a single read.  This elimiates a bunch
+            # haven't done a single read.  This eliminates a bunch
             # of loopback, ramdisk, and cdrom devices but still
             # lets us report on the rare case that we actually use
             # a ramdisk.
@@ -158,16 +160,16 @@ def main():
             if len(values) == 14:
                 # full stats line
                 for i in range(11):
-                    print ("%s%s %d %s dev=%s"
-                           % (metric, FIELDS_DISK[i], ts, values[i+3],
-                              device))
+                    print("%s%s %d %s dev=%s"
+                          % (metric, FIELDS_DISK[i], ts, values[i+3], device))
 
                 ret = is_device(device, 0)
-                # if a device or a partition, calculate the svctm/await/util"""
+                # if a device or a partition, calculate the svctm/await/util
                 if ret:
                     stats = dict(zip(FIELDS_DISK, values[3:]))
-                    nr_ios = float(stats.get("read_requests")) + float(stats.get("write_requests"))
-                    tput = ((nr_ios) * float(HZ) / float(itv))
+                    nr_ios = float(stats.get("read_requests")) + \
+                        float(stats.get("write_requests"))
+                    tput = (nr_ios * float(HZ) / float(itv))
                     util = (float(stats.get("msec_total")) * float(HZ) / float(itv))
                     svctm = 0.0
                     await = 0.0
@@ -179,16 +181,18 @@ def main():
                         rd_ticks = stats.get("msec_read")
                         wr_ticks = stats.get("msec_write")
                         await = (float(rd_ticks) + float(wr_ticks)) / float(nr_ios)
-                    print ("%s%s %d %.2f dev=%s" % (metric, "svctm", ts, svctm, device))
-                    print ("%s%s %d %.2f dev=%s" % (metric, "await", ts, await, device))
-                    print ("%s%s %d %.2f dev=%s" % (metric, "util", ts, float(util/1000.0), device))
+                    print("%s%s %d %.2f dev=%s"
+                          % (metric, "svctm", ts, svctm, device))
+                    print("%s%s %d %.2f dev=%s"
+                          % (metric, "await", ts, await, device))
+                    print("%s%s %d %.2f dev=%s"
+                          % (metric, "util", ts, float(util/1000.0), device))
 
             elif len(values) == 7:
                 # partial stats line
                 for i in range(4):
-                    print ("%s%s %d %s dev=%s"
-                           % (metric, FIELDS_PART[i], ts, values[i+3],
-                              device))
+                    print("%s%s %d %s dev=%s"
+                          % (metric, FIELDS_PART[i], ts, values[i+3], device))
             else:
                 print >> sys.stderr, "Cannot parse /proc/diskstats line: ", line
                 continue
@@ -197,7 +201,5 @@ def main():
         time.sleep(COLLECTION_INTERVAL)
 
 
-
 if __name__ == "__main__":
     main()
-
