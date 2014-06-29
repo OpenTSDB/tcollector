@@ -2,7 +2,7 @@
 #
 # tcollector        Startup script for the tcollector monitoring agent
 #
-# chkconfig: - 15 85
+# chkconfig:   2345 15 85
 # description: tcollector is an agent that collects and reports  \
 #              monitoring data for OpenTSDB.
 # processname: tcollector
@@ -21,8 +21,7 @@
 . /etc/init.d/functions
 
 TSD_HOST=tsd
-THIS_HOST=`hostname`
-THIS_HOST=${THIS_HOST%%.*}
+TCOLLECTOR_FIELDS=${TCOLLECTOR_FIELDS-"-t host=`hostname`"}
 TCOLLECTOR=${TCOLLECTOR-/usr/local/tcollector/tcollector.py}
 PIDFILE=${PIDFILE-/var/run/tcollector.pid}
 LOGFILE=${LOGFILE-/var/log/tcollector.log}
@@ -36,7 +35,7 @@ fi
 lockfile=${LOCKFILE-/var/lock/subsys/tcollector}
 
 if [ -z "$OPTIONS" ]; then
-  OPTIONS="-D -H $TSD_HOST -t host=$THIS_HOST -P $PIDFILE"
+  OPTIONS="-D -H $TSD_HOST $TCOLLECTOR_FIELDS -P $PIDFILE"
   OPTIONS="$OPTIONS --logfile=$LOGFILE --backup-count=$NUMLOGFILES"
 fi
 
@@ -55,6 +54,7 @@ sanity_check() {
 start() {
   echo -n $"Starting $prog: "
   sanity_check || return $?
+  /usr/bin/find `dirname ${TCOLLECTOR}` -name '*.pyc' -delete
   daemon --pidfile=$PIDFILE $TCOLLECTOR $OPTIONS
   RETVAL=$?
   echo
