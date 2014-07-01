@@ -12,12 +12,44 @@
 # of the GNU Lesser General Public License along with this program.  If not,
 # see <http://www.gnu.org/licenses/>.
 
+import os
 import sys
+from stat import S_ISDIR, S_ISREG, ST_MODE
 import unittest
 
 import tcollector
 
-class SenderThreadTests(unittest.TestCase):
+
+class CollectorsTests(unittest.TestCase):
+
+    def test_collectorsAccessRights(self):
+        """Test of collectors access rights, permissions should be 0100775."""
+
+        def check_access_rights(top):
+            for f in os.listdir(top):
+                pathname = os.path.join(top, f)
+                mode = os.stat(pathname).st_mode
+
+                if S_ISDIR(mode):
+                    # directory, recurse into it
+                    check_access_rights(pathname)
+                elif S_ISREG(mode):
+                    # file, check permissions
+                    self.assertEqual("0100775", oct(os.stat(pathname)[ST_MODE]))
+                else:
+                    # unknown file type
+                    pass
+
+        collectors_path = os.path.dirname(os.path.abspath(__file__)) + \
+            "/collectors/0"
+        check_access_rights(collectors_path)
+
+
+class TSDBlacklistingTests(unittest.TestCase):
+    """
+    Tests of TSD blacklisting logic
+    https://github.com/OpenTSDB/tcollector/commit/c191d0d0889860db2ea231cad02e398843031a74
+    """
 
     def setUp(self):
         # Stub out the randomness
