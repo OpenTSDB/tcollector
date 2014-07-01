@@ -1,3 +1,6 @@
+* Mon Jun 30 2014 Stuart Warren <stuartwarren@ntlworld.com> 1.0.2-1
+- Allow setting of extra tags, lists of tsd hosts, and other logfile options.
+
 * Sat Jan 19 2013 Benoit 'tsuna' Sigoure <tsunanet@gmail.com> 1.0.1-1
 - Fix the default value of $TCOLLECTOR in init.d script.
 
