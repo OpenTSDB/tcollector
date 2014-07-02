@@ -80,7 +80,9 @@ def main():
         continue
       if fs_vfstype in FSTYPE_IGNORE or fs_vfstype.startswith("fuse."):
         continue
-      if fs_file.startswith(("/dev", "/sys", "/proc", "/lib")):
+      # startswith(tuple) avoided to preserve support of Python 2.4
+      if fs_file.startswith("/dev") or fs_file.startswith("/sys") or \
+            fs_file.startswith("/proc") or fs_file.startswith("/lib"):
         continue
 
       # keep /dev/xxx device with shorter fs_file (remove mount binds)
