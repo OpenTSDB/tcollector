@@ -125,7 +125,7 @@ def main():
             if m:
                 if m.group(3).lower() == 'kb':
                     # convert from kB to B for easier graphing
-                    value = str(int(m.group(2)) * 1000)
+                    value = str(int(m.group(2)) * 1024)
                 else:
                     value = m.group(2)
                 print ("proc.meminfo.%s %d %s"
