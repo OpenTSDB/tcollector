@@ -104,5 +104,4 @@ class TSDBlacklistingTests(unittest.TestCase):
         self.assertEqual(tsd1, (sender.host, sender.port))
 
 if __name__ == '__main__':
-    tcollector.setup_logging()
     sys.exit(unittest.main())
