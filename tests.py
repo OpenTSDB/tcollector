@@ -17,6 +17,7 @@ import sys
 from stat import S_ISDIR, S_ISREG, ST_MODE
 import unittest
 
+import mocks
 import tcollector
 
 
@@ -103,5 +104,80 @@ class TSDBlacklistingTests(unittest.TestCase):
         sender.pick_connection()
         self.assertEqual(tsd1, (sender.host, sender.port))
 
+class UDPCollectorTests(unittest.TestCase):
+
+    def setUp(self):
+        if ('udp_bridge.py' not in tcollector.COLLECTORS):
+            return
+
+        self.saved_exit = sys.exit
+        self.saved_stderr = sys.stderr
+        self.saved_stdout = sys.stdout
+        self.udp_bridge = tcollector.COLLECTORS['udp_bridge.py']
+        self.udp_globals = {}
+
+        sys.exit = lambda x: None
+        try:
+            execfile(self.udp_bridge.filename, self.udp_globals)
+        finally:
+            sys.exit = self.saved_exit
+
+        self.udp_globals['socket'] = mocks.Socket()
+        self.udp_globals['sys'] = mocks.Sys()
+        self.udp_globals['udp_bridge_conf'].enabled = lambda: True
+        self.udp_globals['utils'] = mocks.Utils()
+
+    def run_bridge_test(self, udpInputLines, stdoutLines, stderrLines):
+        mockSocket = self.udp_globals['socket'] = mocks.Socket()
+        mockSocket.state['udp_in'] = list(udpInputLines)
+
+        self.udp_globals['sys'] = mocks.Sys()
+        self.udp_globals['sys'].stderr.lines = stderrLines
+        self.udp_globals['sys'].stdout.lines = stdoutLines
+        sys.stderr = self.udp_globals['sys'].stderr
+        sys.stdout = self.udp_globals['sys'].stdout
+
+        try:
+            self.udp_globals['main']()
+        except mocks.SocketDone:
+            pass
+        finally:
+            sys.stderr = self.saved_stderr
+            sys.stdout = self.saved_stdout
+
+    def test_populated(self):
+        self.assertIsInstance(self.udp_bridge, tcollector.Collector)
+        self.assertIsNone(self.udp_bridge.proc)
+        self.assertIn('main', self.udp_globals)
+
+    def test_single_line_no_put(self):
+        inputLines = [
+            'foo.bar 1 1'
+        ]
+        expected = '\n'.join(inputLines) + '\n'
+        stderr = []
+        stdout = []
+        self.run_bridge_test(inputLines, stdout, stderr)
+
+        self.assertEquals(''.join(stdout), expected)
+        self.assertListEqual(stderr, [])
+
+    def test_multi_line_no_put(self):
+        inputLines = [
+            'foo.bar 1 1',
+            'bar.baz 2 2'
+        ]
+        expected = '\n'.join(inputLines) + '\n'
+        stderr = []
+        stdout = []
+
+        self.run_bridge_test(inputLines, stdout, stderr)
+        self.assertEquals(''.join(stdout), expected)
+        self.assertListEqual(stderr, [])
+
 if __name__ == '__main__':
+    cdir = os.path.join(os.path.dirname(os.path.realpath(sys.argv[0])),
+                        'collectors')
+    tcollector.setup_python_path(cdir)
+    tcollector.populate_collectors(cdir)
     sys.exit(unittest.main())
