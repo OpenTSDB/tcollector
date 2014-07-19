@@ -162,12 +162,143 @@ class UDPCollectorTests(unittest.TestCase):
         self.assertEquals(''.join(stdout), expected)
         self.assertListEqual(stderr, [])
 
+    def test_single_line_put(self):
+        inputLines = [
+            'put foo.bar 1 1'
+        ]
+        expected = '\n'.join([
+            'foo.bar 1 1'
+        ]) + '\n'
+        stderr = []
+        stdout = []
+
+        self.run_bridge_test(inputLines, stdout, stderr)
+        self.assertEquals(''.join(stdout), expected)
+        self.assertListEqual(stderr, [])
+
     def test_multi_line_no_put(self):
         inputLines = [
             'foo.bar 1 1',
             'bar.baz 2 2'
         ]
         expected = '\n'.join(inputLines) + '\n'
+        stderr = []
+        stdout = []
+
+        self.run_bridge_test(inputLines, stdout, stderr)
+        self.assertEquals(''.join(stdout), expected)
+        self.assertListEqual(stderr, [])
+
+    def test_multi_line_put(self):
+        inputLines = [
+            'put foo.bar 1 1',
+            'put bar.baz 2 2'
+        ]
+        expected = '\n'.join([
+            'foo.bar 1 1',
+            'bar.baz 2 2'
+        ]) + '\n'
+        stderr = []
+        stdout = []
+
+        self.run_bridge_test(inputLines, stdout, stderr)
+        self.assertEquals(''.join(stdout), expected)
+        self.assertListEqual(stderr, [])
+
+    def test_multi_line_mixed_put(self):
+        inputLines = [
+            'put foo.bar 1 1',
+            'bar.baz 2 2',
+            'put foo.bar 3 3'
+        ]
+        expected = '\n'.join([
+            'foo.bar 1 1',
+            'bar.baz 2 2',
+            'foo.bar 3 3'
+        ]) + '\n'
+        stderr = []
+        stdout = []
+
+        self.run_bridge_test(inputLines, stdout, stderr)
+        self.assertEquals(''.join(stdout), expected)
+        self.assertListEqual(stderr, [])
+
+    def test_multi_line_no_put_cond(self):
+        inputLines = [
+            'foo.bar 1 1\nbar.baz 2 2'
+        ]
+        expected = '\n'.join(inputLines) + '\n'
+        stderr = []
+        stdout = []
+
+        self.run_bridge_test(inputLines, stdout, stderr)
+        self.assertEquals(''.join(stdout), expected)
+        self.assertListEqual(stderr, [])
+
+    def test_multi_line_put_cond(self):
+        inputLines = [
+            'put foo.bar 1 1\nput bar.baz 2 2'
+        ]
+        expected = '\n'.join([
+            'foo.bar 1 1',
+            'bar.baz 2 2'
+        ]) + '\n'
+        stderr = []
+        stdout = []
+
+        self.run_bridge_test(inputLines, stdout, stderr)
+        self.assertEquals(''.join(stdout), expected)
+        self.assertListEqual(stderr, [])
+
+    def test_multi_empty_line_no_put(self):
+        inputLines = [
+            'foo.bar 1 1',
+            '',
+            'bar.baz 2 2'
+        ]
+        expected = 'foo.bar 1 1\n'
+        stderr = []
+        stdout = []
+
+        self.run_bridge_test(inputLines, stdout, stderr)
+        self.assertEquals(''.join(stdout), expected)
+        self.assertListEqual(stderr, ['invalid data\n'])
+
+    def test_multi_empty_line_put(self):
+        inputLines = [
+            'put foo.bar 1 1',
+            '',
+            'put bar.baz 2 2'
+        ]
+        expected = 'foo.bar 1 1\n'
+        stderr = []
+        stdout = []
+
+        self.run_bridge_test(inputLines, stdout, stderr)
+        self.assertEquals(''.join(stdout), expected)
+        self.assertListEqual(stderr, ['invalid data\n'])
+
+    def test_multi_empty_line_no_put_cond(self):
+        inputLines = [
+            'foo.bar 1 1\n\nbar.baz 2 2'
+        ]
+        expected = '\n'.join(inputLines) + '\n'
+        stderr = []
+        stdout = []
+
+        self.run_bridge_test(inputLines, stdout, stderr)
+        self.assertEquals(''.join(stdout), expected)
+        self.assertListEqual(stderr, [])
+
+    def test_multi_empty_line_put_cond(self):
+        inputLines = [
+            'put foo.bar 1 1\n\nput bar.baz 2 2'
+        ]
+        expected = '\n'.join([
+            'foo.bar 1 1',
+            '',
+            'bar.baz 2 2'
+        ]) + '\n'
         stderr = []
         stdout = []
 

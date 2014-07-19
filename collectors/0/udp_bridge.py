@@ -39,9 +39,18 @@ def main():
         sys.stderr.write('could not open socket: %s\n' % msg)
         sys.exit(1)
 
+    def removePut(line):
+        if line.startswith('put '):
+            return line[4:]
+        else:
+            return line
+
     try:
         while 1:
             data, address = sock.recvfrom(SIZE)
+            if data:
+                lines = data.splitlines()
+                data = '\n'.join(map(removePut, lines))
             if not data:
                 sys.stderr.write("invalid data\n")
                 break
