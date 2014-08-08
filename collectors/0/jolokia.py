@@ -77,7 +77,8 @@ class JolokiaCollector():
 
             # set a default not_tags to '' to catch empty tag keys and append
             # the value to metric name instead
-            m['not_tags'] += ['']
+            if '' not in m['not_tags']:
+                m['not_tags'] += ['']
 
             self.j4p.add_request(type='read', mbean=m['mbean'])
         self.monitors = monitors
