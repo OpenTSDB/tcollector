@@ -66,7 +66,7 @@ class JolokiaCollector():
         self.j4p.auth(httpusername=self.auth['username'], httppassword=self.auth['password'])
         self.j4p.config(ignoreErrors=True)
 
-        self.monitors = deep.copy(monitors)
+        self.monitors = copy.deepcopy(monitors)
         for m in self.monitors:
             if 'tags' in m:
                 m['tags'].update(tags)
