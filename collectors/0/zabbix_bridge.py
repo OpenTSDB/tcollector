@@ -20,16 +20,8 @@ try:
 except ImportError:
     pymysql = None # This is handled gracefully in main()
 
-# from collectors.etc import zabbix_bridge_conf
+from collectors.etc import zabbix_bridge_conf
 from collectors.lib import utils
-
-MYSQL_SETTINGS = {
-    'host': '127.0.0.1',
-    'port': 3306,
-    'user': '',
-    'passwd': '',
-    'db': 'zabbix'
-}
 
 
 def main(args):
@@ -39,27 +31,44 @@ def main(args):
     if pymysql is None:
         utils.err("error: Python module `pymysql' is missing")
         return 1
+    mysql_settings = zabbix_bridge_conf.get_mysql_creds()
 
     # server_id is your slave identifier, it should be unique.
     # set blocking to True if you want to block and wait for the next event at
     # the end of the stream
-    stream = BinLogStreamReader(connection_settings=MYSQL_SETTINGS,
+    stream = BinLogStreamReader(connection_settings=mysql_settings,
                                 server_id=3,
                                 only_events=[WriteRowsEvent],
                                 blocking=True)
 
+    hostmap = gethostmap(mysql_settings) # TODO: consider reloading peridically
     for binlogevent in stream:
-        if binlogevent.schema == MYSQL_SETTINGS['db']:
+        if binlogevent.schema == mysql_settings['db']:
             table = binlogevent.table
             log_pos = binlogevent.packet.log_pos
             if table == 'history' or table == 'history_uint':
                 for row in binlogevent.rows:
                     r = row['values']
-                    print "zbx.raw.%s %d %s log_pos=%s table=%s" % (r['itemid'], r['clock'], r['value'], log_pos, table)
+                    hm = hostmap[r['itemid']]
+                    print "zbx.%s %d %s host=%s proxy=%s" % (hm['key'], r['clock'], r['value'], hm['host'], hm['proxy'])
                 sys.stdout.flush()
 
     stream.close()
 
+
+def gethostmap(mysql_settings):
+    conn = pymysql.connect(**mysql_settings)
+    cur = conn.cursor()
+    cur.execute("SELECT i.itemid, i.key_, h.host, h2.host AS proxy FROM items i JOIN hosts h ON i.hostid=h.hostid LEFT JOIN hosts h2 ON h2.hostid=h.proxy_hostid")
+    # Translation of item key_
+    # Note: http://opentsdb.net/docs/build/html/user_guide/writing.html#metrics-and-tags
+    unallow = re.compile('[^a-zA-Z0-9\-_\.]')
+    hostmap = {}
+    for row in cur:
+        hostmap[row[0]] = { 'key': re.sub(unallow, '_', row[1]), 'host': re.sub(unallow, '_', row[2]), 'proxy': row[3] }
+    cur.close()
+    conn.close()
+    return hostmap
 
 if __name__ == "__main__":
     sys.stdin.close()
@@ -102,12 +111,3 @@ if __name__ == "__main__":
 # ('*', u'value', ':', 0.0254)
 # ('*', u'clock', ':', 1407124057)
 # ()
-
-## SQL item and host info
-# SELECT i.itemid, i.key_, h.host, h2.host FROM items i
-#  JOIN hosts h ON i.hostid=h.hostid
-#  LEFT JOIN hosts h2 ON h2.hostid=h.proxy_hostid;
-
-## Translation of item key_
-# Note: http://opentsdb.net/docs/build/html/user_guide/writing.html#metrics-and-tags
-# sub(/[^a-zA-Z0-9\-_\.]/,"_")
