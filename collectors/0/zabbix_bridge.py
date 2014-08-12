@@ -24,55 +24,63 @@ from collectors.etc import zabbix_bridge_conf
 from collectors.lib import utils
 
 
-def main(args):
+def main():
+    utils.drop_privileges()
     if BinLogStreamReader is None:
         utils.err("error: Python module `pymysqlreplication' is missing")
         return 1
     if pymysql is None:
         utils.err("error: Python module `pymysql' is missing")
         return 1
-    mysql_settings = zabbix_bridge_conf.get_mysql_creds()
+    settings = zabbix_bridge_conf.get_settings()
 
-    # server_id is your slave identifier, it should be unique.
-    # set blocking to True if you want to block and wait for the next event at
+    # Set blocking to True if you want to block and wait for the next event at
     # the end of the stream
-    stream = BinLogStreamReader(connection_settings=mysql_settings,
-                                server_id=3,
+    stream = BinLogStreamReader(connection_settings=settings['mysql'],
+                                server_id=settings['slaveid'],
                                 only_events=[WriteRowsEvent],
                                 blocking=True)
 
-    hostmap = gethostmap(mysql_settings) # TODO: consider reloading peridically
+    hostmap = gethostmap(settings) # Prime initial hostmap
     for binlogevent in stream:
-        if binlogevent.schema == mysql_settings['db']:
+        if binlogevent.schema == settings['mysql']['db']:
             table = binlogevent.table
             log_pos = binlogevent.packet.log_pos
             if table == 'history' or table == 'history_uint':
                 for row in binlogevent.rows:
                     r = row['values']
-                    hm = hostmap[r['itemid']]
-                    print "zbx.%s %d %s host=%s proxy=%s" % (hm['key'], r['clock'], r['value'], hm['host'], hm['proxy'])
+                    itemid = r['itemid']
+                    try:
+                        hm = hostmap[itemid]
+                        print "zbx.%s %d %s host=%s proxy=%s" % (hm['key'], r['clock'], r['value'], hm['host'], hm['proxy'])
+                    except KeyError:
+                        # TODO: Consider https://wiki.python.org/moin/PythonDecoratorLibrary#Retry
+                        hostmap = gethostmap(settings)
+                        utils.err("error: Key lookup miss for %s" % (itemid))
                 sys.stdout.flush()
+                # if n seconds old, reload
+                # settings['gethostmap_interval']
 
     stream.close()
 
 
-def gethostmap(mysql_settings):
-    conn = pymysql.connect(**mysql_settings)
+def gethostmap(settings):
+    conn = pymysql.connect(**settings['mysql'])
     cur = conn.cursor()
     cur.execute("SELECT i.itemid, i.key_, h.host, h2.host AS proxy FROM items i JOIN hosts h ON i.hostid=h.hostid LEFT JOIN hosts h2 ON h2.hostid=h.proxy_hostid")
     # Translation of item key_
     # Note: http://opentsdb.net/docs/build/html/user_guide/writing.html#metrics-and-tags
-    unallow = re.compile('[^a-zA-Z0-9\-_\.]')
+    disallow = re.compile(settings['disallow'])
     hostmap = {}
     for row in cur:
-        hostmap[row[0]] = { 'key': re.sub(unallow, '_', row[1]), 'host': re.sub(unallow, '_', row[2]), 'proxy': row[3] }
+        hostmap[row[0]] = { 'key': re.sub(disallow, '_', row[1]), 'host': re.sub(disallow, '_', row[2]), 'proxy': row[3] }
     cur.close()
     conn.close()
     return hostmap
 
 if __name__ == "__main__":
     sys.stdin.close()
-    sys.exit(main(sys.argv))
+    sys.exit(main())
 
 
 ## Sample zabbix debug dump:
