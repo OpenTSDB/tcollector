@@ -39,6 +39,7 @@ def main():
     stream = BinLogStreamReader(connection_settings=settings['mysql'],
                                 server_id=settings['slaveid'],
                                 only_events=[WriteRowsEvent],
+                                resume_stream=True,
                                 blocking=True)
 
     hostmap = gethostmap(settings) # Prime initial hostmap

@@ -12,8 +12,6 @@ def get_settings():
         'passwd': '',
         'db': 'zabbix'
     },
-    # Local replication log posistion (where to start if stopped).
-    'zabbix_bridge_logpos': '/var/run/tcollector_zabbix_bridge.logid',
     'slaveid': 3,                    # Slave identifier, it should be unique.
     'disallow': '[^a-zA-Z0-9\-_\.]', # Regex of characters to replace with _.
     'gethostmap_interval': 300       # How often to reload itemid, hostmap from DB.
