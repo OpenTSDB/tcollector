@@ -12,6 +12,7 @@
 
 import time
 import sys
+import copy
 try:
     import simplejson as json
 except ImportError:
@@ -64,7 +65,9 @@ class JolokiaCollector():
         self.j4p = Jolokia(self.url)
         self.j4p.auth(httpusername=self.auth['username'], httppassword=self.auth['password'])
         self.j4p.config(ignoreErrors=True)
-        for m in monitors:
+
+        self.monitors = copy.deepcopy(monitors)
+        for m in self.monitors:
             if 'tags' in m:
                 m['tags'].update(tags)
             else:
@@ -80,7 +83,6 @@ class JolokiaCollector():
             m['not_tags'] += ['']
 
             self.j4p.add_request(type='read', mbean=m['mbean'])
-        self.monitors = monitors
 
     def print_metrics(self, d, metric_prefix, timestamp, tags, not_tags=[]):
         """ Take a dict of attributes and print out numerical metric strings
