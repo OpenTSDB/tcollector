@@ -84,6 +84,7 @@ class FlumeJmxMonitor(threading.Thread):
         self._prev_timestamp = 0
         self._is_shutdown = False
         self._jmx = java.init_jmx_process(str(pid),
+                "com.optimizely", "",
                 "org.apache.flume.channel", "",
                 "org.apache.flume.sink", "",
                 "org.apache.flume.sink", "",
