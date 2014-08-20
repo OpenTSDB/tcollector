@@ -166,7 +166,7 @@ class FlumeJmxMonitor(threading.Thread):
         mbean_domain, mbean_properties = mbean.rstrip().replace(" ", "_").split(":", 1)
         mbean_properties = dict(prop.split("=", 1) for prop in mbean_properties.split(","))
         if mbean_domain == "java.lang":
-            jmx_service = "flume." + mbean_properties.pop("type", "jvm")
+            jmx_service = mbean_properties.pop("type", "jvm")
             if mbean_properties:
                 tags += " " + " ".join(k + "=" + v for k, v in
                         mbean_properties.iteritems())
@@ -176,7 +176,7 @@ class FlumeJmxMonitor(threading.Thread):
         else:
             # for flume we use the mbean domain as the prefix
             # this has the form org.apache.flume.source, we strip out the org.apache.flume. part
-            jmx_service = "flume." + mbean_domain[len("org.apache.flume."):]
+            jmx_service = mbean_domain[len("org.apache.flume."):]
 
             # convert channel/sink/source names that are formatted like 'channel-type-1' into
             # two tags type=channel-type num=1
@@ -197,7 +197,7 @@ class FlumeJmxMonitor(threading.Thread):
 
     def _report(self, metric, timestamp, value, tags):
         with FlumeJmxMonitor._REPORT_LOCK:
-            sys.stdout.write("%s %d %s%s\n"
+            sys.stdout.write("flume.%s %d %s%s\n"
                     % (metric, timestamp, value, tags))
             sys.stdout.flush()
 
