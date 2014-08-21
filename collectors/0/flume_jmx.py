@@ -84,6 +84,7 @@ class FlumeJmxMonitor(threading.Thread):
         self._prev_timestamp = 0
         self._is_shutdown = False
         self._jmx = java.init_jmx_process(str(pid),
+                "com.optimizely", "",
                 "org.apache.flume.channel", "",
                 "org.apache.flume.sink", "",
                 "org.apache.flume.sink", "",
@@ -169,6 +170,9 @@ class FlumeJmxMonitor(threading.Thread):
             if mbean_properties:
                 tags += " " + " ".join(k + "=" + v for k, v in
                         mbean_properties.iteritems())
+        if mbean_domain == "metrics":
+            # ex.: metrics:name=com.optimizely.backend.shadowfax.ApiSink.forwarded
+            jmx_service = mbean_properties['name']
         else:
             # for flume we use the mbean domain as the prefix
             # this has the form org.apache.flume.source, we strip out the org.apache.flume. part
