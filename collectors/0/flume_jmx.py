@@ -170,7 +170,7 @@ class FlumeJmxMonitor(threading.Thread):
             if mbean_properties:
                 tags += " " + " ".join(k + "=" + v for k, v in
                         mbean_properties.iteritems())
-        if mbean_domain == "metrics":
+        elif mbean_domain == "metrics":
             # ex.: metrics:name=com.optimizely.backend.shadowfax.ApiSink.forwarded
             jmx_service = mbean_properties['name']
         else:
