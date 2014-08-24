@@ -12,7 +12,7 @@
 # see <http://www.gnu.org/licenses/>.
 
 PACKAGE_VERSION := 1.0.1
-RPM_REVISION := 7
+RPM_REVISION := 9
 # Where do we install our files.
 tcollectordir := /usr/local/tcollector
 
@@ -22,7 +22,7 @@ CP_P := cp -p
 # In some environment this command can be called `gsha1sum' or `digest'.
 SHA1SUM := sha1sum
 ZIP := zip -9
-PYTHON_VERSION := 2.6
+PYTHON_VERSION := 2.7
 PYTHON := python$(PYTHON_VERSION)
 
 # Our "source tree" is in the parent directory, always.
