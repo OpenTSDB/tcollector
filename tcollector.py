@@ -492,7 +492,8 @@ class SenderThread(threading.Thread):
                         break
                     self.sendq.append(line)
 
-                self.send_data()
+                if ALIVE:
+                    self.send_data()
                 errors = 0  # We managed to do a successful iteration.
             except (ArithmeticError, EOFError, EnvironmentError, LookupError,
                     ValueError), e:
