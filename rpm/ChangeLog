@@ -1,3 +1,6 @@
+* Tue Aug 26 2014 Kieren Hynd <kieren.hynd@ticketmaster.co.uk> 1.0.3-1
+- Parameter for reconnect-interval, clean .pyc's on startup, stop stripping hostnames, add some start runlevels
+
 * Mon Jun 30 2014 Stuart Warren <stuartwarren@ntlworld.com> 1.0.2-1
 - Allow setting of extra tags, lists of tsd hosts, and other logfile options.
 

@@ -1,3 +1,43 @@
+tcollector (1.0-6) stable; urgency=low
+
+  * Small tweaks and unification of init wrappers.
+    Added parameter for --reconnect-interval.
+    Clean out .pyc's on startup.
+    Add some startup runlevels to the .rpm wrapper.
+    Don't strip hostnames, leave as FQDN.
+
+ -- Kieren Hynd <kieren.hynd@ticketmaster.co.uk>  Tue, 26 Aug 2014 16:13:09 +0100
+
+tcollector (1.0-5) stable; urgency=low
+
+  * Fix of invalid use of status_of_proc().
+
+ -- Vasiliy Kiryanov <vasiliy.kiryanov@gmail.com>  Fri, 27 Jun 2014 17:28:31 +0300
+
+tcollector (1.0-4) stable; urgency=low
+
+  * Expose the max-bytes and backup-count options in init script.
+
+ -- Mike Bryant <mike@mikebryant.me.uk>  Wed, 15 Jan 2014 19:02:08 +0000
+
+tcollector (1.0-3) stable; urgency=low
+
+  * Allow adding tags from the init default file.
+
+ -- Tristan Colgate <tristan@we7.com>  Fri, 18 Oct 2013 16:02:29 +0100
+
+tcollector (1.0-2) stable; urgency=low
+
+  * Fix fail of adduser/addgroup commands if the user already exists.
+
+ -- Mike Bryant <mike@mikebryant.me.uk>  Wed, 16 Oct 2013 14:20:45 +0100
+
+tcollector (1.0-1) stable; urgency=low
+
+  * Change Debian architecture from `any' to `all'.
+
+ -- Mike Bryant <mike@mikebryant.me.uk>  Sun, 13 Oct 2013 18:21:34 +0100
+
 tcollector (1.0) stable; urgency=low
 
   * Initial release.
