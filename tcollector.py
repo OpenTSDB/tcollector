@@ -404,7 +404,7 @@ class SenderThread(threading.Thread):
        buffering we might need to do if we can't establish a connection
        and we need to spool to disk.  That isn't implemented yet."""
 
-    def __init__(self, reader, dryrun, hosts, self_report_stats, tags):
+    def __init__(self, reader, dryrun, hosts, self_report_stats, tags, reconnectinterval):
         """Constructor.
 
         Args:
@@ -431,6 +431,8 @@ class SenderThread(threading.Thread):
         self.port = None  # The port of the current TSD.
         self.tsd = None   # The socket connected to the aforementioned TSD.
         self.last_verify = 0
+        self.reconnectinterval = reconnectinterval    # reconnectinterval in seconds.
+        self.time_reconnect = 0                 # if reconnectinterval > 0, used to track the time.
         self.sendq = []
         self.self_report_stats = self_report_stats
 
@@ -519,6 +521,16 @@ class SenderThread(threading.Thread):
         if self.last_verify > time.time() - 60:
             return True
 
+        # in case reconnect is activated, check if it's time to reconnect
+        if self.reconnectinterval > 0 and self.time_reconnect < time.time() - self.reconnectinterval:
+            # closing the connection and indicating that we need to reconnect.
+            try:
+                self.tsd.close()
+            except socket.error, msg:
+                pass    # not handling that
+            self.time_reconnect = time.time()
+            return False
+            
         # we use the version command as it is very low effort for the TSD
         # to respond
         LOG.debug('verifying our TSD connection is alive')
@@ -627,6 +639,7 @@ class SenderThread(threading.Thread):
                     self.tsd.settimeout(15)
                     self.tsd.connect(sockaddr)
                     # if we get here it connected
+                    LOG.debug('Connection to %s was successful'%(str(sockaddr)))
                     break
                 except socket.error, msg:
                     LOG.warning('Connection attempt failed to %s:%d: %s',
@@ -760,12 +773,20 @@ def parse_cmdline(argv):
     parser.add_option('--logfile', dest='logfile', type='str',
                       default=DEFAULT_LOG,
                       help='Filename where logs are written to.')
+    parser.add_option('--reconnect-interval',dest='reconnectinterval', type='int',
+                      default=0, metavar='RECONNECTINTERVAL',
+                      help='Number of seconds after which the connection to'
+                           'the TSD hostname reconnects itself. This is useful'
+                           'when the hostname is a multiple A record (RRDNS).'
+                           )
     (options, args) = parser.parse_args(args=argv[1:])
     if options.dedupinterval < 0:
         parser.error('--dedup-interval must be at least 0 seconds')
     if options.evictinterval <= options.dedupinterval:
         parser.error('--evict-interval must be strictly greater than '
                      '--dedup-interval')
+    if options.reconnectinterval < 0:
+        parser.error('--reconnect-interval must be at least 0 seconds')
     # We cannot write to stdout when we're a daemon.
     if (options.daemonize or options.max_bytes) and not options.backup_count:
         options.backup_count = 1
@@ -878,7 +899,7 @@ def main(argv):
 
     # and setup the sender to start writing out to the tsd
     sender = SenderThread(reader, options.dryrun, options.hosts,
-                          not options.no_tcollector_stats, tags)
+                          not options.no_tcollector_stats, tags, options.reconnectinterval)
     sender.start()
     LOG.info('SenderThread startup complete')
 
