@@ -28,3 +28,7 @@
 # Logfile rotation settings
 #LOGFILE_MAX_BYTES=67108864
 #LOGFILE_BACKUP_COUNT=0
+
+# Disconnect and reconnect to TSD after roughly X seconds (primarily for RRDNS
+# load balancing).  Defaults to 0 (stay connected)
+#RECONNECT_INTERVAL=0

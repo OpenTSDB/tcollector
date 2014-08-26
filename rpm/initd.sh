@@ -1,9 +1,9 @@
 #!/bin/bash
 #
-# tcollector        Startup script for the tcollector monitoring agent
+# tcollector   Startup script for the tcollector monitoring agent
 #
-# chkconfig: - 15 85
-# description: tcollector is an agent that collects and reports  \
+# chkconfig:   2345 15 85
+# description: tcollector is an agent that collects and reports \
 #              monitoring data for OpenTSDB.
 # processname: tcollector
 # pidfile: /var/run/tcollector.pid
@@ -22,12 +22,12 @@
 
 TSD_HOST=tsd
 THIS_HOST=`hostname`
-THIS_HOST=${THIS_HOST%%.*}
 TCOLLECTOR=${TCOLLECTOR-/usr/local/tcollector/tcollector.py}
 PIDFILE=${PIDFILE-/var/run/tcollector.pid}
 LOGFILE=${LOGFILE-/var/log/tcollector.log}
 LOGFILE_MAX_BYTES=${LOGFILE_MAX_BYTES-67108864}
 LOGFILE_BACKUP_COUNT=${LOGFILE_BACKUP_COUNT-0}
+RECONNECT_INTERVAL=${RECONNECT_INTERVAL-0}
 
 prog=tcollector
 if [ -f /etc/sysconfig/$prog ]; then
@@ -49,8 +49,9 @@ if [ -z "$OPTIONS" ]; then
     OPTIONS="$OPTIONS -H $TSD_HOST"
   fi
   OPTIONS="$OPTIONS -t host=$THIS_HOST -P $PIDFILE"
+  OPTIONS="$OPTIONS --reconnect-interval $RECONNECT_INTERVAL"
   OPTIONS="$OPTIONS --max-bytes $LOGFILE_MAX_BYTES --backup-count $LOGFILE_BACKUP_COUNT"
-  OPTIONS="$OPTIONS --logfile=$LOGFILE $EXTRA_TAGS_OPTS"
+  OPTIONS="$OPTIONS --logfile $LOGFILE $EXTRA_TAGS_OPTS"
 fi
 
 sanity_check() {
@@ -81,6 +82,7 @@ start() {
 stop() {
   echo -n $"Stopping $prog: "
   sanity_check || return $?
+  find `dirname ${TCOLLECTOR}` -name '*.pyc' -delete
   killproc -p $PIDFILE -d 15 $TCOLLECTOR
   RETVAL=$?
   echo
