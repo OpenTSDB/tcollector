@@ -9,7 +9,6 @@ STATUS_ROOT = '/optimizely/status/'
 ELAPSED_SECONDS_METRICS = [
         'metaSync.lastStart',
         'metaSync.lastSuccess',
-        'metaSync.lastSuccess',
         'batchCompute.lastStart',
         'batchCompute.lastSuccess',
         'resultsUpload.lastStart',
@@ -23,7 +22,7 @@ def format_tsd_key(metric_key, metric_value, time_, tags={}):
     output = '{} {} {} {}'.format(metric_key, time_, metric_value, expanded_tags)
     return output
  
- 
+
 def report():
     zk_quorums = os.getenv('MONITORED_ZOOKEEPER_QUORUMS')
     if zk_quorums is None:
@@ -42,7 +41,7 @@ def report():
             value, _ = zk.get(metric_path)
             time_ = int(time.time())
             elapsed = max(0, time_ - int(value) / 1000)
-            tags = { 'zkquorum': zk_quorum }
+            tags = { 'zkquorum': zk_quorum.replace(',', '_') }
         
             print format_tsd_key(metric + '.elapsedSeconds', elapsed, time_, tags)
 
