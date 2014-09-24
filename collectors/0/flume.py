@@ -27,6 +27,10 @@ import time
 
 from collectors.lib import utils
 
+try:
+  from collectors.etc import flume_conf
+except ImportError:
+  flume_conf = None
 
 COLLECTION_INTERVAL = 15  # seconds
 DEFAULT_TIMEOUT = 10.0    # seconds
@@ -58,6 +62,23 @@ def flume_metrics(server):
   return request(server, "/metrics")
 
 def main(argv):
+  if not (flume_conf and flume_conf.enabled() and flume_conf.get_settings()):
+    sys.exit(13)
+
+  settings = flume_conf.get_settings()
+
+  if (settings['default_timeout']):
+    DEFAULT_TIMEOUT = settings['default_timeout']
+
+  if (settings['default_timeout']):
+    COLLECTION_INTERVAL = settings['collection_interval']
+
+  if (settings['flume_host']):
+    FLUME_HOST = settings['flume_host']
+
+  if (settings['flume_port']):
+    FLUME_PORT = settings['flume_port']
+
   utils.drop_privileges()
   socket.setdefaulttimeout(DEFAULT_TIMEOUT)
   server = httplib.HTTPConnection(FLUME_HOST, FLUME_PORT)
