@@ -24,6 +24,10 @@ from CliPlugin import IntfCli
 class FakeMode(object):
   def __init__(self, sysdbRoot):
     self.sysdbRoot = sysdbRoot
+    class FakeSession(object):
+      def inConfigSession(self):
+        return False
+    self.session_ = FakeSession()
 
 
 class Interface(object):
