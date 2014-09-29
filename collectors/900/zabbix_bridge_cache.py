@@ -70,7 +70,7 @@ def main():
     for row in zbxcur:
         cachecur.execute('''INSERT INTO zabbix_cache(id, key, host, proxy) VALUES (?,?,?,?)''',
          (row[0], re.sub(disallow, '_', row[1]), re.sub(disallow, '_', row[2]), row[3]))
-        rowcount = rowcount + 1
+        rowcount += 1
 
     print('tcollector.zabbix_bridge.rows %d %s' % (int(time.time()), rowcount))
     zbxcur.close()

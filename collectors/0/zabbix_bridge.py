@@ -16,6 +16,7 @@
 #
 
 import sys
+import time
 
 try:
     from pymysqlreplication import BinLogStreamReader
@@ -55,6 +56,10 @@ def main():
     db_filename = settings['sqlitedb']
     dbcache = sqlite3.connect(db_filename)
     cachecur = dbcache.cursor()
+    # tcollector.zabbix_bridge namespace for internal Zabbix bridge metrics.
+    log_pos = 0
+    key_lookup_miss = 0
+    sample_last_ts = int(time.time())
 
     for binlogevent in stream:
         if binlogevent.schema == settings['mysql']['db']:
@@ -68,9 +73,15 @@ def main():
                     row = cachecur.fetchone()
                     if (row is not None):
                         print "zbx.%s %d %s host=%s proxy=%s" % (row[1], r['clock'], r['value'], row[2], row[3])
+                        if ((int(time.time()) - sample_last_ts) > settings['internal_metric_interval']): # Sample internal metrics @ 10s intervals
+                            sample_last_ts = int(time.time())
+                            print "tcollector.zabbix_bridge.log_pos %d %s" % (sample_last_ts, log_pos)
+                            print "tcollector.zabbix_bridge.key_lookup_miss %d %s" % (sample_last_ts, key_lookup_miss)
+                            print "tcollector.zabbix_bridge.timestamp_drift %d %s" % (sample_last_ts, (sample_last_ts - r['clock']))
                     else:
                         # TODO: Consider https://wiki.python.org/moin/PythonDecoratorLibrary#Retry
                         utils.err("error: Key lookup miss for %s" % (itemid))
+                        key_lookup_miss += 1
                 sys.stdout.flush()
 
     dbcache.close()
