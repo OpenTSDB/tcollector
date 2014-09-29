@@ -15,7 +15,6 @@
 # Dump all replication item/metric insert events from a zabbix mysql server
 #
 
-import re
 import sys
 
 try:
@@ -68,8 +67,7 @@ def main():
                     cachecur.execute('SELECT id, key, host, proxy FROM zabbix_cache WHERE id=?', (itemid,))
                     row = cachecur.fetchone()
                     if (row is not None):
-                        hm = row[0]
-                        print "zbx.%s %d %s host=%s proxy=%s" % (hm[1], r['clock'], r['value'], hm[2], hm[3])
+                        print "zbx.%s %d %s host=%s proxy=%s" % (row[1], r['clock'], r['value'], row[2], row[3])
                     else:
                         # TODO: Consider https://wiki.python.org/moin/PythonDecoratorLibrary#Retry
                         utils.err("error: Key lookup miss for %s" % (itemid))
