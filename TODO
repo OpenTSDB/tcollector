@@ -1,0 +1,7 @@
+Internal metric for drift based on current time and latest retrived.
+Reload SQL itemhostmap every miss and periodically
+Internal metric for logpos
+Support tool/scripts for catching up from last reported logpos to latest
+Annotations based on event creation
+Internal metric count for key miss and need for config reload
+Support key miss, buffer, retry logic
