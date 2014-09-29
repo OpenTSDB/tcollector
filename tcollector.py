@@ -297,7 +297,8 @@ class ReaderThread(threading.Thread):
         # while breaking out every once in a while to setup selects
         # on new children.
         while ALIVE:
-            for col in all_living_collectors():
+            alc = all_living_collectors()
+            for col in alc:
                 for line in col.collect():
                     self.process_line(col, line)
 
