@@ -28,6 +28,7 @@ RUN_AS_USER=${RUN_AS_USER-tcollector}
 RUN_AS_GROUP=${RUN_AS_GROUP-tcollector}
 LOGFILE_MAX_BYTES=${LOGFILE_MAX_BYTES-67108864}
 LOGFILE_BACKUP_COUNT=${LOGFILE_BACKUP_COUNT-0}
+RECONNECT_INTERVAL=${RECONNECT_INTERVAL-0}
 
 EXTRA_TAGS_OPTS=""
 for TV in $EXTRA_TAGS; do
@@ -51,6 +52,7 @@ case $1 in
         fi
         fix_perms $LOGFILE
         fix_perms $PIDFILE
+        find "$COLLECTOR_PATH" -name '*.pyc' -delete
 
         taskset=""
         if [ -n "$CPU_LIST" ]; then
@@ -65,9 +67,10 @@ case $1 in
         $taskset start-stop-daemon --start --quiet -u $RUN_AS_USER\
             --pidfile "$PIDFILE" --chuid $RUN_AS_USER:$RUN_AS_GROUP\
             --startas $DAEMON -- -c "$COLLECTOR_PATH" -L $TSD_HOSTS\
-            -t host=$HOSTNAME --dedup-interval=$DEDUP_INTERVAL\
+            -t host=$HOSTNAME --dedup-interval $DEDUP_INTERVAL\
+            --reconnect-interval $RECONNECT_INTERVAL\
             --max-bytes $LOGFILE_MAX_BYTES --backup-count $LOGFILE_BACKUP_COUNT\
-            --evict-interval=$EVICT_INTERVAL -P "$PIDFILE" -D $EXTRA_TAGS_OPTS
+            --evict-interval $EVICT_INTERVAL -P "$PIDFILE" -D $EXTRA_TAGS_OPTS
 
         log_end_msg $?
         ;;
@@ -88,7 +91,7 @@ case $1 in
         ;;
 
     status)
-        status_of_proc -p $PIDFILE "$DAEMON" "NTP server"
+        status_of_proc -p $PIDFILE "$DAEMON" "tcollector"
         exit $?
         ;;
 
