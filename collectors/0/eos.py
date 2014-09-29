@@ -36,6 +36,7 @@ import eossdk
 import sys
 import time
 
+# pylint: disable-msg=E1101
 
 class IntfCounterCollector(eossdk.AgentHandler,
                            eossdk.TimeoutHandler):
@@ -50,6 +51,7 @@ class IntfCounterCollector(eossdk.AgentHandler,
       self.intf_counter_mgr_ = intf_counter_mgr
       self.eth_intf_counter_mgr_ = eth_intf_counter_mgr
       self.interval_ = 30
+      # pylint: disable-msg=W0233
       eossdk.AgentHandler.__init__(self, agent_mgr)
       eossdk.TimeoutHandler.__init__(self, timeout_mgr)
    
@@ -190,9 +192,7 @@ def main():
    timeout_mgr = sdk.get_timeout_mgr()
 
    # Create a periodic interface counter collector
-   intf_counter_collector = IntfCounterCollector(timeout_mgr,
-                                                 intf_mgr,
-                                                 intf_counter_mgr)
+   _ = IntfCounterCollector(timeout_mgr, intf_mgr, intf_counter_mgr)
    
    # Start the main loop
    sdk.main_loop(sys.argv)
