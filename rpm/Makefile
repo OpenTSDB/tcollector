@@ -94,14 +94,12 @@ manifest.txt: $(EOSRPM) Makefile
           fi; \
           echo "\"$(tcollectordir)/$$file\"" >>filelist; \
           case $$file in \
-            (*.py) echo "\"$(tcollectordir)/$${file}c\"" >>filelist; \
-                   echo "\"$(tcollectordir)/$${file}o\"" >>filelist;; \
+            (*.py) echo "\"$(tcollectordir)/$${file}c\"" >>filelist;; \
           esac; \
           echo $(CP_P) "$(VPATH)/$$file" "'$(DESTDIR)/$(tcollectordir)/$$file'"; \
           $(CP_P) "$(VPATH)/$$file" "$(DESTDIR)/$(tcollectordir)/$$file" || exit $$?; \
         done
 	$(PYTHON) -m compileall -q "$(DESTDIR)"
-	$(PYTHON) -O -m compileall -q "$(DESTDIR)"
 	chmod -R a+rX "$(DESTDIR)"
 	@touch $@
 
