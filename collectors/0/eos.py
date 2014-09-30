@@ -32,7 +32,11 @@
 # DAMAGE.
 
 
-import eossdk
+try:
+   import eossdk
+except ImportError:
+   eossdk = None
+   
 import sys
 import time
 
@@ -183,6 +187,10 @@ class IntfCounterCollector(eossdk.AgentHandler,
 
 
 def main():
+   if eossdk == None:
+      # This collector requires the eossdk module
+      return 13 # Ask tcollector to not respawn us
+   
    sdk = eossdk.Sdk("tcollector-eos")
 
    # Create the state managers we're going to poll. For now,
