@@ -15,6 +15,7 @@
 
 import socket
 import sys
+import time
 from collectors.lib import utils
 
 try:
@@ -31,19 +32,25 @@ def main():
       sys.exit(13)
     utils.drop_privileges()
 
-    try:
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.bind((HOST, PORT))
-    except socket.error, msg:
-        sys.stderr.write('could not open socket: %s\n' % msg)
-        sys.exit(1)
-
     def removePut(line):
         if line.startswith('put '):
             return line[4:]
         else:
             return line
 
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.bind((HOST, PORT))
+    except socket.error, msg:
+        utils.err('could not open socket: %s' % msg)
+        sys.exit(1)
+
+    try:
+        flush_delay = udp_bridge_conf.flush_delay()
+    except AttributeError:
+        flush_delay = 60
+
+    flush_timeout = int(time.time())
     try:
         try:
             while 1:
@@ -52,11 +59,16 @@ def main():
                     lines = data.splitlines()
                     data = '\n'.join(map(removePut, lines))
                 if not data:
-                    sys.stderr.write("invalid data\n")
+                    utils.err("invalid data")
                     break
                 print data
+                now = int(time.time())
+                if now > flush_timeout:
+                    sys.stdout.flush()
+                    flush_timeout = now + flush_delay
+
         except KeyboardInterrupt:
-            sys.stderr.write("keyboard interrupt, exiting\n")
+            utils.err("keyboard interrupt, exiting")
     finally:
         sock.close()
 
