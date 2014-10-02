@@ -54,12 +54,16 @@ def main():
                                 blocking=True)
 
     db_filename = settings['sqlitedb']
-    dbcache = sqlite3.connect(db_filename)
+    dbcache = sqlite3.connect(':memory:')
     cachecur = dbcache.cursor()
+    cachecur.execute("ATTACH DATABASE '%s' as 'dbfile'" % (db_filename,))
+    cachecur.execute('CREATE TABLE zabbix_cache AS SELECT * FROM dbfile.zabbix_cache')
+
     # tcollector.zabbix_bridge namespace for internal Zabbix bridge metrics.
     log_pos = 0
     key_lookup_miss = 0
     sample_last_ts = int(time.time())
+    last_key_lookup_miss = 0
 
     for binlogevent in stream:
         if binlogevent.schema == settings['mysql']['db']:
@@ -78,6 +82,11 @@ def main():
                             print "tcollector.zabbix_bridge.log_pos %d %s" % (sample_last_ts, log_pos)
                             print "tcollector.zabbix_bridge.key_lookup_miss %d %s" % (sample_last_ts, key_lookup_miss)
                             print "tcollector.zabbix_bridge.timestamp_drift %d %s" % (sample_last_ts, (sample_last_ts - r['clock']))
+                            if ((key_lookup_miss - last_key_lookup_miss) > settings['dbrefresh']):
+                                print "tcollector.zabbix_bridge.key_lookup_miss_reload %d %s" % (sample_last_ts, (key_lookup_miss - last_key_lookup_miss))
+                                cachecur.execute('DROP TABLE zabbix_cache')
+                                cachecur.execute('CREATE TABLE zabbix_cache AS SELECT * FROM dbfile.zabbix_cache')
+                                last_key_lookup_miss = key_lookup_miss
                     else:
                         # TODO: Consider https://wiki.python.org/moin/PythonDecoratorLibrary#Retry
                         utils.err("error: Key lookup miss for %s" % (itemid))
