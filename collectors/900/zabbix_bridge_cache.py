@@ -18,12 +18,9 @@
 
 import os
 import re
+import sqlite3
 import sys
 import time
-try:
-    import sqlite3
-except ImportError:
-    sqlite3 = None # This is handled gracefully in main()
 try:
     import pymysql
 except ImportError:
@@ -37,9 +34,6 @@ def main():
     utils.drop_privileges()
     if pymysql is None:
         utils.err("error: Python module `pymysql' is missing")
-        return 1
-    if sqlite3 is None:
-        utils.err("error: Python module `sqlite3' is missing")
         return 1
     settings = zabbix_bridge_conf.get_settings()
 

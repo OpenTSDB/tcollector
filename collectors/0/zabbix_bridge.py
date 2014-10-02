@@ -15,6 +15,7 @@
 # Dump all replication item/metric insert events from a zabbix mysql server
 #
 
+import sqlite3
 import sys
 import time
 
@@ -26,11 +27,6 @@ try:
 except ImportError:
     BinLogStreamReader = None  # This is handled gracefully in main()
 
-try:
-    import sqlite3
-except ImportError:
-    sqlite3 = None # This is handled gracefully in main()
-
 from collectors.etc import zabbix_bridge_conf
 from collectors.lib import utils
 
@@ -39,9 +35,6 @@ def main():
     utils.drop_privileges()
     if BinLogStreamReader is None:
         utils.err("error: Python module `pymysqlreplication' is missing")
-        return 1
-    if sqlite3 is None:
-        utils.err("error: Python module `sqlite3' is missing")
         return 1
     settings = zabbix_bridge_conf.get_settings()
 
