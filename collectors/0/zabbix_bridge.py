@@ -58,6 +58,7 @@ def main():
     cachecur = dbcache.cursor()
     cachecur.execute("ATTACH DATABASE '%s' as 'dbfile'" % (db_filename,))
     cachecur.execute('CREATE TABLE zabbix_cache AS SELECT * FROM dbfile.zabbix_cache')
+    cachecur.execute('CREATE UNIQUE INDEX uniq_zid on zabbix_cache (id)')
 
     # tcollector.zabbix_bridge namespace for internal Zabbix bridge metrics.
     log_pos = 0
