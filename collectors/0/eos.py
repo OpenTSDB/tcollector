@@ -1,35 +1,15 @@
 #!/usr/bin/python
-# Copyright (c) 2013, Arista Networks, Inc.
-# All rights reserved.
-# 
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
-# 
-#    * Redistributions of source code must retain the above copyright
-#      notice, this list of conditions and the following disclaimer.
+# Copyright (C) 2014  The tcollector Authors.
 #
-#    * Redistributions in binary form must reproduce the above
-#      copyright notice, this list of conditions and the following
-#      disclaimer in the documentation and/or other materials provided
-#      with the distribution.
-#
-#    * Neither the name of Arista Networks nor the names of its
-#      contributors may be used to endorse or promote products derived
-#      from this software without specific prior written permission.
-# 
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL ARISTA
-# NETWORKS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
-# OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
-# USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-# DAMAGE.
+# This program is free software: you can redistribute it and/or modify it
+# under the terms of the GNU Lesser General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or (at your
+# option) any later version.  This program is distributed in the hope that it
+# will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty
+# of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser
+# General Public License for more details.  You should have received a copy
+# of the GNU Lesser General Public License along with this program.  If not,
+# see <http://www.gnu.org/licenses/>.
 
 
 try:
@@ -40,7 +20,6 @@ except ImportError:
 import sys
 import time
 
-# pylint: disable-msg=E1101
 
 class IntfCounterCollector(eossdk.AgentHandler,
                            eossdk.TimeoutHandler):
@@ -50,12 +29,11 @@ class IntfCounterCollector(eossdk.AgentHandler,
                            eossdk.INTF_TYPE_LAG])
    
    def __init__(self, agent_mgr, timeout_mgr, intf_mgr,
-                intf_counter_mgr, eth_intf_counter_mgr):
+                intf_counter_mgr, eth_phy_intf_counter_mgr):
       self.intf_mgr_ = intf_mgr
       self.intf_counter_mgr_ = intf_counter_mgr
-      self.eth_intf_counter_mgr_ = eth_intf_counter_mgr
+      self.eth_phy_intf_counter_mgr_ = eth_phy_intf_counter_mgr
       self.interval_ = 30
-      # pylint: disable-msg=W0233
       eossdk.AgentHandler.__init__(self, agent_mgr)
       eossdk.TimeoutHandler.__init__(self, timeout_mgr)
    
@@ -104,7 +82,7 @@ class IntfCounterCollector(eossdk.AgentHandler,
          self.printIntfCounter(counter, ts, value, intf_id, tags)
 
       if intf_id.intf_type() == eossdk.INTF_TYPE_ETH:
-         eth_intf_counters = self.eth_intf_counter_mgr_.counters(intf_id)
+         eth_intf_counters = self.eth_phy_intf_counter_mgr_.counters(intf_id)
          eth_counters = [
             ("singleCollisionFrames", {},
              eth_intf_counters.single_collision_frames()),
@@ -146,7 +124,7 @@ class IntfCounterCollector(eossdk.AgentHandler,
          for counter, tags, value in eth_counters:
             self.printIntfCounter(counter, ts, value, intf_id, tags)
          
-         eth_intf_bin_counters = self.eth_intf_counter_mgr_.bin_counters(intf_id)
+         eth_intf_bin_counters = self.eth_phy_intf_counter_mgr_.bin_counters(intf_id)
          eth_bin_counters = [
             ("frameBySize", {"size" : "64", "direction" : "in"},
              eth_intf_bin_counters.in_64_octet_frames()),
@@ -160,8 +138,8 @@ class IntfCounterCollector(eossdk.AgentHandler,
              eth_intf_bin_counters.in_512_to_1023_octet_frames()),
             ("frameBySize", {"size" : "1024To1522", "direction" : "in"},
              eth_intf_bin_counters.in_1024_to_1522_octet_frames()),
-            ("frameBySize", {"size" : "1522ToMax", "direction" : "in"},
-             eth_intf_bin_counters.in_1522_to_max_octet_frames()),
+            ("frameBySize", {"size" : "1523ToMax", "direction" : "in"},
+             eth_intf_bin_counters.in_1523_to_max_octet_frames()),
             ("frameBySize", {"size" : "64", "direction" : "out"},
              eth_intf_bin_counters.out_64_octet_frames()),
             ("frameBySize", {"size" : "65To127", "direction" : "out"},
@@ -174,14 +152,15 @@ class IntfCounterCollector(eossdk.AgentHandler,
              eth_intf_bin_counters.out_512_to_1023_octet_frames()),
             ("frameBySize", {"size" : "1024To1522", "direction" : "out"},
              eth_intf_bin_counters.out_1024_to_1522_octet_frames()),
-            ("frameBySize", {"size" : "1522ToMax", "direction" : "out"},
-             eth_intf_bin_counters.out_1522_to_max_octet_frames()),
+            ("frameBySize", {"size" : "1523ToMax", "direction" : "out"},
+             eth_intf_bin_counters.out_1523_to_max_octet_frames()),
             ]
          for counter, tags, value in eth_bin_counters:
             self.printIntfCounter(counter, ts, value, intf_id, tags)
       
    def printIntfCounter(self, counter, ts, value, intf_id, tags):
-      tag_str = " ".join(["%s=%s" % (tag, value) for (tag, value) in tags.items()])
+      tag_str = " ".join(["%s=%s" % (tag_name, tag_value) for
+                          (tag_name, tag_value) in tags.items()])
       print ("eos.interface.%s %d %d iface=%s %s"
              % (counter, ts, value, intf_id.to_string(), tag_str))
 
@@ -195,12 +174,18 @@ def main():
 
    # Create the state managers we're going to poll. For now,
    # we're just pulling information on interface counters
+   agent_mgr = sdk.get_agent_mgr()
    intf_mgr = sdk.get_intf_mgr()
    intf_counter_mgr = sdk.get_intf_counter_mgr()
+   eth_phy_intf_counter_mgr = sdk.get_eth_phy_intf_counter_mgr()
    timeout_mgr = sdk.get_timeout_mgr()
 
    # Create a periodic interface counter collector
-   _ = IntfCounterCollector(timeout_mgr, intf_mgr, intf_counter_mgr)
+   _ = IntfCounterCollector(agent_mgr,
+                            timeout_mgr,
+                            intf_mgr,
+                            intf_counter_mgr,
+                            eth_phy_intf_counter_mgr)
    
    # Start the main loop
    sdk.main_loop(sys.argv)
