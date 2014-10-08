@@ -91,19 +91,19 @@ def main():
     f_entropy_avail = open("/proc/sys/kernel/random/entropy_avail", "r")
     f_interrupts = open("/proc/interrupts", "r")
 
-    f_scaling = "/sys/devices/system/cpu/cpu%s/cpufreq/cpuinfo_%s_freq"
+    f_scaling = "/sys/devices/system/cpu/cpu%s/cpufreq/%s_freq"
     f_scaling_min  = dict([])
     f_scaling_max  = dict([])
     f_scaling_cur  = dict([])
-    for cpu in glob.glob("/sys/devices/system/cpu/cpu[0-9]*/cpufreq/cpuinfo_cur_freq"):
-        m = re.match("/sys/devices/system/cpu/cpu([0-9]*)/cpufreq/cpuinfo_cur_freq", cpu)
+    for cpu in glob.glob("/sys/devices/system/cpu/cpu[0-9]*/cpufreq/scaling_cur_freq"):
+        m = re.match("/sys/devices/system/cpu/cpu([0-9]*)/cpufreq/scaling_cur_freq", cpu)
         if not m:
             continue
         cpu_no = m.group(1)
         sys.stderr.write(f_scaling % (cpu_no,"min"))
-        f_scaling_min[cpu_no] = open(f_scaling % (cpu_no,"min"), "r")
-        f_scaling_max[cpu_no] = open(f_scaling % (cpu_no,"max"), "r")
-        f_scaling_cur[cpu_no] = open(f_scaling % (cpu_no,"cur"), "r")
+        f_scaling_min[cpu_no] = open(f_scaling % (cpu_no,"cpuinfo_min"), "r")
+        f_scaling_max[cpu_no] = open(f_scaling % (cpu_no,"cpuinfo_max"), "r")
+        f_scaling_cur[cpu_no] = open(f_scaling % (cpu_no,"scaling_cur"), "r")
 
     numastats = find_sysfs_numa_stats()
     utils.drop_privileges()
