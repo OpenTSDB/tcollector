@@ -245,18 +245,18 @@ def collectInnodbStatus(db):
       printmetric("innodb.locks.os_waits", m.group(4), " type=rw-exclusive")
       continue
     # GG 20141015 - RW-shared and RW-excl got separate lines and rounds in 5.5+
-      m = match("RW-shared spins (\d+), rounds (\d+), OS waits (\d+)")
-      if m:
-        printmetric("locks.spin_waits", m.group(1), " type=rw-shared")
-        printmetric("locks.rounds", m.group(2), " type=rw-shared")
-        printmetric("locks.os_waits", m.group(3), " type=rw-shared")
-        continue
-      m = match("RW-excl spins (\d+), rounds (\d+), OS waits (\d+)")
-      if m:
-        printmetric("locks.spin_waits", m.group(1), " type=rw-exclusive")
-        printmetric("locks.rounds", m.group(2), " type=rw-exclusive")
-        printmetric("locks.os_waits", m.group(3), " type=rw-exclusive")
-        continue
+    m = match("RW-shared spins (\d+), rounds (\d+), OS waits (\d+)")
+    if m:
+      printmetric("locks.spin_waits", m.group(1), " type=rw-shared")
+      printmetric("locks.rounds", m.group(2), " type=rw-shared")
+      printmetric("locks.os_waits", m.group(3), " type=rw-shared")
+      continue
+    m = match("RW-excl spins (\d+), rounds (\d+), OS waits (\d+)")
+    if m:
+      printmetric("locks.spin_waits", m.group(1), " type=rw-exclusive")
+      printmetric("locks.rounds", m.group(2), " type=rw-exclusive")
+      printmetric("locks.os_waits", m.group(3), " type=rw-exclusive")
+      continue
     # INSERT BUFFER AND ADAPTIVE HASH INDEX
     # TODO(tsuna): According to the code in ibuf0ibuf.c, this line and
     # the following one can appear multiple times.  I've never seen this.
