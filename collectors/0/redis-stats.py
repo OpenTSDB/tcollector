@@ -129,21 +129,24 @@ def main():
 
             # connect to the instance and attempt to gather info
             r = redis.Redis(host="127.0.0.1", port=port)
-            info = r.info()
-            for key in KEYS:
-                if key in info:
-                    print_stat(key, info[key], tags)
+            try:
+                info = r.info()
+                for key in KEYS:
+                    if key in info:
+                        print_stat(key, info[key], tags)
 
-            # per database metrics
-            for db in filter(dbre.match, info.keys()):
-                for db_metric in info[db].keys():
-                    print_stat(db_metric, info[db][db_metric], "%s db=%s" % (tags, db))
+                # per database metrics
+                for db in filter(dbre.match, info.keys()):
+                    for db_metric in info[db].keys():
+                        print_stat(db_metric, info[db][db_metric], "%s db=%s" % (tags, db))
 
-            # get some instant latency information
-            # TODO: might be nice to get 95th, 99th, etc here?
-            start_time = time.time()
-            r.ping()
-            print_stat("latency", time.time() - start_time, tags)
+                # get some instant latency information
+                # TODO: might be nice to get 95th, 99th, etc here?
+                start_time = time.time()
+                r.ping()
+                print_stat("latency", time.time() - start_time, tags)
+            finally:
+                r.connection_pool.disconnect()
 
         sys.stdout.flush()
         time.sleep(interval)
