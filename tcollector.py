@@ -739,6 +739,7 @@ def parse_cmdline(argv):
                       default=[], metavar='TAG',
                       help='Tags to append to all timeseries we send, '
                            'e.g.: -t TAG=VALUE -t TAG2=VALUE')
+    parser.add_option('--tags-file', help='file containing tag info like TAG1=VALUE to append to all timeseries we send')
     parser.add_option('-P', '--pidfile', dest='pidfile',
                       default='/var/run/tcollector.pid',
                       metavar='FILE', help='Write our pidfile')
@@ -831,13 +832,21 @@ def main(argv):
 
     # validate everything
     tags = {}
-    for tag in options.tags:
+    def validate_and_add_tag(tag):
         if re.match('^[-_.a-z0-9]+=\S+$', tag, re.IGNORECASE) is None:
             assert False, 'Tag string "%s" is invalid.' % tag
         k, v = tag.split('=', 1)
         if k in tags:
             assert False, 'Tag "%s" already declared.' % k
         tags[k] = v
+
+    for tag in options.tags:
+        validate_and_add_tag(tag)
+
+    if options.tags_file is not None:
+        with open(options.tags_file) as tags_file:
+            for line in tags_file:
+                validate_and_add_tag(line)
 
     if not 'host' in tags and not options.stdin:
         tags['host'] = socket.gethostname()
