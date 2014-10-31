@@ -15,7 +15,7 @@ def format_kafka_offset_tsd_key(group, topic, partition, offset):
     metric = 'kafka.offset'
     value = offset
     tags = dict(group=group, topic=topic, partition=partition)
-    timestamp = time.time()
+    timestamp = int(time.time())
     return format_tsd_key(metric, offset, timestamp, tags)
 
 
@@ -50,6 +50,8 @@ def report():
             for partition in get_partitions(zk, consumer_group, topic):
                 offset = get_consumer_group_offset(zk, consumer_group, topic, partition)
                 print format_kafka_offset_tsd_key(consumer_group, topic, partition, offset)
+        zk.stop()
+        zk.close()
 
 
 class KafkaPaths:
