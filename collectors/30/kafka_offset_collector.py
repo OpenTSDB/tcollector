@@ -16,12 +16,18 @@ def format_tsd_key(metric_key, metric_value, timestamp, tags={}):
     output = '{} {} {} {}'.format(metric_key, timestamp, metric_value, expanded_tags)
     return output
 
-
 def format_kafka_broker_offset_tsd_key(topic, partition, offset):
     metric = 'kafka.broker.offset'
     tags = dict(topic=topic, partition=partition)
     timestamp = int(time.time())
     return format_tsd_key(metric, offset, timestamp, tags)
+
+
+def format_kafka_consumer_lag_tsd_key(consumer_group, topic, lag):
+    metric = 'kafka.lag'
+    tags = dict(consumer_group=consumer_group, topic=topic)
+    timestamp = int(time.time())
+    return format_tsd_key(metric, lag, timestamp, tags)
 
 
 def format_kafka_consumer_offset_tsd_key(consumer_group, topic, partition, offset):
@@ -48,9 +54,13 @@ def report_broker_info(kafka, zk, topic):
         path = KafkaPaths.broker_partitions(topic)
         return map(int, zk.get_children(path))
 
+    total_offset = 0
     for partition in get_partitions(topic):
         offset_response = kafka.send_offset_request([OffsetRequest(topic, partition, -1, 1)])[0]
-        print format_kafka_broker_offset_tsd_key(topic, partition, offset_response.offsets[0])
+        offset = offset_response.offsets[0]
+        total_offset += offset
+        print format_kafka_broker_offset_tsd_key(topic, partition, offset)
+    return total_offset
 
 
 def report():
@@ -75,11 +85,13 @@ def report():
 
         zk.start()
         for topic in topics:
-            report_broker_info(kafka, zk, topic)
-
+            total_broker_offset = report_broker_info(kafka, zk, topic)
+            total_consumer_offset = 0
             for partition in get_partitions(zk, consumer_group, topic):
                 offset = get_consumer_group_offset(zk, consumer_group, topic, partition)
+                total_consumer_offset += offset
                 print format_kafka_consumer_offset_tsd_key(consumer_group, topic, partition, offset)
+            print format_kafka_consumer_lag_tsd_key(consumer_group, topic, total_broker_offset - total_consumer_offset)
         zk.stop()
 
         kafka.close()
