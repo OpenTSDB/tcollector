@@ -61,7 +61,7 @@ class TSDBlacklistingTests(unittest.TestCase):
         tcollector.random.shuffle = self.random_shuffle
 
     def mkSenderThread(self, tsds):
-        return tcollector.SenderThread(None, True, tsds, False, {})
+        return tcollector.SenderThread(None, True, tsds, False, {}, reconnectinterval=5)
 
     def test_blacklistOneConnection(self):
         tsd = ("localhost", 4242)
