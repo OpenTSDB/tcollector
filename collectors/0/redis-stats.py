@@ -166,7 +166,7 @@ def scan_for_instances():
         if not (line and 'redis-server' in line):
             continue
         pid = int(line.split()[6].split("/")[0])
-        port = int(line.split()[3].split(":")[1])
+        port = int(line.split()[3].split(":")[-1])
 
         # now we have to get the command line.  we look in the redis config file for
         # a special line that tells us what cluster this is.  else we default to using
