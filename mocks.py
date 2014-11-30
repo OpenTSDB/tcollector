@@ -76,3 +76,6 @@ class Sys():
 class Utils():
     def __init__(self):
         self.drop_privileges = lambda: None
+
+    def err(self, msg):
+        sys.stderr.write("%s\n" % msg)
