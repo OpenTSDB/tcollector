@@ -11,6 +11,7 @@
 PATH=/sbin:/bin:/usr/sbin:/usr/bin
 DAEMON=/usr/bin/tcollector
 EXTRA_TAGS=""
+EXTRA_ARGS=""
 
 . /lib/lsb/init-functions
 
@@ -70,7 +71,8 @@ case $1 in
             -t host=$HOSTNAME --dedup-interval $DEDUP_INTERVAL\
             --reconnect-interval $RECONNECT_INTERVAL\
             --max-bytes $LOGFILE_MAX_BYTES --backup-count $LOGFILE_BACKUP_COUNT\
-            --evict-interval $EVICT_INTERVAL -P "$PIDFILE" -D $EXTRA_TAGS_OPTS
+            --evict-interval $EVICT_INTERVAL $EXTRA_ARGS\
+			-P "$PIDFILE" -D $EXTRA_TAGS_OPTS
 
         log_end_msg $?
         ;;

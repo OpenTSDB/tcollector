@@ -25,6 +25,7 @@ import errno
 import fcntl
 import logging
 import os
+import os.path
 import random
 import re
 import signal
@@ -39,6 +40,10 @@ from Queue import Empty
 from Queue import Full
 from optparse import OptionParser
 
+try:
+    import ssl
+except ImportError:
+    ssl = None
 
 # global variables.
 COLLECTORS = {}
@@ -404,7 +409,7 @@ class SenderThread(threading.Thread):
        buffering we might need to do if we can't establish a connection
        and we need to spool to disk.  That isn't implemented yet."""
 
-    def __init__(self, reader, dryrun, hosts, self_report_stats, tags, reconnectinterval):
+    def __init__(self, reader, dryrun, hosts, self_report_stats, tags, reconnectinterval, use_tls = False, ca_certs = None):
         """Constructor.
 
         Args:
@@ -416,6 +421,9 @@ class SenderThread(threading.Thread):
             stats into the metrics reported to TSD, as if those metrics had
             been read from a collector.
           tags: A dictionary of tags to append for every data point.
+          reconnectinterval: maximum period in seconds before picking a new TSD host
+          use_tls: use TLS based encryption in communication with TSD
+          ca_certs: path to ca-certificates file on local system
         """
         super(SenderThread, self).__init__()
 
@@ -430,6 +438,8 @@ class SenderThread(threading.Thread):
         self.host = None  # The current TSD host we've selected.
         self.port = None  # The port of the current TSD.
         self.tsd = None   # The socket connected to the aforementioned TSD.
+        self.use_tls = use_tls   # Use TLS encryption for TSD communication
+        self.ca_certs = ca_certs # Path to ca-certificates file to use for TLS connection
         self.last_verify = 0
         self.reconnectinterval = reconnectinterval    # reconnectinterval in seconds.
         self.time_reconnect = 0                 # if reconnectinterval > 0, used to track the time.
@@ -638,9 +648,37 @@ class SenderThread(threading.Thread):
                     self.tsd = socket.socket(family, socktype, proto)
                     self.tsd.settimeout(15)
                     self.tsd.connect(sockaddr)
+                    # establish TLS context, if required
+                    if self.use_tls and ssl is not None:
+                        LOG.debug('Setting up TLS 1.2 wrapper for TSD connection...')
+                        # select protocol, prefer TLS v1.2
+                        if hasattr(ssl, "PROTOCOL_TLSv1_2"):
+                            ssl_version = ssl.PROTOCOL_TLSv1_2
+                        else:
+                            LOG.warning('PROTOCOL_TLSv1_2 not available, '
+                                        'falling back to PROTOCOL_TLSv1')
+                            ssl_version = ssl.PROTOCOL_TLSv1
+                        # wrap the socket connection
+                        self.tsd = ssl.wrap_socket(
+                            self.tsd,
+                            cert_reqs=ssl.CERT_REQUIRED,
+                            ssl_version=ssl_version,
+                            ca_certs=self.ca_certs,
+                            do_handshake_on_connect=True)
+                        # perform manual certificate name check
+                        cert = self.tsd.getpeercert()
+                        if not self._valid_certificate_name(cert, self.host):
+                            raise ssl.SSLError(
+                                'Certificate host name checking failed;'
+                                'certificate does not match %s' % self.host)
+                        # All ok. Connection established.
+                        LOG.debug('Host %s matches certificate', self.host)
                     # if we get here it connected
                     LOG.debug('Connection to %s was successful'%(str(sockaddr)))
                     break
+                except ssl.SSLError, msg:
+                    LOG.warning('Failed to establish TLS connection to %s:%d: %s',
+                                self.host, self.port, msg)
                 except socket.error, msg:
                     LOG.warning('Connection attempt failed to %s:%d: %s',
                                 self.host, self.port, msg)
@@ -649,6 +687,32 @@ class SenderThread(threading.Thread):
             if not self.tsd:
                 LOG.error('Failed to connect to %s:%d', self.host, self.port)
                 self.blacklist_connection()
+
+    def _valid_certificate_name(self, cert, host_name):
+        """Check commonName from supplied certificate matches given hostname"""
+        cert_name = None
+        # start by extracting the commonName from certificate
+        for subject in cert['subject']:
+            field, value = subject[0]
+            if field == 'commonName':
+                cert_name = value
+        # ensure we found a commonName in the certificate
+        if cert_name is None:
+            # No common name found in certificate, reject connection
+            err('Certificate host name checking failed; '
+                'No commonName found in certificate')
+            return False
+        # split and reverse 'a.host.tld' into [tld, host, a]
+        cert_parts = cert_name.split('.')[::-1]
+        host_parts = host_name.split('.')[::-1]
+        # perform strict checking on host.tld part, not allowing wildcards
+        domain_ok  = all(map(lambda (c, h): c == h, zip(cert_parts[:2], host_parts[:2])))
+        # check entire name with wildcards allowed, allowing *.host.tld
+        sub_ok     = all(map(lambda (c, h): c == "*" or c == h, zip(cert_parts, host_parts)))
+        # handle optional subdomain in wildcard certificate,
+        # i.e. hostname host.tld matches certificate for *.host.tld
+        wildcard_cert = ["*"] == cert_parts[len(host_parts):]
+        return domain_ok and sub_ok and (len(cert_parts) == len(host_parts) or wildcard_cert)
 
     def add_tags_to_line(self, line):
         for tag, value in self.tags:
@@ -777,8 +841,16 @@ def parse_cmdline(argv):
                       default=0, metavar='RECONNECTINTERVAL',
                       help='Number of seconds after which the connection to'
                            'the TSD hostname reconnects itself. This is useful'
-                           'when the hostname is a multiple A record (RRDNS).'
-                           )
+                           'when the hostname is a multiple A record (RRDNS).')
+    parser.add_option('--tls', '--ssl', dest='use_tls', action='store_true',
+                      default=False,
+                      help='Use TLS when connecting to TSD host. '
+                           'Since OpenTSDB does not support SSL, an SSL '
+                           'proxy is required in front of OpenTSDB, '
+                           'such as stunnel or similar.')
+    parser.add_option('--ca-certs', dest='ca_certs',
+                      default='/etc/ssl/certs/ca-certificates.crt', metavar='FILE',
+                      help='Path to CA certificates to use for TLS connection')
     (options, args) = parser.parse_args(args=argv[1:])
     if options.dedupinterval < 0:
         parser.error('--dedup-interval must be at least 0 seconds')
@@ -787,6 +859,11 @@ def parse_cmdline(argv):
                      '--dedup-interval')
     if options.reconnectinterval < 0:
         parser.error('--reconnect-interval must be at least 0 seconds')
+    if options.use_tls and ssl is None:
+        parser.error('--tls/--ssl requires OpenSSL (module ssl not available)')
+    if options.use_tls and not os.path.exists(options.ca_certs):
+        parser.error('TLS encryption requested, but CA certs file missing (%s). '
+                     'Supply with: --ca-certs FILE' % options.ca_certs)
     # We cannot write to stdout when we're a daemon.
     if (options.daemonize or options.max_bytes) and not options.backup_count:
         options.backup_count = 1
@@ -899,7 +976,9 @@ def main(argv):
 
     # and setup the sender to start writing out to the tsd
     sender = SenderThread(reader, options.dryrun, options.hosts,
-                          not options.no_tcollector_stats, tags, options.reconnectinterval)
+                          not options.no_tcollector_stats, tags, options.reconnectinterval,
+                          use_tls = options.use_tls,
+                          ca_certs = options.ca_certs)
     sender.start()
     LOG.info('SenderThread startup complete')
 

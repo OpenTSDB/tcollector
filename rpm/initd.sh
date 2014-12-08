@@ -28,6 +28,7 @@ LOGFILE=${LOGFILE-/var/log/tcollector.log}
 LOGFILE_MAX_BYTES=${LOGFILE_MAX_BYTES-67108864}
 LOGFILE_BACKUP_COUNT=${LOGFILE_BACKUP_COUNT-0}
 RECONNECT_INTERVAL=${RECONNECT_INTERVAL-0}
+EXTRA_ARGS=""
 
 prog=tcollector
 if [ -f /etc/sysconfig/$prog ]; then
@@ -51,7 +52,7 @@ if [ -z "$OPTIONS" ]; then
   OPTIONS="$OPTIONS -t host=$THIS_HOST -P $PIDFILE"
   OPTIONS="$OPTIONS --reconnect-interval $RECONNECT_INTERVAL"
   OPTIONS="$OPTIONS --max-bytes $LOGFILE_MAX_BYTES --backup-count $LOGFILE_BACKUP_COUNT"
-  OPTIONS="$OPTIONS --logfile $LOGFILE $EXTRA_TAGS_OPTS"
+  OPTIONS="$OPTIONS --logfile $LOGFILE $EXTRA_ARGS $EXTRA_TAGS_OPTS"
 fi
 
 sanity_check() {
