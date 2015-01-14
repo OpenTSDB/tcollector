@@ -765,6 +765,11 @@ def parse_cmdline(argv):
                       help='Number of seconds after which to remove cached '
                            'values of old data points to save memory. '
                            'default=%default')
+    parser.add_option('--allowed-inactivity-time', dest='allowed_inactivity_time', type='int',
+                      default=ALLOWED_INACTIVITY_TIME, metavar='ALLOWEDINACTIVITYTIME',
+                      help='How long to wait for datapoints before assuming '
+                           'a collector is dead and restart it. '
+                           'default=%default')
     parser.add_option('--max-bytes', dest='max_bytes', type='int',
                       default=64 * 1024 * 1024,
                       help='Maximum bytes per a logfile.')
@@ -942,7 +947,7 @@ def main_loop(options, modules, sender, tags):
         populate_collectors(options.cdir)
         reload_changed_config_modules(modules, options, sender, tags)
         reap_children()
-        check_children()
+        check_children(options)
         spawn_children()
         time.sleep(15)
         now = int(time.time())
@@ -1146,14 +1151,14 @@ def reap_children():
             register_collector(Collector(col.name, col.interval, col.filename,
                                          col.mtime, col.lastspawn))
 
-def check_children():
+def check_children(options):
     """When a child process hasn't received a datapoint in a while,
        assume it's died in some fashion and restart it."""
 
     for col in all_living_collectors():
         now = int(time.time())
 
-        if col.last_datapoint < (now - ALLOWED_INACTIVITY_TIME):
+        if col.last_datapoint < (now - options.allowed_inactivity_time):
             # It's too old, kill it
             LOG.warning('Terminating collector %s after %d seconds of inactivity',
                         col.name, now - col.last_datapoint)
