@@ -36,12 +36,17 @@ class HadoopHttp(object):
         self.host = host
         self.uri = uri
         self.server = httplib.HTTPConnection(self.host, self.port)
-        self.server.connect()
+        self.server.auto_open = True
 
     def request(self):
-        self.server.request('GET', self.uri)
-        resp = self.server.getresponse()
-        return json.loads(resp.read())
+        try:
+            self.server.request('GET', self.uri)
+            resp = self.server.getresponse().read()
+        except:
+            resp = '{}'
+        finally:
+            self.server.close()
+        return json.loads(resp)
 
     def poll(self):
         """
@@ -49,7 +54,7 @@ class HadoopHttp(object):
 
         @return: array of tuples ([u'Context', u'Array'], u'metricName', value)
         """
-        json_arr = self.request()['beans']
+        json_arr = self.request().get('beans', [])
         kept = []
         for bean in json_arr:
             if (not bean['name']) or (not "name=" in bean['name']):
