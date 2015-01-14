@@ -770,6 +770,9 @@ def parse_cmdline(argv):
                       help='How long to wait for datapoints before assuming '
                            'a collector is dead and restart it. '
                            'default=%default')
+    parser.add_option('--remove-inactive-collectors', dest='remove_inactive_collectors', action='store_true',
+                      default=False, help='Remove collectors not sending data '
+                                          'in the max allowed inactivity interval')
     parser.add_option('--max-bytes', dest='max_bytes', type='int',
                       default=64 * 1024 * 1024,
                       help='Maximum bytes per a logfile.')
@@ -1163,8 +1166,9 @@ def check_children(options):
             LOG.warning('Terminating collector %s after %d seconds of inactivity',
                         col.name, now - col.last_datapoint)
             col.shutdown()
-            register_collector(Collector(col.name, col.interval, col.filename,
-                                         col.mtime, col.lastspawn))
+            if not options.remove_inactive_collectors:
+                register_collector(Collector(col.name, col.interval, col.filename,
+                                             col.mtime, col.lastspawn))
 
 
 def set_nonblocking(fd):
