@@ -197,5 +197,9 @@ class Metrics2TSD:
 
 
 if __name__ == "__main__":
-  sys.stdin.close()
-  sys.exit(main())
+  if mapr_metrics_conf.enabled:
+    sys.stdin.close()
+    sys.exit(main())
+  else:
+    logger.info("Enable the mapr_metrics collector if you want MapR stats.")
+    sys.exit(13)
