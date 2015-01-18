@@ -109,22 +109,22 @@ class Metrics2TSD:
 						if group in d:
 							self.group_metrics(group, self.last_values, d, tags=tags)
 					try:
-						self.send_gauge('node.memory.used', d['MEMORYUSED'], timestamp, tags=tags)
+						self.send_gauge('mapr.memory.used', int(d['MEMORYUSED']) * (1024*1024), timestamp, tags=tags)
 					except KeyError as e:
 						utils.err('%s not in metrics data.' % e)
 
 					try:
-						self.send_gauge('node.capacity.available', d['SERVAVAILSIZEMB'], timestamp, tags=tags)
+						self.send_gauge('mapr.capacity.available', int(d['SERVAVAILSIZEMB']) * (1024 * 1024), timestamp, tags=tags)
 					except KeyError as e:
 						utils.err('%s not in metrics data.' % e)
 
 					try:
-						self.send_gauge('node.capacity.used', d['SERVUSEDSIZEMB'], timestamp, tags=tags)
+						self.send_gauge('mapr.capacity.used', int(d['SERVUSEDSIZEMB']) * (1024 * 1024), timestamp, tags=tags)
 					except KeyError as e:
 						utils.err('%s not in metrics data.' % e)
 
 					try:
-						rpccount_metric = self.metric_template.substitute(grouping='node', obj='rpc', metric='count')
+						rpccount_metric = self.metric_template.substitute(grouping='rpc', metric='count')
 						if rpccount_metric in self.last_values:
 							self.send_counter(rpccount_metric, self.last_values[rpccount_metric], d['RPCCOUNT'], timestamp, tags=tags)
 						self.last_values[rpccount_metric] = d['RPCCOUNT']
@@ -132,7 +132,7 @@ class Metrics2TSD:
 						utils.err('%s is not in metrics data.' % e)
 
 					try:
-						rpcinbytes_metric = self.metric_template.substitute(grouping='node', obj='rpc', metric='inbytes')
+						rpcinbytes_metric = self.metric_template.substitute(grouping='rpc', metric='inbytes')
 						if rpcinbytes_metric in self.last_values:
 							self.send_counter(rpcinbytes_metric, self.last_values[rpcinbytes_metric], d['RPCINBYTES'], timestamp, tags=tags)
 						self.last_values[rpcinbytes_metric] = d['RPCINBYTES']
@@ -140,7 +140,7 @@ class Metrics2TSD:
 						utils.err('%s is not in metrics data.' % e)
 
 					try:
-						rpcoutbytes_metric = self.metric_template.substitute(grouping='node', obj='rpc', metric='outbytes')
+						rpcoutbytes_metric = self.metric_template.substitute(grouping='rpc', metric='outbytes')
 						if rpcoutbytes_metric in self.last_values:
 							self.send_counter(rpcoutbytes_metric, self.last_values[rpcoutbytes_metric], d['RPCOUTBYTES'], timestamp, tags=tags)
 						self.last_values[rpcoutbytes_metric] = d['RPCOUTBYTES']
