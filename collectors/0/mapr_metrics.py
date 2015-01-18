@@ -20,8 +20,8 @@ except ImportError:
 try:
   from collectors.etc import mapr_metrics_conf
 except ImportError:
-  utils.warn("No configuration found!")
-  mapr_metrics_conf = None
+  utils.err("No mapr_metrics configuration found!")
+  sys.exit(13)
 
 
 def get_metrics(webserver_url, username, password, params):
@@ -90,7 +90,7 @@ class Metrics2TSD:
 				self.failed_attempts = 0
 			except requests.exceptions.ConnectionError as error:
 				self.failed_attempts += 1
-				utils.err("Error connecting to %s, have experienced %d errors so far.", self.webserver_url, self.failed_attempts)
+				utils.err("Error connecting to %s, have experienced %d errors so far." % (self.webserver_url, self.failed_attempts))
 				if self.failed_attempts > 5:
 					print >>sys.stderr, "Failed 5 times, exiting."
 					return 13
@@ -111,17 +111,17 @@ class Metrics2TSD:
 					try:
 						self.send_gauge('node.memory.used', d['MEMORYUSED'], timestamp, tags=tags)
 					except KeyError as e:
-						utils.err('%s not in metrics data.', e)
+						utils.err('%s not in metrics data.' % e)
 
 					try:
 						self.send_gauge('node.capacity.available', d['SERVAVAILSIZEMB'], timestamp, tags=tags)
 					except KeyError as e:
-						utils.err('%s not in metrics data.', e)
+						utils.err('%s not in metrics data.' % e)
 
 					try:
 						self.send_gauge('node.capacity.used', d['SERVUSEDSIZEMB'], timestamp, tags=tags)
 					except KeyError as e:
-						utils.err('%s not in metrics data.', e)
+						utils.err('%s not in metrics data.' % e)
 
 					try:
 						rpccount_metric = self.metric_template.substitute(grouping='node', obj='rpc', metric='count')
@@ -129,7 +129,7 @@ class Metrics2TSD:
 							self.send_counter(rpccount_metric, self.last_values[rpccount_metric], d['RPCCOUNT'], timestamp, tags=tags)
 						self.last_values[rpccount_metric] = d['RPCCOUNT']
 					except KeyError as e:
-						utils.err('%s is not in metrics data.', e)
+						utils.err('%s is not in metrics data.' % e)
 
 					try:
 						rpcinbytes_metric = self.metric_template.substitute(grouping='node', obj='rpc', metric='inbytes')
@@ -137,7 +137,7 @@ class Metrics2TSD:
 							self.send_counter(rpcinbytes_metric, self.last_values[rpcinbytes_metric], d['RPCINBYTES'], timestamp, tags=tags)
 						self.last_values[rpcinbytes_metric] = d['RPCINBYTES']
 					except KeyError as e:
-						utils.err('%s is not in metrics data.', e)
+						utils.err('%s is not in metrics data.' % e)
 
 					try:
 						rpcoutbytes_metric = self.metric_template.substitute(grouping='node', obj='rpc', metric='outbytes')
@@ -145,7 +145,7 @@ class Metrics2TSD:
 							self.send_counter(rpcoutbytes_metric, self.last_values[rpcoutbytes_metric], d['RPCOUTBYTES'], timestamp, tags=tags)
 						self.last_values[rpcoutbytes_metric] = d['RPCOUTBYTES']
 					except KeyError as e:
-						utils.err('%s is not in metrics data.', e)
+						utils.err('%s is not in metrics data.' % e)
 			time.sleep(seconds_delay)
 		
 
