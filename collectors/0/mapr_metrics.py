@@ -114,12 +114,12 @@ class Metrics2TSD:
             utils.err('%s not in metrics data.' % e)
 
           try:
-            self.send_gauge('mapr.capacity.available', int(d['SERVAVAILSIZEMB']) * (1024 * 1024), timestamp, tags=tags)
+            self.send_gauge('mapr.mfs.available', int(d['SERVAVAILSIZEMB']) * (1024 * 1024), timestamp, tags=tags)
           except KeyError as e:
             utils.err('%s not in metrics data.' % e)
 
           try:
-            self.send_gauge('mapr.capacity.used', int(d['SERVUSEDSIZEMB']) * (1024 * 1024), timestamp, tags=tags)
+            self.send_gauge('mapr.mfs.used', int(d['SERVUSEDSIZEMB']) * (1024 * 1024), timestamp, tags=tags)
           except KeyError as e:
             utils.err('%s not in metrics data.' % e)
 
