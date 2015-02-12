@@ -40,7 +40,18 @@ def get_metrics(webserver_url, username, password, params):
     return 13 # tell tcollector to not respawn
 
   response = r.json()
-  data = response['data']
+()
+     try:
+y:
+             data = response['data']
+']
+     except KeyError as e:
+e:
+             print >>sys.stderr, "Did not get a 'data' key in the response."
+."
+             print >>sys.stderr, response
+se
+             raise
   return data
 
 def main():
@@ -83,7 +94,10 @@ class Metrics2TSD:
       start = end - timedelta(seconds=seconds_delay)
       ms_start = int(start.strftime('%s')) * 1000
       ms_end = int(end.strftime('%s')) * 1000
-      params = { 'nodes': platform.node(), 'start': ms_start, 'end': ms_end }
+) * 1000
+               nodename = platform.node().split('.')[0] # if node() returns the fqdn, the metrics can't be retrieved
+etrieved
+ams = { 'nodes': nodename, 'start': ms_start, 'end': ms_end }
 
       try:
         all_metrics = get_metrics(self.webserver_url, self.username, self.password, params)
