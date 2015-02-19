@@ -49,7 +49,7 @@ for i in "$PIDFILE" "$LOG"; do
 done
 
 which_python () {
-    for python in /usr/bin/python2.6 /usr/bin/python2.5 /usr/bin/python; do
+    for python in /usr/bin/python2.6 /usr/bin/python2.5 /usr/bin/python /usr/local/bin/python; do
         test -x "$python" && echo "$python" && return
     done
     echo >&2 'Could not find a Python interpreter'
