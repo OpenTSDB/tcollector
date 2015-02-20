@@ -159,9 +159,11 @@ class Collector(object):
         except IOError, (err, msg):
             if err != errno.EAGAIN:
                 raise
-        except:
+        except AttributeError:
             # sometimes the process goes away in another thread and we don't
             # have it anymore, so log an error and bail
+            LOG.exception('caught exception, collector process went away while reading stdout')
+        except:
             LOG.exception('uncaught exception in stdout read')
             return
 
