@@ -38,6 +38,8 @@ ELB_METRICS = {
         "Latency": "Average",
     }
 
+AZS = ['us-east-1b', 'us-east-1c', 'us-east-1d', 'us-east-1e']
+
 
 EC2_METRICS = [
     {
@@ -129,7 +131,7 @@ def emit_metric_for_instance(cw, metric, instance, region_name):
         emit(name, value, tags=tags, ts=result['Timestamp'])
 
 
-def emit_metric_for_loadbalancer(cw, metric, lb_name, region_name):
+def emit_metric_for_loadbalancer(cw, metric, lb_name, region_name, az):
     # 1 minute periods come at an extra charge
     # 5 minute period available for free
     results = cw.get_metric_statistics(
@@ -139,13 +141,15 @@ def emit_metric_for_loadbalancer(cw, metric, lb_name, region_name):
         metric['name'],
         'AWS/ELB',
         metric['stat'],
-        dimensions={'LoadBalancerName': lb_name})
+        dimensions={'LoadBalancerName': lb_name,
+                    'AvailabilityZone': az})
 
     for result in results:
         name = 'aws.ec2.elb.%s' % (metric['name'])
         value = result[metric['stat']]
         tags = {'elb_name': lb_name,
-                'region': region_name}
+                'region': region_name,
+                'placement': az}
         emit(name, value, tags=tags, ts=result['Timestamp'])
 
 
@@ -182,9 +186,10 @@ def emit_elb_metrics(pool, cw, region_name):
         elb = boto.ec2.elb.connect_to_region(region_name=region_name)
         lbs = [lb.name for lb in elb.get_all_load_balancers()]
         for name in lbs:
-            for metric_name in ELB_METRICS:
-                metric = {'name': metric_name, 'stat': ELB_METRICS[metric_name]}
-                pool.spawn(emit_metric_for_loadbalancer, cw, metric, name, region_name)
+            for az in AZS:
+                for metric_name, stat in ELB_METRICS.iteritems():
+                    metric = {'name': metric_name, 'stat': stat}
+                    pool.spawn(emit_metric_for_loadbalancer, cw, metric, name, region_name, az)
     except Exception as e:
         print(e, file=sys.stderr)
 
