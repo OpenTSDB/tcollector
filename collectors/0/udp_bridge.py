@@ -39,7 +39,10 @@ def main():
             return line
 
     try:
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        if (udp_bridge_conf and udp_bridge_conf.usetcp()):
+          sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        else:
+          sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.bind((HOST, PORT))
     except socket.error, msg:
         utils.err('could not open socket: %s' % msg)
