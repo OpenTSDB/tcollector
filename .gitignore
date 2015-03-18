@@ -6,4 +6,6 @@ debian/tcollector.postrm.debhelper
 debian/tcollector.prerm.debhelper
 debian/tcollector.substvars
 debian/tcollector/
-
+*.pyc
+*.pid
+*.log
