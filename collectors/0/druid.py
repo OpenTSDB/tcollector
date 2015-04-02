@@ -28,7 +28,7 @@ def format_tsd_key(metric_key, metric_value, time_, tags={}):
     def sanitize(s):
         return ILLEGAL_CHARS_REGEX.sub('_', s)
 
-    expanded_tags = ''.join([' %s=%s'.format(sanitize(key), sanitize(value)) for key, value in tags.iteritems()])
+    expanded_tags = ''.join([' {}={}'.format(sanitize(key), sanitize(value)) for key, value in tags.iteritems()])
     output = '{} {} {} {}'.format(sanitize(metric_key), time_, metric_value, expanded_tags)
     return output
  
@@ -58,7 +58,7 @@ def spawn_monitor(metric_file):
     name = 'monitor for ' + metric_file
 
     monitor = subprocess.Popen(
-            ['/usr/bin/tail', '--follow=name', '--retry', metric_file],
+            ['/usr/bin/tail', '--lines=0', '--follow=name', '--retry', metric_file],
             bufsize=1,  # line buffered
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE
