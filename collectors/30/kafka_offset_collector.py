@@ -42,7 +42,10 @@ def format_kafka_consumer_offset_tsd_key(consumer_group, topic, partition, offse
 
 
 def get_partitions(zk, group, topic):
-    return zk.get_children(KafkaPaths.topic_offsets(group, topic))
+    try:
+        return map(int, zk.get_children(KafkaPaths.topic_offsets(group, topic)))
+    except:
+        return []
 
 """
 Return a list of all kafka topics, or None if the topics cannot be fetched
@@ -97,7 +100,6 @@ def report():
         if kafka_brokers is None:
             raise RuntimeError('KAFKA_BROKERS could not be fetched from ZK')
         kafka_init = 'env=production kafka=%s zk=%s' % (','.join(kafka_brokers), zk_quorum)
-        print 'Starting kafka with params %s' % kafka_init
         kafka = KafkaClient(kafka_init)
 
         # Pull topics from zookeeper
@@ -105,9 +107,13 @@ def report():
         topics = get_kafka_topics(zk)
         if topics is None:
             raise RuntimeError('KAFKA_TOPICS could not be fetched from ZK')
-
+        topics = map(str, topics)
         for topic in topics:
-            total_broker_offset = report_broker_info(kafka, zk, topic)
+            try:
+                total_broker_offset = report_broker_info(kafka, zk, topic)
+            except:
+                pass
+                total_broker_offset = 0
             total_consumer_offset = 0
             for partition in get_partitions(zk, consumer_group, topic):
                 offset = get_consumer_group_offset(zk, consumer_group, topic, partition)
@@ -129,7 +135,7 @@ class KafkaPaths:
 
     @staticmethod
     def consumer_topic_partition(group, topic, partition):
-        return KafkaPaths.topic_offsets(group, topic) + '/' + partition
+        return '%s/%d' % (KafkaPaths.topic_offsets(group, topic), partition)
 
     @staticmethod
     def broker_partitions(topic):
