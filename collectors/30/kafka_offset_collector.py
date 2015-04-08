@@ -85,7 +85,6 @@ def report_broker_info(kafka, zk, topic):
 def report():
     # see the monitoring.json chef role
     zk_quorums = os.getenv('MONITORED_ZOOKEEPER_QUORUMS')
-    # kafka_brokers = os.getenv('KAFKA_BROKERS')
 
     if zk_quorums is None:
         raise RuntimeError('MONITORED_ZOOKEEPER_QUORUMS not found')
