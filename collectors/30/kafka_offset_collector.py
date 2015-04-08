@@ -93,8 +93,7 @@ def report():
         zk = KazooClient(hosts=zk_quorum)
         zk.start()
 
-        # kafka_brokers = get_kafka_brokers(zk)
-        kafka_brokers = 'kafkafranz-1c-east-b0995a5f,kafkafranz-1e-east-0c523bfd'.split(',')
+        kafka_brokers = get_kafka_brokers(zk)
         if kafka_brokers is None:
             raise RuntimeError('KAFKA_BROKERS could not be fetched from ZK')
         kafka_init = 'env=production kafka=%s zk=%s' % (','.join(kafka_brokers), zk_quorum)
