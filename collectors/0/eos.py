@@ -16,7 +16,7 @@ try:
    import eossdk
 except ImportError:
    eossdk = None
-   
+
 import sys
 import time
 
@@ -27,7 +27,7 @@ class IntfCounterCollector(eossdk.AgentHandler,
    intf_types = frozenset([eossdk.INTF_TYPE_ETH,
                            eossdk.INTF_TYPE_MANAGEMENT,
                            eossdk.INTF_TYPE_LAG])
-   
+
    def __init__(self, agent_mgr, timeout_mgr, intf_mgr,
                 intf_counter_mgr, eth_phy_intf_counter_mgr):
       self.intf_mgr_ = intf_mgr
@@ -36,7 +36,7 @@ class IntfCounterCollector(eossdk.AgentHandler,
       self.interval_ = 30
       eossdk.AgentHandler.__init__(self, agent_mgr)
       eossdk.TimeoutHandler.__init__(self, timeout_mgr)
-   
+
    def on_initialized(self):
       # Schedule ourselves to run immediately
       self.timeout_time_is(eossdk.now())
@@ -45,14 +45,15 @@ class IntfCounterCollector(eossdk.AgentHandler,
       for intf_id in self.intf_mgr_.intf_iter():
          if intf_id.intf_type() in self.intf_types:
             self.printIntfCounters(intf_id)
+      sys.stdout.flush()
       self.timeout_time_is(eossdk.now() + self.interval_)
-   
+
    def printIntfCounters(self, intf_id):
       ts = int(time.time())
-      
+
       self.intf_counter_mgr_.counters(intf_id)
       intf_counters = self.intf_counter_mgr_.counters(intf_id)
-      counters = [ 
+      counters = [
          ("ucastPkts", {"direction" : "out"},
           intf_counters.out_ucast_pkts()),
          ("multicastPkts", {"direction" : "out"},
@@ -123,7 +124,7 @@ class IntfCounterCollector(eossdk.AgentHandler,
             ]
          for counter, tags, value in eth_counters:
             self.printIntfCounter(counter, ts, value, intf_id, tags)
-         
+
          eth_intf_bin_counters = self.eth_phy_intf_counter_mgr_.bin_counters(intf_id)
          eth_bin_counters = [
             ("frameBySize", {"size" : "64", "direction" : "in"},
@@ -157,11 +158,11 @@ class IntfCounterCollector(eossdk.AgentHandler,
             ]
          for counter, tags, value in eth_bin_counters:
             self.printIntfCounter(counter, ts, value, intf_id, tags)
-      
+
    def printIntfCounter(self, counter, ts, value, intf_id, tags):
       tag_str = " ".join(["%s=%s" % (tag_name, tag_value) for
                           (tag_name, tag_value) in tags.items()])
-      print ("eos.interface.%s %d %d iface=%s %s"
+      sys.stdout.write("eos.interface.%s %d %d iface=%s %s\n"
              % (counter, ts, value, intf_id.to_string(), tag_str))
 
 
@@ -169,7 +170,7 @@ def main():
    if eossdk == None:
       # This collector requires the eossdk module
       return 13 # Ask tcollector to not respawn us
-   
+
    sdk = eossdk.Sdk("tcollector-eos")
 
    # Create the state managers we're going to poll. For now,
@@ -186,7 +187,7 @@ def main():
                             intf_mgr,
                             intf_counter_mgr,
                             eth_phy_intf_counter_mgr)
-   
+
    # Start the main loop
    sdk.main_loop(sys.argv)
 
