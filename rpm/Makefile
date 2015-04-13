@@ -22,7 +22,10 @@ CP_P := cp -p
 # In some environment this command can be called `gsha1sum' or `digest'.
 SHA1SUM := sha1sum
 ZIP := zip -9
-PYTHON_VERSION := 2.7
+PYTHON_VERSION_RAW := $(shell python -V 2>&1 | cut -d ' ' -f 2)
+PYTHON_VERSION_MAJOR := $(shell echo $(PYTHON_VERSION_RAW) | cut -d '.' -f 1)
+PYTHON_VERSION_MINOR := $(shell echo $(PYTHON_VERSION_RAW) | cut -d '.' -f 2)
+PYTHON_VERSION := $(PYTHON_VERSION_MAJOR).$(PYTHON_VERSION_MINOR)
 PYTHON := python$(PYTHON_VERSION)
 
 # Our "source tree" is in the parent directory, always.
