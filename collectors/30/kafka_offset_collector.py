@@ -51,7 +51,10 @@ def get_partitions(zk, group, topic):
 Return a list of all kafka topics, or None if the topics cannot be fetched
 """
 def get_kafka_topics(zk):
-    return zk.get_children(KafkaPaths.topics())
+    try:
+        return zk.get_children(KafkaPaths.topics())
+    except:
+        return []
 
 """
 Return a list of all kafka broker hosts or None if the broker list cannot be fetched
@@ -96,7 +99,7 @@ def report():
         zk.start()
 
         kafka_brokers = get_kafka_brokers(zk)
-        if kafka_brokers is None:
+        if len(kafka_brokers) is 0:
             raise RuntimeError('KAFKA_BROKERS could not be fetched from ZK')
         kafka_init = 'env=production kafka=%s zk=%s' % (','.join(kafka_brokers), zk_quorum)
         kafka = KafkaClient(kafka_init)
@@ -104,14 +107,13 @@ def report():
         # Pull topics from zookeeper
         # topics = ['mobile_metrics', 'raw_events']
         topics = get_kafka_topics(zk)
-        if topics is None:
+        if len(topics) is 0:
             raise RuntimeError('KAFKA_TOPICS could not be fetched from ZK')
         topics = map(str, topics)
         for topic in topics:
             try:
                 total_broker_offset = report_broker_info(kafka, zk, topic)
             except:
-                pass
                 total_broker_offset = 0
             total_consumer_offset = 0
             for partition in get_partitions(zk, consumer_group, topic):
