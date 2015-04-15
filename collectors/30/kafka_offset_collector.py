@@ -3,10 +3,12 @@
 import os
 import time
 import json
+import logging
 
 from kazoo.client import KazooClient
+from kazoo.exceptions import NoNodeError
 from kafka import KafkaClient, SimpleConsumer
-from kafka.common import TopicAndPartition, OffsetRequest
+from kafka.common import TopicAndPartition, OffsetRequest, LeaderNotAvailableError
 
 
 # TSD UTILITIES
@@ -44,7 +46,8 @@ def format_kafka_consumer_offset_tsd_key(consumer_group, topic, partition, offse
 def get_partitions(zk, group, topic):
     try:
         return map(int, zk.get_children(KafkaPaths.topic_offsets(group, topic)))
-    except:
+    except NoNodeError as err:
+        logging.exception(err)
         return []
 
 """
@@ -52,8 +55,9 @@ Return a list of all kafka topics, or None if the topics cannot be fetched
 """
 def get_kafka_topics(zk):
     try:
-        return zk.get_children(KafkaPaths.topics())
-    except:
+        return map(str, zk.get_children(KafkaPaths.topics()))
+    except NoNodeError as err:
+        logging.exception(err)
         return []
 
 """
@@ -99,22 +103,23 @@ def report():
         zk.start()
 
         kafka_brokers = get_kafka_brokers(zk)
-        if len(kafka_brokers) is 0:
+        if not kafka_brokers:
             raise RuntimeError('KAFKA_BROKERS could not be fetched from ZK')
         kafka_init = 'env=production kafka=%s zk=%s' % (','.join(kafka_brokers), zk_quorum)
         kafka = KafkaClient(kafka_init)
 
         # Pull topics from zookeeper
-        # topics = ['mobile_metrics', 'raw_events']
+        # e.g. topics = ['mobile_metrics', 'raw_events']
         topics = get_kafka_topics(zk)
-        if len(topics) is 0:
+        if not topics:
             raise RuntimeError('KAFKA_TOPICS could not be fetched from ZK')
-        topics = map(str, topics)
         for topic in topics:
             try:
                 total_broker_offset = report_broker_info(kafka, zk, topic)
-            except:
+            except LeaderNotAvailableError as err:
+                logging.exception(err)
                 total_broker_offset = 0
+
             total_consumer_offset = 0
             for partition in get_partitions(zk, consumer_group, topic):
                 offset = get_consumer_group_offset(zk, consumer_group, topic, partition)
