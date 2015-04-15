@@ -50,20 +50,20 @@ def get_partitions(zk, group, topic):
         logging.exception(err)
         return []
 
-"""
-Return a list of all kafka topics, or None if the topics cannot be fetched
-"""
 def get_kafka_topics(zk):
+    """
+    Return a list of all kafka topics, or an empty list if the topics cannot be fetched
+    """
     try:
         return map(str, zk.get_children(KafkaPaths.topics()))
     except NoNodeError as err:
         logging.exception(err)
         return []
 
-"""
-Return a list of all kafka broker hosts or None if the broker list cannot be fetched
-"""
 def get_kafka_brokers(zk):
+    """
+    Return a list of all kafka broker hosts or an empty list if the broker list cannot be fetched
+    """
     brokers = []
     for broker_id in zk.get_children(KafkaPaths.broker_ids()):
         broker_desc = json.loads(zk.get(KafkaPaths.broker(broker_id))[0])
