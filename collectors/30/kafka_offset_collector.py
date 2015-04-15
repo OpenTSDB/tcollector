@@ -127,7 +127,6 @@ def report():
                 print format_kafka_consumer_offset_tsd_key(consumer_group, topic, partition, offset)
             print format_kafka_consumer_lag_tsd_key(consumer_group, topic, total_broker_offset - total_consumer_offset)
         zk.stop()
-
         kafka.close()
         zk.close()
 
