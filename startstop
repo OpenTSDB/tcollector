@@ -4,6 +4,7 @@
 # Keep it sh compatible, test with bash, dash, ksh, and zsh.
 
 # TSD_HOST=dns.name.of.tsd
+TSD_PORT=4242
 SCRIPT_DIR="$(cd $(dirname $0) && pwd)"
 TCOLLECTOR_PATH=${TCOLLECTOR_PATH-"${SCRIPT_DIR}"}
 LOG=${LOG-'/var/log/tcollector.log'}
@@ -22,7 +23,10 @@ COMMAND=$1
 test "$#" -gt 0 && {
     shift
 }
-ARGS="-c $TCOLLECTOR_PATH/collectors -H $TSD_HOST -t host=$HOSTNAME -P $PIDFILE --logfile $LOG"
+
+ARGS="-c $TCOLLECTOR_PATH/collectors -H $TSD_HOST -p $TSD_PORT -t host=$HOSTNAME -P $PIDFILE --logfile $LOG"
+
+
 ARGS="$ARGS $@"
 
 # Sanity checks.
