@@ -11,8 +11,8 @@
 # of the GNU Lesser General Public License along with this program.  If not,
 # see <http://www.gnu.org/licenses/>.
 
-PACKAGE_VERSION := 1.0.1
-RPM_REVISION := 10
+PACKAGE_VERSION := 1.2.0
+RPM_REVISION := 2
 # Where do we install our files.
 tcollectordir := /usr/local/tcollector
 
@@ -28,7 +28,7 @@ PYTHON := python$(PYTHON_VERSION)
 # Our "source tree" is in the parent directory, always.
 VPATH := ..
 
-# What files to put in the EOSRPM.
+# What files to put in the RPM.
 FILES := \
 	collectors/0/dfstat.py	\
 	collectors/0/eos.py	\
@@ -134,10 +134,16 @@ $(RPM_SPEC): common.spec linux.spec
 
 EOSRPM_SPEC := $(EOSRPM:.rpm=.spec)
 $(EOSRPM_SPEC): eos.spec common.spec
+	$(MKDIR_P) $(DESTDIR)/usr/bin
+	$(CP_P) "$(VPATH)/eos/tcollector" "$(DESTDIR)/usr/bin/"
+	$(MKDIR_P) $(DESTDIR)/usr/lib/python$(PYTHON_VERSION)/site-packages/
+	$(CP_P) "$(VPATH)/eos/tcollector_agent.py" "$(DESTDIR)/usr/lib/python$(PYTHON_VERSION)/site-packages/"
 	{ \
           cat $^; \
           echo %files; \
           cat filelist; \
+          echo /usr/lib/python$(PYTHON_VERSION)/site-packages/tcollector_agent.py; \
+          echo '%attr(755, -, -) /usr/bin/tcollector'; \
           echo %changelog; \
           cat ChangeLog; \
           echo %description; \
