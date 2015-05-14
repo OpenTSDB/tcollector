@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 #
 # mongo.py -- a MongoDB collector for tcollector/OpenTSDB
 # Copyright (C) 2013  The tcollector Authors.
