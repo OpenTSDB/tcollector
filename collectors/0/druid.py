@@ -83,7 +83,7 @@ def report(line):
     if metric_specific_tags:
         tags_to_include = tags_to_include | metric_specific_tags
 
-    tags = dict((k, v) for k, v in event.iteritems() if k in tags_to_include)
+    tags = { k: v for k, v in event.iteritems() if k in tags_to_include }
 
     print format_tsd_key(metric, value, timestamp, tags)
 
