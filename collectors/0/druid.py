@@ -10,6 +10,8 @@ import time
 
 from dateutil import parser as dtparser
 
+from collectors.lib import utils
+
 
 DRUID_METRICS_DIR = '/var/log/druid/metrics'
 DRUID_ROLES = [
@@ -118,6 +120,8 @@ def spawn_monitor(metric_file):
 
 
 def main():
+    utils.drop_privileges()
+
     metric_files_iter = ( DRUID_METRICS_DIR + '/' + role + '.log' for role in DRUID_ROLES )
     monitors_dict = { metric_file: None for metric_file in metric_files_iter }
 
