@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import requests
+import sys
 import time
 
 from collectors.lib import utils
@@ -49,7 +50,12 @@ def main():
     utils.drop_privileges()
 
     time_ = int(time.time())
-    json = request_json(URL)
+
+    try:
+        json = request_json(URL)
+    except requests.RequestException as e:
+        print >> sys.stderr, 'Failed to query metrics. {}'.format(e)
+        return
 
     for metric_type in METRIC_TYPES:
         metrics = json.get(metric_type)
