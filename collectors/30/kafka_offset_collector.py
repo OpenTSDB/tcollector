@@ -7,14 +7,10 @@ from kazoo.client import KazooClient
 from kafka import KafkaClient, SimpleConsumer
 from kafka.common import TopicAndPartition, OffsetRequest
 
+from collectors.lib.optimizely_utils import format_tsd_key
 
 # TSD UTILITIES
 
-
-def format_tsd_key(metric_key, metric_value, timestamp, tags={}):
-    expanded_tags = ''.join([' %s=%s' % (key, value) for key, value in tags.iteritems()])
-    output = '{} {} {} {}'.format(metric_key, timestamp, metric_value, expanded_tags)
-    return output
 
 def format_kafka_broker_offset_tsd_key(topic, partition, offset):
     metric = 'kafka.broker.offset'

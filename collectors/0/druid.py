@@ -11,6 +11,7 @@ import time
 from dateutil import parser as dtparser
 
 from collectors.lib import utils
+from collectors.lib.optimizely_utils import format_tsd_key
 
 
 DRUID_METRICS_DIR = '/var/log/druid/metrics'
@@ -23,47 +24,35 @@ DRUID_ROLES = [
         ]
  
 EVENT_REGEX = re.compile('Event \[(.*)\]')
-ILLEGAL_CHARS_REGEX = re.compile('[^a-zA-Z0-9\-_./]')
 
-COMMON_TAGS = set(['service', 'host'])
+COMMON_TAGS = {'service', 'host'}
 
 # Druid will revamp their metric tagging with meaningful names. Before then, refer to this link
 # https://docs.google.com/spreadsheets/d/15XxGrGv2ggdt4SnCoIsckqUNJBZ9ludyhC9hNQa3l-M/edit#gid=0
 METRIC_SPECIFIC_TAGS = {
-        'request/time':                     set(['user2', 'user4', 'user6']),
-        'server/segment/used':              set(['user1', 'user2']),
-        'server/segment/usedPercent':       set(['user1', 'user2']),
-        'server/segment/count':             set(['user1', 'user2']),
-        'server/segment/totalUsed':         set(['user2']),
-        'server/segment/totalUsedPercent':  set(['user2']),
-        'server/segment/totalCount':        set(['user2']),
-        'events/thrownAway':                set(['user2']),
-        'events/unparseable':               set(['user2']),
-        'events/processed':                 set(['user2']),
-        'rows/output':                      set(['user2']),
-        'coordinator/segment/size':         set(['user1']),
-        'coordinator/segment/count':        set(['user1']),
-        'coordinator/loadQueue/size':       set(['user1']),
-        'coordinator/loadQueue/failed':     set(['user1']),
-        'coordinator/loadQueue/count':      set(['user1']),
-        'coordinator/dropQueue/count':      set(['user1']),
-        'coordinator/segment/size':         set(['user1']),
-        'coordinator/segment/count':        set(['user1']),
-        'indexer/time/run/millis':          set(['user2', 'user3', 'user4']),
-        'indexer/segment/bytes':            set(['user2', 'user4']),
-        'indexer/segmentMoved/bytes':       set(['user2', 'user4']),
-        'indexer/segmentNuked/bytes':       set(['user2', 'user4'])
+        'request/time':                     {'user2', 'user4', 'user6'},
+        'server/segment/used':              {'user1', 'user2'},
+        'server/segment/usedPercent':       {'user1', 'user2'},
+        'server/segment/count':             {'user1', 'user2'},
+        'server/segment/totalUsed':         {'user2'},
+        'server/segment/totalUsedPercent':  {'user2'},
+        'server/segment/totalCount':        {'user2'},
+        'events/thrownAway':                {'user2'},
+        'events/unparseable':               {'user2'},
+        'events/processed':                 {'user2'},
+        'rows/output':                      {'user2'},
+        'coordinator/segment/size':         {'user1'},
+        'coordinator/segment/count':        {'user1'},
+        'coordinator/loadQueue/size':       {'user1'},
+        'coordinator/loadQueue/failed':     {'user1'},
+        'coordinator/loadQueue/count':      {'user1'},
+        'coordinator/dropQueue/count':      {'user1'},
+        'indexer/time/run/millis':          {'user2', 'user3', 'user4'},
+        'indexer/segment/bytes':            {'user2', 'user4'},
+        'indexer/segmentMoved/bytes':       {'user2', 'user4'},
+        'indexer/segmentNuked/bytes':       {'user2', 'user4'}
         }
 
-
-def format_tsd_key(metric_key, metric_value, time_, tags={}):
-    def sanitize(s):
-        return ILLEGAL_CHARS_REGEX.sub('_', str(s))
-
-    expanded_tags = ''.join([' {}={}'.format(sanitize(key), sanitize(value)) for key, value in tags.iteritems()])
-    output = '{} {} {} {}'.format(sanitize(metric_key), time_, metric_value, expanded_tags)
-    return output
- 
 
 def report(line):
     match = EVENT_REGEX.match(line.strip())
