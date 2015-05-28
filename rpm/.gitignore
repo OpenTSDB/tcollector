@@ -6,3 +6,4 @@ real.spec
 *.rpm
 *.swix
 common.spec
+filelist.extra
