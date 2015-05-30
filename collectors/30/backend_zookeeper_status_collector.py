@@ -4,6 +4,8 @@ import os
 import time
 from kazoo.client import KazooClient
 
+from collectors.lib.optimizely_utils import format_tsd_key
+
 
 STATUS_ROOT = '/optimizely/status/'
 ELAPSED_SECONDS_METRICS = [
@@ -14,13 +16,6 @@ ELAPSED_SECONDS_METRICS = [
         'resultsUpload.lastStart',
         'resultsUpload.lastSuccess',
         ]
- 
-
-def format_tsd_key(metric_key, metric_value, time_, tags={}):
-    """ Formats a key for OpenTSDB """
-    expanded_tags = ''.join([' %s=%s' % (key, value) for key, value in tags.iteritems()])
-    output = '{} {} {} {}'.format(metric_key, time_, metric_value, expanded_tags)
-    return output
  
 
 def report():

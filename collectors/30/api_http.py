@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 import time
-import simplejson as json
 import requests
-import re
 import sys
+
+from collectors.lib.optimizely_utils import format_tsd_key
 
 
 # Constants
@@ -31,13 +31,6 @@ def get_json(url):
     return url_json
 
 
-def format_tsd_key(metric_key, metric_value, tags={}):
-    """ Formats a key for OpenTSDB """
-    expanded_tags = ''.join([' %s=%s' % (key, value) for key, value in tags.iteritems()])
-    output = '{} {} {} {}'.format(metric_key, TIME, metric_value, expanded_tags)
-    return output
-
-
 def main():
     json = get_json(URL)
     # We only have timers now - not sure if
@@ -54,7 +47,7 @@ def main():
             for metric, value in metrics.iteritems():
                 if metric in not_metrics:
                     continue
-                print format_tsd_key(METRIC_PREFIX + metric_type + "." + metric, value, {
+                print format_tsd_key(METRIC_PREFIX + metric_type + "." + metric, value, TIME, {
                                      'class': class_name,
                                      'method': method_name})
 
