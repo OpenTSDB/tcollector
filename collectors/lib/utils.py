@@ -14,10 +14,11 @@
 
 """Common utility functions shared for Python collectors"""
 
-import os
-import stat
-import pwd
 import errno
+import os
+import pwd
+import signal
+import stat
 import sys
 
 # If we're running as root and this user exists, we'll drop privileges.
@@ -56,3 +57,16 @@ def err(msg):
 
 def is_numeric(value):
     return isinstance(value, (int, long, float))
+
+def setup_signal_handlers(handler, *args, **kwargs):
+    for signum in (signal.SIGINT, signal.SIGPIPE, signal.SIGTERM):
+        _do_on_signal(signum, handler, *args, **kwargs)
+
+def _do_on_signal(signum, func, *args, **kwargs):
+    """Adds the provided handler for the given signal."""
+    def signal_shutdown(signum):
+        err("got signal %d, exiting" % signum)
+        func(*args, **kwargs)
+        sys.exit(128 + signum)
+
+    signal.signal(signum, signal_shutdown)
