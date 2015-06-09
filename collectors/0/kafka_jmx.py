@@ -5,17 +5,16 @@ import sys
 from collectors.lib import utils
 from collectors.lib.jmx_monitor import JmxMonitor
 
-MONITORED_MBEANS = ["kafka", "",                       # All kafka metrics.
+MONITORED_MBEANS = ["kafka.", "",                       # All kafka metrics.
                     "Threading", "Count|Time$",        # Number of threads and CPU time.
                     "OperatingSystem", "OpenFile",     # Number of open files.
                     "GarbageCollector", "Collection"]  # GC runs and time spent GC-ing.
-
-IGNORED_METRICS = frozenset(["Loggers", "MBeanName"])
 
 
 class KafkaJmxMonitor(JmxMonitor):
     USER = "kafka"
     PROCESS_NAME = "kafka.Kafka"
+    METRIC_PREFIX = "kafka"
 
     def __init__(self, pid, cmd):
         super(KafkaJmxMonitor, self).__init__(pid,  cmd, MONITORED_MBEANS, self.PROCESS_NAME)
@@ -31,13 +30,7 @@ class KafkaJmxMonitor(JmxMonitor):
         mbean_domain = mbean_domain.rstrip().replace("\"", "")
         mbean_properties = mbean_properties.rstrip().replace("\"", "")
 
-        if mbean_domain not in ("kafka.server",
-                                "kafka.cluster",
-                                "kafka.controller",
-                                "kafka.network",
-                                "kafka.log",
-                                "kafka.consumer",
-                                "java.lang"):
+        if not mbean_domain.startswith("kafka") and not mbean_domain == "java.lang":
             utils.err("Unexpected mbean domain = %r" % mbean_domain)
             return
 
@@ -47,9 +40,12 @@ class KafkaJmxMonitor(JmxMonitor):
         if mbean_domain == "java.lang":
             jmx_service = mbean_properties.pop("type", "jvm")
         elif mbean_domain.startswith("kafka."):
-            jmx_service = mbean_properties.get("type", mbean_domain.split(".")[1])
+            domain_parts = mbean_domain.split(".")
+            # drop the kafka prefix
+            mbean_domain = mbean_domain[len("kafka."):]
+            jmx_service = mbean_properties.get("type", domain_parts[-1])
         else:
-            assert 0, "Should never be here"
+            return
 
         if mbean_properties:
             tags += " " + " ".join(k + "=" + v for k, v in

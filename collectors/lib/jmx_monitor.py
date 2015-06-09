@@ -21,11 +21,13 @@ class JmxMonitor(threading.Thread):
         - implement ``process_metric``
         - provide the running ``USER`` class attribute
         - provide the ``PROCESS_NAME`` class attribute
+        - provide the ``METRIC_PREFIX`` class attribute
     """
     USER = None
     PROCESS_NAME = None
+    METRIC_PREFIX = None
 
-    # Map certain JVM stats so they are unique and shorter
+# Map certain JVM stats so they are unique and shorter
     SHORT_SERVICE_NAMES = {
         "GarbageCollector": "gc",
         "OperatingSystem": "os",
@@ -69,7 +71,7 @@ class JmxMonitor(threading.Thread):
 
     # Override
     def run(self):
-        value, mbean = None
+        value = mbean = None
 
         while self._jmx_process.poll() is None:
             line = self._jmx_process.stdout.readline()
@@ -102,7 +104,7 @@ class JmxMonitor(threading.Thread):
         if self.group:
             JmxMonitor._REPORT_LOCKS[self.group].acquire()
         try:
-            sys.stdout.write("flume.%s %d %s%s\n" % (metric, timestamp, value, tags))
+            sys.stdout.write("%s.%s %d %s%s\n" % (self.METRIC_PREFIX, metric, timestamp, value, tags))
             sys.stdout.flush()
         finally:
             if self.group:
@@ -146,6 +148,8 @@ class JmxMonitor(threading.Thread):
             raise AttributeError("no USER attribute found")
         if not cls.PROCESS_NAME:
             raise AttributeError("no PROCESS_NAME attribute found")
+        if not cls.METRIC_PREFIX:
+            raise AttributeError("no METRIC_PREFIX attribute found")
 
         monitors = {}
         procs = {}

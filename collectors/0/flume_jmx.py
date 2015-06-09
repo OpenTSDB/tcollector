@@ -29,8 +29,9 @@ MONITORED_MBEANS = ["com.optimizely", "",
 
 
 class FlumeJmxMonitor(JmxMonitor):
-    USER = "optimizely"
+    USER = "flume"
     PROCESS_NAME = "org.apache.flume.node.Application"
+    METRIC_PREFIX = "flume"
 
     def __init__(self, pid, cmd):
         super(FlumeJmxMonitor, self).__init__(pid, cmd, MONITORED_MBEANS, self.PROCESS_NAME)
