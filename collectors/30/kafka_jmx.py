@@ -10,16 +10,8 @@ MONITORED_MBEANS = ["kafka", "",                       # All kafka metrics.
                     "OperatingSystem", "OpenFile",     # Number of open files.
                     "GarbageCollector", "Collection"]  # GC runs and time spent GC-ing.
 
-# todo(mdodsworth): perhaps we should allow these to be passed through
-#                   having them be static smells funny
 IGNORED_METRICS = frozenset(["Loggers", "MBeanName"])
 
-# todo: figure out if the following variables are set/fetched by tcollector
-# How many times, maximum, will we attempt to restart the JMX collector.
-# If we reach this limit, we'll exit with an error.
-MAX_RESTARTS = 10
-TOP = False  # Set to True when we want to terminate.
-RETVAL = 0    # Return value set by signal handler.
 
 class KafkaJmxMonitor(JmxMonitor):
     USER = "kafka"
