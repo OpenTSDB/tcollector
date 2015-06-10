@@ -72,7 +72,8 @@ class FlumeJmxMonitor(JmxMonitor):
 
         jmx_service = JmxMonitor.SHORT_SERVICE_NAMES.get(jmx_service, jmx_service)
         metric = jmx_service.lower() + "." + metric
-        tags += " version=" + str(self.version)
+        if self.version:
+            tags += " version=" + str(self.version)
 
         self.emit(metric, timestamp, value, tags)
 
@@ -87,8 +88,9 @@ class FlumeJmxMonitor(JmxMonitor):
         flume_path = flume_cmd.split(' ')[-1]
         flume_path_parts = flume_path.split('/')
         # the index of the version number is 1 + the index of the 'versions' directory
-        version_index = flume_path_parts.index('versions') + 1
-        return flume_path_parts[version_index]
+        if 'versions' in flume_path_parts:
+            version_index = flume_path_parts.index('versions') + 1
+            return flume_path_parts[version_index]
 
 
 def main():
