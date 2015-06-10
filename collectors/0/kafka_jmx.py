@@ -20,22 +20,10 @@ class KafkaJmxMonitor(JmxMonitor):
         super(KafkaJmxMonitor, self).__init__(pid,  cmd, MONITORED_MBEANS, self.PROCESS_NAME)
 
     # Override
-    def process_metric(self, timestamp, metric, value, mbean):
-        jmx_service = ""
-        metric, tags = self.group_metrics(metric)
-
-        # mbean is of the form "domain:key=value,...,foo=bar"
-        # some tags can have spaces, so we need to fix that.
-        mbean_domain, mbean_properties = mbean.rstrip().replace(" ", "_").split(":", 1)
-        mbean_domain = mbean_domain.rstrip().replace("\"", "")
-        mbean_properties = mbean_properties.rstrip().replace("\"", "")
-
+    def process_metric(self, timestamp, metric, tags, value, mbean_domain, mbean_properties):
         if not mbean_domain.startswith("kafka") and not mbean_domain == "java.lang":
             utils.err("Unexpected mbean domain = %r" % mbean_domain)
             return
-
-        mbean_properties = dict(prop.split("=", 1)
-                                for prop in mbean_properties.split(","))
 
         if mbean_domain == "java.lang":
             jmx_service = mbean_properties.pop("type", "jvm")

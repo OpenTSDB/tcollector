@@ -34,17 +34,12 @@ class FlumeJmxMonitor(JmxMonitor):
     METRIC_PREFIX = "flume"
 
     def __init__(self, pid, cmd):
-        super(FlumeJmxMonitor, self).__init__(pid, cmd, MONITORED_MBEANS, self.PROCESS_NAME)
+        super(FlumeJmxMonitor, self).__init__(pid, cmd, MONITORED_MBEANS,
+                                              FlumeJmxMonitor.PROCESS_NAME)
         self.version = self.parse_flume_version(cmd)
 
     # Override
-    def process_metric(self, timestamp, metric, value, mbean):
-        metric, tags = self.group_metrics(metric)
-
-        # mbean is of the form "domain:key=value,...,foo=bar"
-        # some tags can have spaces, so we need to fix that.
-        mbean_domain, mbean_properties = mbean.rstrip().replace(" ", "_").split(":", 1)
-        mbean_properties = dict(prop.split("=", 1) for prop in mbean_properties.split(","))
+    def process_metric(self, timestamp, metric, tags, value, mbean_domain, mbean_properties):
 
         if mbean_domain == "java.lang":
             jmx_service = mbean_properties.pop("type", "jvm")

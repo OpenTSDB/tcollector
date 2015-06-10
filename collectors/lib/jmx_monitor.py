@@ -96,7 +96,18 @@ class JmxMonitor(threading.Thread):
                 utils.err("Invalid timestamp on line: %r -- %s" % (line, e))
 
             self._prev_timestamp = timestamp
-            self.process_metric(timestamp, metric, value, mbean)
+
+            metric, tags = self.group_metrics(metric)
+            # mbean is of the form "domain:key=value,...,foo=bar"
+            # some tags can have spaces, so we need to fix that.
+            mbean_domain, mbean_properties = mbean.rstrip().replace(" ", "_").split(":", 1)
+
+            # sanitize the domain and property names and values
+            mbean_domain = mbean_domain.rstrip().replace("\"", "")
+            mbean_properties = mbean_properties.rstrip().replace("\"", "")
+            mbean_properties = dict(prop.split("=", 1) for prop in mbean_properties.split(","))
+
+            self.process_metric(timestamp, metric, tags, value, mbean_domain, mbean_properties)
 
         utils.err("Stopping JMX monitoring: %s pid: %s" % (self.cmd, self.pid))
 
@@ -111,13 +122,15 @@ class JmxMonitor(threading.Thread):
                 JmxMonitor._REPORT_LOCKS[self.group].release()
 
     @abstractmethod
-    def process_metric(self, timestamp, metric, value, mbean):
+    def process_metric(self, timestamp, metric, tags, value, mbean_domain, mbean_properties):
         """
         Abstract function called for each JMX metric.
         :param timestamp: time (seconds since epoch) the metric was captured
         :param metric: the metric name
+        :param tags: the tsdb tags associated with this metric
         :param value: the metric value at ``timestamp``
-        :param mbean: mbean description in the form ``domain:key=value,...,foo=bar``
+        :param mbean_domain: mbean domain name
+        :param mbean_properties: a dict containing the mbean metadata
         """
         raise NotImplementedError
 
