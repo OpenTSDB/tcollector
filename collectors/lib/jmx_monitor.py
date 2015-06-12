@@ -42,8 +42,8 @@ class JmxMonitor(threading.Thread):
 
         if group and group not in JmxMonitor._REPORT_LOCKS:
             JmxMonitor._REPORT_LOCKS[group] = threading.Lock()
-            self.group = group
 
+        self.group = group
         self.pid = pid
         self.cmd = cmd
         self.daemon = True
