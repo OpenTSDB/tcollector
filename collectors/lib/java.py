@@ -30,20 +30,19 @@ CLASSPATH = [
 
 PERIOD = 60
 
-IGNORED_METRICS = set(["revision", "hdfsUser", "hdfsDate", "hdfsUrl", "date",
-                       "hdfsRevision", "user", "hdfsVersion", "url", "version",
-                       "NamenodeAddress", "Version", "RpcPort", "HttpPort",
-                       # These are useless as-is because they represent the
-                       # thread that's dedicated to serving JMX RPCs.
-                       "CurrentThreadCpuTime", "CurrentThreadUserTime",
-                       # List of directories used by the DataNode.
-                       "StorageInfo",
-                       "VolumeInfo",
-                       "ServerName",
-                       "ZookeeperQuorum",
-                       "Verbose",
-                       "Type"
-                      ])
+IGNORED_METRICS = {"revision", "hdfsUser", "hdfsDate", "hdfsUrl", "date",
+                   "hdfsRevision", "user", "hdfsVersion", "url", "version",
+                   "NamenodeAddress", "Version", "RpcPort", "HttpPort",
+                   # These are useless as-is because they represent the
+                   # thread that's dedicated to serving JMX RPCs.
+                   "CurrentThreadCpuTime", "CurrentThreadUserTime",
+                   # List of directories used by the DataNode.
+                   "StorageInfo",
+                   "VolumeInfo",
+                   "ServerName",
+                   "ZookeeperQuorum",
+                   "Verbose",
+                   "Type"}
 
 __java_args = [JAVA, "-enableassertions", "-enablesystemassertions",  # safe++
         "-Xmx64m",  # Low RAM limit, to avoid stealing too much from prod.
