@@ -29,7 +29,7 @@ except ImportError:
 try:
     import pymysql
 except ImportError:
-    pymysql = None # This is handled gracefully in main()
+    pymysql = None  # This is handled gracefully in main()
 
 from collectors.etc import zabbix_bridge_conf
 from collectors.lib import utils
@@ -53,7 +53,7 @@ def main():
                                 resume_stream=True,
                                 blocking=True)
 
-    hostmap = gethostmap(settings) # Prime initial hostmap
+    hostmap = gethostmap(settings)  # Prime initial hostmap
     for binlogevent in stream:
         if binlogevent.schema == settings['mysql']['db']:
             table = binlogevent.table
@@ -79,13 +79,14 @@ def main():
 def gethostmap(settings):
     conn = pymysql.connect(**settings['mysql'])
     cur = conn.cursor()
-    cur.execute("SELECT i.itemid, i.key_, h.host, h2.host AS proxy FROM items i JOIN hosts h ON i.hostid=h.hostid LEFT JOIN hosts h2 ON h2.hostid=h.proxy_hostid")
+    cur.execute(
+        "SELECT i.itemid, i.key_, h.host, h2.host AS proxy FROM items i JOIN hosts h ON i.hostid=h.hostid LEFT JOIN hosts h2 ON h2.hostid=h.proxy_hostid")
     # Translation of item key_
     # Note: http://opentsdb.net/docs/build/html/user_guide/writing.html#metrics-and-tags
     disallow = re.compile(settings['disallow'])
     hostmap = {}
     for row in cur:
-        hostmap[row[0]] = { 'key': re.sub(disallow, '_', row[1]), 'host': re.sub(disallow, '_', row[2]), 'proxy': row[3] }
+        hostmap[row[0]] = {'key': re.sub(disallow, '_', row[1]), 'host': re.sub(disallow, '_', row[2]), 'proxy': row[3]}
     cur.close()
     conn.close()
     return hostmap
@@ -95,7 +96,7 @@ if __name__ == "__main__":
     sys.exit(main())
 
 
-## Sample zabbix debug dump:
+# Sample zabbix debug dump:
 # === WriteRowsEvent ===
 # Date: 2014-08-04T03:47:37
 # Log position: 249670

@@ -28,12 +28,14 @@ EMIT_REGION = True
 EXCLUDED_CONTEXTS = ("master")
 REGION_METRIC_PATTERN = re.compile(r"[N|n]amespace_(.*)_table_(.*)_region_(.*)_metric_(.*)")
 
+
 class HBaseRegionserver(HadoopHttp):
+
     def __init__(self):
         super(HBaseRegionserver, self).__init__("hbase", "regionserver", "localhost", 60030)
 
     def emit_region_metric(self, context, current_time, full_metric_name, value):
-	match = REGION_METRIC_PATTERN.match(full_metric_name)
+        match = REGION_METRIC_PATTERN.match(full_metric_name)
         if not match:
             utils.err("Error splitting %s" % full_metric_name)
             return
@@ -44,7 +46,7 @@ class HBaseRegionserver(HadoopHttp):
         metric_name = match.group(4)
         tag_dict = {"namespace": namespace, "table": table, "region": region}
 
-        if any( not v for k,v in tag_dict.iteritems()):
+        if any(not v for k, v in tag_dict.iteritems()):
             utils.err("Error splitting %s", full_metric_name)
         else:
             self.emit_metric(context, current_time, metric_name, value, tag_dict)
@@ -58,7 +60,7 @@ class HBaseRegionserver(HadoopHttp):
         current_time = int(time.time())
         metrics = self.poll()
         for context, metric_name, value in metrics:
-            if any( c in EXCLUDED_CONTEXTS for c in context):
+            if any(c in EXCLUDED_CONTEXTS for c in context):
                 continue
 
             if any(c == "regions" for c in context):
@@ -83,4 +85,3 @@ def main(args):
 if __name__ == "__main__":
     import sys
     sys.exit(main(sys.argv))
-

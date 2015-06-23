@@ -28,6 +28,7 @@ EXCLUDED_CONTEXTS = ('regionserver', 'regions', )
 
 
 class HBaseMaster(HadoopHttp):
+
     """
     Class to get metrics from Apache HBase's master
 
@@ -60,4 +61,3 @@ def main(args):
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv))
-

@@ -86,7 +86,7 @@ KEYS = [
     'used_cpu_sys', 'blocked_clients', 'used_cpu_user', 'expired_keys', 'bgsave_in_progress', 'hash_max_zipmap_entries',
     'hash_max_zipmap_value', 'client_longest_output_list', 'client_biggest_input_buf', 'uptime_in_seconds',
     'changes_since_last_save', 'mem_fragmentation_ratio', 'keyspace_hits', 'evicted_keys'
-];
+]
 
 
 def main():

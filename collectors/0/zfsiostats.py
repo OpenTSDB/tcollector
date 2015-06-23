@@ -40,22 +40,25 @@ Sectors are always 512 bytes.  Disk space usage is given in 1K blocks.
 Values delivered to standard output are already normalized to be per second.
 '''
 
+
 def convert_to_bytes(string):
     """Take a string in the form 1234K, and convert to bytes"""
     factors = {
-       "K": 1024,
-       "M": 1024 * 1024,
-       "G": 1024 * 1024 * 1024,
-       "T": 1024 * 1024 * 1024 * 1024,
-       "P": 1024 * 1024 * 1024 * 1024 * 1024,
+        "K": 1024,
+        "M": 1024 * 1024,
+        "G": 1024 * 1024 * 1024,
+        "T": 1024 * 1024 * 1024 * 1024,
+        "P": 1024 * 1024 * 1024 * 1024 * 1024,
     }
-    if string == "-": return 0
+    if string == "-":
+        return 0
     for f, fm in factors.items():
         if string.endswith(f):
             number = float(string[:-1])
             number = number * fm
             return long(number)
     return long(string)
+
 
 def extract_info(line):
     (poolname,
@@ -88,9 +91,12 @@ T_EMPTY = 6
 T_LEG = 7
 
 signal_received = None
+
+
 def handlesignal(signum, stack):
     global signal_received
     signal_received = signum
+
 
 def main():
     """zfsiostats main loop"""
@@ -111,7 +117,7 @@ def main():
     except OSError, e:
         if e.errno == errno.ENOENT:
             # it makes no sense to run this collector here
-            sys.exit(13) # we signal tcollector to not run us
+            sys.exit(13)  # we signal tcollector to not run us
         raise
 
     firstloop = True
@@ -169,9 +175,9 @@ def main():
 
         if ltype == T_START:
             for x in (
-                      capacity_stats_pool, capacity_stats_device,
-                      io_stats_pool, io_stats_device,
-                      ):
+                capacity_stats_pool, capacity_stats_device,
+                io_stats_pool, io_stats_device,
+            ):
                 x.clear()
             timestamp = int(time.time())
 
@@ -237,4 +243,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

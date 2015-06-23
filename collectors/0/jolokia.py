@@ -43,6 +43,7 @@ except ImportError:
 
 
 class JolokiaCollector():
+
     """
     Create an instance of JolokiaCollector for each instance of Jolokia you
     will connect to.
@@ -106,17 +107,17 @@ class JolokiaCollector():
             # If numerical
             if utils.is_numeric(v):
                 print "%s %d %s %s" % (metric_name, timestamp, str(v),
-                                        ' '.join(my_tags))
+                                       ' '.join(my_tags))
             # If a bool, True=1, False=0
             elif type(v) is bool:
                 print "%s %d %s %s" % (metric_name, timestamp, str(int(v)),
-                                        ' '.join(my_tags))
+                                       ' '.join(my_tags))
             # Or a dict of more attributes, call ourselves again
             elif type(v) is dict:
                 self.print_metrics(v, metric_name, timestamp, my_tags, not_tags)
             else:
                 #lists, strings, etc
-                #print '# ', type(v), metric_name, str(v)
+                # print '# ', type(v), metric_name, str(v)
                 pass
 
     def process_data(self):
@@ -136,7 +137,7 @@ class JolokiaCollector():
                     if monitor['mbean'] == mbean['request']['mbean']:
                         if mbean['status'] == 200:
                             self.print_metrics(mbean['value'], monitor['metric'], mbean['timestamp'],
-                                                   monitor['taglist'], monitor['not_tags'])
+                                               monitor['taglist'], monitor['not_tags'])
                             break
                         else:
                             utils.err("error: mbean not found - " + monitor['mbean'])

@@ -97,7 +97,9 @@ FIELDS_PART = (
     "write_sectors",
 )
 
-prev_times = (0,0)
+prev_times = (0, 0)
+
+
 def read_uptime():
     global prev_times
     try:
@@ -109,7 +111,7 @@ def read_uptime():
         prev_times = curr_times
         return delta_times
     finally:
-        f_uptime.close();
+        f_uptime.close()
 
 
 def get_system_hz():
@@ -180,7 +182,7 @@ def main():
                 # full stats line
                 for i in range(11):
                     print("%s%s %d %s dev=%s"
-                          % (metric, FIELDS_DISK[i], ts, values[i+3], device))
+                          % (metric, FIELDS_DISK[i], ts, values[i + 3], device))
 
                 ret = is_device(device, 0)
                 # if a device or a partition, calculate the svctm/await/util
@@ -195,7 +197,8 @@ def main():
                     prev_wr_ios = float(prev_stats[device].get("write_requests"))
                     prev_nr_ios = prev_rd_ios + prev_wr_ios
                     tput = ((nr_ios - prev_nr_ios) * float(HZ) / float(itv))
-                    util = ((float(stats.get("msec_total")) - float(prev_stats[device].get("msec_total"))) * float(HZ) / float(itv))
+                    util = (
+                        (float(stats.get("msec_total")) - float(prev_stats[device].get("msec_total"))) * float(HZ) / float(itv))
                     svctm = 0.0
                     await = 0.0
                     r_await = 0.0
@@ -209,11 +212,12 @@ def main():
                     prev_rd_ticks = prev_stats[device].get("msec_read")
                     prev_wr_ticks = prev_stats[device].get("msec_write")
                     if rd_ios != prev_rd_ios:
-                        r_await = (float(rd_ticks) - float(prev_rd_ticks) ) / float(rd_ios - prev_rd_ios)
+                        r_await = (float(rd_ticks) - float(prev_rd_ticks)) / float(rd_ios - prev_rd_ios)
                     if wr_ios != prev_wr_ios:
-                        w_await = (float(wr_ticks) - float(prev_wr_ticks) ) / float(wr_ios - prev_wr_ios)
+                        w_await = (float(wr_ticks) - float(prev_wr_ticks)) / float(wr_ios - prev_wr_ios)
                     if nr_ios != prev_nr_ios:
-                        await = (float(rd_ticks) + float(wr_ticks) - float(prev_rd_ticks) - float(prev_wr_ticks)) / float(nr_ios - prev_nr_ios)
+                        await = (float(rd_ticks) + float(wr_ticks) - float(prev_rd_ticks) -
+                                 float(prev_wr_ticks)) / float(nr_ios - prev_nr_ios)
                     print("%s%s %d %.2f dev=%s"
                           % (metric, "svctm", ts, svctm, device))
                     print("%s%s %d %.2f dev=%s"
@@ -223,7 +227,7 @@ def main():
                     print("%s%s %d %.2f dev=%s"
                           % (metric, "await", ts, await, device))
                     print("%s%s %d %.2f dev=%s"
-                          % (metric, "util", ts, float(util/1000.0), device))
+                          % (metric, "util", ts, float(util / 1000.0), device))
 
                     prev_stats[device] = copy.deepcopy(stats)
 
@@ -231,7 +235,7 @@ def main():
                 # partial stats line
                 for i in range(4):
                     print("%s%s %d %s dev=%s"
-                          % (metric, FIELDS_PART[i], ts, values[i+3], device))
+                          % (metric, FIELDS_PART[i], ts, values[i + 3], device))
             else:
                 print >> sys.stderr, "Cannot parse /proc/diskstats line: ", line
                 continue

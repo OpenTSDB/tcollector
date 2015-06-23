@@ -16,10 +16,11 @@ import re
 
 from collectors.lib import utils
 
+
 COLLECTION_INTERVAL = 15
 COUCHBASE_INITFILE = "/etc/init.d/couchbase-server"
 
-KEYS = frozenset( [
+KEYS = frozenset([
                   'bucket_active_conns',
                   'cas_hits',
                   'cas_misses',
@@ -44,12 +45,13 @@ KEYS = frozenset( [
                   'tcmalloc_current_thread_cache_bytes',
                   'tcmalloc_max_thread_cache_bytes',
                   'tcmalloc_unmapped_bytes',
-                  ] )
+                  ])
+
 
 def find_couchbase_pid():
   """Find out the pid of couchbase"""
   if not os.path.isfile(COUCHBASE_INITFILE):
-    return
+      return
 
   try:
     fd = open(COUCHBASE_INITFILE)

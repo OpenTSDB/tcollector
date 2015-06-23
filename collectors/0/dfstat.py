@@ -39,114 +39,114 @@ COLLECTION_INTERVAL = 60  # seconds
 
 # File system types to ignore
 FSTYPE_IGNORE = frozenset([
-  "cgroup",
-  "debugfs",
-  "devtmpfs",
-  "nfs",
-  "rpc_pipefs",
-  "rootfs",
+    "cgroup",
+    "debugfs",
+    "devtmpfs",
+    "nfs",
+    "rpc_pipefs",
+    "rootfs",
 ])
 
+
 def main():
-  """dfstats main loop"""
-  try:
-    f_mounts = open("/proc/mounts", "r")
-  except IOError, e:
-    utils.err("error: can't open /proc/mounts: %s" % e)
-    return 13 # Ask tcollector to not respawn us
+    """dfstats main loop"""
+    try:
+        f_mounts = open("/proc/mounts", "r")
+    except IOError, e:
+        utils.err("error: can't open /proc/mounts: %s" % e)
+        return 13  # Ask tcollector to not respawn us
 
-  utils.drop_privileges()
+    utils.drop_privileges()
 
-  while True:
-    devices = []
-    f_mounts.seek(0)
-    ts = int(time.time())
+    while True:
+        devices = []
+        f_mounts.seek(0)
+        ts = int(time.time())
 
-    for line in f_mounts:
-      # Docs come from the fstab(5)
-      # fs_spec     # Mounted block special device or remote filesystem
-      # fs_file     # Mount point
-      # fs_vfstype  # File system type
-      # fs_mntops   # Mount options
-      # fs_freq     # Dump(8) utility flags
-      # fs_passno   # Order in which filesystem checks are done at reboot time
-      try:
-        fs_spec, fs_file, fs_vfstype, fs_mntops, fs_freq, fs_passno = line.split(None)
-      except ValueError, e:
-        utils.err("error: can't parse line at /proc/mounts: %s" % e)
-        continue
+        for line in f_mounts:
+            # Docs come from the fstab(5)
+            # fs_spec     # Mounted block special device or remote filesystem
+            # fs_file     # Mount point
+            # fs_vfstype  # File system type
+            # fs_mntops   # Mount options
+            # fs_freq     # Dump(8) utility flags
+            # fs_passno   # Order in which filesystem checks are done at reboot time
+            try:
+                fs_spec, fs_file, fs_vfstype, fs_mntops, fs_freq, fs_passno = line.split(None)
+            except ValueError, e:
+                utils.err("error: can't parse line at /proc/mounts: %s" % e)
+                continue
 
-      if fs_spec == "none":
-        continue
-      if fs_vfstype in FSTYPE_IGNORE or fs_vfstype.startswith("fuse."):
-        continue
-      # startswith(tuple) avoided to preserve support of Python 2.4
-      if fs_file.startswith("/dev") or fs_file.startswith("/sys") or \
-            fs_file.startswith("/proc") or fs_file.startswith("/lib"):
-        continue
+            if fs_spec == "none":
+                continue
+            if fs_vfstype in FSTYPE_IGNORE or fs_vfstype.startswith("fuse."):
+                continue
+            # startswith(tuple) avoided to preserve support of Python 2.4
+            if fs_file.startswith("/dev") or fs_file.startswith("/sys") or \
+                    fs_file.startswith("/proc") or fs_file.startswith("/lib"):
+                continue
 
-      # keep /dev/xxx device with shorter fs_file (remove mount binds)
-      device_found = False
-      if fs_spec.startswith("/dev"):
+            # keep /dev/xxx device with shorter fs_file (remove mount binds)
+            device_found = False
+            if fs_spec.startswith("/dev"):
+                for device in devices:
+                    if fs_spec == device[0]:
+                        device_found = True
+                        if len(fs_file) < len(device[1]):
+                            device[1] = fs_file
+                        break
+                if not device_found:
+                    devices.append([fs_spec, fs_file, fs_vfstype])
+            else:
+                devices.append([fs_spec, fs_file, fs_vfstype])
+
         for device in devices:
-          if fs_spec == device[0]:
-            device_found = True
-            if len(fs_file) < len(device[1]):
-              device[1] = fs_file
-            break
-        if not device_found:
-          devices.append([fs_spec, fs_file, fs_vfstype])
-      else:
-        devices.append([fs_spec, fs_file, fs_vfstype])
+            fs_spec, fs_file, fs_vfstype = device
+            try:
+                r = os.statvfs(fs_file)
+            except OSError, e:
+                utils.err("error: can't get info for mount point: %s" % fs_file)
+                continue
 
+            used = r.f_blocks - r.f_bfree
 
-    for device in devices:
-      fs_spec, fs_file, fs_vfstype = device
-      try:
-        r = os.statvfs(fs_file)
-      except OSError, e:
-        utils.err("error: can't get info for mount point: %s" % fs_file)
-        continue
+            # conditional expression avoided to preserve support of Python 2.4
+            # percent_used = 100 if r.f_blocks == 0 else used * 100.0 / r.f_blocks
+            if r.f_blocks == 0:
+                percent_used = 100
+            else:
+                percent_used = used * 100.0 / r.f_blocks
 
-      used = r.f_blocks - r.f_bfree
+            print("df.bytes.total %d %s mount=%s fstype=%s"
+                  % (ts, r.f_frsize * r.f_blocks, fs_file, fs_vfstype))
+            print("df.bytes.used %d %s mount=%s fstype=%s"
+                  % (ts, r.f_frsize * used, fs_file, fs_vfstype))
+            print("df.bytes.percentused %d %s mount=%s fstype=%s"
+                  % (ts, percent_used, fs_file, fs_vfstype))
+            print("df.bytes.free %d %s mount=%s fstype=%s"
+                  % (ts, r.f_frsize * r.f_bfree, fs_file, fs_vfstype))
 
-      # conditional expression avoided to preserve support of Python 2.4
-      # percent_used = 100 if r.f_blocks == 0 else used * 100.0 / r.f_blocks
-      if r.f_blocks == 0:
-          percent_used = 100
-      else:
-          percent_used = used * 100.0 / r.f_blocks
+            used = r.f_files - r.f_ffree
 
-      print("df.bytes.total %d %s mount=%s fstype=%s"
-            % (ts, r.f_frsize * r.f_blocks, fs_file, fs_vfstype))
-      print("df.bytes.used %d %s mount=%s fstype=%s"
-            % (ts, r.f_frsize * used, fs_file, fs_vfstype))
-      print("df.bytes.percentused %d %s mount=%s fstype=%s"
-            % (ts, percent_used, fs_file, fs_vfstype))
-      print("df.bytes.free %d %s mount=%s fstype=%s"
-            % (ts, r.f_frsize * r.f_bfree, fs_file, fs_vfstype))
+            # percent_used = 100 if r.f_files == 0 else used * 100.0 / r.f_files
+            if r.f_files == 0:
+                percent_used = 100
+            else:
+                percent_used = used * 100.0 / r.f_files
 
-      used = r.f_files - r.f_ffree
+            print("df.inodes.total %d %s mount=%s fstype=%s"
+                  % (ts, r.f_files, fs_file, fs_vfstype))
+            print("df.inodes.used %d %s mount=%s fstype=%s"
+                  % (ts, used, fs_file, fs_vfstype))
+            print("df.inodes.percentused %d %s mount=%s fstype=%s"
+                  % (ts, percent_used,  fs_file, fs_vfstype))
+            print("df.inodes.free %d %s mount=%s fstype=%s"
+                  % (ts, r.f_ffree, fs_file, fs_vfstype))
 
-      # percent_used = 100 if r.f_files == 0 else used * 100.0 / r.f_files
-      if r.f_files == 0:
-          percent_used = 100
-      else:
-          percent_used = used * 100.0 / r.f_files
-
-      print("df.inodes.total %d %s mount=%s fstype=%s"
-            % (ts, r.f_files, fs_file, fs_vfstype))
-      print("df.inodes.used %d %s mount=%s fstype=%s"
-            % (ts, used, fs_file, fs_vfstype))
-      print("df.inodes.percentused %d %s mount=%s fstype=%s"
-            % (ts, percent_used,  fs_file, fs_vfstype))
-      print("df.inodes.free %d %s mount=%s fstype=%s"
-            % (ts, r.f_ffree, fs_file, fs_vfstype))
-
-    sys.stdout.flush()
-    time.sleep(COLLECTION_INTERVAL)
+        sys.stdout.flush()
+        time.sleep(COLLECTION_INTERVAL)
 
 
 if __name__ == "__main__":
-  sys.stdin.close()
-  sys.exit(main())
+    sys.stdin.close()
+    sys.exit(main())

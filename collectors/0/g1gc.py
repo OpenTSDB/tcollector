@@ -96,7 +96,10 @@ pattern_map = {
     GC_START_TIME_PATTERN: re.compile('^(20\d\d)\-([01]\d)\-([0123]\d)T([012]\d):([012345]\d):([012345]\d).\d\d\d([+-]\d\d\d\d):\s*%s:\s*\[\s*(.+)' %
                                       FLOAT_NUMBER_PATTERN),
     # [Parallel Time: 157.1 ms]
-    # Parallel Time is the total elapsed time spent by all the parallel GC worker threads. The following lines correspond to the parallel tasks performed by these worker threads in this total parallel time, which in this case is 157.1 ms.
+    # Parallel Time is the total elapsed time spent by all the parallel GC
+    # worker threads. The following lines correspond to the parallel tasks
+    # performed by these worker threads in this total parallel time, which in
+    # this case is 157.1 ms.
     PARALLEL_TIME_PATTERN: re.compile('\s*\[Parallel Time:\s*(%s) ms,\s*GC Workers:\s*(\d+)\]\s*' %
                                       (FLOAT_NUMBER_PATTERN)),
     GC_PAUSE_PATTERN: re.compile('.* (%s)\s*secs]' % FLOAT_NUMBER_PATTERN),
@@ -129,9 +132,12 @@ pattern_map = {
 }
 
 # Utilities
+
+
 def get_file_end(file_handler):
     file_handler.seek(0, 2)
     return file_handler.tell()
+
 
 def get_latest_gc_log(log_dir, log_name_pattern):
     sorted_gc_logs = sorted(glob.glob(os.path.join(log_dir, log_name_pattern)))
@@ -140,32 +146,44 @@ def get_latest_gc_log(log_dir, log_name_pattern):
                         log_dir + '" with pattern: "' + log_name_pattern + '"')
     return sorted_gc_logs[-1]
 
+
 def true_unix_timestamp(year, month, day, hour, minute, second, timezone):
     d = datetime(year, month, day, hour, minute, second) - timedelta(seconds=36 * timezone)
     return calendar.timegm(d.utctimetuple())
 
+
 def to_size_in_mb(data_size, unit):
     '''Convert size in given unit: GB or B to size in MB '''
-    if unit == 'G': return data_size * 1024
-    elif unit == 'B': return data_size / (1024 * 1024.0)
-    else: return data_size
+    if unit == 'G':
+        return data_size * 1024
+    elif unit == 'B':
+        return data_size / (1024 * 1024.0)
+    else:
+        return data_size
+
 
 def match_pattern(line):
     for pattern_name, pattern in pattern_map.items():
         m = pattern.match(line)
-        if m: return (pattern_name, m)
+        if m:
+            return (pattern_name, m)
     return (None, None)
+
 
 def match_until(file_handler, pattern):
     while True:
         line = file_handler.readline()
-        if len(line) == 0: break
+        if len(line) == 0:
+            break
         m = pattern.match(line)
-        if m: return m
+        if m:
+            return m
     return None
+
 
 def sec2milli(seconds):
     return 1000 * seconds
+
 
 def flush_collector(collector):
     for metric_name, value in collector['data'].items():
@@ -174,12 +192,14 @@ def flush_collector(collector):
     collector['timestamp'] = None
     collector['data'] = {}
 
+
 def collect_metric(metric_name, timestamp, value, collector):
     if collector['timestamp'] != timestamp:
         flush_collector(collector)
 
     collector['timestamp'] = timestamp
     collector['data'][metric_name] = collector['data'].get(metric_name, 0) + value
+
 
 def collect_metric_with_prefix(prefix, metric_name, timestamp, value, collector):
     new_metric_name = metric_name
@@ -188,37 +208,49 @@ def collect_metric_with_prefix(prefix, metric_name, timestamp, value, collector)
         new_metric_name = '.'.join([p, metric_name])
     collect_metric(new_metric_name, timestamp, value, collector)
 
+
 def unmatched_gc_log(line): pass
 
 # Simple gc events, don't have inner gc events
+
+
 def concurrent_cleanup_handler(prefix, log_line, timestamp, collector, file_handler):
     concurrent_clean_up_time = sec2milli(float(pattern_map[GC_PAUSE_PATTERN].match(log_line).group(1)))
     collect_metric_with_prefix(prefix, "gc.g1.concurrent_cleanup %s %s", timestamp, concurrent_clean_up_time, collector)
+
 
 def concurrent_mark_handler(prefix, log_line, timestamp, collector, file_handler):
     concurrent_mark_time = sec2milli(float(pattern_map[GC_PAUSE_PATTERN].match(log_line).group(1)))
     collect_metric_with_prefix(prefix, "gc.g1.concurrent_mark %s %s", timestamp, concurrent_mark_time, collector)
 
+
 def concurrent_root_region_scan_handler(prefix, log_line, timestamp, collector, file_handler):
     concurrent_root_region_scan_time = sec2milli(float(pattern_map[GC_PAUSE_PATTERN].match(log_line).group(1)))
-    collect_metric_with_prefix(prefix, "gc.g1.concurrent_root_region_scan %s %s", timestamp, concurrent_root_region_scan_time, collector)
+    collect_metric_with_prefix(
+        prefix, "gc.g1.concurrent_root_region_scan %s %s", timestamp, concurrent_root_region_scan_time, collector)
+
 
 def cleanup_handler(prefix, log_line, timestamp, collector, file_handler):
     clean_up_time = sec2milli(float(pattern_map[GC_PAUSE_PATTERN].match(log_line).group(1)))
     collect_metric_with_prefix(prefix, "gc.g1.duration %s %s phase=cleanup", timestamp, clean_up_time, collector)
+
 
 def fullgc_handler(prefix, log_line, timestamp, collector, file_handler):
     full_gc_time = sec2milli(float(pattern_map[GC_PAUSE_PATTERN].match(log_line).group(1)))
     collect_metric_with_prefix(prefix, "gc.g1.fullgc.duration %s %s", timestamp, full_gc_time, collector)
 
 # Inner gc events, which we should have a matcher object
+
+
 def parallel_time_handler(prefix, matcher, timestamp, collector, file_handler):
     parallel_time, num_of_gc_workers = float(matcher.group(1)), float(matcher.group(2))
     collect_metric_with_prefix(prefix, "gc.g1.duration %s %s phase=parallel-time", timestamp, parallel_time, collector)
 
+
 def object_copy_handler(prefix, matcher, timestamp, collector, file_handler):
     min_time, avg_time, max_time = [float(matcher.group(i)) for i in range(1, 4)]
     collect_metric_with_prefix(prefix, "gc.g1.duration %s %s phase=object-copy", timestamp, avg_time, collector)
+
 
 def allocation_handler(prefix, matcher, timestamp, collector, file_handler):
     eden_before_in_size, eden_after_in_size = matcher.group(2), matcher.group(4)
@@ -237,32 +269,41 @@ def allocation_handler(prefix, matcher, timestamp, collector, file_handler):
     heap_after_in_mb = to_size_in_mb(heap_after, 'G')
 
     collect_metric_with_prefix(prefix, "gc.g1.allocation %s %s", timestamp, eden_before - eden_after, collector)
-    collect_metric_with_prefix(prefix, "gc.g1.promotion %s %s", timestamp, (eden_before - eden_after) - (heap_before - heap_after), collector)
-    collect_metric_with_prefix(prefix, "gc.g1.heap_ratio.before %s %s", timestamp, heap_before / heap_total_size_before, collector)
-    collect_metric_with_prefix(prefix, "gc.g1.heap_ratio.after %s %s", timestamp, heap_after / heap_total_size_after, collector)
+    collect_metric_with_prefix(
+        prefix, "gc.g1.promotion %s %s", timestamp, (eden_before - eden_after) - (heap_before - heap_after), collector)
+    collect_metric_with_prefix(
+        prefix, "gc.g1.heap_ratio.before %s %s", timestamp, heap_before / heap_total_size_before, collector)
+    collect_metric_with_prefix(
+        prefix, "gc.g1.heap_ratio.after %s %s", timestamp, heap_after / heap_total_size_after, collector)
     collector['gensize']['eden'] = eden_capacity_after
     collector['gensize']['survivor'] = survivor_after
     collector['gensize']['heap'] = heap_after_in_mb
+
 
 def free_cset_handler(prefix, matcher, timestamp, collector, file_handler):
     free_cset_time = float(matcher.group(1))
     collect_metric_with_prefix(prefix, "gc.g1.duration %s %s phase=free-cset", timestamp, free_cset_time, collector)
 
+
 def ref_enq_handler(prefix, matcher, timestamp, collector, file_handler):
     ref_enq_time = float(matcher.group(1))
     collect_metric_with_prefix(prefix, "gc.g1.duration %s %s phase=ref-enq", timestamp, ref_enq_time, collector)
+
 
 def ref_proc_handler(prefix, matcher, timestamp, collector, file_handler):
     ref_proc_time = float(matcher.group(1))
     collect_metric_with_prefix(prefix, "gc.g1.duration %s %s phase=ref-proc", timestamp, ref_proc_time, collector)
 
+
 def choose_cset_handler(prefix, matcher, timestamp, collector, file_handler):
     choose_cset_time = float(matcher.group(1))
     collect_metric_with_prefix(prefix, "gc.g1.duration %s %s phase=choose-cset", timestamp, choose_cset_time, collector)
 
+
 def clear_ct_handler(prefix, matcher, timestamp, collector, file_handler):
     clear_ct_time = float(matcher.group(1))
     collect_metric_with_prefix(prefix, "gc.g1.duration %s %s phase=clear-ct", timestamp, clear_ct_time, collector)
+
 
 def scan_rs_handler(prefix, matcher, timestamp, collector, file_handler):
     min_time, avg_time, max_time = [float(matcher.group(i)) for i in range(1, 4)]
@@ -270,11 +311,15 @@ def scan_rs_handler(prefix, matcher, timestamp, collector, file_handler):
 
 # Complex GC events: initial-mark, young-pause, mixed-pause and remark
 # These GC events contains several inner gc events and we must call match_remaining_log to parse remaining gc events
+
+
 def initial_mark_handler(prefix, log_line, timestamp, collector, file_handler):
     m = match_until(file_handler, pattern_map[GC_PAUSE_PATTERN])
     initial_mark_pause_time = sec2milli(float(m.group(1)))
-    collect_metric_with_prefix(prefix, "gc.g1.duration %s %s phase=initial-mark", timestamp, initial_mark_pause_time, collector)
+    collect_metric_with_prefix(
+        prefix, "gc.g1.duration %s %s phase=initial-mark", timestamp, initial_mark_pause_time, collector)
     match_remaining_log(prefix, timestamp, collector, file_handler)
+
 
 def young_pause_handler(prefix, log_line, timestamp, collector, file_handler):
     m = match_until(file_handler, pattern_map[GC_PAUSE_PATTERN])
@@ -282,42 +327,62 @@ def young_pause_handler(prefix, log_line, timestamp, collector, file_handler):
     collect_metric_with_prefix(prefix, "gc.g1.duration %s %s phase=young-pause", timestamp, young_pause_time, collector)
     match_remaining_log(prefix, timestamp, collector, file_handler)
 
+
 def mixed_pause_handler(prefix, log_line, timestamp, collector, file_handler):
     m = match_until(file_handler, pattern_map[GC_PAUSE_PATTERN])
     mixed_pause_time = sec2milli(float(m.group(1)))
     collect_metric_with_prefix(prefix, "gc.g1.duration %s %s phase=mixed-pause", timestamp, mixed_pause_time, collector)
     match_remaining_log(prefix, timestamp, collector, file_handler)
 
+
 def remark_handler(prefix, log_line, timestamp, collector, file_handler):
-    m =  pattern_map[REMARK_PATTERN].match(log_line)
+    m = pattern_map[REMARK_PATTERN].match(log_line)
     remark_time, ref_process_time = [sec2milli(float(m.group(i))) for i in range(1, 3)]
     collect_metric_with_prefix(prefix, "gc.g1.duration %s %s phase=remark", timestamp, remark_time, collector)
     match_remaining_log(prefix, timestamp, collector, file_handler)
 
+
 def match_remaining_log(prefix, timestamp, collector, file_handler):
     while True:
         line = file_handler.readline()
-        if len(line) == 0: break
+        if len(line) == 0:
+            break
         pattern_name, matcher = match_pattern(line)
 
-        if pattern_name == GC_END_TIME_PATTERN: break
-        elif pattern_name == PARALLEL_TIME_PATTERN: parallel_time_handler(prefix, matcher, timestamp, collector, file_handler)
-        elif pattern_name == SCAN_RS_PATTERN: scan_rs_handler(prefix, matcher, timestamp, collector, file_handler)
-        elif pattern_name == OBJECT_COPY_PATTERN: object_copy_handler(prefix, matcher, timestamp, collector, file_handler)
-        elif pattern_name == ALLOCATION_PATTERN: allocation_handler(prefix, matcher, timestamp, collector, file_handler)
-        elif pattern_name == FREE_CSET_PATTERN: free_cset_handler(prefix, matcher, timestamp, collector, file_handler)
-        elif pattern_name == REF_ENQ_PATTERN: ref_enq_handler(prefix, matcher, timestamp, collector, file_handler)
-        elif pattern_name == REF_PROC_PATTERN: ref_proc_handler(prefix, matcher, timestamp, collector, file_handler)
-        elif pattern_name == CHOOSE_CSET_PATTERN: choose_cset_handler(prefix, matcher, timestamp, collector, file_handler)
-        elif pattern_name == CLEAR_CT_PATTERN: clear_ct_handler(prefix, matcher, timestamp, collector, file_handler)
-        else: unmatched_gc_log(line)
+        if pattern_name == GC_END_TIME_PATTERN:
+            break
+        elif pattern_name == PARALLEL_TIME_PATTERN:
+            parallel_time_handler(prefix, matcher, timestamp, collector, file_handler)
+        elif pattern_name == SCAN_RS_PATTERN:
+            scan_rs_handler(prefix, matcher, timestamp, collector, file_handler)
+        elif pattern_name == OBJECT_COPY_PATTERN:
+            object_copy_handler(prefix, matcher, timestamp, collector, file_handler)
+        elif pattern_name == ALLOCATION_PATTERN:
+            allocation_handler(prefix, matcher, timestamp, collector, file_handler)
+        elif pattern_name == FREE_CSET_PATTERN:
+            free_cset_handler(prefix, matcher, timestamp, collector, file_handler)
+        elif pattern_name == REF_ENQ_PATTERN:
+            ref_enq_handler(prefix, matcher, timestamp, collector, file_handler)
+        elif pattern_name == REF_PROC_PATTERN:
+            ref_proc_handler(prefix, matcher, timestamp, collector, file_handler)
+        elif pattern_name == CHOOSE_CSET_PATTERN:
+            choose_cset_handler(prefix, matcher, timestamp, collector, file_handler)
+        elif pattern_name == CLEAR_CT_PATTERN:
+            clear_ct_handler(prefix, matcher, timestamp, collector, file_handler)
+        else:
+            unmatched_gc_log(line)
+
 
 def process_gc_record(prefix, file_handler, timestamp, cause, collector):
     # process simple gc events
-    if 'concurrent-cleanup-end' in cause: concurrent_cleanup_handler(prefix, cause, timestamp, collector, file_handler)
-    elif 'concurrent-mark-end' in cause: concurrent_mark_handler(prefix, cause, timestamp, collector, file_handler)
-    elif 'concurrent-root-region-scan-end' in cause: concurrent_root_region_scan_handler(prefix, cause, timestamp, collector, file_handler)
-    elif 'GC cleanup' in cause: cleanup_handler(prefix, cause, timestamp, collector, file_handler)
+    if 'concurrent-cleanup-end' in cause:
+        concurrent_cleanup_handler(prefix, cause, timestamp, collector, file_handler)
+    elif 'concurrent-mark-end' in cause:
+        concurrent_mark_handler(prefix, cause, timestamp, collector, file_handler)
+    elif 'concurrent-root-region-scan-end' in cause:
+        concurrent_root_region_scan_handler(prefix, cause, timestamp, collector, file_handler)
+    elif 'GC cleanup' in cause:
+        cleanup_handler(prefix, cause, timestamp, collector, file_handler)
     elif 'Full GC' in cause:
         collector['count']['fullgc'] += 1
         fullgc_handler(prefix, cause, timestamp, collector, file_handler)
@@ -335,7 +400,9 @@ def process_gc_record(prefix, file_handler, timestamp, cause, collector):
         elif 'remark' in cause:
             collector['count']['remark'] += 1
             remark_handler(prefix, cause, timestamp, collector, file_handler)
-        elif cause[-1] == ']': return
+        elif cause[-1] == ']':
+            return
+
 
 def process_gc_log(collector):
 
@@ -389,6 +456,7 @@ def process_gc_log(collector):
             traceback.format_exception(exc_type, exc_value, exc_traceback)))
 
     return 0
+
 
 def main():
 

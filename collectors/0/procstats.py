@@ -51,14 +51,14 @@ def print_numa_stats(numafiles):
     """From a list of files names, opens file, extracts and prints NUMA stats."""
     for numafilename in numafiles:
         numafile = open(numafilename)
-        node_id = int(numafile.name[numafile.name.find("/node/node")+10:-9])
+        node_id = int(numafile.name[numafile.name.find("/node/node") + 10:-9])
         ts = int(time.time())
         stats = dict(line.split() for line in numafile.read().splitlines())
-        for stat, tag in (# hit: process wanted memory from this node and got it
-                          ("numa_hit", "hit"),
-                          # miss: process wanted another node and got it from
-                          # this one instead.
-                          ("numa_miss", "miss")):
+        for stat, tag in (  # hit: process wanted memory from this node and got it
+                ("numa_hit", "hit"),
+                # miss: process wanted another node and got it from
+                # this one instead.
+                ("numa_miss", "miss")):
             print ("sys.numa.zoneallocs %d %s node=%d type=%s"
                    % (ts, stats[stat], node_id, tag))
         # Count this one as a separate metric because we can't sum up hit +
@@ -92,18 +92,18 @@ def main():
     f_interrupts = open("/proc/interrupts", "r")
 
     f_scaling = "/sys/devices/system/cpu/cpu%s/cpufreq/%s_freq"
-    f_scaling_min  = dict([])
-    f_scaling_max  = dict([])
-    f_scaling_cur  = dict([])
+    f_scaling_min = dict([])
+    f_scaling_max = dict([])
+    f_scaling_cur = dict([])
     for cpu in glob.glob("/sys/devices/system/cpu/cpu[0-9]*/cpufreq/scaling_cur_freq"):
         m = re.match("/sys/devices/system/cpu/cpu([0-9]*)/cpufreq/scaling_cur_freq", cpu)
         if not m:
             continue
         cpu_no = m.group(1)
-        sys.stderr.write(f_scaling % (cpu_no,"min"))
-        f_scaling_min[cpu_no] = open(f_scaling % (cpu_no,"cpuinfo_min"), "r")
-        f_scaling_max[cpu_no] = open(f_scaling % (cpu_no,"cpuinfo_max"), "r")
-        f_scaling_cur[cpu_no] = open(f_scaling % (cpu_no,"scaling_cur"), "r")
+        sys.stderr.write(f_scaling % (cpu_no, "min"))
+        f_scaling_min[cpu_no] = open(f_scaling % (cpu_no, "cpuinfo_min"), "r")
+        f_scaling_max[cpu_no] = open(f_scaling % (cpu_no, "cpuinfo_max"), "r")
+        f_scaling_cur[cpu_no] = open(f_scaling % (cpu_no, "scaling_cur"), "r")
 
     numastats = find_sysfs_numa_stats()
     utils.drop_privileges()
@@ -130,7 +130,7 @@ def main():
                 else:
                     value = m.group(2)
                 print ("proc.meminfo.%s %d %s"
-                        % (m.group(1).lower(), ts, value))
+                       % (m.group(1).lower(), ts, value))
 
         # proc.vmstat
         f_vmstat.seek(0)
@@ -160,15 +160,15 @@ def main():
                     tags = ''
                 fields = m.group(2).split()
                 cpu_types = ['user', 'nice', 'system', 'idle', 'iowait',
-                    'irq', 'softirq', 'guest', 'guest_nice']
+                             'irq', 'softirq', 'guest', 'guest_nice']
 
                 # We use zip to ignore fields that don't exist.
                 for value, field_name in zip(fields, cpu_types):
                     print "proc.stat.cpu%s %d %s type=%s%s" % (metric_percpu,
-                        ts, value, field_name, tags)
+                                                               ts, value, field_name, tags)
             elif m.group(1) == "intr":
                 print ("proc.stat.intr %d %s"
-                        % (ts, m.group(2).split()[0]))
+                       % (ts, m.group(2).split()[0]))
             elif m.group(1) == "ctxt":
                 print "proc.stat.ctxt %d %s" % (ts, m.group(2))
             elif m.group(1) == "processes":
@@ -247,4 +247,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
