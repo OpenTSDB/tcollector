@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-""" 
+"""
 Zookeeper collector
 
 Refer to the following zookeeper commands documentation for details:
@@ -35,13 +35,14 @@ KEYS = frozenset([
     "zk_outstanding_requests",
     "zk_approximate_data_size",
     "zk_open_file_descriptor_count",
-    ])
+])
+
 
 def scan_zk_instances():
-    """ 
+    """
     Finding out all the running instances of zookeeper
-    - Using netstat, finds out all listening java processes.	 
-    - Figures out ZK instances among java processes by looking for the 
+    - Using netstat, finds out all listening java processes.
+    - Figures out ZK instances among java processes by looking for the
       string "org.apache.zookeeper.server.quorum.QuorumPeerMain" in cmdline.
     """
 
@@ -80,18 +81,20 @@ def scan_zk_instances():
                     pass
                 finally:
                     sock.close()
-                if data == "imok":	
+                if data == "imok":
                     instances.append([ip, port, tcp_version])
                     data = ""
         except:
             continue
         finally:
             fd.close()
-    return instances 
+    return instances
+
 
 def print_stat(metric, ts, value, tags=""):
     if value is not None:
         print "zookeeper.%s %i %s %s" % (metric, ts, value, tags)
+
 
 def main():
     if USER != "root":
@@ -137,4 +140,4 @@ def main():
         time.sleep(COLLECTION_INTERVAL)
 
 if __name__ == "__main__":
-    sys.exit(main())	
+    sys.exit(main())

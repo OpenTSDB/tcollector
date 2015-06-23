@@ -33,6 +33,7 @@ REPLACEMENTS = {
 
 
 class HadoopDataNode(HadoopHttp):
+
     """
     Class that will retrieve metrics from an Apache Hadoop DataNode's jmx page.
 
@@ -67,4 +68,3 @@ def main(args):
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv))
-

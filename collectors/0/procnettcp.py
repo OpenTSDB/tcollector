@@ -101,7 +101,7 @@ PORTS = {
     11226: "memcache",
     50020: "datanode",
     60020: "hregionserver",
-    }
+}
 
 SERVICES = tuple(set(PORTS.itervalues()))
 
@@ -117,7 +117,7 @@ TCPSTATES = {
     "09": "last_ack",
     "0A": "listen",
     "0B": "closing",
-    }
+}
 
 
 def is_public_ip(ipstr):
@@ -144,9 +144,9 @@ def is_public_ip(ipstr):
 def main(unused_args):
     """procnettcp main loop"""
     try:           # On some Linux kernel versions, with lots of connections
-      os.nice(19)  # this collector can be very CPU intensive.  So be nicer.
+        os.nice(19)  # this collector can be very CPU intensive.  So be nicer.
     except OSError, e:
-      print >>sys.stderr, "warning: failed to self-renice:", e
+        print >>sys.stderr, "warning: failed to self-renice:", e
 
     interval = 60
 
@@ -205,7 +205,6 @@ def main(unused_args):
                     endpoint = "external"
                 else:
                     endpoint = "internal"
-
 
                 user = uids.get(uid, "other")
 

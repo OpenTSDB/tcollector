@@ -103,7 +103,6 @@ def main():
         if value is not None:
             print "net.sockstat.%s %d %s%s" % (metric, ts, value, tags)
 
-
     # If a line in /proc/net/{netstat,snmp} doesn't start with a word in that
     # dict, we'll ignore it.  We use the value to build the metric name.
     known_statstypes = {
@@ -115,7 +114,7 @@ def main():
         "Tcp:": "tcp",  # We don't collect anything from here for now.
         "Udp:": "udp",
         "UdpLite:": "udplite",  # We don't collect anything from here for now.
-        }
+    }
 
     # Any stat in /proc/net/{netstat,snmp} that doesn't appear in this dict will
     # be ignored.  If we find a match, we'll use the (metricname, tags).
@@ -246,7 +245,6 @@ def main():
         },
     }
 
-
     def print_netstat(statstype, metric, value, tags=""):
         if tags:
             space = " "
@@ -319,8 +317,8 @@ def main():
         print_sockstat("memory", int(m.group("tcp_pages")) * page_size,
                        " type=tcp")
         if m.group("udp_pages") is not None:
-          print_sockstat("memory", int(m.group("udp_pages")) * page_size,
-                         " type=udp")
+            print_sockstat("memory", int(m.group("udp_pages")) * page_size,
+                           " type=udp")
         print_sockstat("memory", m.group("ip_frag_mem"), " type=ipfrag")
         print_sockstat("ipfragqueues", m.group("ip_frag_nqueues"))
 
