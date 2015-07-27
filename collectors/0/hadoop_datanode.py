@@ -12,6 +12,7 @@
 # of the GNU Lesser General Public License along with this program.  If not,
 # see <http://www.gnu.org/licenses/>.
 
+import platform
 import sys
 import time
 
@@ -41,7 +42,7 @@ class HadoopDataNode(HadoopHttp):
     """
 
     def __init__(self):
-        super(HadoopDataNode, self).__init__('hadoop', 'datanode', 'localhost', 50075)
+        super(HadoopDataNode, self).__init__('hadoop', 'datanode', platform.node(), 50075)
 
     def emit(self):
         current_time = int(time.time())
@@ -67,4 +68,3 @@ def main(args):
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv))
-
