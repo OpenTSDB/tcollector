@@ -10,6 +10,7 @@ from collectors.lib import utils
 
 
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
+LIB_DIR = SCRIPT_DIR + '/../../collectors/lib'
 
 DRUID_METRICS_DIR = '/var/log/druid/metrics'
 DRUID_ROLES = [
@@ -37,8 +38,8 @@ def spawn_monitor(role):
     )
 
     aggregator = subprocess.Popen(
-        ['java', '-jar', SCRIPT_DIR + '/../../collectors/lib/druid-metric-aggregator.jar',
-         '--role', role],
+        ['java', '-jar', LIB_DIR + '/druid-metric-aggregator.jar',
+         '--role', role, '--metric-catalog', LIB_DIR + '/druid-metrics.yaml'],
         bufsize=1,  # line buffered
         stdin=tailor.stdout,
         stdout=subprocess.PIPE

@@ -1,0 +1,451 @@
+# common tags across all metrics
+tags:
+  - service
+  - host
+
+metrics:
+  # base metrics
+  base:
+    # time to complete query (broker, historical, realtime)
+    query/time:
+      type: TIMER
+      tags:
+        - dataSource
+        - type
+        - hasFilters
+
+    # time to query individual nodes (broker)
+    query/node/time:
+      type: TIMER
+      tags:
+        - dataSource
+        - type
+        - server
+
+    # time to first byte (broker)
+    query/node/ttfb:
+      type: TIMER
+      tags:
+        - dataSource
+        - type
+        - server
+
+    # time to query an interval chunk (broker)
+    query/intervalChunk/time:
+      type: TIMER
+      tags:
+        - status
+
+    # time to query individual segment (historical)
+    query/segment/time:
+      type: TIMER
+      tags:
+        - dataSource
+        - type
+        - segment
+
+    # time waiting for a segment to be scanned (historical, realtime)
+    query/wait/time:
+      type: TIMER
+      tags:
+        - segment
+
+    # time taken to query individual segment or hit the cache (historical)
+    query/segmentAndCache/time:
+      type: TIMER
+      tags:
+        - segment
+
+    # Number of cache entries
+    query/cache/total/numEntries:
+      type: GAUGE
+
+    # Size in bytes of cache entries
+    query/cache/total/sizeBytes:
+      type: GAUGE
+
+    # Number of cache hits
+    query/cache/total/hits:
+      type: GAUGE
+
+    # Number of cache misses
+    query/cache/total/misses:
+      type: GAUGE
+
+    # Number of cache evictions
+    query/cache/total/evictions:
+      type: GAUGE
+
+    # Cache hit rate
+    query/cache/total/hitRate:
+      type: GAUGE
+
+    # Average cache entry byte size
+    query/cache/total/averageBytes:
+      type: GAUGE
+
+    # Number of cache timeouts
+    query/cache/total/timeouts:
+      type: GAUGE
+
+    # Number of cache errors
+    query/cache/total/errors:
+      type: GAUGE
+
+    # Cache hit rate (since the last emission)
+    query/cache/delta/hitRate:
+      type: GAUGE
+
+    # Average cache entry byte size (since the last emission)
+    query/cache/delta/averageBytes:
+      type: GAUGE
+
+    # Number of events rejected because they are outside the windowPeriod (ingest)
+    ingest/events/thrownAway:
+      type: COUNTER
+      tags:
+        - dataSource
+
+    # Number of events rejected because the events are unparseable (ingest)
+    ingest/events/unparseable:
+      type: COUNTER
+      tags:
+        - dataSource
+
+    # Number of events successfully processed (ingest)
+    ingest/events/processed:
+      type: COUNTER
+      tags:
+        - dataSource
+
+    # Number of Druid rows persisted (ingest)
+    ingest/rows/output:
+      type: COUNTER
+      tags:
+        - dataSource
+
+    # Number of times persist occurred (ingest)
+    ingest/persists/count:
+      type: COUNTER
+      tags:
+        - dataSource
+
+    # ms spent doing intermediate persist (ingest)
+    ingest/persists/time:
+      type: COUNTER
+      tags:
+        - dataSource
+
+    # Number of persists pending (ingest)
+    ingest/persists/backPressure:
+      type: COUNTER
+      tags:
+        - dataSource
+
+    # Number of persists that failed (ingest)
+    ingest/persists/failed:
+      type: COUNTER
+      tags:
+        - dataSource
+
+    # Number of handoffs that failed (ingest)
+    ingest/handoff/failed:
+      type: COUNTER
+      tags:
+        - dataSource
+
+    # ms taken to run task (indexing)
+    task/run/time:
+      type: TIMER
+      tags:
+        - dataSource
+        - taskType
+        - taskStatus
+
+    # Size in bytes of new segments created (indexing)
+    segment/added/bytes:
+      type: COUNTER
+      tags:
+        - dataSource
+        - taskType
+
+    # Size in bytes of segments moved/archived via the Move Task (indexing)
+    segment/moved/bytes:
+      type: COUNTER
+      tags:
+        - dataSource
+        - taskType
+
+    # Size in bytes of segments deleted via the Kill Task (indexing)
+    segment/nuked/bytes:
+      type: COUNTER
+      tags:
+        - dataSource
+        - taskType
+
+    # Number of segments added to the cluster (coordinator)
+    segment/added/count:
+      type: COUNTER
+      tags:
+        - tier
+
+    # Number of segments moved in the cluster (coordinator)
+    segment/moved/count:
+      type: COUNTER
+      tags:
+        - tier
+
+    # Number of segments dropped due to being overshadowed (coordinator)
+    segment/dropped/count:
+      type: COUNTER
+      tags:
+        - tier
+
+    # Number of segments dropped due to rules (coordinator)
+    segment/deleted/count:
+      type: COUNTER
+      tags:
+        - tier
+
+    # Number of segments dropped due to being marked as unused (coordinator)
+    segment/unneeded/count:
+      type: COUNTER
+      tags:
+        - tier
+
+    # The raw cost of hosting segments (coordinator)
+    segment/cost/raw:
+      type: GAUGE
+      tags:
+        - tier
+
+    # The normalization of hosting segments (coordinator)
+    segment/cost/normalization:
+      type: GAUGE
+      tags:
+        - tier
+
+    # The normalized cost of hosting segments (coordinator)
+    segment/cost/normalized:
+      type: GAUGE
+      tags:
+        - tier
+
+    # Size in bytes of segments to load (coordinator)
+    segment/loadQueue/size:
+      type: GAUGE
+      tags:
+        - server
+
+    # Number of segments that failed to load (coordinator)
+    segment/loadQueue/failed:
+      type: COUNTER
+      tags:
+        - server
+
+    # Number of segments to load (coordinator)
+    segment/loadQueue/count:
+      type: GAUGE
+      tags:
+        - server
+
+    # Number of segments to drop (coordinator)
+    segment/dropQueue/count:
+      type: GAUGE
+      tags:
+        - server
+
+    # Size in bytes of available segments (coordinator)
+    segment/size:
+      type: GAUGE
+      tags:
+        - dataSource
+
+    # Number of available segments (coordinator)
+    segment/count:
+      type: GAUGE
+      tags:
+        - dataSource
+
+    # Bytes used for served segments (historical)
+    segment/used:
+      type: GAUGE
+      tags:
+        - dataSource
+        - tier
+        - priority
+
+    # Percentage of space used by served segments (historical)
+    segment/usedPercent:
+      type: GAUGE
+      tags:
+        - dataSource
+        - tier
+        - priority
+
+    # Committed pool (jvm)
+    jvm/pool/committed:
+      type: GAUGE
+      tags:
+        - poolKind
+        - poolName
+
+    # Initial pool (jvm)
+    jvm/pool/init:
+      type: GAUGE
+      tags:
+        - poolKind
+        - poolName
+
+    # Max pool (jvm)
+    jvm/pool/max:
+      type: GAUGE
+      tags:
+        - poolKind
+        - poolName
+
+    # Pool used (jvm)
+    jvm/pool/used:
+      type: GAUGE
+      tags:
+        - poolKind
+        - poolName
+
+    # Bufferpool count (jvm)
+    jvm/bufferpool/count:
+      type: GAUGE
+      tags:
+        - bufferpoolName
+
+    # Bufferpool used (jvm)
+    jvm/bufferpool/used:
+      type: GAUGE
+      tags:
+        - bufferpoolName
+
+    # Bufferpool capacity (jvm)
+    jvm/bufferpool/capacity:
+      type: GAUGE
+      tags:
+        - bufferpoolName
+
+    # Initial memory (jvm)
+    jvm/mem/init:
+      type: GAUGE
+      tags:
+        - memKind
+
+    # Max memory (jvm)
+    jvm/mem/max:
+      type: GAUGE
+      tags:
+        - memKind
+
+    # Used memory (jvm)
+    jvm/mem/used:
+      type: GAUGE
+      tags:
+        - memKind
+
+    # Committed memory (jvm)
+    jvm/mem/committed:
+      type: GAUGE
+      tags:
+        - memKind
+
+    # Garbage collection count (jvm)
+    jvm/gc/count:
+      type: COUNTER
+      tags:
+        - gcName
+
+    # Garbage collection time (jvm)
+    jvm/gc/time:
+      type: COUNTER
+      tags:
+        - gcName
+
+    # Writes to disk (sys)
+    sys/disk/write/count:
+      type: COUNTER
+      tags:
+        - fsDevName
+        - fsDirName
+        - fsTypeName
+
+    # Reads from disk (sys)
+    sys/disk/read/count:
+      type: COUNTER
+      tags:
+        - fsDevName
+        - fsDirName
+        - fsTypeName
+
+    # Bytes written to disk (sys)
+    sys/disk/write/size:
+      type: COUNTER
+      tags:
+        - fsDevName
+        - fsDirName
+        - fsTypeName
+
+    # Bytes read from disk (sys)
+    sys/disk/read/size:
+      type: COUNTER
+      tags:
+        - fsDevName
+        - fsDirName
+        - fsTypeName
+
+    # Bytes written to the network (sys)
+    sys/net/write/size:
+      type: COUNTER
+      tags:
+        - netName
+        - netAddress
+
+    # Bytes read from the network (sys)
+    sys/net/read/size:
+      type: COUNTER
+      tags:
+        - netName
+        - netAddress
+
+    # Filesystem bytes used (sys)
+    sys/fs/used:
+      type: GAUGE
+      tags:
+        - fsDevName
+        - fsDirName
+        - fsTypeName
+
+    # Filesystesm bytes max (sys)
+    sys/fs/max:
+      type: GAUGE
+      tags:
+        - fsDevName
+        - fsDirName
+        - fsTypeName
+
+    # Disk space used (sys)
+    sys/storage/used:
+      type: GAUGE
+      tags:
+        - fsDirName
+
+    # CPU used (sys)
+    sys/cpu:
+      type: GAUGE
+      tags:
+        - cpuName
+        - cpuTime
+
+  # role based overrides
+  historical:
+    # Number of available segments (coordinator)
+    segment/count:
+      type: GAUGE
+      tags:
+        - dataSource
+        - tier
+        - priority
