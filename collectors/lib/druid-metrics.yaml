@@ -267,6 +267,10 @@ metrics:
       tags:
         - dataSource
 
+    # Maximum byte limit available for segments (historical)
+    segment/max:
+      type: GAUGE
+
     # Bytes used for served segments (historical)
     segment/used:
       type: GAUGE
