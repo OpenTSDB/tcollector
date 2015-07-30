@@ -33,6 +33,8 @@ import subprocess
 import sys
 import threading
 import time
+import json
+import urllib2
 from logging.handlers import RotatingFileHandler
 from Queue import Queue
 from Queue import Empty
@@ -406,7 +408,7 @@ class SenderThread(threading.Thread):
        buffering we might need to do if we can't establish a connection
        and we need to spool to disk.  That isn't implemented yet."""
 
-    def __init__(self, reader, dryrun, hosts, self_report_stats, tags, reconnectinterval):
+    def __init__(self, reader, dryrun, hosts, self_report_stats, http, tags, reconnectinterval):
         """Constructor.
 
         Args:
@@ -417,6 +419,7 @@ class SenderThread(threading.Thread):
           self_report_stats: If true, the reader thread will insert its own
             stats into the metrics reported to TSD, as if those metrics had
             been read from a collector.
+          http: A boolean that controls whether or not the http endpoint is used.
           tags: A dictionary of tags to append for every data point.
         """
         super(SenderThread, self).__init__()
@@ -424,6 +427,7 @@ class SenderThread(threading.Thread):
         self.dryrun = dryrun
         self.reader = reader
         self.tags = sorted(tags.items())
+        self.http = http
         self.hosts = hosts  # A list of (host, port) pairs.
         # Randomize hosts to help even out the load.
         random.shuffle(self.hosts)
@@ -516,6 +520,10 @@ class SenderThread(threading.Thread):
     def verify_conn(self):
         """Periodically verify that our connection to the TSD is OK
            and that the TSD is alive/working."""
+        # http connections don't need this
+        if self.http:
+            return True
+
         if self.tsd is None:
             return False
 
@@ -569,6 +577,7 @@ class SenderThread(threading.Thread):
 
             # If everything is good, send out our meta stats.  This
             # helps to see what is going on with the tcollector.
+            # TODO need to fix this for http
             if self.self_report_stats:
                 strs = [
                         ('reader.lines_collected',
@@ -602,8 +611,8 @@ class SenderThread(threading.Thread):
            running and that we're not talking to a ghost connection
            (no response)."""
 
-        # dry runs are always good
-        if self.dryrun:
+        # dry runs and http are always good
+        if self.dryrun or self.http:
             return
 
         # connection didn't verify, so create a new one.  we might be in
@@ -660,6 +669,58 @@ class SenderThread(threading.Thread):
 
     def send_data(self):
         """Sends outstanding data in self.sendq to the TSD in one operation."""
+        if self.http:
+            metrics = []
+            for line in self.sendq:
+                # print " %s" % line
+                (metric, timestamp, value, raw_tags) = line.split(None, 3)
+                # process the tags
+                metric_tags = dict()
+                for tag in raw_tags.strip().split():
+                    (tag_key, tag_value) = tag.split('=')
+                    metric_tags[tag_key] = tag_value
+                # print "  Got metric: %s timestamp: %s value: %s tags: %s" % (
+                #    metric, timestamp, value, metric_tags)
+                metric_entry = dict()
+                metric_entry['metric'] = metric
+                metric_entry['timestamp'] = timestamp
+                metric_entry['value'] = value
+                metric_entry['tags'] = self.tags.copy()
+                metric_entry['tags'].update(metric_tags)
+                metrics.append(metric_entry)
+                # print "--Current metrics"
+                # print json.dumps(metrics,sort_keys=True,indent=4)
+            # print "\n\n"
+            # print "Final metrics"
+            # print json.dumps(metrics,sort_keys=True,indent=4)
+            if self.dryrun:
+                print "Would have sent:\n%s" % json.dumps(metrics,
+                                                          sort_keys=True,
+                                                          indent=4)
+            else:
+                self.pick_connection()
+                # print "Using server: %s:%s" % (self.host, self.port)
+                # url = 'http://%s:%s/api/put?details' % (self.host, self.port)
+                # print "Url is %s" % url
+                req = urllib2.Request('http://%s:%s/api/put?details' % (
+                    self.host, self.port))
+                req.add_header('Content-Type', 'application/json')
+                try:
+                    response = urllib2.urlopen(req, json.dumps(metrics))
+                    # clear out the sendq
+                    self.sendq = []
+                    # print "Got response code: %s" % response.getcode()
+                    # print "Content:"
+                    # for line in response:
+                    #     print line,
+                    #     print
+                except urllib2.HTTPError, http_error:
+                    LOG.error('Got error %s', http_error)
+                    # for line in http_error:
+                    #   print line,
+
+            # return at the end of this
+            return
 
         # construct the output string
         out = ''
@@ -789,6 +850,8 @@ def parse_cmdline(argv):
                            'the TSD hostname reconnects itself. This is useful'
                            'when the hostname is a multiple A record (RRDNS).'
                            )
+    parser.add_option('--http', dest='http', action='store_true', default=False,
+                      help='Send the data via the http interface')
     (options, args) = parser.parse_args(args=argv[1:])
     if options.dedupinterval < 0:
         parser.error('--dedup-interval must be at least 0 seconds')
@@ -909,7 +972,8 @@ def main(argv):
 
     # and setup the sender to start writing out to the tsd
     sender = SenderThread(reader, options.dryrun, options.hosts,
-                          not options.no_tcollector_stats, tags, options.reconnectinterval)
+                          not options.no_tcollector_stats, options.http,
+                          tags, options.reconnectinterval)
     sender.start()
     LOG.info('SenderThread startup complete')
 
