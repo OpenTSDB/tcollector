@@ -426,7 +426,7 @@ class SenderThread(threading.Thread):
 
         self.dryrun = dryrun
         self.reader = reader
-        self.tags = sorted(tags.items())
+        self.tags = sorted(tags.items()) # dictionary transformed to list
         self.http = http
         self.hosts = hosts  # A list of (host, port) pairs.
         # Randomize hosts to help even out the load.
@@ -673,7 +673,12 @@ class SenderThread(threading.Thread):
             metrics = []
             for line in self.sendq:
                 # print " %s" % line
-                (metric, timestamp, value, raw_tags) = line.split(None, 3)
+                # not all metrics have metric-specific tags
+                try:
+                  (metric, timestamp, value, raw_tags) = line.split(None, 3)
+                except ValueError:
+                  (metric, timestamp, value) = line.split(None, 3)
+                  raw_tags = ''
                 # process the tags
                 metric_tags = dict()
                 for tag in raw_tags.strip().split():
@@ -685,7 +690,7 @@ class SenderThread(threading.Thread):
                 metric_entry['metric'] = metric
                 metric_entry['timestamp'] = timestamp
                 metric_entry['value'] = value
-                metric_entry['tags'] = self.tags.copy()
+                metric_entry['tags'] = dict(self.tags).copy()
                 metric_entry['tags'].update(metric_tags)
                 metrics.append(metric_entry)
                 # print "--Current metrics"
