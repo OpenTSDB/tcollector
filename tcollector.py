@@ -453,12 +453,16 @@ class SenderThread(threading.Thread):
             if hostport not in self.blacklisted_hosts:
                 break
         else:
-            LOG.info('No more healthy hosts, retry with previously blacklisted')
-            random.shuffle(self.hosts)
-            self.blacklisted_hosts.clear()
-            self.current_tsd = 0
-            hostport = self.hosts[self.current_tsd]
-
+            if self.http is None:
+                LOG.info('No more healthy hosts, retry with previously blacklisted')
+                random.shuffle(self.hosts)
+                self.blacklisted_hosts.clear()
+                self.current_tsd = 0
+                hostport = self.hosts[self.current_tsd]
+            else:
+                # TODO: Enable multiple HTTP endpoints
+                LOG.debug('Reusing HTTP connection %s on port %s', self.host, self.port)
+                hostport = self.hosts[self.current_tsd]  
         self.host, self.port = hostport
         LOG.info('Selected connection: %s:%d', self.host, self.port)
 
@@ -707,11 +711,14 @@ class SenderThread(threading.Thread):
                 # print "Using server: %s:%s" % (self.host, self.port)
                 # url = 'http://%s:%s/api/put?details' % (self.host, self.port)
                 # print "Url is %s" % url
+                LOG.debug('Sending metrics to http://%s:%s/api/put?details',
+                    self.host, self.port)
                 req = urllib2.Request('http://%s:%s/api/put?details' % (
                     self.host, self.port))
                 req.add_header('Content-Type', 'application/json')
                 try:
                     response = urllib2.urlopen(req, json.dumps(metrics))
+                    LOG.debug('Received response %s', response.getcode())
                     # clear out the sendq
                     self.sendq = []
                     # print "Got response code: %s" % response.getcode()
