@@ -12,6 +12,7 @@
 # of the GNU Lesser General Public License along with this program.  If not,
 # see <http://www.gnu.org/licenses/>.
 #
+
 # To better understand G1 GC log,
 # please read Understanding G1 GC Logs (https://blogs.oracle.com/poonam/entry/understanding_g1_gc_logs)
 
@@ -59,6 +60,11 @@ Metrics with tag "phase":
   gc.g1.duration phase=mixed-pause     g1 mixed pause time (STW)
   gc.g1.duration phase=remark          g1 remark time (STW)
 
+
+Invoke this script with command line arguments
+eg: for hadoop hdfs namenode with g1gc enabled
+g1gc.py --prefix 'hadoop.namenode' --log_dir '/var/logs/hadoop/hdfs' --interval 10 --log_name_pattern 'gc-namenode.log.*'
+
 """
 
 import calendar
@@ -68,12 +74,13 @@ import os
 import sys
 import time
 import traceback
+import argparse
+
+sys.path.append('/usr/local/tcollector')
 
 from datetime import datetime, timedelta
 from subprocess import Popen, PIPE
-
 from collectors.lib import utils
-from collectors.etc import g1gc_conf
 
 GC_START_TIME_PATTERN = 1
 PARALLEL_TIME_PATTERN = 2
@@ -129,6 +136,7 @@ pattern_map = {
 }
 
 # Utilities
+
 def get_file_end(file_handler):
     file_handler.seek(0, 2)
     return file_handler.tell()
@@ -356,7 +364,6 @@ def process_gc_log(collector):
             pos = collector['current_file_pos']
             collector['current_file_pos'] = get_file_end(file_handler)
             file_handler.seek(pos)
-
             # Do not use foreach loop because inside function process_gc_record
             # will call file_handler.readline(). The reason is that some GC
             # event are multiline and need to be processed as a whole
@@ -390,10 +397,26 @@ def process_gc_log(collector):
 
     return 0
 
+
+def _create_parser():
+    """Creates parser for g1gc scanner."""
+    parser = argparse.ArgumentParser(
+        description='G1GC log scanner')
+    parser.add_argument('--prefix', default='hadoop.namenode',
+        help='Prefix for the metrics')
+    parser.add_argument('--log_dir', default='/srv/var/hadoop/logs/hdfs',
+        help='Path to directory where the gc logs are')
+    parser.add_argument('--log_name_pattern', default='gc-namenode.log.*',
+        help='Regular expression pattern for the gc logs')
+    parser.add_argument('--interval', type=float, default=10,
+        help='Default interval to run the script and sleep')
+    return parser
+
 def main():
 
-    interval = g1gc_conf.get_interval()
-    config = g1gc_conf.get_gc_config()
+    parser = _create_parser()
+    arguments = parser.parse_args()
+
     counters = {'young': 0, 'mixed': 0, 'initialmark': 0,
                 'remark': 0, 'fullgc': 0}
     gensize = {'eden': 0, 'survivor': 0, 'heap': 0}
@@ -403,14 +426,15 @@ def main():
                  'gensize': gensize,
                  'current_file': None,
                  'current_file_pos': None,
-                 'prefix': config['prefix'],
-                 'log_dir': config['log_dir'],
-                 'log_name_pattern': config['log_name_pattern']}
+                 'prefix': arguments.prefix,
+                 'log_dir': arguments.log_dir,
+                 'log_name_pattern': arguments.log_name_pattern
+    }
 
     while True:
         process_gc_log(collector)
         sys.stdout.flush()
-        time.sleep(interval)
+        time.sleep(arguments.interval)
 
 if __name__ == '__main__':
     exit(main())
