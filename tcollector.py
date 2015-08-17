@@ -408,7 +408,7 @@ class SenderThread(threading.Thread):
        buffering we might need to do if we can't establish a connection
        and we need to spool to disk.  That isn't implemented yet."""
 
-    def __init__(self, reader, dryrun, hosts, self_report_stats, http, tags, reconnectinterval):
+    def __init__(self, reader, dryrun, hosts, self_report_stats, http, ssl, tags, reconnectinterval):
         """Constructor.
 
         Args:
@@ -420,6 +420,7 @@ class SenderThread(threading.Thread):
             stats into the metrics reported to TSD, as if those metrics had
             been read from a collector.
           http: A boolean that controls whether or not the http endpoint is used.
+          ssl: A boolean that controls whether or not the http endpoint uses ssl.
           tags: A dictionary of tags to append for every data point.
         """
         super(SenderThread, self).__init__()
@@ -428,6 +429,7 @@ class SenderThread(threading.Thread):
         self.reader = reader
         self.tags = sorted(tags.items()) # dictionary transformed to list
         self.http = http
+        self.ssl = ssl
         self.hosts = hosts  # A list of (host, port) pairs.
         # Randomize hosts to help even out the load.
         random.shuffle(self.hosts)
@@ -695,6 +697,12 @@ class SenderThread(threading.Thread):
                 metric_entry['timestamp'] = timestamp
                 metric_entry['value'] = value
                 metric_entry['tags'] = dict(self.tags).copy()
+                # https://github.com/OpenTSDB/opentsdb/issues/437 - opentsdb has fix 8 tag constant
+                if len(metric_tags) + len(metric_entry['tags']) > 8:
+                  metric_tags_orig = metric_tags.copy()
+                  subset_metric_keys = metric_tags.keys()[:len(metric_tags.keys()[:8-len(metric_entry['tags'])])]
+                  metric_tags = dict((k, v) for k, v in metric_tags.iteritems() if k in subset_metric_keys)
+                  LOG.debug('Exceeding maximum permitted metric tags - removing %s for metric %s', str(set(metric_tags_orig) - set(metric_tags)), metric) 
                 metric_entry['tags'].update(metric_tags)
                 metrics.append(metric_entry)
                 # print "--Current metrics"
@@ -712,9 +720,13 @@ class SenderThread(threading.Thread):
                 # url = 'http://%s:%s/api/put?details' % (self.host, self.port)
                 # print "Url is %s" % url
                 LOG.debug('Sending metrics to http://%s:%s/api/put?details',
-                    self.host, self.port)
-                req = urllib2.Request('http://%s:%s/api/put?details' % (
-                    self.host, self.port))
+                          self.host, self.port)
+                if self.ssl:
+                    protocol = 'https'
+                else:
+                    protocol = 'http'
+                req = urllib2.Request('%s://%s:%s/api/put?details' % (
+                    protocol, self.host, self.port))
                 req.add_header('Content-Type', 'application/json')
                 try:
                     response = urllib2.urlopen(req, json.dumps(metrics))
@@ -864,6 +876,8 @@ def parse_cmdline(argv):
                            )
     parser.add_option('--http', dest='http', action='store_true', default=False,
                       help='Send the data via the http interface')
+    parser.add_option('--ssl', dest='ssl', action='store_true', default=False,
+                      help='Enable SSL - used in conjunction with http')
     (options, args) = parser.parse_args(args=argv[1:])
     if options.dedupinterval < 0:
         parser.error('--dedup-interval must be at least 0 seconds')
@@ -985,7 +999,7 @@ def main(argv):
     # and setup the sender to start writing out to the tsd
     sender = SenderThread(reader, options.dryrun, options.hosts,
                           not options.no_tcollector_stats, options.http,
-                          tags, options.reconnectinterval)
+                          options.ssl, tags, options.reconnectinterval)
     sender.start()
     LOG.info('SenderThread startup complete')
 
