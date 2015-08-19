@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # This file is part of tcollector.
 # Copyright (C) 2013 The tcollector Authors.
-# Additions Copyright (C) 2014 Elastisys AB.
 #
 # This program is free software: you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published by
