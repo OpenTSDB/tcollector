@@ -4,7 +4,9 @@ import sys
 
 from collectors.lib.kafka_jmx_monitor import KafkaJmxMonitor
 
-MONITORED_MBEANS = ["kafka.", "",                       # All kafka metrics.
+MONITORED_MBEANS = ["kafka.server", "",                # Only get Kafka server, cluster, network metrics
+                    "kafka.cluster", "",
+                    "kafka.network", "",
                     "Threading", "Count|Time$",        # Number of threads and CPU time.
                     "OperatingSystem", "OpenFile",     # Number of open files.
                     "GarbageCollector", "Collection"]  # GC runs and time spent GC-ing.
