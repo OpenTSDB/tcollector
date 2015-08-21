@@ -7,6 +7,7 @@ class SecorOffsetCollector(KafkaOffsetCollector):
     KAFKA_CHROOT = "/kafka"
     ZK_QUORUM = ["zookeeperHBaseProd1-1", "zookeeperHBaseProd1-2", "zookeeperHBaseProd1-3"]
     CONSUMER_GROUPS = {"secor_group"}
+    SLEEP_TIME = 30
 
     def __init__(self):
         super(SecorOffsetCollector, self).__init__()

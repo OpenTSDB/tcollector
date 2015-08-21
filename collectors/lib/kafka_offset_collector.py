@@ -53,6 +53,7 @@ class KafkaOffsetCollector(object):
     KAFKA_CHROOT = None
     ZK_QUORUM = None
     CONSUMER_GROUPS = None
+    SLEEP_TIME = None
 
     def __init__(self):
         if self.KAFKA_CHROOT is None:
@@ -180,8 +181,9 @@ class KafkaOffsetCollector(object):
                                         "topic": topic,
                                         "partition": partition})
 
+            if self.SLEEP_TIME:
+                time.sleep(self.SLEEP_TIME)
+
         self.zk_client.stop()
         kafka_client.close()
         self.zk_client.close()
-
-
