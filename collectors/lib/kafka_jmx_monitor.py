@@ -11,14 +11,14 @@ class KafkaJmxMonitor(JmxMonitor):
 
 
     def _valid_metric_value(self, value):
-            # Hack - Kafka producers emit some JMX metric values that are strings, like "event type".
-            # OpenTSDB generally doesn't like these, so we ought to drop them. This is done here in a very stupid way.
-            try:
-                value_float = float(value)
-            except:
-                return False
-            else:
-                return True
+        # Hack - Kafka producers emit some JMX metric values that are strings, like "event type".
+        # OpenTSDB generally doesn't like these, so we ought to drop them. This is done here in a very stupid way.
+        try:
+            value_float = float(value)
+        except:
+            return False
+        else:
+            return True
 
     def _process_kafka_consumer_metric(self, timestamp, metric, tags, value, mbean_domain, mbean_properties):
         if not self._valid_metric_value(value):

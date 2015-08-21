@@ -1,0 +1,2 @@
+kafka-python==0.9.4
+kazoo==2.1
