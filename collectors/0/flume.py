@@ -3,17 +3,17 @@
 """
     flume stats collector
 
-Connect to flume agents over http and gather metrics 
+Connect to flume agents over http and gather metrics
 and make them suitable for OpenTSDB to consume
 
-Need to config flume-ng to spit out json formatted metrics over http 
+Need to config flume-ng to spit out json formatted metrics over http
 See http://flume.apache.org/FlumeUserGuide.html#json-reporting
 
 Tested with flume-ng 1.4.0 only. So far
 
 Based on the elastichsearch collector
 
-"""  
+"""
 
 import errno
 import httplib
@@ -92,13 +92,13 @@ def main(argv):
     err("This collector requires the `json' Python module.")
     return 1
 
-  def printmetric(metric, value, **tags):
+  def printmetric(component, metric, value, **tags):
     if tags:
       tags = " " + " ".join("%s=%s" % (name, value)
                             for name, value in tags.iteritems())
     else:
       tags = ""
-    print ("flume.%s %d %s %s" % (metric, ts, value, tags))
+    print ("flume.%s.%s %d %s %s" % (component, metric, ts, value, tags))
 
   while True:
     # Get the metrics
@@ -110,7 +110,7 @@ def main(argv):
 	tags = {component.lower(): name}
 	for key,value in stats[metric].items():
 	   if key not in EXCLUDE:
-	       printmetric(key.lower(), value, **tags)
+	       printmetric(component.lower(), key, value, **tags)
 
     time.sleep(COLLECTION_INTERVAL)
 
