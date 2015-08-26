@@ -19,6 +19,7 @@ class Metric(object):
     LAG_METRIC = 'kafka.consumer.lag'
     CONSUMER_OFFSET_METRIC = 'kafka.consumer.offset'
     TOPIC_SIZE_METRIC = 'kafka.broker.offset'
+    BROKER_COUNT_METRIC = 'kafka.broker.count'
 
 
 class KafkaPaths(object):
@@ -92,6 +93,10 @@ class KafkaOffsetCollector(object):
             logging.exception(err)
             return []
 
+    def get_broker_count(self):
+        broker_ids = self.zk_client.get_children(KafkaPaths.broker_ids())
+        return len(broker_ids)
+
     def get_kafka_brokers(self):
         """
         Return a list of all kafka broker hosts or an empty list if the broker list
@@ -158,6 +163,10 @@ class KafkaOffsetCollector(object):
 
         while True:
             time_ = int(time.time())
+
+            num_brokers = self.get_broker_count()
+            self.emit(Metric.BROKER_COUNT_METRIC, num_brokers, time_, tags=dict())
+
             self.report_topic_partition_sizes(kafka_client, time_)
 
             # For the set of consumer groups we're monitoring, calculate topic size and lag for all the topics/partitions
