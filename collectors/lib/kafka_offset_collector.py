@@ -154,7 +154,10 @@ class KafkaOffsetCollector(object):
             for partition in partitions:
                 partition_size = self.get_topic_partition_size(kafka_client, topic, partition)
                 if partition_size:
-                    self.emit(Metric.TOPIC_SIZE_METRIC, partition_size, timestamp, tags={"topic": topic, "partition": partition})
+                    self.emit(Metric.TOPIC_SIZE_METRIC, partition_size, timestamp,
+                        tags={"topic": topic,
+                              "partition": partition,
+                              "clusterid": self.CLUSTER_NAME})
 
     def report(self):
         self.zk_client.start()
@@ -165,7 +168,8 @@ class KafkaOffsetCollector(object):
             time_ = int(time.time())
 
             num_brokers = self.get_broker_count()
-            self.emit(Metric.BROKER_COUNT_METRIC, num_brokers, time_, tags=dict())
+            self.emit(Metric.BROKER_COUNT_METRIC, num_brokers, time_,
+                      tags={"clusterid": self.CLUSTER_NAME})
 
             self.report_topic_partition_sizes(kafka_client, time_)
 
@@ -183,12 +187,14 @@ class KafkaOffsetCollector(object):
                         self.emit(Metric.CONSUMER_OFFSET_METRIC, offset, time_,
                                   tags={"consumer_group": consumer_group,
                                         "topic": topic,
-                                        "partition": partition})
+                                        "partition": partition,
+                                        "clusterid": self.CLUSTER_NAME})
 
                         self.emit(Metric.LAG_METRIC, lag, time_,
                                   tags={"consumer_group": consumer_group,
                                         "topic": topic,
-                                        "partition": partition})
+                                        "partition": partition,
+                                        "clusterid": self.CLUSTER_NAME})
 
             if self.SLEEP_TIME:
                 time.sleep(self.SLEEP_TIME)
