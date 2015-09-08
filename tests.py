@@ -14,12 +14,12 @@
 
 import os
 import sys
+import socket
 from stat import S_ISDIR, S_ISREG, ST_MODE
 import unittest
 
 import mocks
 import tcollector
-
 
 class CollectorsTests(unittest.TestCase):
 
@@ -305,6 +305,50 @@ class UDPCollectorTests(unittest.TestCase):
         self.run_bridge_test(inputLines, stdout, stderr)
         self.assertEquals(''.join(stdout), expected)
         self.assertListEqual(stderr, [])
+
+class TCollectorSockets(unittest.TestCase):
+
+        def setUp(self):
+            class MockSsl(object):
+                def wrap_socket(self, sock, *args):
+                    sock.ssl_version = 2
+                    return sock
+            tcollector.setup_logging()
+            tcollector.time.sleep = lambda x: None
+            tcollector.socket = mocks.Socket()
+            tcollector.ssl = MockSsl()
+
+        @staticmethod
+        def is_ssl_wrapped(sock):
+            return hasattr(sock, 'ssl_version')
+
+        @staticmethod
+        def is_tunnelled(sock):
+            return 'CONNECT ' in sock.send_buff
+
+        def test_default(self):
+            sock = tcollector.connect_to_tsd(socket.AF_INET, 0, 0, ("host", 4242))
+            self.assertFalse(self.is_tunnelled(sock))
+            self.assertFalse(self.is_ssl_wrapped(sock))
+
+        def test_tunnel_no_ssl(self):
+            sock = tcollector.connect_to_tsd(socket.AF_INET, 0, 0, ("host", 443),
+                connect_tunnel=True, use_ssl=False)
+            self.assertTrue(self.is_tunnelled(sock))
+            self.assertFalse(self.is_ssl_wrapped(sock))
+
+        def test_tunnel_ssl(self):
+            sock = tcollector.connect_to_tsd(socket.AF_INET, 0, 0, ("host", 443),
+                connect_tunnel=True, use_ssl=True)
+            self.assertTrue(self.is_ssl_wrapped(sock))
+            self.assertTrue(self.is_tunnelled(sock))
+
+        def test_no_tunnel_no_ssl(self):
+            sock = tcollector.connect_to_tsd(socket.AF_INET, 0, 0, ("host", 443),
+                connect_tunnel=False, use_ssl=True)
+            self.assertFalse(self.is_tunnelled(sock))
+            self.assertFalse(self.is_ssl_wrapped(sock))
+
 
 if __name__ == '__main__':
     cdir = os.path.join(os.path.dirname(os.path.realpath(sys.argv[0])),

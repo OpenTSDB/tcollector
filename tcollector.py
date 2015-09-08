@@ -30,6 +30,7 @@ import re
 import signal
 import socket
 import subprocess
+import ssl
 import sys
 import threading
 import time
@@ -73,6 +74,33 @@ def register_collector(collector):
             col.shutdown()
 
     COLLECTORS[collector.name] = collector
+
+def connect_to_tsd(family, socktype, proto, sockaddr, timeout=15, connect_tunnel=False,
+                   use_ssl=False, authuser=None, authpass='', tsdport=4242):
+    """Get a TSD socket, with CONNECT tunnel SSL and authentication support."""
+    hostport_string = 'localhost:%s' % tsdport
+
+    sock = socket.socket(family, socktype, proto)
+    sock.connect(sockaddr)
+    if connect_tunnel:
+        if use_ssl:
+            sock = ssl.wrap_socket(sock)
+        sock.send("CONNECT %s HTTP/1.1\r\n" % hostport_string)
+        sock.send("Host: %s HTTP/1.1\r\n" % hostport_string)
+        if authuser is not None:
+            basic_auth = ('%s:%s' % (authuser, authpass)).encode('base64')
+            sock.send("Proxy-Authorization: Basic %s\r\n" % basic_auth)
+        sock.send("\r\n")
+        response = sock.recv(4096)
+        if response:
+            _, respcode, _ = response.split(" ", 2)
+            if respcode != "200":
+                raise socket.error("Error: %r" % response)
+            if 'established' not in response.lower():
+                raise socket.error("Unexpected response: %r" % response)
+        else:
+            raise socket.error("No response. Is server configured?")
+    return sock
 
 
 class ReaderQueue(Queue):
@@ -406,7 +434,8 @@ class SenderThread(threading.Thread):
        buffering we might need to do if we can't establish a connection
        and we need to spool to disk.  That isn't implemented yet."""
 
-    def __init__(self, reader, dryrun, hosts, self_report_stats, tags, reconnectinterval):
+    def __init__(self, reader, dryrun, hosts, self_report_stats, tags, reconnectinterval,
+                 connect_tunnel=False, use_ssl=False, authuser=None, authpass=""):
         """Constructor.
 
         Args:
@@ -437,6 +466,12 @@ class SenderThread(threading.Thread):
         self.time_reconnect = 0                 # if reconnectinterval > 0, used to track the time.
         self.sendq = []
         self.self_report_stats = self_report_stats
+
+        # CONNECT tunnel options for SSL and Basic Auth
+        self.use_ssl = use_ssl
+        self.connect_tunnel = connect_tunnel
+        self.authuser = authuser
+        self.authpass = authpass
 
     def pick_connection(self):
         """Picks up a random host/port connection."""
@@ -532,7 +567,7 @@ class SenderThread(threading.Thread):
                 pass    # not handling that
             self.time_reconnect = time.time()
             return False
-            
+
         # we use the version command as it is very low effort for the TSD
         # to respond
         LOG.debug('verifying our TSD connection is alive')
@@ -637,17 +672,15 @@ class SenderThread(threading.Thread):
                 raise
             for family, socktype, proto, canonname, sockaddr in addresses:
                 try:
-                    self.tsd = socket.socket(family, socktype, proto)
-                    self.tsd.settimeout(15)
-                    self.tsd.connect(sockaddr)
+                    self.tsd = connect_to_tsd(family, socktype, proto, sockaddr,
+                        timeout=15, connect_tunnel=self.connect_tunnel, use_ssl=self.use_ssl,
+                        authuser=self.authuser, authpass=self.authpass)
                     # if we get here it connected
                     LOG.debug('Connection to %s was successful'%(str(sockaddr)))
                     break
                 except socket.error, msg:
                     LOG.warning('Connection attempt failed to %s:%d: %s',
                                 self.host, self.port, msg)
-                self.tsd.close()
-                self.tsd = None
             if not self.tsd:
                 LOG.error('Failed to connect to %s:%d', self.host, self.port)
                 self.blacklist_connection()
@@ -789,6 +822,15 @@ def parse_cmdline(argv):
                            'the TSD hostname reconnects itself. This is useful'
                            'when the hostname is a multiple A record (RRDNS).'
                            )
+    parser.add_option('--connect-tunnel', dest='connect_tunnel', action='store_true',
+                      default=False, help='Talk to TSD via HTTP CONNECT tunnel')
+    parser.add_option('--use-ssl', dest='use_ssl', action='store_true',
+                      default=False, help='Use SSL in the CONNECT tunnel')
+    parser.add_option('--authuser', dest='authuser', default=None,
+                      help='Basic Auth username for HTTP Proxy')
+    parser.add_option('--authpass', dest='authpass', default="",
+                      help='Basic Auth password for HTTP Proxy')
+
     (options, args) = parser.parse_args(args=argv[1:])
     if options.dedupinterval < 0:
         parser.error('--dedup-interval must be at least 0 seconds')
@@ -909,7 +951,9 @@ def main(argv):
 
     # and setup the sender to start writing out to the tsd
     sender = SenderThread(reader, options.dryrun, options.hosts,
-                          not options.no_tcollector_stats, tags, options.reconnectinterval)
+                          not options.no_tcollector_stats, tags, options.reconnectinterval,
+                          connect_tunnel=options.connect_tunnel, use_ssl=options.use_ssl,
+                          authuser=options.authuser, authpass=options.authpass)
     sender.start()
     LOG.info('SenderThread startup complete')
 
