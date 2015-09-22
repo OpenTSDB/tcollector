@@ -73,6 +73,8 @@ class KafkaOffsetCollector(object):
         KafkaPaths.KAFKA_CHROOT = self.KAFKA_CHROOT
         zk_connect_string = ",".join(self.ZK_QUORUM)
         self.zk_client = KazooClient(hosts=zk_connect_string)
+        self.zk_client.start()
+        self.kafka_client = self.get_kafka_client()
 
     def emit(self, metric, value, timestamp, tags):
         print format_tsd_key(metric, value, timestamp, tags)
@@ -81,7 +83,7 @@ class KafkaOffsetCollector(object):
 
     def get_consumer_groups(self):
         """
-        Return a list of all consumer groups found in Zookeeper.
+        Return a list of all consumer groups found in Zookeeper that match the patterns we are looking for.
         """
         consumer_group_names = self.zk_client.get_children(KafkaPaths.consumer_group_names())
         return filter(lambda x: any(regex.match(x) for regex in self.CONSUMER_GROUP_PATTERNS), consumer_group_names)
@@ -137,12 +139,12 @@ class KafkaOffsetCollector(object):
         path = KafkaPaths.broker_partitions(topic)
         return map(int, self.zk_client.get_children(path))
 
-    def get_topic_partition_size(self, kafka_client, topic, partition):
+    def get_topic_partition_size(self, topic, partition):
         """
         This will get the size of a particular partition for a topic.
         """
         try:
-            offset_response = kafka_client.send_offset_request([OffsetRequest(topic, partition, -1, 1)])[0]
+            offset_response = self.kafka_client.send_offset_request([OffsetRequest(topic, partition, -1, 1)])[0]
             partition_size = offset_response.offsets[0]
             return partition_size
         except LeaderNotAvailableError as err:
@@ -159,7 +161,7 @@ class KafkaOffsetCollector(object):
         kafka_init = 'env=production kafka=%s zk=%s' % (','.join(kafka_brokers), self.ZK_QUORUM)
         return KafkaClient(kafka_init)
 
-    def report_topic_partition_sizes(self, kafka_client, timestamp):
+    def report_topic_partition_sizes(self, timestamp):
         # Get the list of all topics we might be monitoring.
         consumer_groups = self.get_consumer_groups()
         all_topics_consumed = itertools.chain.from_iterable(
@@ -169,55 +171,64 @@ class KafkaOffsetCollector(object):
         for topic in all_topics:
             partitions = self.get_topic_partitions(topic)
             for partition in partitions:
-                partition_size = self.get_topic_partition_size(kafka_client, topic, partition)
+                partition_size = self.get_topic_partition_size(topic, partition)
                 if partition_size:
                     self.emit(Metric.TOPIC_SIZE_METRIC, partition_size, timestamp,
                         tags={"topic": topic,
                               "partition": partition,
                               "clusterid": self.CLUSTER_NAME})
 
-    def report(self):
-        self.zk_client.start()
+    def report_consumer_group_offsets(self, consumer_group, time_):
+        topics = self.get_kafka_topics(consumer_group)
+        for topic in topics:
+            for partition in self.get_partitions(consumer_group, topic):
+                offset = self.get_consumer_group_offset(consumer_group, topic, partition)
+                partition_size = self.get_topic_partition_size(topic, partition)
+                if not partition_size:
+                    continue
+                lag = partition_size - offset
 
-        kafka_client = self.get_kafka_client()
+                self.emit(Metric.CONSUMER_OFFSET_METRIC, offset, time_,
+                          tags={"consumer_group": consumer_group,
+                                "topic": topic,
+                                "partition": partition,
+                                "clusterid": self.CLUSTER_NAME})
+
+                self.emit(Metric.LAG_METRIC, lag, time_,
+                          tags={"consumer_group": consumer_group,
+                                "topic": topic,
+                                "partition": partition,
+                                "clusterid": self.CLUSTER_NAME})
+
+    def report(self):
         consumer_groups = self.get_consumer_groups()
 
         while True:
             time_ = int(time.time())
 
-            num_brokers = self.get_broker_count()
-            self.emit(Metric.BROKER_COUNT_METRIC, num_brokers, time_,
-                      tags={"clusterid": self.CLUSTER_NAME})
+            try:
+                num_brokers = self.get_broker_count()
+                self.emit(Metric.BROKER_COUNT_METRIC, num_brokers, time_,
+                          tags={"clusterid": self.CLUSTER_NAME})
+            except Exception:
+                logging.exception("Failed to retrieve total broker count for cluster %s" % self.CLUSTER_NAME)
 
-            self.report_topic_partition_sizes(kafka_client, time_)
+            try:
+                self.report_topic_partition_sizes(time_)
+            except Exception:
+                logging.exception("Failed to retrieve partition sizes on topics for cluster %s" % self.CLUSTER_NAME)
 
             # For the set of consumer groups we're monitoring,
             # calculate topic size and lag for all the topics/partitions
             for consumer_group in consumer_groups:
-                topics = self.get_kafka_topics(consumer_group)
-                for topic in topics:
-                    for partition in self.get_partitions(consumer_group, topic):
-                        offset = self.get_consumer_group_offset(consumer_group, topic, partition)
-                        partition_size = self.get_topic_partition_size(kafka_client, topic, partition)
-                        if not partition_size:
-                            continue
-                        lag = partition_size - offset
-
-                        self.emit(Metric.CONSUMER_OFFSET_METRIC, offset, time_,
-                                  tags={"consumer_group": consumer_group,
-                                        "topic": topic,
-                                        "partition": partition,
-                                        "clusterid": self.CLUSTER_NAME})
-
-                        self.emit(Metric.LAG_METRIC, lag, time_,
-                                  tags={"consumer_group": consumer_group,
-                                        "topic": topic,
-                                        "partition": partition,
-                                        "clusterid": self.CLUSTER_NAME})
+                try:
+                    self.report_consumer_group_offsets(consumer_group, time_)
+                except Exception:
+                    logging.exception("Failed to get consumer lag for group %s on cluster %s" % (consumer_group, self.CLUSTER_NAME))
 
             if self.SLEEP_TIME:
                 time.sleep(self.SLEEP_TIME)
 
         self.zk_client.stop()
-        kafka_client.close()
+        self.kafka_client.close()
         self.zk_client.close()
