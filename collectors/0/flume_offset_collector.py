@@ -6,7 +6,7 @@ from collectors.lib.kafka_offset_collector import KafkaOffsetCollector
 class FlumeOffsetCollector(KafkaOffsetCollector):
     KAFKA_CHROOT = ""
     ZK_QUORUM = ["zookeeperKafkaProd-1", "zookeeperKafkaProd-2", "zookeeperKafkaProd-3", "zookeeperKafkaProd-4", "zookeeperKafkaProd-5"]
-    CONSUMER_GROUPS = {"flumeS3", "flumeHDFS", "flumeP13N", "flumeLokiAchievement", "flumeLokiFlatSegmentValue", "flumeStagingAchievement", "flumeStagingFlatSegmentValue"}
+    CONSUMER_GROUP_PATTERNS = {"flume.*"}
     CLUSTER_NAME = "KafkaProd"
 
     def __init__(self):

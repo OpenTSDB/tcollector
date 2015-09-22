@@ -1,14 +1,15 @@
 #!/usr/bin/env python
 
 import itertools
-import time
 import json
 import logging
+import re
+import time
 
-from kazoo.client import KazooClient
-from kazoo.exceptions import NoNodeError
 from kafka import KafkaClient
 from kafka.common import OffsetRequest, LeaderNotAvailableError
+from kazoo.client import KazooClient
+from kazoo.exceptions import NoNodeError
 
 from collectors.lib.optimizely_utils import format_tsd_key
 
@@ -49,26 +50,41 @@ class KafkaPaths(object):
     def topics(cls, consumer_group):
         return '%s/consumers/%s/offsets' % (cls.KAFKA_CHROOT, consumer_group)
 
+    @classmethod
+    def consumer_group_names(cls):
+        return '%s/consumers' % cls.KAFKA_CHROOT
 
 class KafkaOffsetCollector(object):
     KAFKA_CHROOT = None
     ZK_QUORUM = None
-    CONSUMER_GROUPS = None
+    CONSUMER_GROUP_PATTERNS = None
     SLEEP_TIME = None
+    CLUSTER_NAME = None
 
     def __init__(self):
         if self.KAFKA_CHROOT is None:
             raise RuntimeError("Kafka chroot not provided!")
         if self.ZK_QUORUM is None:
             raise RuntimeError("Zookeeper quorum not provided!")
-        if self.CONSUMER_GROUPS is None:
+        if self.CONSUMER_GROUP_PATTERNS is None:
             raise RuntimeError("Consumer groups not provided!")
+        # Compile all the regular expressions to make sure they're valid. If they aren't just throw an error.
+        self.CONSUMER_GROUP_PATTERNS = [re.compile(pattern) for pattern in self.CONSUMER_GROUP_PATTERNS]
         KafkaPaths.KAFKA_CHROOT = self.KAFKA_CHROOT
         zk_connect_string = ",".join(self.ZK_QUORUM)
         self.zk_client = KazooClient(hosts=zk_connect_string)
 
     def emit(self, metric, value, timestamp, tags):
         print format_tsd_key(metric, value, timestamp, tags)
+
+    # KAFKA OFFSET MONITORING
+
+    def get_consumer_groups(self):
+        """
+        Return a list of all consumer groups found in Zookeeper.
+        """
+        consumer_group_names = self.zk_client.get_children(KafkaPaths.consumer_group_names())
+        return filter(lambda x: any(regex.match(x) for regex in self.CONSUMER_GROUP_PATTERNS), consumer_group_names)
 
     def get_partitions(self, group, topic):
         """
@@ -79,8 +95,6 @@ class KafkaOffsetCollector(object):
         except NoNodeError as err:
             logging.exception(err)
             return []
-
-    # KAFKA OFFSET MONITORING
 
     def get_kafka_topics(self, consumer_group):
         """
@@ -147,7 +161,10 @@ class KafkaOffsetCollector(object):
 
     def report_topic_partition_sizes(self, kafka_client, timestamp):
         # Get the list of all topics we might be monitoring.
-        all_topics_consumed = itertools.chain.from_iterable(self.get_kafka_topics(consumer_group) for consumer_group in self.CONSUMER_GROUPS)
+        consumer_groups = self.get_consumer_groups()
+        all_topics_consumed = itertools.chain.from_iterable(
+            self.get_kafka_topics(consumer_group) for consumer_group in consumer_groups
+        )
         all_topics = set(all_topics_consumed)
         for topic in all_topics:
             partitions = self.get_topic_partitions(topic)
@@ -163,6 +180,7 @@ class KafkaOffsetCollector(object):
         self.zk_client.start()
 
         kafka_client = self.get_kafka_client()
+        consumer_groups = self.get_consumer_groups()
 
         while True:
             time_ = int(time.time())
@@ -173,8 +191,9 @@ class KafkaOffsetCollector(object):
 
             self.report_topic_partition_sizes(kafka_client, time_)
 
-            # For the set of consumer groups we're monitoring, calculate topic size and lag for all the topics/partitions
-            for consumer_group in self.CONSUMER_GROUPS:
+            # For the set of consumer groups we're monitoring,
+            # calculate topic size and lag for all the topics/partitions
+            for consumer_group in consumer_groups:
                 topics = self.get_kafka_topics(consumer_group)
                 for topic in topics:
                     for partition in self.get_partitions(consumer_group, topic):
