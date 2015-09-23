@@ -1,13 +1,14 @@
 #!/usr/bin/env python
 
-from collectors.lib.kafka_offset_collector import KafkaOffsetCollector
+import os
 
+from collectors.lib.kafka_offset_collector import KafkaOffsetCollector
 
 class FlumeOffsetCollector(KafkaOffsetCollector):
     KAFKA_CHROOT = ""
-    ZK_QUORUM = ["zookeeperKafkaProd-1", "zookeeperKafkaProd-2", "zookeeperKafkaProd-3", "zookeeperKafkaProd-4", "zookeeperKafkaProd-5"]
+    ZK_QUORUM = os.getenv("KAFKA_ZOOKEEPER_QUORUM")
     CONSUMER_GROUP_PATTERNS = {"flume.*"}
-    CLUSTER_NAME = "KafkaProd"
+    CLUSTER_NAME = os.getenv("KAFKA_CLUSTER_NAME")
 
     def __init__(self):
         super(FlumeOffsetCollector, self).__init__()

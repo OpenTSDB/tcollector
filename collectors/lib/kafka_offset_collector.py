@@ -54,6 +54,7 @@ class KafkaPaths(object):
     def consumer_group_names(cls):
         return '%s/consumers' % cls.KAFKA_CHROOT
 
+
 class KafkaOffsetCollector(object):
     KAFKA_CHROOT = None
     ZK_QUORUM = None
@@ -71,8 +72,7 @@ class KafkaOffsetCollector(object):
         # Compile all the regular expressions to make sure they're valid. If they aren't just throw an error.
         self.CONSUMER_GROUP_PATTERNS = [re.compile(pattern) for pattern in self.CONSUMER_GROUP_PATTERNS]
         KafkaPaths.KAFKA_CHROOT = self.KAFKA_CHROOT
-        zk_connect_string = ",".join(self.ZK_QUORUM)
-        self.zk_client = KazooClient(hosts=zk_connect_string)
+        self.zk_client = KazooClient(hosts=self.ZK_QUORUM)
         self.zk_client.start()
         self.kafka_client = self.get_kafka_client()
 
