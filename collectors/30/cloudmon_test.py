@@ -8,7 +8,8 @@ from collectors.lib import utils
 
 def main():
     utils.drop_privileges()
-    url = "http://localhost:9999/stats.txt"
+    #collect period 60 secs
+    url = "http://localhost:9999/stats.txt?period=60"
     response = urllib2.urlopen(url)
     content = response.read()
     ts = time.time()
