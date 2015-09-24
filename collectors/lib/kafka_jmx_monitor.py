@@ -48,7 +48,7 @@ class KafkaJmxMonitor(JmxMonitor):
             return
 
         full_metric_name = mbean_properties["name"].lstrip("-")
-        # ex: "host_kafkaprod-1b-east-f3cd4a21-purringtiger.us-east-1.optimizely-port_9092-ProducerRequestRateAndTimeMs"
+        # ex: "host_kafkafoo-{AZ}-{hostname}-port_9092-ProducerRequestRateAndTimeMs"
         if full_metric_name.startswith("host"):
             metric_type, tags = self._process_host_producer_metric(full_metric_name, tags)
         # ex: "raw_event-BytesPerSec" or "AllBrokersProducerRequestRateAndTimeMs"
