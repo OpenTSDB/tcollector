@@ -7,32 +7,35 @@ from collectors.lib import utils
 
 
 def main():
-    utils.drop_privileges()
-    #collect period 60 secs
-    url = "http://localhost:9999/stats.txt?period=60"
-    response = urllib2.urlopen(url)
-    content = response.read()
-    ts = time.time()
-    for s in [tk.strip() for tk in content.splitlines()]:
-        if s == 'counters:':
-            stype = 'counters'
-        elif s == 'metrics:':
-            stype = 'metrics'
-        elif s == 'gauges:':
-            stype = 'gauges'
-        elif s == 'labels:':
-            stype = 'labels'
-        else:
-            comps = [ss.strip() for ss in s.split(':')]
-            metric_name = comps[0]
-            if stype == 'counters':
-                val = int(comps[1])
-            elif stype == 'metrics':
-                vals = [sss.strip() for sss in re.split(',|=', comps[1])]
-                val = int(vals[1])
+    try:
+        utils.drop_privileges()
+        #collect period 60 secs
+        url = "http://localhost:9999/stats.txt?period=60"
+        response = urllib2.urlopen(url)
+        content = response.read()
+        ts = time.time()
+        for s in [tk.strip() for tk in content.splitlines()]:
+            if s == 'counters:':
+                stype = 'counters'
+            elif s == 'metrics:':
+                stype = 'metrics'
+            elif s == 'gauges:':
+                stype = 'gauges'
+            elif s == 'labels:':
+                stype = 'labels'
             else:
-                raise
-            print("%s %d %d" % (metric_name, ts, val))
+                comps = [ss.strip() for ss in s.split(':')]
+                metric_name = comps[0]
+                if stype == 'counters':
+                    val = int(comps[1])
+                elif stype == 'metrics':
+                    vals = [sss.strip() for sss in re.split(',|=', comps[1])]
+                    val = int(vals[1])
+                else:
+                    raise
+                print("%s %d %d" % (metric_name, ts, val))
+    except Exception:
+        pass
 
 if __name__ == "__main__":
     main()
