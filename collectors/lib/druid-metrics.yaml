@@ -1,7 +1,7 @@
 # common tags across all metrics
 tags:
   - service
-  - host
+  - host|druidhost
 
 metrics:
   # base metrics
