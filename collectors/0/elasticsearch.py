@@ -187,6 +187,27 @@ def main(argv):
           printmetric("cache.filter.evictions", d["filter_evictions"])
           printmetric("cache.filter.size", d["filter_size_in_bytes"])
           del d
+       if "filter_cache" in indices:
+          d = indices["filter_cache"]
+          printmetric("cache.filter.evictions", d["evictions"])
+          printmetric("cache.filter.size", d["memory_size_in_bytes"])
+          del d
+       if "fielddata" in indices:
+          d = indices["fielddata"]
+          printmetric("cache.field.evictions", d["evictions"])
+          printmetric("cache.field.size", d["memory_size_in_bytes"])
+          del d
+       if "id_cache" in indices:
+          d = indices["id_cache"]
+          printmetric("cache.id.size", d["memory_size_in_bytes"])
+          del d
+       if "query_cache" in indices:
+          d = indices["query_cache"]
+          printmetric("cache.query.evictions", d["evictions"])
+          printmetric("cache.query.hit_count", d["hit_count"])
+          printmetric("cache.query.miss_count", d["miss_count"])
+          printmetric("cache.query.size", d["memory_size_in_bytes"])
+          del d
        if "merges" in indices:
           d = indices["merges"]
           printmetric("merges.current", d["current"])
@@ -194,6 +215,30 @@ def main(argv):
           printmetric("merges.total_time", d["total_time_in_millis"] / 1000.)
           del d
        del indices
+    if "breakers" in nstats:
+      breakers = nstats["breakers"]
+      if "fielddata" in breakers:
+        d = breakers["fielddata"]
+        printmetric("breakers.fielddata.limit_size", d["limit_size_in_bytes"])
+        printmetric("breakers.fielddata.estimated_size", d["estimated_size_in_bytes"])
+        printmetric("breakers.fielddata.overhead", d["overhead"])
+        printmetric("breakers.fielddata.tripped", d["tripped"])
+        del d
+      if "request" in breakers:
+        d = breakers["request"]
+        printmetric("breakers.request.limit_size", d["limit_size_in_bytes"])
+        printmetric("breakers.request.estimated_size", d["estimated_size_in_bytes"])
+        printmetric("breakers.request.overhead", d["overhead"])
+        printmetric("breakers.request.tripped", d["tripped"])
+        del d
+      if "parent" in breakers:
+        d = breakers["parent"]
+        printmetric("breakers.parent.limit_size", d["limit_size_in_bytes"])
+        printmetric("breakers.parent.estimated_size", d["estimated_size_in_bytes"])
+        printmetric("breakers.parent.overhead", d["overhead"])
+        printmetric("breakers.parent.tripped", d["tripped"])
+        del d
+      del breakers
     if "process" in nstats:
        process = nstats["process"]
        ts = process["timestamp"] / 1000  # ms -> s
