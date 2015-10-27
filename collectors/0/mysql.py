@@ -149,11 +149,11 @@ def find_sockfiles():
   paths = []
   # Look for socket files.
   for dir in SEARCH_DIRS:
-    if not os.path.isdir(dir):
+    if not os.path.isdir(dir) or not os.access(dir, os.R_OK):
       continue
     for name in os.listdir(dir):
       subdir = os.path.join(dir, name)
-      if not os.path.isdir(subdir):
+      if not os.path.isdir(subdir) or not os.access(subdir, os.R_OK):
         continue
       for subname in os.listdir(subdir):
         path = os.path.join(subdir, subname)
