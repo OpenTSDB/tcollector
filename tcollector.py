@@ -404,7 +404,7 @@ class SenderThread(threading.Thread):
        buffering we might need to do if we can't establish a connection
        and we need to spool to disk.  That isn't implemented yet."""
 
-    def __init__(self, reader, dryrun, hosts, self_report_stats, tags):
+    def __init__(self, reader, dryrun, hosts, self_report_stats, tags, signalfx_api_key=None):
         """Constructor.
 
         Args:
@@ -433,6 +433,11 @@ class SenderThread(threading.Thread):
         self.last_verify = 0
         self.sendq = []
         self.self_report_stats = self_report_stats
+        if signalfx_api_key:
+            LOG.info('Configuring to send to SignalFX in parallel')
+            self.sfx = signalfx.SignalFx(signalfx_api_key)
+        else:
+            self.sfx = None
 
     def pick_connection(self):
         """Picks up a random host/port connection."""
@@ -668,6 +673,9 @@ class SenderThread(threading.Thread):
                 print out
             else:
                 self.tsd.sendall(out)
+                # If SignalFX Api Key is given, attempt to send to SignalFX
+                if self.sfx:
+                    self.send_data_to_signalfx()
             self.sendq = []
         except socket.error, msg:
             LOG.error('failed to send data: %s', msg)
@@ -680,6 +688,33 @@ class SenderThread(threading.Thread):
 
         # FIXME: we should be reading the result at some point to drain
         # the packets out of the kernel's queue
+
+
+    def send_data_to_signalfx(self):
+        try:
+            gauges = []
+            for line in self.sendq:
+                split_line = self.add_tags_to_line(line).split()
+                metric, timestamp, value = split_line[:3]
+                tags = dict(tag.split('=') for tag in split_line[4:])
+                gauges.append({
+                    'metric': metric,
+                    'value': self.num(value),
+                    'timestamp': int(timestamp)*1000, # Convert from seconds to milliseconds
+                    'dimensions': tags})
+            self.sfx.send(gauges=gauges)
+        except:
+            LOG.error('Failed to send data to signalfx: %s' % sys.exc_info()[0])
+
+    def num(self, s):
+        try:
+            return int(s)
+        except ValueError:
+            try:
+                return float(s)
+            except:
+                LOG.error('Failed to convert "%s" to a number' % s)
+                raise
 
 
 def setup_logging(logfile=DEFAULT_LOG, max_bytes=None, backup_count=None, stdout=False):
@@ -765,6 +800,9 @@ def parse_cmdline(argv):
     parser.add_option('--stdout', dest='stdout', action='store_true',
                       default=False,
                       help='Print logs to stdout.')
+    parser.add_option('--signalfx-api-key', dest='signalfx_api_key', default=None,
+                      metavar='KEY',
+                      help='SignalFX Api Key to send to SignalFX REST API in parallel')
     (options, args) = parser.parse_args(args=argv[1:])
     if options.dedupinterval < 0:
         parser.error('--dedup-interval must be at least 0 seconds')
@@ -888,9 +926,19 @@ def main(argv):
         if options.host != "localhost" or options.port != DEFAULT_PORT:
             options.hosts.append((options.host, options.port))
 
+    # If a SignalFX key is passed in, attempt to load signalfx
+    signalfx_api_key = None
+    if options.signalfx_api_key:
+        try:
+            global signalfx
+            import signalfx
+            signalfx_api_key = options.signalfx_api_key
+        except ImportError:
+            LOG.warning('A SignalFX API Key was given, but no signalfx python library installation was detected')
+
     # and setup the sender to start writing out to the tsd
     sender = SenderThread(reader, options.dryrun, options.hosts,
-                          not options.no_tcollector_stats, tags)
+                          not options.no_tcollector_stats, tags, signalfx_api_key=signalfx_api_key)
     sender.start()
     LOG.info('SenderThread startup complete')
 
