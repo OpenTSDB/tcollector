@@ -27,8 +27,8 @@ REGION_LIST = os.environ.get('CLOUDWATCH_REGION_LIST', 'us-east-1').split(',')
 
 ELB_METRICS = {
         "RequestCount": "Sum",
-        "HealthyHostCount": "Minimum",
-        "UnHealthyHostCount": "Maximum",
+        "HealthyHostCount": "Average",
+        "UnHealthyHostCount": "Average",
         "HTTPCode_ELB_5XX": "Sum",
         "HTTPCode_ELB_4XX": "Sum",
         "HTTPCode_Backend_2XX": "Sum",
