@@ -3,7 +3,7 @@
 # this must go first; helps with python 3.x compatibility
 from __future__ import print_function
 
-# this must go second 
+# this must go second
 from gevent import monkey; monkey.patch_all()
 
 import datetime
@@ -27,58 +27,15 @@ REGION_LIST = os.environ.get('CLOUDWATCH_REGION_LIST', 'us-east-1').split(',')
 
 ELB_METRICS = {
         "RequestCount": "Sum",
-        "HealthyHostCount": "Average",
-        "UnHealthyHostCount": "Average",
         "HTTPCode_ELB_5XX": "Sum",
         "HTTPCode_ELB_4XX": "Sum",
         "HTTPCode_Backend_2XX": "Sum",
         "HTTPCode_Backend_3XX": "Sum",
         "HTTPCode_Backend_4XX": "Sum",
-        "HTTPCode_Backend_5XX": "Sum",
-        "Latency": "Average",
+        "HTTPCode_Backend_5XX": "Sum"
     }
 
 AZS = ['us-east-1b', 'us-east-1c', 'us-east-1d', 'us-east-1e']
-
-
-EC2_METRICS = [
-    {
-        'name': "CPUUtilization",
-        'unit': "Percent",
-        'stat': "Average"
-    },
-    {
-        'name': "DiskReadBytes",
-        'unit': "Bytes",
-        'stat': "Average"
-    },
-    {
-        'name': "DiskReadOps",
-        'unit': "Count",
-        'stat': "Average"
-    },
-    {
-        'name': "DiskWriteBytes",
-        'unit': "Bytes",
-        'stat': "Average"
-    },
-    {
-        'name': "DiskWriteOps",
-        'unit': "Count",
-        'stat': "Average"
-    },
-    {
-        'name': "NetworkIn",
-        'unit': "Bytes",
-        'stat': "Average"
-    },
-    {
-        'name': "NetworkOut",
-        'unit': "Bytes",
-        'stat': "Average"
-    }
-]
-
 
 def emit(name, value, tags=None, ts=None):
     # format is
@@ -97,39 +54,6 @@ def emit(name, value, tags=None, ts=None):
             sys.stdout.write(" %s=%s" % (key, value))
 
     sys.stdout.write("\n")
-
-
-def emit_metric_for_instance(cw, metric, instance, region_name):
-    # 1 minute periods come at an extra charge
-    # 5 minute period available for free
-    results = cw.get_metric_statistics(
-        300, # period = 5 min
-        datetime.datetime.now() - datetime.timedelta(seconds=600), # 10 mins ago
-        datetime.datetime.now() - datetime.timedelta(seconds=300), # 5 mins ago
-        metric['name'],
-        'AWS/EC2',
-        metric['stat'],
-        dimensions={'InstanceId': instance.id},
-        unit=metric['unit'])
-
-    for result in results:
-        name = 'aws.ec2.instance.%s' % (metric['name'])
-        value = result[metric['stat']]
-        if 'ClusterId' in instance.tags:
-            cluster_id = instance.tags['ClusterId']
-        else:
-            cluster_id = 'default'
-        tags = {'instance-id': instance.id,
-                'placement': instance.placement,
-                'instance-type': instance.instance_type,
-                'region': region_name,
-                'role': instance.tags['role'],
-                'name': instance.tags['Name'],
-                'clusterid': cluster_id}
-        if 'Name' in instance.tags:
-            tags['host'] = instance.tags['Name']
-        emit(name, value, tags=tags, ts=result['Timestamp'])
-
 
 def emit_metric_for_loadbalancer(cw, metric, lb_name, region_name, az):
     # 1 minute periods come at an extra charge
@@ -166,21 +90,6 @@ def emit_metric_for_billing(cw, item_name):
     print(results, file=sys.stderr)
 
 
-def emit_ec2_metrics(pool, cw, region_name):
-    try:
-        ec2 = boto.ec2.connect_to_region(region_name=region_name)
-        my_instance_id = boto.utils.get_instance_metadata()["instance-id"]
-        filter_list = {}
-        filter_list['vpc-id'] = ec2.get_only_instances([my_instance_id])[0].vpc_id # add vpc filter
-        chain = itertools.chain.from_iterable
-        all_instances = chain([res.instances for res in ec2.get_all_instances(filters=filter_list)])
-        for instance in all_instances:
-            for metric in EC2_METRICS:
-                pool.spawn(emit_metric_for_instance, cw, metric, instance, region_name)
-    except Exception as e:
-        print(e, file=sys.stderr)
-
-
 def emit_elb_metrics(pool, cw, region_name):
     try:
         elb = boto.ec2.elb.connect_to_region(region_name=region_name)
@@ -199,18 +108,14 @@ def emit_billing_metrics(pool, cw):
     for item_name in item_list:
         pool.spawn(emit_metric_for_billing, cw, item_name)
 
-
 def main():
-
     pool = Pool(10)
     for region_name in REGION_LIST:
         cw = boto.ec2.cloudwatch.connect_to_region(region_name=region_name)
         # emit_billing_metrics(pool, cw)
-        emit_ec2_metrics(pool, cw, region_name)
         emit_elb_metrics(pool, cw, region_name)
 
     pool.join()
 
 if __name__ == '__main__':
     main()
-
