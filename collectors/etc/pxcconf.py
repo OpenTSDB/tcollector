@@ -4,6 +4,11 @@ def getUserPassword():
 	return ("DBUser", "DBPassword", "DBHost")
 
 def getKeyMap():
+	"""
+	You can use everything that is displayed
+	when you call "SHOW STATUS LIKE '%wsrep%'"
+	on your DB-host
+	"""
 	myMap = (
         	"wsrep_last_committed",
 	        "wsrep_replicated",
@@ -16,6 +21,10 @@ def getKeyMap():
 	return myMap
 
 def getGaleraFile():
+	"""
+	Used for ensuring that Percona XtraDB Cluster is installed
+	and not a common MySQL-Server
+	"""
 	return "/usr/lib/libgalera_smm.so"
 
 def getInterval():

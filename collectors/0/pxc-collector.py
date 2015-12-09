@@ -21,6 +21,7 @@ __license__    = "GPL"
 __version__    = "1.0.0"
 __email__      = "mail@kai-laufer.de"
 
+""" You can find these functions in etc/pxcconf.py """
 prefix      = pxcconf.getPrefix()
 interval    = pxcconf.getInterval()
 galeraFile  = pxcconf.getGaleraFile()
@@ -39,7 +40,7 @@ def getRow():
 	return result
 
 class TSDResult(object):
-	"""Return result as an object"""
+	""" Create TSD output """
 	def __init__(self, key, value, prefix, timestamp):
         	self.key       = key
 	        self.value     = value
