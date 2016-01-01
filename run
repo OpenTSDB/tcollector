@@ -1,0 +1,3 @@
+#!/bin/bash
+
+./tcollector.py --logfile /tmp/log/tcollector.log -P /tmp/run/tcollector.pid
