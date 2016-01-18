@@ -134,7 +134,7 @@ def is_3ware_driver_broken(drives):
   for i in reversed(xrange(len(drives))):
     drive = drives[i]
     signal.alarm(COMMAND_TIMEOUT)
-    smart_ctl = subprocess.Popen(SMART_CTL + " -i /dev/" + drive,
+    smart_ctl = subprocess.Popen(SMART_CTL + " -i " + drive.split("#")[0],
                                  shell=True, stdout=subprocess.PIPE)
     smart_output = smart_ctl.communicate()[0]
     if "supports SMART and is Disabled" in smart_output:
@@ -191,7 +191,11 @@ def main():
   """main loop for SMART collector"""
 
   # Get the list of block devices.
-  drives = [dev[5:] for dev in glob.glob("/dev/[hs]d[a-z]")]
+  scan_open = subprocess.Popen(SMART_CTL + " --scan-open",
+                               shell=True, stdout=subprocess.PIPE)
+  drives = scan_open.communicate()[0]
+  drives = drives.split('\n')
+  drives = [drive for drive in drives if drive]
   # Exit gracefully if no block devices found
   if not drives:
     sys.exit(13)
@@ -199,14 +203,13 @@ def main():
 
   # to make sure we are done with smartctl in COMMAND_TIMEOUT seconds
   signal.signal(signal.SIGALRM, alarm_handler)
-
   if smart_is_broken(drives):
     sys.exit(13)
 
   while True:
     for drive in drives:
       signal.alarm(COMMAND_TIMEOUT)
-      smart_ctl = subprocess.Popen(SMART_CTL + " -i -A /dev/" + drive,
+      smart_ctl = subprocess.Popen(SMART_CTL + " -i -A " + drive.split('#')[0],
                                    shell=True, stdout=subprocess.PIPE)
       smart_output = smart_ctl.communicate()[0]
       signal.alarm(0)
@@ -215,7 +218,11 @@ def main():
           sys.exit(13)
         else:
           print >>sys.stderr, "Command exited with: %d" % smart_ctl.returncode
-      process_output(drive, smart_output)
+      drive_s = drive.split()
+      if "megaraid" in drive_s[2]:
+        process_output(drive_s[5][1:len(drive_s[5])-1], smart_output)
+      else:
+        process_output(drive_s[0][5:], smart_output)
 
     sys.stdout.flush()
     time.sleep(SLEEP_BETWEEN_POLLS)
