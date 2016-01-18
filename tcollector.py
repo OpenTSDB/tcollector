@@ -337,6 +337,11 @@ class ReaderThread(threading.Thread):
         metric, timestamp, value, tags = parsed.groups()
         timestamp = int(timestamp)
 
+        # If there are more than 11 digits we're dealing with a timestamp
+        # with millisecond precision
+        if len(str(timestamp)) > 11:
+            MAX_REASONABLE_TIMESTAMP = MAX_REASONABLE_TIMESTAMP * 1000
+
         # De-dupe detection...  To reduce the number of points we send to the
         # TSD, we suppress sending values of metrics that don't change to
         # only once every 10 minutes (which is also when TSD changes rows
@@ -532,7 +537,7 @@ class SenderThread(threading.Thread):
                 pass    # not handling that
             self.time_reconnect = time.time()
             return False
-            
+
         # we use the version command as it is very low effort for the TSD
         # to respond
         LOG.debug('verifying our TSD connection is alive')
