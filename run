@@ -1,3 +1,12 @@
 #!/bin/bash
 
+if [[ ! -d "/tmp/log" ]]; then
+    mkdir /tmp/log
+fi
+
+if [[ ! -d "/tmp/run" ]]; then
+    mkdir /tmp/run
+fi
+
 ./tcollector.py --logfile /tmp/log/tcollector.log -P /tmp/run/tcollector.pid --dedup-interval 0
+
