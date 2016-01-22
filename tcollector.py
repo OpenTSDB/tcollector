@@ -340,6 +340,7 @@ class ReaderThread(threading.Thread):
         # If there are more than 11 digits we're dealing with a timestamp
         # with millisecond precision
         if len(str(timestamp)) > 11:
+            global MAX_REASONABLE_TIMESTAMP
             MAX_REASONABLE_TIMESTAMP = MAX_REASONABLE_TIMESTAMP * 1000
 
         # De-dupe detection...  To reduce the number of points we send to the
