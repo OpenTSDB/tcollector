@@ -13,7 +13,7 @@
 
 import sys
 import traceback
-
+import socket
 # for debugging
 real_stderr = sys.stderr
 
@@ -28,12 +28,15 @@ class Socket():
         self.state = { 'udp_in': [] }
         self._socketSingleton = self.SocketSingleton(self.state)
 
-    def socket(self, ignored1, ignored2):
+    def socket(self, *ignoredArgs):
         return self._socketSingleton
 
     class SocketSingleton():
         def __init__(self, state):
             self.state = state
+            self.connect_called = False
+            self.send_buff = ''
+            self._sock = self
 
         def bind(self, host_and_port):
             return None
@@ -47,6 +50,18 @@ class Socket():
                 return (line, None)
             else:
                 raise SocketDone('stop reading from socket')
+
+        def connect(self, sockaddr):
+            self.connect_called = True
+
+        def send(self, data):
+            self.send_buff += data
+
+        def recv(self, size):
+            return "HTTP 200 Connection Established"
+
+        def getsockopt(self, *args):
+            return socket.SOCK_STREAM
 
 class Sys():
     def __init__(self):
