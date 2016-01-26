@@ -8,5 +8,5 @@ if [[ ! -d "/tmp/run" ]]; then
     mkdir /tmp/run
 fi
 
-./tcollector.py --logfile /tmp/log/tcollector.log -P /tmp/run/tcollector.pid --dedup-interval 0
+./tcollector.py --logfile /tmp/log/tcollector.log -P /tmp/run/tcollector.pid --dedup-interval 0 "$@"
 
