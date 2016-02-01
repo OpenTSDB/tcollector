@@ -4,6 +4,7 @@
 # Keep it sh compatible, test with bash, dash, ksh, and zsh.
 
 # TSD_HOST=dns.name.of.tsd
+# TSD_HOSTS=dns.name.of.tsd:portoftsd,other.name.of.tsd:portofothertsd
 SCRIPT_DIR="$(cd $(dirname $0) && pwd)"
 TCOLLECTOR_PATH=${TCOLLECTOR_PATH-"${SCRIPT_DIR}"}
 LOG=${LOG-'/var/log/tcollector.log'}
@@ -11,9 +12,11 @@ HOSTNAME=$(hostname)
 PIDFILE=${PIDFILE-'/var/run/tcollector.pid'}
 TSD_PORT=${TSD_PORT-4242}
 
-test -n "$TSD_HOST" || {
-    echo >&2 "TSD_HOST is not set in $0"
-    exit 1
+test -n "$TSD_HOSTS" || {
+    test -n "$TSD_HOST" && TSD_HOSTS=${TSD_HOST}:${TSD_PORT} || {
+      echo >&2 "TSD_HOST and TSD_HOSTS is not set in $0, at least one is required."
+      exit 1
+    }
 }
 
 PROG=$TCOLLECTOR_PATH/tcollector.py
@@ -23,7 +26,7 @@ COMMAND=$1
 test "$#" -gt 0 && {
     shift
 }
-ARGS="-c $TCOLLECTOR_PATH/collectors -H $TSD_HOST -p $TSD_PORT -t host=$HOSTNAME -P $PIDFILE --logfile $LOG"
+ARGS="-c $TCOLLECTOR_PATH/collectors -L $TSD_HOSTS -t host=$HOSTNAME -P $PIDFILE --logfile $LOG"
 ARGS="$ARGS $@"
 
 # Sanity checks.
