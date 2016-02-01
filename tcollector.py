@@ -35,6 +35,7 @@ import threading
 import time
 import json
 import urllib2
+import base64
 from logging.handlers import RotatingFileHandler
 from Queue import Queue
 from Queue import Empty
@@ -414,7 +415,7 @@ class SenderThread(threading.Thread):
        buffering we might need to do if we can't establish a connection
        and we need to spool to disk.  That isn't implemented yet."""
 
-    def __init__(self, reader, dryrun, hosts, self_report_stats, http, ssl, tags, reconnectinterval, maxtags):
+    def __init__(self, reader, dryrun, hosts, self_report_stats, http, http_username, http_password, ssl, tags, reconnectinterval, maxtags):
         """Constructor.
 
         Args:
@@ -435,6 +436,8 @@ class SenderThread(threading.Thread):
         self.reader = reader
         self.tags = sorted(tags.items()) # dictionary transformed to list
         self.http = http
+        self.http_username = http_username
+        self.http_password = http_password
         self.ssl = ssl
         self.hosts = hosts  # A list of (host, port) pairs.
         # Randomize hosts to help even out the load.
@@ -727,6 +730,9 @@ class SenderThread(threading.Thread):
                     protocol = 'http'
                 req = urllib2.Request('%s://%s:%s/api/put?details' % (
                     protocol, self.host, self.port))
+                if self.http_username and self.http_password:
+                  base64string = base64.encodestring('%s:%s' % (self.http_username, self.http_password)).replace('\n', '')
+                  req.add_header("Authorization", "Basic %s" % base64string)
                 req.add_header('Content-Type', 'application/json')
                 try:
                     response = urllib2.urlopen(req, json.dumps(metrics))
@@ -878,6 +884,10 @@ def parse_cmdline(argv):
                       help='The maximum number of tags to send to our TSD Instances')
     parser.add_option('--http', dest='http', action='store_true', default=False,
                       help='Send the data via the http interface')
+    parser.add_option('--http-username', dest='http_username', default=False,
+                      help='Username to use for HTTP Basic Auth when sending the data via HTTP')
+    parser.add_option('--http-password', dest='http_password', default=False,
+                      help='Password to use for HTTP Basic Auth when sending the data via HTTP')
     parser.add_option('--ssl', dest='ssl', action='store_true', default=False,
                       help='Enable SSL - used in conjunction with http')
     (options, args) = parser.parse_args(args=argv[1:])
@@ -1001,6 +1011,7 @@ def main(argv):
     # and setup the sender to start writing out to the tsd
     sender = SenderThread(reader, options.dryrun, options.hosts,
                           not options.no_tcollector_stats, options.http,
+                          options.http_username, options.http_password,
                           options.ssl, tags, options.reconnectinterval, options.maxtags)
     sender.start()
     LOG.info('SenderThread startup complete')
