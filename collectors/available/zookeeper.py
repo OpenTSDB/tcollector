@@ -13,7 +13,7 @@
 # see <http://www.gnu.org/licenses/>.
 #
 
-""" 
+"""
 Zookeeper collector
 
 Refer to the following zookeeper commands documentation for details:
@@ -51,10 +51,10 @@ KEYS = frozenset([
     ])
 
 def scan_zk_instances():
-    """ 
+    """
     Finding out all the running instances of zookeeper
-    - Using netstat, finds out all listening java processes.	 
-    - Figures out ZK instances among java processes by looking for the 
+    - Using netstat, finds out all listening java processes.
+    - Figures out ZK instances among java processes by looking for the
       string "org.apache.zookeeper.server.quorum.QuorumPeerMain" in cmdline.
     """
 
@@ -95,16 +95,16 @@ def scan_zk_instances():
                 except Exception, err:
                     utils.err(err)
                 finally:
-                    if sock: 
+                    if sock:
                         sock.close()
-                if data == "imok":	
+                if data == "imok":
                     instances.append([ip, port, tcp_version])
                     data = ""
         except Exception, err:
             utils.err(err)
         finally:
             fd.close()
-    return instances 
+    return instances
 
 def print_stat(metric, ts, value, tags=""):
     if value is not None:
@@ -161,4 +161,4 @@ def main():
         time.sleep(COLLECTION_INTERVAL)
 
 if __name__ == "__main__":
-    sys.exit(main())	
+    sys.exit(main())

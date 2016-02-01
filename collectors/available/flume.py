@@ -16,17 +16,17 @@
 """
     flume stats collector
 
-Connect to flume agents over http and gather metrics 
+Connect to flume agents over http and gather metrics
 and make them suitable for OpenTSDB to consume
 
-Need to config flume-ng to spit out json formatted metrics over http 
+Need to config flume-ng to spit out json formatted metrics over http
 See http://flume.apache.org/FlumeUserGuide.html#json-reporting
 
 Tested with flume-ng 1.4.0 only. So far
 
 Based on the elastichsearch collector
 
-"""  
+"""
 
 import errno
 import httplib
@@ -119,11 +119,11 @@ def main(argv):
     stats = flume_metrics(server)
 
     for metric in stats:
-	(component, name) = metric.split(".")
-	tags = {component.lower(): name}
-	for key,value in stats[metric].items():
-	   if key not in EXCLUDE:
-	       printmetric(key.lower(), value, **tags)
+  (component, name) = metric.split(".")
+  tags = {component.lower(): name}
+  for key,value in stats[metric].items():
+     if key not in EXCLUDE:
+         printmetric(key.lower(), value, **tags)
 
     time.sleep(COLLECTION_INTERVAL)
 
