@@ -126,7 +126,7 @@ def find_sock_file(conf_file):
 
 def collect_stats(sock_file):
     """Collects stats from haproxy unix domain socket"""
-    sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)  
+    sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     try:
       sock.settimeout(COLLECTION_INTERVAL)
       sock.connect(sock_file)

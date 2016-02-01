@@ -25,12 +25,14 @@ from collectors.lib.hadoop_http import HadoopHttp
 
 
 REPLACEMENTS = {
+    "datanodeactivity-": ["activity"],
+    "fsdatasetstate-ds-": ["fs_data_set_state"],
     "rpcdetailedactivityforport": ["rpc_activity"],
     "rpcactivityforport": ["rpc_activity"]
 }
 
 
-class HadoopNameNode(HadoopHttp):
+class HadoopDataNode(HadoopHttp):
     """
     Class that will retrieve metrics from an Apache Hadoop DataNode's jmx page.
 
@@ -39,7 +41,7 @@ class HadoopNameNode(HadoopHttp):
     """
 
     def __init__(self):
-        super(HadoopNameNode, self).__init__('hadoop', 'namenode', 'localhost', 50070)
+        super(HadoopDataNode, self).__init__('hadoop', 'datanode', 'localhost', 50075)
 
     def emit(self):
         current_time = int(time.time())
@@ -56,13 +58,12 @@ def main(args):
     if json is None:
         utils.err("This collector requires the `json' Python module.")
         return 13  # Ask tcollector not to respawn us
-    name_node_service = HadoopNameNode()
+    datanode_service = HadoopDataNode()
     while True:
-        name_node_service.emit()
-        time.sleep(90)
+        datanode_service.emit()
+        time.sleep(15)
     return 0
 
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv))
-

@@ -50,8 +50,8 @@ def find_sockdir():
     for dirpath, dirnames, dirfiles in os.walk(dir, followlinks=True):
       for name in dirfiles:
         # ensure selection of PostgreSQL socket only
-	if (utils.is_sockfile(os.path.join(dirpath, name))
-	    and "PGSQL" in name):
+  if (utils.is_sockfile(os.path.join(dirpath, name))
+      and "PGSQL" in name):
           return(dirpath)
 
 def postgres_connect(sockdir):
@@ -86,7 +86,7 @@ def collect(db):
     ts = time.time()
     stats = cursor.fetchall()
 
-#  datid |  datname   | numbackends | xact_commit | xact_rollback | blks_read  |  blks_hit   | tup_returned | tup_fetched | tup_inserted | tup_updated | tup_deleted | conflicts | temp_files |  temp_bytes  | deadlocks | blk_read_time | blk_write_time |          stats_reset          |     size     
+#  datid |  datname   | numbackends | xact_commit | xact_rollback | blks_read  |  blks_hit   | tup_returned | tup_fetched | tup_inserted | tup_updated | tup_deleted | conflicts | temp_files |  temp_bytes  | deadlocks | blk_read_time | blk_write_time |          stats_reset          |     size
     result = {}
     for stat in stats:
       database = stat[1]
