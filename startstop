@@ -9,6 +9,7 @@ TCOLLECTOR_PATH=${TCOLLECTOR_PATH-"${SCRIPT_DIR}"}
 LOG=${LOG-'/var/log/tcollector.log'}
 HOSTNAME=$(hostname)
 PIDFILE=${PIDFILE-'/var/run/tcollector.pid'}
+TSD_PORT=${TSD_PORT-4242}
 
 test -n "$TSD_HOST" || {
     echo >&2 "TSD_HOST is not set in $0"
@@ -22,7 +23,7 @@ COMMAND=$1
 test "$#" -gt 0 && {
     shift
 }
-ARGS="-c $TCOLLECTOR_PATH/collectors -H $TSD_HOST -t host=$HOSTNAME -P $PIDFILE --logfile $LOG"
+ARGS="-c $TCOLLECTOR_PATH/collectors -H $TSD_HOST -p $TSD_PORT -t host=$HOSTNAME -P $PIDFILE --logfile $LOG"
 ARGS="$ARGS $@"
 
 # Sanity checks.
