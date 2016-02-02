@@ -11,7 +11,7 @@ See http://flume.apache.org/FlumeUserGuide.html#json-reporting
 
 Tested with flume-ng 1.4.0 only. So far
 
-Based on the elastichsearch collector
+Based on the elasticsearch collector
 
 """
 
@@ -32,13 +32,12 @@ try:
 except ImportError:
   flume_conf = None
 
-COLLECTION_INTERVAL = 15  # seconds
 DEFAULT_TIMEOUT = 10.0    # seconds
 FLUME_HOST = "localhost"
 FLUME_PORT = 34545
 
 # Exclude values that are not really metrics and totally pointless to keep track of
-EXCLUDE = [ 'StartTime', 'StopTime', 'Type' ]
+EXCLUDE = ['StartTime', 'StopTime', 'Type']
 
 def err(msg):
   print >>sys.stderr, msg
@@ -54,7 +53,7 @@ def request(server, uri):
   server.request("GET", uri)
   resp = server.getresponse()
   if resp.status != httplib.OK:
-    raise FlumError(resp)
+    raise FlumeError(resp)
   return json.loads(resp.read())
 
 
@@ -63,15 +62,13 @@ def flume_metrics(server):
 
 def main(argv):
   if not (flume_conf and flume_conf.enabled() and flume_conf.get_settings()):
-    sys.exit(13)
+    # Status code 13 tells the parent tcollector not to respawn this collector
+    return 13
 
   settings = flume_conf.get_settings()
 
   if (settings['default_timeout']):
     DEFAULT_TIMEOUT = settings['default_timeout']
-
-  if (settings['default_timeout']):
-    COLLECTION_INTERVAL = settings['collection_interval']
 
   if (settings['flume_host']):
     FLUME_HOST = settings['flume_host']
@@ -86,8 +83,11 @@ def main(argv):
     server.connect()
   except socket.error, (erno, e):
     if erno == errno.ECONNREFUSED:
-      return 13  # No Flume server available, ask tcollector to not respawn us.
-    raise
+      # Nothing really wrong if the Flume server is unavailable, we should just try again next time.
+      return 0
+    else:
+      raise
+
   if json is None:
     err("This collector requires the `json' Python module.")
     return 1
@@ -100,19 +100,17 @@ def main(argv):
       tags = ""
     print ("flume.%s.%s %d %s %s" % (component, metric, ts, value, tags))
 
-  while True:
-    # Get the metrics
-    ts = int(time.time())  # In case last call took a while.
-    stats = flume_metrics(server)
+  # Get the metrics
+  ts = int(time.time())  # In case last call took a while.
+  stats = flume_metrics(server)
 
-    for component in stats:
-    	(component_type, name) = component.split(".")
-    	tags = {"type": name}
-    	for metric, value in stats[component].items():
-    	   if metric not in EXCLUDE:
-    	       printmetric(component_type.lower(), metric, value, **tags)
-
-    time.sleep(COLLECTION_INTERVAL)
+  for component in stats:
+    (component_type, name) = component.split(".")
+    tags = {"type": name}
+    for metric, value in stats[component].items():
+      if metric not in EXCLUDE:
+        printmetric(component_type.lower(), metric, value, **tags)
+  return 0
 
 
 if __name__ == "__main__":
