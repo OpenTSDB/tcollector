@@ -414,7 +414,7 @@ class SenderThread(threading.Thread):
        buffering we might need to do if we can't establish a connection
        and we need to spool to disk.  That isn't implemented yet."""
 
-    def __init__(self, reader, dryrun, hosts, self_report_stats, http, ssl, tags, reconnectinterval):
+    def __init__(self, reader, dryrun, hosts, self_report_stats, http, ssl, tags, reconnectinterval, maxtags):
         """Constructor.
 
         Args:
@@ -449,6 +449,7 @@ class SenderThread(threading.Thread):
         self.time_reconnect = 0                 # if reconnectinterval > 0, used to track the time.
         self.sendq = []
         self.self_report_stats = self_report_stats
+        self.maxtags = maxtags # The maximum number of tags our TSD instance will accept.
 
     def pick_connection(self):
         """Picks up a random host/port connection."""
@@ -696,26 +697,19 @@ class SenderThread(threading.Thread):
                 for tag in raw_tags.strip().split():
                     (tag_key, tag_value) = tag.split('=')
                     metric_tags[tag_key] = tag_value
-                # print "  Got metric: %s timestamp: %s value: %s tags: %s" % (
-                #    metric, timestamp, value, metric_tags)
-                metric_entry = dict()
+                metric_entry= dict()
                 metric_entry['metric'] = metric
                 metric_entry['timestamp'] = timestamp
                 metric_entry['value'] = value
                 metric_entry['tags'] = dict(self.tags).copy()
-                # https://github.com/OpenTSDB/opentsdb/issues/437 - opentsdb has fix 8 tag constant
-                if len(metric_tags) + len(metric_entry['tags']) > 8:
+                if len(metric_tags) + len(metric_entry['tags']) > self.maxtags:
                   metric_tags_orig = metric_tags.copy()
-                  subset_metric_keys = metric_tags.keys()[:len(metric_tags.keys()[:8-len(metric_entry['tags'])])]
+                  subset_metric_keys = metric_tags.keys()[:len(metric_tags.keys()[:self.maxtags-len(metric_entry['tags'])])]
                   metric_tags = dict((k, v) for k, v in metric_tags.iteritems() if k in subset_metric_keys)
-                  LOG.debug('Exceeding maximum permitted metric tags - removing %s for metric %s', str(set(metric_tags_orig) - set(metric_tags)), metric) 
+                  LOG.error('Exceeding maximum permitted metric tags - removing %s for metric %s', str(set(metric_tags_orig) - set(metric_tags)), metric) 
                 metric_entry['tags'].update(metric_tags)
                 metrics.append(metric_entry)
-                # print "--Current metrics"
-                # print json.dumps(metrics,sort_keys=True,indent=4)
-            # print "\n\n"
-            # print "Final metrics"
-            # print json.dumps(metrics,sort_keys=True,indent=4)
+
             if self.dryrun:
                 print "Would have sent:\n%s" % json.dumps(metrics,
                                                           sort_keys=True,
@@ -880,6 +874,8 @@ def parse_cmdline(argv):
                            'the TSD hostname reconnects itself. This is useful'
                            'when the hostname is a multiple A record (RRDNS).'
                            )
+    parser.add_option('--max-tags', dest='maxtags', type=int, default=8,
+                      help='The maximum number of tags to send to our TSD Instances')
     parser.add_option('--http', dest='http', action='store_true', default=False,
                       help='Send the data via the http interface')
     parser.add_option('--ssl', dest='ssl', action='store_true', default=False,
@@ -1005,7 +1001,7 @@ def main(argv):
     # and setup the sender to start writing out to the tsd
     sender = SenderThread(reader, options.dryrun, options.hosts,
                           not options.no_tcollector_stats, options.http,
-                          options.ssl, tags, options.reconnectinterval)
+                          options.ssl, tags, options.reconnectinterval, options.maxtags)
     sender.start()
     LOG.info('SenderThread startup complete')
 
