@@ -106,3 +106,4 @@ Requires: EosSdk >= 1.5.0
 %attr(755, -, -) /usr/bin/tcollector
 %{tcollectordir}/collectors/0/agentcpu.sh
 %{tcollectordir}/collectors/0/eos.py
+%{py2_sitelib}/tcollector_agent.py
