@@ -329,7 +329,7 @@ class ReaderThread(threading.Thread):
             col.lines_invalid += 1
             return
         parsed = re.match('^([-_./a-zA-Z0-9]+)\s+' # Metric name.
-                          '(\d+)\s+'               # Timestamp.
+                          '(\d+\.?\d+)\s+'               # Timestamp.
                           '(\S+?)'                 # Value (int or float).
                           '((?:\s+[-_./a-zA-Z0-9]+=[-_./a-zA-Z0-9]+)*)$', # Tags
                           line)
