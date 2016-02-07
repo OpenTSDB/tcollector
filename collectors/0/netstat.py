@@ -115,6 +115,7 @@ def main():
         "Tcp:": "tcp",  # We don't collect anything from here for now.
         "Udp:": "udp",
         "UdpLite:": "udplite",  # We don't collect anything from here for now.
+        "Arista:": "arista",  # We don't collect anything from here for now.
         }
 
     # Any stat in /proc/net/{netstat,snmp} that doesn't appear in this dict will
