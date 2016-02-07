@@ -36,29 +36,31 @@ git_fullsha1 := \
   `git rev-list --pretty=format:%H HEAD --max-count=1 | sed 1d || echo unknown`
 
 # What / where do we build.
-DESTDIR := destdir
 RPM_TARGET := noarch
 BASENAME := tcollector-$(PACKAGE_VERSION)-$(RPM_REVISION)
 RPM := $(BASENAME).$(RPM_TARGET).rpm
+SRPM := $(BASENAME).src.rpm
+COLLECTORSRPM := tcollector-collectors-$(PACKAGE_VERSION)-$(RPM_REVISION).$(RPM_TARGET).rpm
 EOSRPM := tcollector-eos-$(PACKAGE_VERSION)-$(RPM_REVISION).$(RPM_TARGET).rpm
 SWIX := $(BASENAME).swix
 
 all: rpm swix
 
-swix: manifest.txt
-	cd $(RPM_TARGET) && $(ZIP) $(SWIX) $(EOSRPM) $(RPM) $^
+$(SWIX): manifest.txt $(EOSRPM) $(RPM) $(COLLECTORSRPM)
+	$(ZIP) $@ $^
 
-manifest.txt:
+swix: $(SWIX)
+
+manifest.txt: Makefile
 	set -e; { \
           echo 'format: 1'; \
           echo 'primaryRpm: $(EOSRPM)'; \
-					echo -n '$(EOSRPM)-sha1: '; \
-					set `$(SHA1SUM) "noarch/$(EOSRPM)"`; \
-					echo $$1; \
-					echo -n '$(RPM)-sha1: '; \
-					set `$(SHA1SUM) "noarch/$(RPM)"`; \
-					echo $$1; \
-        } > $(RPM_TARGET)/$@
+	  for rpm in $(EOSRPM) $(RPM) $(COLLECTORSRPM); do \
+            echo -n "$$rpm-sha1: "; \
+            set `$(SHA1SUM) "$$rpm"`; \
+            echo $$1; \
+          done; \
+        } >$@
 
 rpm:
 	set -e; { \
@@ -71,34 +73,20 @@ rpm:
             -e 's/@RPM_REVISION@/$(RPM_REVISION)/' \
 	    tcollector.spec; \
         } >tcollector-t.spec
-
-		@rpmbuild --define "_topdir %(pwd)/" \
-							--define "_sourcedir %(pwd)/dist/" \
-							--define "_rpmdir %(pwd)" \
-							--define "_srcrpmdir %{_topdir}" \
-				-ba tcollector-t.spec
+	rpmbuild --define "_topdir %(pwd)/" \
+          --define "_sourcedir %(pwd)/dist/" \
+          --define "_rpmdir %(pwd)" \
+          --define "_srcrpmdir %{_topdir}" \
+          -ba tcollector-t.spec
+	mv tcollector.$(RPM_TARGET).rpm $(RPM)
+	mv tcollector-collectors.$(RPM_TARGET).rpm $(COLLECTORSRPM)
+	mv tcollector-eos.$(RPM_TARGET).rpm $(EOSRPM)
 
 clean:
-	rm -rf BUILD BUILDROOT SPECS SOURCES dist noarch
-	rm -f *.rpm
-	rm -f *.swix
-	rm -f tcollector-t.spec
-	rm -f tcollector
-	rm -rf "$(DESTDIR)/$(tcollectordir)"
-	rm -f $(DESTDIR)/etc/init.d/tcollector
-	rm -f $(DESTDIR)/usr/bin/tcollector
-	rm -f $(DESTDIR)/usr/lib/python$(PYTHON_VERSION)/site-packages/tcollector_agent.py*
-	@test -d "$(DESTDIR)" || exit 0; \
-        find "$(DESTDIR)" -depth -type d \
-        | while read dir; do \
-          echo rmdir "'$$dir'"; \
-          rmdir "$$dir" || exit $$?; \
-        done
-	rm -f common.spec $(RPM_SPEC) $(EOSRPM_SPEC) filelist manifest.txt $(EOSRPM)
-	@rm -f .dist-stamp
+	rm -rf tcollector-t.spec manifest.txt bld dist tmp
 
 distclean: clean
-	rm -f $(SWIX) $(RPM)
+	rm -f $(SWIX) $(RPM) $(SRPM) $(COLLECTORSRPM) $(EOSRPM)
 
-.PHONY: all rpm clean distclean
+.PHONY: all rpm clean distclean swix
 .SUFFIXES: .spec .rpm
