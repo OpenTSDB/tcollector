@@ -78,7 +78,7 @@ mkdir -p %{buildroot}/%{py2_sitelib}/
 %package collectors
 Summary: The linux OpenTSDB collectors
 Group: System/Monitoring
-Requires: tcollector
+Requires: tcollector >= 1.2.1
 %description collectors
 
 
