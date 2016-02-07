@@ -97,7 +97,7 @@ Summary: Linux Collectors and Arista EOS Collectors
 Group: System/Monitoring
 Requires: tcollector
 Requires: EosSdk >= 1.5.0
-Obsoletes: tcollectorAgent
+Obsoletes: tcollectorAgent <= 1.0.2
 
 %description eos
 The tcollector-eos subpackage provides files that leverage the EOSSDK to
