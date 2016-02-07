@@ -731,7 +731,7 @@ class SenderThread(threading.Thread):
                 req = urllib2.Request('%s://%s:%s/api/put?details' % (
                     protocol, self.host, self.port))
                 if self.http_username and self.http_password:
-                  base64string = base64.encodestring('%s:%s' % (self.http_username, self.http_password)).replace('\n', '')
+                  base64string = base64.b64encode('%s:%s' % (self.http_username, self.http_password)).replace('\n', '')
                   req.add_header("Authorization", "Basic %s" % base64string)
                 req.add_header('Content-Type', 'application/json')
                 try:
