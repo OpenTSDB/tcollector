@@ -702,8 +702,8 @@ class SenderThread(threading.Thread):
                     metric_tags[tag_key] = tag_value
                 metric_entry= dict()
                 metric_entry['metric'] = metric
-                metric_entry['timestamp'] = timestamp
-                metric_entry['value'] = value
+                metric_entry['timestamp'] = long(timestamp)
+                metric_entry['value'] = float(value)
                 metric_entry['tags'] = dict(self.tags).copy()
                 if len(metric_tags) + len(metric_entry['tags']) > self.maxtags:
                   metric_tags_orig = metric_tags.copy()
