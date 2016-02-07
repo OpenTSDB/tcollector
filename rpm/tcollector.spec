@@ -45,7 +45,7 @@ mkdir -p %{buildroot}%{tcollectordir}/collectors/etc/
 %{__install} -m 0755 -D %{srccollectors}/0/* %{buildroot}%{collectorsdir}/0/
 
 # Install EOS files
-%{__install} -m 0755 -D %{eosdir}/collectors/agentcpu.sh %{buildroot}/%{collectorsdir}/0/
+%{__install} -m 0755 -D %{eosdir}/collectors/agent*.sh %{buildroot}/%{collectorsdir}/0/
 %{__install} -m 0755 -D %{eosdir}/collectors/eos.py %{buildroot}/%{collectorsdir}/0/
 mkdir -p %{buildroot}/usr/bin/
 %{__install} -m 0755 -D %{eosdir}/tcollector %{buildroot}/usr/bin/
@@ -105,5 +105,6 @@ Requires: EosSdk >= 1.5.0
 %files eos
 %attr(755, -, -) /usr/bin/tcollector
 %{tcollectordir}/collectors/0/agentcpu.sh
+%{tcollectordir}/collectors/0/agentmem.sh
 %{tcollectordir}/collectors/0/eos.py
 %{py2_sitelib}/tcollector_agent.py
