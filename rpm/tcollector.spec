@@ -5,7 +5,7 @@
 
 %global tcollectordir /usr/local/tcollector
 %global collectorsdir %{tcollectordir}/collectors
-%global rootdir       ../..
+%global rootdir       %{_srcrpmdir}/..
 %global eosdir        %{rootdir}/eos
 %global srccollectors %{rootdir}/collectors
 %global py2_sitelib   /usr/lib/python2.7/site-packages
@@ -78,6 +78,7 @@ mkdir -p %{buildroot}/%{py2_sitelib}/
 %package collectors
 Summary: The linux OpenTSDB collectors
 Group: System/Monitoring
+Requires: tcollector
 %description collectors
 
 
@@ -94,13 +95,14 @@ Group: System/Monitoring
 %package eos
 Summary: Linux Collectors and Arista EOS Collectors
 Group: System/Monitoring
+Requires: tcollector
+Requires: EosSdk >= 1.5.0
+
 %description eos
 The tcollector-eos subpackage provides files that leverage the EOSSDK to
 gather statistics from EOS.  It should be used in conjunction with
 the tcollector package and optionally the tcollector-collectors subpackage. If
 you run make swix, all three packages will be included.
-
-Requires: EosSdk >= 1.5.0
 
 %files eos
 %attr(755, -, -) /usr/bin/tcollector
