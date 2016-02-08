@@ -221,11 +221,6 @@ class TcollectorAgent(eossdk.AgentHandler,
       else:
          return DEFAULT_TSD_PORT
 
-   def on_hostname(self, hostname):
-      debug("Hostname changed to", hostname)
-      self.tags_["host"] = hostname
-      self.sender_thread_.tags = sorted(self.tags_.iteritems())
-
    def start(self):
       tcollector = self.module_
       tcollector.ALIVE = True
