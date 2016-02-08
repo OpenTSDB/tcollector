@@ -691,11 +691,12 @@ class SenderThread(threading.Thread):
             metrics = []
             for line in self.sendq:
                 # print " %s" % line
+                parts = line.split(None, 3)
                 # not all metrics have metric-specific tags
-                try:
-                  (metric, timestamp, value, raw_tags) = line.split(None, 3)
-                except ValueError:
-                  (metric, timestamp, value) = line.split(None, 3)
+                if len(parts) == 4:
+                  (metric, timestamp, value, raw_tags) = parts
+                else:
+                  (metric, timestamp, value) = parts
                   raw_tags = ''
                 # process the tags
                 metric_tags = {}
