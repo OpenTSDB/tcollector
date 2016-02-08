@@ -450,11 +450,11 @@ class SenderThread(threading.Thread):
         self.port = None  # The port of the current TSD.
         self.tsd = None   # The socket connected to the aforementioned TSD.
         self.last_verify = 0
-        self.reconnectinterval = reconnectinterval    # reconnectinterval in seconds.
-        self.time_reconnect = 0                 # if reconnectinterval > 0, used to track the time.
+        self.reconnectinterval = reconnectinterval # in seconds.
+        self.time_reconnect = 0  # if reconnectinterval > 0, used to track the time.
         self.sendq = []
         self.self_report_stats = self_report_stats
-        self.maxtags = maxtags # The maximum number of tags our TSD instance will accept.
+        self.maxtags = maxtags # The maximum number of tags TSD will accept.
 
     def pick_connection(self):
         """Picks up a random host/port connection."""
@@ -476,7 +476,7 @@ class SenderThread(threading.Thread):
             else:
                 # TODO: Enable multiple HTTP endpoints
                 LOG.debug('Reusing HTTP connection %s on port %s', self.host, self.port)
-                hostport = self.hosts[self.current_tsd]  
+                hostport = self.hosts[self.current_tsd]
         self.host, self.port = hostport
         LOG.info('Selected connection: %s:%d', self.host, self.port)
 
@@ -698,20 +698,20 @@ class SenderThread(threading.Thread):
                   (metric, timestamp, value) = line.split(None, 3)
                   raw_tags = ''
                 # process the tags
-                metric_tags = dict()
+                metric_tags = {}
                 for tag in raw_tags.strip().split():
                     (tag_key, tag_value) = tag.split('=')
                     metric_tags[tag_key] = tag_value
-                metric_entry= dict()
+                metric_entry = {}
                 metric_entry['metric'] = metric
                 metric_entry['timestamp'] = long(timestamp)
                 metric_entry['value'] = float(value)
                 metric_entry['tags'] = dict(self.tags).copy()
                 if len(metric_tags) + len(metric_entry['tags']) > self.maxtags:
-                  metric_tags_orig = metric_tags.copy()
-                  subset_metric_keys = metric_tags.keys()[:len(metric_tags.keys()[:self.maxtags-len(metric_entry['tags'])])]
+                  metric_tags_orig = set(metric_tags)
+                  subset_metric_keys = metric_tags[:len(metric_tags[:self.maxtags-len(metric_entry['tags'])])]
                   metric_tags = dict((k, v) for k, v in metric_tags.iteritems() if k in subset_metric_keys)
-                  LOG.error('Exceeding maximum permitted metric tags - removing %s for metric %s', str(set(metric_tags_orig) - set(metric_tags)), metric) 
+                  LOG.error('Exceeding maximum permitted metric tags - removing %s for metric %s', str(metric_tags_orig - set(metric_tags)), metric)
                 metric_entry['tags'].update(metric_tags)
                 metrics.append(metric_entry)
 
@@ -733,8 +733,8 @@ class SenderThread(threading.Thread):
                 req = urllib2.Request('%s://%s:%s/api/put?details' % (
                     protocol, self.host, self.port))
                 if self.http_username and self.http_password:
-                  base64string = base64.b64encode('%s:%s' % (self.http_username, self.http_password)).replace('\n', '')
-                  req.add_header("Authorization", "Basic %s" % base64string)
+                  req.add_header("Authorization", "Basic %s"
+                                 % base64.b64encode("%s:%s" % (self.http_username, self.http_password)))
                 req.add_header('Content-Type', 'application/json')
                 try:
                     response = urllib2.urlopen(req, json.dumps(metrics))
