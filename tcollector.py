@@ -720,39 +720,39 @@ class SenderThread(threading.Thread):
                 print "Would have sent:\n%s" % json.dumps(metrics,
                                                           sort_keys=True,
                                                           indent=4)
-            else:
-                self.pick_connection()
-                # print "Using server: %s:%s" % (self.host, self.port)
-                # url = 'http://%s:%s/api/put?details' % (self.host, self.port)
-                # print "Url is %s" % url
-                LOG.debug('Sending metrics to http://%s:%s/api/put?details',
-                          self.host, self.port)
-                if self.ssl:
-                    protocol = 'https'
-                else:
-                    protocol = 'http'
-                req = urllib2.Request('%s://%s:%s/api/put?details' % (
-                    protocol, self.host, self.port))
-                if self.http_username and self.http_password:
-                  req.add_header("Authorization", "Basic %s"
-                                 % base64.b64encode("%s:%s" % (self.http_username, self.http_password)))
-                req.add_header('Content-Type', 'application/json')
-                try:
-                    response = urllib2.urlopen(req, json.dumps(metrics))
-                    LOG.debug('Received response %s', response.getcode())
-                    # clear out the sendq
-                    self.sendq = []
-                    # print "Got response code: %s" % response.getcode()
-                    # print "Content:"
-                    # for line in response:
-                    #     print line,
-                    #     print
-                except urllib2.HTTPError, http_error:
-                    LOG.error('Got error %s', http_error)
-                    # for line in http_error:
-                    #   print line,
+                return
 
-            # return at the end of this
+            self.pick_connection()
+            # print "Using server: %s:%s" % (self.host, self.port)
+            # url = 'http://%s:%s/api/put?details' % (self.host, self.port)
+            # print "Url is %s" % url
+            LOG.debug('Sending metrics to http://%s:%s/api/put?details',
+                      self.host, self.port)
+            if self.ssl:
+                protocol = 'https'
+            else:
+                protocol = 'http'
+            req = urllib2.Request('%s://%s:%s/api/put?details' % (
+                protocol, self.host, self.port))
+            if self.http_username and self.http_password:
+              req.add_header("Authorization", "Basic %s"
+                             % base64.b64encode("%s:%s" % (self.http_username, self.http_password)))
+            req.add_header('Content-Type', 'application/json')
+            try:
+                response = urllib2.urlopen(req, json.dumps(metrics))
+                LOG.debug('Received response %s', response.getcode())
+                # clear out the sendq
+                self.sendq = []
+                # print "Got response code: %s" % response.getcode()
+                # print "Content:"
+                # for line in response:
+                #     print line,
+                #     print
+            except urllib2.HTTPError, http_error:
+                LOG.error('Got error %s', http_error)
+                # for line in http_error:
+                #   print line,
+
             return
 
         # construct the output string
