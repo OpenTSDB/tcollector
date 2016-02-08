@@ -105,7 +105,7 @@ def main():
       try:
         r = os.statvfs(fs_file)
       except OSError, e:
-        utils.err("error: can't get info for mount point: %s" % fs_file)
+        utils.err("can't get info for mount point: %s: %s" % (fs_file, e))
         continue
 
       used = r.f_blocks - r.f_bfree
