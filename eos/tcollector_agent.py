@@ -155,7 +155,7 @@ class TcollectorAgent(eossdk.AgentHandler,
       asynchronously, this is done out of a timer callback. """
       if self.shutdown_in_progress_:
          # Not yet complete, check again in a second.
-         self.next_timeout_is(eossdk.now() + 1)
+         self.timeout_time_is(eossdk.now() + 1)
       else:
          # tcollector shutdown complete. Check to make sure
          # we weren't re-enabled while shutting down.
@@ -291,7 +291,7 @@ class TcollectorAgent(eossdk.AgentHandler,
       threading.Thread(target=do_stop, name="stopTcollector").start()
 
       # Setup timeout handler to poll for stopTcollector thread completion
-      self.next_timeout_is(eossdk.now() + 1)
+      self.timeout_time_is(eossdk.now() + 1)
 
 def main():
    sdk = eossdk.Sdk()
