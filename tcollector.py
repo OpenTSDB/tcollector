@@ -415,7 +415,9 @@ class SenderThread(threading.Thread):
        buffering we might need to do if we can't establish a connection
        and we need to spool to disk.  That isn't implemented yet."""
 
-    def __init__(self, reader, dryrun, hosts, self_report_stats, http, http_username, http_password, ssl, tags, reconnectinterval, maxtags):
+    def __init__(self, reader, dryrun, hosts, self_report_stats, tags,
+                 reconnectinterval=0, http=False, http_username=None,
+                 http_password=None, ssl=False, maxtags=8):
         """Constructor.
 
         Args:
@@ -1010,9 +1012,9 @@ def main(argv):
 
     # and setup the sender to start writing out to the tsd
     sender = SenderThread(reader, options.dryrun, options.hosts,
-                          not options.no_tcollector_stats, options.http,
-                          options.http_username, options.http_password,
-                          options.ssl, tags, options.reconnectinterval, options.maxtags)
+                          not options.no_tcollector_stats, tags, options.reconnectinterval,
+                          options.http, options.http_username,
+                          options.http_password, options.ssl, options.maxtags)
     sender.start()
     LOG.info('SenderThread startup complete')
 
