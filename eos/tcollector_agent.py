@@ -223,7 +223,7 @@ class TcollectorAgent(eossdk.AgentHandler,
          return DEFAULT_TSD_PORT
 
    def _socket_at(self, family, socktype, proto):
-      vrf = self.get_agent_mgr().agent_option("vrf") or "default"
+      vrf = self.get_agent_mgr().agent_option("vrf") or ""
       fd = self.vrf_mgr_.socket_at(family, socktype, proto, vrf)
       return socket.fromfd(fd, family, socktype, proto)
 
