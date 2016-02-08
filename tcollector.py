@@ -467,16 +467,11 @@ class SenderThread(threading.Thread):
             if hostport not in self.blacklisted_hosts:
                 break
         else:
-            if self.http is None:
-                LOG.info('No more healthy hosts, retry with previously blacklisted')
-                random.shuffle(self.hosts)
-                self.blacklisted_hosts.clear()
-                self.current_tsd = 0
-                hostport = self.hosts[self.current_tsd]
-            else:
-                # TODO: Enable multiple HTTP endpoints
-                LOG.debug('Reusing HTTP connection %s on port %s', self.host, self.port)
-                hostport = self.hosts[self.current_tsd]
+            LOG.info('No more healthy hosts, retry with previously blacklisted')
+            random.shuffle(self.hosts)
+            self.blacklisted_hosts.clear()
+            self.current_tsd = 0
+            hostport = self.hosts[self.current_tsd]
         self.host, self.port = hostport
         LOG.info('Selected connection: %s:%d', self.host, self.port)
 
