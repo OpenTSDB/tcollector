@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 # This file is part of tcollector.
-#
 # Copyright (C) 2013  The tcollector Authors.
 #
 # This program is free software: you can redistribute it and/or modify it
