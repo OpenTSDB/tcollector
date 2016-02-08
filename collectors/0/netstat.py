@@ -245,6 +245,8 @@ def main():
         },
         "udplite": {
         },
+        "arista": {
+        },
     }
 
 
