@@ -19,7 +19,7 @@ import sys
 import time
 
 '''
-ZFS kernel memory statistics for TSDB
+ZFS on Linux kernel memory statistics for TSDB
 
 This plugin tracks kernel memory for both:
 

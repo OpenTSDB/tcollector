@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 # This file is part of tcollector.
 # Copyright (C) 2012  The tcollector Authors.
 #
@@ -29,15 +29,14 @@ This plugin tracks, for all pools:
 
 - I/O
   zfs.io.pool.{read_issued, write_issued}
-  zfs.io.pool.{read_sectors, write_sectors}
+  zfs.io.pool.{read_throughput, write_throughput}
   zfs.io.device.{read_issued, write_issued}
-  zfs.io.device.{read_sectors, write_sectors}
+  zfs.io.device.{read_throughput, write_throughput}
 - disk space
   zfs.df.pool.1kblocks.{total, used, available}
   zfs.df.device.1kblocks.{total, used, available}
 
-Sectors are always 512 bytes.  Disk space usage is given in 1K blocks.
-Values delivered to standard output are already normalized to be per second.
+Disk space usage is given in 1K blocks. Throughput is given in bytes/s.
 '''
 
 def convert_to_bytes(string):
@@ -57,11 +56,28 @@ def convert_to_bytes(string):
             return long(number)
     return long(string)
 
+def convert_wo_prefix(string):
+    """Take a string in the form 1234K, and convert without metric prefix"""
+    factors = {
+       "K": 1000,
+       "M": 1000 * 1000,
+       "G": 1000 * 1000 * 1000,
+       "T": 1000 * 1000 * 1000 * 1000,
+       "P": 1000 * 1000 * 1000 * 1000 * 1000,
+    }
+    if string == "-": return 0
+    for f, fm in factors.items():
+        if string.endswith(f):
+            number = float(string[:-1])
+            number = number * fm
+            return long(number)
+    return long(string)
+
 def extract_info(line):
     (poolname,
         alloc, free,
         read_issued, write_issued,
-        read_sectors, write_sectors) = line.split()
+        read_throughput, write_throughput) = line.split()
 
     s_df = {}
     # 1k blocks
@@ -71,11 +87,11 @@ def extract_info(line):
 
     s_io = {}
     # magnitudeless variable
-    s_io["read_issued"] = read_issued
-    s_io["write_issued"] = write_issued
-    # 512 byte sectors
-    s_io["read_sectors"] = convert_to_bytes(read_sectors) / 512
-    s_io["write_sectors"] = convert_to_bytes(write_sectors) / 512
+    s_io["read_issued"] = convert_wo_prefix(read_issued)
+    s_io["write_issued"] = convert_wo_prefix(write_issued)
+    # throughput
+    s_io["read_throughput"] = convert_to_bytes(read_throughput)
+    s_io["write_throughput"] = convert_to_bytes(write_throughput)
 
     return poolname, s_df, s_io
 
