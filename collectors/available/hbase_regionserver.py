@@ -33,7 +33,7 @@ class HBaseRegionserver(HadoopHttp):
         super(HBaseRegionserver, self).__init__("hbase", "regionserver", "localhost", 60030)
 
     def emit_region_metric(self, context, current_time, full_metric_name, value):
-	match = REGION_METRIC_PATTERN.match(full_metric_name)
+  match = REGION_METRIC_PATTERN.match(full_metric_name)
         if not match:
             utils.err("Error splitting %s" % full_metric_name)
             return
@@ -83,4 +83,3 @@ def main(args):
 if __name__ == "__main__":
     import sys
     sys.exit(main(sys.argv))
-
