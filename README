@@ -5,3 +5,5 @@ handles the communication with the TSDs.
 For more info, see
 
 http://www.opentsdb.net/tcollector.html
+
+[![Build Status](https://travis-ci.org/OpenTSDB/tcollector.svg?branch=master)](https://travis-ci.org/OpenTSDB/tcollector)
