@@ -78,9 +78,9 @@ rpm:
           --define "_rpmdir %(pwd)" \
           --define "_srcrpmdir %{_topdir}" \
           -ba tcollector-t.spec
-	if test $(RPM_TARGET)/$(RPM); then mv $(RPM_TARGET)/$(RPM) .; else mv tcollector.$(RPM_TARGET).rpm $(RPM); fi
-	if test $(RPM_TARGET)/$(COLLECTORSRPM); then mv $(RPM_TARGET)/$(COLLECTORSRPM) .; else mv tcollector-collectors.$(RPM_TARGET).rpm $(COLLECTORSRPM); fi
-	if test $(RPM_TARGET)/$(EOSRPM); then mv $(RPM_TARGET)/$(EOSRPM) .; else mv tcollector-eos.$(RPM_TARGET).rpm $(EOSRPM); fi
+	if test -f $(RPM_TARGET)/$(RPM); then mv $(RPM_TARGET)/$(RPM) .; else mv tcollector.$(RPM_TARGET).rpm $(RPM); fi
+	if test -f $(RPM_TARGET)/$(COLLECTORSRPM); then mv $(RPM_TARGET)/$(COLLECTORSRPM) .; else mv tcollector-collectors.$(RPM_TARGET).rpm $(COLLECTORSRPM); fi
+	if test -f $(RPM_TARGET)/$(EOSRPM); then mv $(RPM_TARGET)/$(EOSRPM) .; else mv tcollector-eos.$(RPM_TARGET).rpm $(EOSRPM); fi
 
 clean:
 	rm -rf tcollector-t.spec manifest.txt bld dist tmp $(RPM_TARGET)
