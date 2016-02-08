@@ -688,72 +688,7 @@ class SenderThread(threading.Thread):
     def send_data(self):
         """Sends outstanding data in self.sendq to the TSD in one operation."""
         if self.http:
-            metrics = []
-            for line in self.sendq:
-                # print " %s" % line
-                parts = line.split(None, 3)
-                # not all metrics have metric-specific tags
-                if len(parts) == 4:
-                  (metric, timestamp, value, raw_tags) = parts
-                else:
-                  (metric, timestamp, value) = parts
-                  raw_tags = ''
-                # process the tags
-                metric_tags = {}
-                for tag in raw_tags.strip().split():
-                    (tag_key, tag_value) = tag.split('=', 1)
-                    metric_tags[tag_key] = tag_value
-                metric_entry = {}
-                metric_entry['metric'] = metric
-                metric_entry['timestamp'] = long(timestamp)
-                metric_entry['value'] = float(value)
-                metric_entry['tags'] = dict(self.tags).copy()
-                if len(metric_tags) + len(metric_entry['tags']) > self.maxtags:
-                  metric_tags_orig = set(metric_tags)
-                  subset_metric_keys = metric_tags[:len(metric_tags[:self.maxtags-len(metric_entry['tags'])])]
-                  metric_tags = dict((k, v) for k, v in metric_tags.iteritems() if k in subset_metric_keys)
-                  LOG.error('Exceeding maximum permitted metric tags - removing %s for metric %s', str(metric_tags_orig - set(metric_tags)), metric)
-                metric_entry['tags'].update(metric_tags)
-                metrics.append(metric_entry)
-
-            if self.dryrun:
-                print "Would have sent:\n%s" % json.dumps(metrics,
-                                                          sort_keys=True,
-                                                          indent=4)
-                return
-
-            self.pick_connection()
-            # print "Using server: %s:%s" % (self.host, self.port)
-            # url = 'http://%s:%s/api/put?details' % (self.host, self.port)
-            # print "Url is %s" % url
-            LOG.debug('Sending metrics to http://%s:%s/api/put?details',
-                      self.host, self.port)
-            if self.ssl:
-                protocol = 'https'
-            else:
-                protocol = 'http'
-            req = urllib2.Request('%s://%s:%s/api/put?details' % (
-                protocol, self.host, self.port))
-            if self.http_username and self.http_password:
-              req.add_header("Authorization", "Basic %s"
-                             % base64.b64encode("%s:%s" % (self.http_username, self.http_password)))
-            req.add_header('Content-Type', 'application/json')
-            try:
-                response = urllib2.urlopen(req, json.dumps(metrics))
-                LOG.debug('Received response %s', response.getcode())
-                # clear out the sendq
-                self.sendq = []
-                # print "Got response code: %s" % response.getcode()
-                # print "Content:"
-                # for line in response:
-                #     print line,
-                #     print
-            except urllib2.HTTPError, http_error:
-                LOG.error('Got error %s', http_error)
-                # for line in http_error:
-                #   print line,
-
-            return
+            return self.send_data_via_http()
 
         # construct the output string
         out = ''
@@ -790,6 +725,74 @@ class SenderThread(threading.Thread):
 
         # FIXME: we should be reading the result at some point to drain
         # the packets out of the kernel's queue
+
+    def send_data_via_http(self):
+        """Sends outstanding data in self.sendq to TSD in one HTTP API call."""
+        metrics = []
+        for line in self.sendq:
+            # print " %s" % line
+            parts = line.split(None, 3)
+            # not all metrics have metric-specific tags
+            if len(parts) == 4:
+              (metric, timestamp, value, raw_tags) = parts
+            else:
+              (metric, timestamp, value) = parts
+              raw_tags = ""
+            # process the tags
+            metric_tags = {}
+            for tag in raw_tags.strip().split():
+                (tag_key, tag_value) = tag.split("=", 1)
+                metric_tags[tag_key] = tag_value
+            metric_entry = {}
+            metric_entry["metric"] = metric
+            metric_entry["timestamp"] = long(timestamp)
+            metric_entry["value"] = float(value)
+            metric_entry["tags"] = dict(self.tags).copy()
+            if len(metric_tags) + len(metric_entry["tags"]) > self.maxtags:
+              metric_tags_orig = set(metric_tags)
+              subset_metric_keys = metric_tags[:len(metric_tags[:self.maxtags-len(metric_entry["tags"])])]
+              metric_tags = dict((k, v) for k, v in metric_tags.iteritems() if k in subset_metric_keys)
+              LOG.error("Exceeding maximum permitted metric tags - removing %s for metric %s",
+                        str(metric_tags_orig - set(metric_tags)), metric)
+            metric_entry["tags"].update(metric_tags)
+            metrics.append(metric_entry)
+
+        if self.dryrun:
+            print "Would have sent:\n%s" % json.dumps(metrics,
+                                                      sort_keys=True,
+                                                      indent=4)
+            return
+
+        self.pick_connection()
+        # print "Using server: %s:%s" % (self.host, self.port)
+        # url = "http://%s:%s/api/put?details" % (self.host, self.port)
+        # print "Url is %s" % url
+        LOG.debug("Sending metrics to http://%s:%s/api/put?details",
+                  self.host, self.port)
+        if self.ssl:
+            protocol = "https"
+        else:
+            protocol = "http"
+        req = urllib2.Request("%s://%s:%s/api/put?details" % (
+            protocol, self.host, self.port))
+        if self.http_username and self.http_password:
+          req.add_header("Authorization", "Basic %s"
+                         % base64.b64encode("%s:%s" % (self.http_username, self.http_password)))
+        req.add_header("Content-Type", "application/json")
+        try:
+            response = urllib2.urlopen(req, json.dumps(metrics))
+            LOG.debug("Received response %s", response.getcode())
+            # clear out the sendq
+            self.sendq = []
+            # print "Got response code: %s" % response.getcode()
+            # print "Content:"
+            # for line in response:
+            #     print line,
+            #     print
+        except urllib2.HTTPError, e:
+            LOG.error("Got error %s", e)
+            # for line in http_error:
+            #   print line,
 
 
 def setup_logging(logfile=DEFAULT_LOG, max_bytes=None, backup_count=None):
