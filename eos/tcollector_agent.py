@@ -100,6 +100,7 @@ class TcollectorAgent(eossdk.AgentHandler,
       eossdk.AgentHandler.__init__(self, sdk.get_agent_mgr())
       eossdk.TimeoutHandler.__init__(self, sdk.get_timeout_mgr())
       eossdk.SystemHandler.__init__(self, sdk.get_system_mgr())
+      self.vrf_mgr_ = sdk.get_vrf_mgr()
 
       # Agent local status
       self.tcollector_running_ = False
@@ -221,6 +222,11 @@ class TcollectorAgent(eossdk.AgentHandler,
       else:
          return DEFAULT_TSD_PORT
 
+   def _socket_at(self, family, socktype, proto):
+      vrf = self.get_agent_mgr().agent_option("vrf") or "default"
+      fd = self.vrf_mgr_.socket_at(family, socktype, proto, vrf)
+      return socket.fromfd(fd, family, socktype, proto)
+
    def start(self):
       tcollector = self.module_
       tcollector.ALIVE = True
@@ -228,6 +234,7 @@ class TcollectorAgent(eossdk.AgentHandler,
               "--host", self._get_tsd_host(),
               "--port", str(self._get_tsd_port()),
               "--collector-dir=/usr/local/tcollector/collectors"]
+      tcollector.socket.socket = self._socket_at
       debug("Starting tcollector", args)
       options, args = tcollector.parse_cmdline(args)
       tcollector.setup_python_path(TCOLLECTOR_PATH)
