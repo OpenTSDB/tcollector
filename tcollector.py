@@ -701,7 +701,7 @@ class SenderThread(threading.Thread):
                 # process the tags
                 metric_tags = {}
                 for tag in raw_tags.strip().split():
-                    (tag_key, tag_value) = tag.split('=')
+                    (tag_key, tag_value) = tag.split('=', 1)
                     metric_tags[tag_key] = tag_value
                 metric_entry = {}
                 metric_entry['metric'] = metric
