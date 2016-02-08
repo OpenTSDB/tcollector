@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#! /usr/bin/env python
 
 # This file is part of tcollector.
 # Copyright (C) 2013  The tcollector Authors.
@@ -192,6 +192,9 @@ def main():
 
   # Get the list of block devices.
   drives = [dev[5:] for dev in glob.glob("/dev/[hs]d[a-z]")]
+  # Try FreeBSD drives if no block devices found
+  if not drives:
+    drives = [dev[5:] for dev in glob.glob("/dev/da[0-9]")+glob.glob("/dev/da[0-9][0-9]")]
   # Exit gracefully if no block devices found
   if not drives:
     sys.exit(13)
