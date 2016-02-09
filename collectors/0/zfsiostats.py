@@ -83,7 +83,8 @@ def extract_info(line):
     # 1k blocks
     s_df["used"] = convert_to_bytes(alloc) / 1024
     s_df["available"] = convert_to_bytes(free) / 1024
-    s_df["total"] = s_df["used"] + s_df["available"]
+    # If required, total should be done by front-end tool, as grabbed values are more or less rounded by zpool iostat
+    #s_df["total"] = s_df["used"] + s_df["available"]
 
     s_io = {}
     # magnitudeless variable
@@ -179,8 +180,10 @@ def main():
             ltype = T_DEVICE
         else:
             # must be a pool name
-            assert ltype == T_SEPARATOR, \
-                "expecting last state T_SEPARATOR, now got %s" % ltype
+            #assert ltype == T_SEPARATOR, \
+            #    "expecting last state T_SEPARATOR, now got %s" % ltype
+            if ltype == T_SEPARATOR:
+                parentpoolname = ""
             ltype = T_POOL
 
         if ltype == T_START:
@@ -194,6 +197,10 @@ def main():
         elif ltype == T_POOL:
             line = line.strip()
             poolname, s_df, s_io = extract_info(line)
+            if parentpoolname == "":
+                parentpoolname = poolname
+            else:
+                poolname=parentpoolname+"."+poolname
             capacity_stats_pool[poolname] = s_df
             io_stats_pool[poolname] = s_io
             # marker for leg
