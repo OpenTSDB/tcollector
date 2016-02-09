@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 # NTP Offset stats
 # charlesrg AT gmail.com
 #
@@ -44,7 +44,7 @@ def main():
     while True:
         ts = int(time.time())
         try:
-            ntp_proc = subprocess.Popen(["ntpdc", "-c", "loopinfo"], stdout=subprocess.PIPE)
+            ntp_proc = subprocess.Popen(["ntpq", "-p"], stdout=subprocess.PIPE)
         except OSError, e:
             if e.errno == errno.ENOENT:
                 # looks like ntpdc is not available, stop using this collector
@@ -59,12 +59,12 @@ def main():
                 fields = line.split()
                 if len(fields) <= 0:
                     continue
-                if fields[0] == "offset:":
-                    offset=fields[1]
+                if fields[0].startswith("*"):
+                    offset=fields[8]
                     continue
             print ("ntp.offset %d %s" % (ts, offset))
         else:
-            print >> sys.stderr, "ntpdc -c loopinfo, returned %r" % (ntp_proc.returncode)
+            print >> sys.stderr, "ntpq -p, returned %r" % (ntp_proc.returncode)
 
         sys.stdout.flush()
         time.sleep(COLLECTION_INTERVAL)
