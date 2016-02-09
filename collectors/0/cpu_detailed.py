@@ -74,17 +74,18 @@ def main():
             continue
 
         if fields[0] == "CPU":
+            timestamp = int(time.time())
             cpuid=fields[1][:-1]
             cpuuser=fields[2][:-1]
             cpunice=fields[4][:-1]
             cpusystem=fields[6][:-1]
             cpuinterrupt=fields[8][:-1]
             cpuidle=fields[10][:-1]
-            print ("cpu.%s.user %s" % (cpuid, cpuuser))
-            print ("cpu.%s.nice %s" % (cpuid, cpunice))
-            print ("cpu.%s.system %s" % (cpuid, cpusystem))
-            print ("cpu.%s.interrupt %s" % (cpuid, cpuinterrupt))
-            print ("cpu.%s.idle %s" % (cpuid, cpuidle))
+            print ("cpu.user %s %s cpuname=%s" % (timestamp, cpuuser, cpuid))
+            print ("cpu.nice %s %s cpuname=%s" % (timestamp, cpunice, cpuid))
+            print ("cpu.system %s %s cpuname=%s" % (timestamp, cpusystem, cpuid))
+            print ("cpu.interrupt %s %s cpuname=%s" % (timestamp, cpuinterrupt, cpuid))
+            print ("cpu.idle %s %s cpuname=%s" % (timestamp, cpuidle, cpuid))
 
     if signal_received is None:
         signal_received = signal.SIGTERM
