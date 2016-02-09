@@ -24,11 +24,22 @@ import sys
 import time
 import errno
 
+from collectors.lib import utils
+
+try:
+  from collectors.etc import ntpstat_conf
+except ImportError:
+  ntpstat_conf = None
 
 COLLECTION_INTERVAL = 60  # seconds
 
 def main():
     """ntpstats main loop"""
+
+    if not (ntpstat_conf and ntpstat_conf.enabled()):
+        sys.exit(13)
+
+    utils.drop_privileges()
 
     while True:
         ts = int(time.time())
