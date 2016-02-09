@@ -14,7 +14,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Bugfixes
 - zookeper.py [#221](https://github.com/OpenTSDB/tcollector/pull/221)
-- mysql.py [#227](https://github.com/OpenTSDB/tcollector/pull/227)
+- mysql.py [#227](https://github.com/OpenTSDB/tcollector/pull/227) [#178](https://github.com/OpenTSDB/tcollector/pull/178)
 - zfsiostats.py [#256](https://github.com/OpenTSDB/tcollector/pull/256)
 
 ### Core TCollector Features
