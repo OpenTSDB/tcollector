@@ -24,6 +24,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - RPM Packages now have base TCollector package, Collectors Package and an EOS specific package [#244](https://github.com/OpenTSDB/tcollector/pull/244)
 - Improved FreeBSD compatiblity [#256](https://github.com/OpenTSDB/tcollector/pull/256) [#257](https://github.com/OpenTSDB/tcollector/pull/257) [#258](https://github.com/OpenTSDB/tcollector/pull/258) [#263](https://github.com/OpenTSDB/tcollector/pull/263)
 - TCollector and all collectors now using '/usr/bin/env python' rather than '/usr/bin/python' [#263](https://github.com/OpenTSDB/tcollector/pull/263)
+- Elasticsearch Collector now allows multiple+configurable targets [#207](https://github.com/OpenTSDB/tcollector/pull/207)
 
 ## [1.2.0] - 2015-05
 ### Initial Baseline
