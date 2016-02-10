@@ -29,15 +29,13 @@ from collectors.lib import utils
 try:
   from collectors.etc import ntpstat_conf
 except ImportError:
-  ntpstat_conf = None
-
-COLLECTION_INTERVAL = 60  # seconds
+  sys.exit(13)
 
 def main():
     """ntpstats main loop"""
 
-    if not (ntpstat_conf and ntpstat_conf.enabled()):
-        sys.exit(13)
+    config = ntpstat_conf.get_config()
+    collection_interval=config['collection_interval']
 
     utils.drop_privileges()
 
@@ -67,7 +65,7 @@ def main():
             print >> sys.stderr, "ntpq -p, returned %r" % (ntp_proc.returncode)
 
         sys.stdout.flush()
-        time.sleep(COLLECTION_INTERVAL)
+        time.sleep(collection_interval)
 
 if __name__ == "__main__":
     main()

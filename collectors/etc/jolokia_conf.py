@@ -8,7 +8,7 @@ def enabled():
 def get_config():
     # config = {
     #     ## interval in seconds to fetch metrics
-    #     'interval': 20,
+    #     'collection_interval': 20,
     #     ## List of tags to be added to all metrics
     #     'common_tags': {
     #         'env': 'prd'
@@ -66,7 +66,7 @@ def get_config():
     # }
 
     config = {
-        'interval': 20,
+        'collection_interval': 20,
         'common_monitors': [{
             'mbean': 'java.lang:type=*',
             'metric': 'java.lang',

@@ -207,7 +207,7 @@ def main():
             i.process_data()
 
         try:
-            time.sleep(CONFIG['interval'])
+            time.sleep(CONFIG['collection_interval'])
         except KeyboardInterrupt:
             break
     # End while True
