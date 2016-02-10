@@ -392,8 +392,8 @@ def process_gc_log(collector):
 
 def main():
 
-    interval = g1gc_conf.get_interval()
-    config = g1gc_conf.get_gc_config()
+    config = g1gc_conf.get_config()
+    collection_interval=config['collection_interval']
     counters = {'young': 0, 'mixed': 0, 'initialmark': 0,
                 'remark': 0, 'fullgc': 0}
     gensize = {'eden': 0, 'survivor': 0, 'heap': 0}
@@ -410,7 +410,7 @@ def main():
     while True:
         process_gc_log(collector)
         sys.stdout.flush()
-        time.sleep(interval)
+        time.sleep(collection_interval)
 
 if __name__ == '__main__':
     exit(main())

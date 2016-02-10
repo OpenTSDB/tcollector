@@ -22,6 +22,13 @@ import subprocess
 import sys
 import time
 
+from collectors.lib import utils
+
+try:
+  from collectors.etc import smart_stats_conf
+except ImportError:
+  sys.exit(13)
+
 TWCLI = "/usr/sbin/tw_cli"
 ARCCONF = "/usr/local/bin/arcconf"
 ARCCONF_ARGS = "GETVERSION 1"
@@ -29,7 +36,6 @@ NO_CONTROLLER = "Controllers found: 0"
 BROKEN_DRIVER_VERSIONS = ("1.1-5",)
 
 SMART_CTL = "smartctl"
-SLEEP_BETWEEN_POLLS = 60
 COMMAND_TIMEOUT = 10
 
 # Common smart attributes, add more to this list if you start seeing
@@ -190,6 +196,9 @@ def process_output(drive, smart_output):
 def main():
   """main loop for SMART collector"""
 
+  config = smart_stats_conf.get_config()
+  collection_interval=config['collection_interval']
+
   # Get the list of block devices.
   drives = [dev[5:] for dev in glob.glob("/dev/[hs]d[a-z]")]
   # Try FreeBSD drives if no block devices found
@@ -221,7 +230,7 @@ def main():
       process_output(drive, smart_output)
 
     sys.stdout.flush()
-    time.sleep(SLEEP_BETWEEN_POLLS)
+    time.sleep(collection_interval)
 
 
 if __name__ == "__main__":

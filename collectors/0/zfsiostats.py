@@ -13,15 +13,6 @@
 # see <http://www.gnu.org/licenses/>.
 #
 
-import errno
-import sys
-import time
-import subprocess
-import re
-import signal
-import os
-
-
 '''
 ZFS I/O and disk space statistics for TSDB
 
@@ -38,6 +29,21 @@ This plugin tracks, for all pools:
 
 Disk space usage is given in 1K blocks. Throughput is given in bytes/s.
 '''
+
+import errno
+import sys
+import time
+import subprocess
+import re
+import signal
+import os
+
+from collectors.lib import utils
+
+try:
+    from collectors.etc import zfsiostats_conf
+except ImportError:
+    sys.exit(13)
 
 def convert_to_bytes(string):
     """Take a string in the form 1234K, and convert to bytes"""
@@ -111,18 +117,18 @@ def handlesignal(signum, stack):
 
 def main():
     """zfsiostats main loop"""
+
+    config = zfsiostats_conf.get_config()
+    collection_interval=config['collection_interval']
+
     global signal_received
-    interval = 15
-    # shouldn't the interval be determined by the daemon itself, and commu-
-    # nicated to the collector somehow (signals seem like a reasonable protocol
-    # whereas command-line parameters also sound reasonable)?
 
     signal.signal(signal.SIGTERM, handlesignal)
     signal.signal(signal.SIGINT, handlesignal)
 
     try:
         p_zpool = subprocess.Popen(
-            ["zpool", "iostat", "-v", str(interval)],
+            ["zpool", "iostat", "-v", str(collection_interval)],
             stdout=subprocess.PIPE,
         )
     except OSError, e:

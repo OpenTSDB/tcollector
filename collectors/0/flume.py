@@ -75,10 +75,10 @@ def flume_metrics(server):
   return request(server, "/metrics")
 
 def main(argv):
-  if not (flume_conf and flume_conf.enabled() and flume_conf.get_settings()):
+  if not (flume_conf and flume_conf.enabled() and flume_conf.get_config()):
     sys.exit(13)
 
-  settings = flume_conf.get_settings()
+  settings = flume_conf.get_config()
 
   if (settings['default_timeout']):
     DEFAULT_TIMEOUT = settings['default_timeout']

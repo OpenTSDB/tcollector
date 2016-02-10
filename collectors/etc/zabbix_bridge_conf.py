@@ -13,6 +13,5 @@ def get_settings():
         'db': 'zabbix'
     },
     'slaveid': 3,                    # Slave identifier, it should be unique.
-    'disallow': '[^a-zA-Z0-9\-_\.]', # Regex of characters to replace with _.
-    'gethostmap_interval': 300       # How often to reload itemid, hostmap from DB.
+    'disallow': '[^a-zA-Z0-9\-_\.]'  # Regex of characters to replace with _.
   }
