@@ -13,15 +13,6 @@
 # see <http://www.gnu.org/licenses/>.
 #
 
-import errno
-import sys
-import time
-import subprocess
-import re
-import signal
-import os
-
-
 '''
 CPU detailed statistics for TSDB
 
@@ -34,6 +25,21 @@ This plugin tracks, for all CPUs:
 - idle %
 '''
 
+import errno
+import sys
+import time
+import subprocess
+import re
+import signal
+import os
+
+from collectors.lib import utils
+
+try:
+    from collectors.etc import cpu_detailed_conf
+except ImportError:
+    sys.exit(13)
+
 signal_received = None
 def handlesignal(signum, stack):
     global signal_received
@@ -41,6 +47,10 @@ def handlesignal(signum, stack):
 
 def main():
     """top main loop"""
+
+    config = cpu_detailed_conf.get_config()
+    collection_interval=config['collection_interval']
+
     global signal_received
 
     signal.signal(signal.SIGTERM, handlesignal)
@@ -48,7 +58,7 @@ def main():
 
     try:
         p_top = subprocess.Popen(
-            ["top", "-t", "-I", "-P", "-n", "-s15", "-d40320"],
+            ["top", "-t", "-I", "-P", "-n", "-s"+str(collection_interval), "-d40320"],
             stdout=subprocess.PIPE,
         )
     except OSError, e:
