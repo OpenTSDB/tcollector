@@ -102,7 +102,7 @@ def collect(db):
           print ("postgresql.%s %i %s database=%s"
                  % (metric, ts, value, database))
         except:
-          err("got here")
+          utils.err("got here")
           continue
 
     # connections

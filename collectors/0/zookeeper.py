@@ -63,7 +63,7 @@ def scan_zk_instances():
         netstat = Popen(["netstat", "-lnpt"], stderr=PIPE, stdout=PIPE)
         ret = netstat.wait()
         if ret:
-            raise CalledProcessError("netstat returned code %i" % ret)
+            raise CalledProcessError(ret, "netstat -lnpt", "netstat returned code %i" % ret)
         listen_sock = netstat.stdout.read()
     except OSError:
         utils.err("netstat is not in PATH")
@@ -121,7 +121,7 @@ def connect_socket(tcp_version, port):
     try:
         sock.connect((ipaddr, port))
     except Exception, err:
-        util.err(err)
+        utils.err(err)
     return sock
 
 def main():
