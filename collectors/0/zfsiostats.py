@@ -13,6 +13,24 @@
 # see <http://www.gnu.org/licenses/>.
 #
 
+'''
+ZFS I/O and disk space statistics for TSDB
+
+This plugin tracks, for all pools:
+
+- I/O
+  zfs.io.pool.{ops.read, ops.write}
+  zfs.io.pool.{bps.read, bps.write}
+  zfs.io.device.{ops.read, ops.write}
+  zfs.io.device.{bps.read, bps.write}
+- disk space
+  zfs.df.pool.kb.{used, free}
+  zfs.df.device.kb.{used, free}
+
+Disk space usage is given in kbytes.
+Throughput is given in operations/s and bytes/s.
+'''
+
 import errno
 import sys
 import time
@@ -21,23 +39,14 @@ import re
 import signal
 import os
 
+from collectors.lib import utils
 
-'''
-ZFS I/O and disk space statistics for TSDB
+try:
+    from collectors.etc import zfsiostats_conf
+except ImportError:
+    zfsiostats_conf = None
 
-This plugin tracks, for all pools:
-
-- I/O
-  zfs.io.pool.{read_issued, write_issued}
-  zfs.io.pool.{read_throughput, write_throughput}
-  zfs.io.device.{read_issued, write_issued}
-  zfs.io.device.{read_throughput, write_throughput}
-- disk space
-  zfs.df.pool.1kblocks.{total, used, available}
-  zfs.df.device.1kblocks.{total, used, available}
-
-Disk space usage is given in 1K blocks. Throughput is given in bytes/s.
-'''
+DEFAULT_COLLECTION_INTERVAL=15
 
 def convert_to_bytes(string):
     """Take a string in the form 1234K, and convert to bytes"""
@@ -82,17 +91,15 @@ def extract_info(line):
     s_df = {}
     # 1k blocks
     s_df["used"] = convert_to_bytes(alloc) / 1024
-    s_df["available"] = convert_to_bytes(free) / 1024
-    # If required, total should be done by front-end tool, as grabbed values are more or less rounded by zpool iostat
-    #s_df["total"] = s_df["used"] + s_df["available"]
+    s_df["free"] = convert_to_bytes(free) / 1024
 
     s_io = {}
     # magnitudeless variable
-    s_io["read_issued"] = convert_wo_prefix(read_issued)
-    s_io["write_issued"] = convert_wo_prefix(write_issued)
+    s_io["ops.read"] = convert_wo_prefix(read_issued)
+    s_io["ops.write"] = convert_wo_prefix(write_issued)
     # throughput
-    s_io["read_throughput"] = convert_to_bytes(read_throughput)
-    s_io["write_throughput"] = convert_to_bytes(write_throughput)
+    s_io["bps.read"] = convert_to_bytes(read_throughput)
+    s_io["bps.write"] = convert_to_bytes(write_throughput)
 
     return poolname, s_df, s_io
 
@@ -112,17 +119,18 @@ def handlesignal(signum, stack):
 def main():
     """zfsiostats main loop"""
     global signal_received
-    interval = 15
-    # shouldn't the interval be determined by the daemon itself, and commu-
-    # nicated to the collector somehow (signals seem like a reasonable protocol
-    # whereas command-line parameters also sound reasonable)?
+
+    collection_interval=DEFAULT_COLLECTION_INTERVAL
+    if(zfsiostats_conf):
+        config = zfsiostats_conf.get_config()
+        collection_interval=config['collection_interval']
 
     signal.signal(signal.SIGTERM, handlesignal)
     signal.signal(signal.SIGINT, handlesignal)
 
     try:
         p_zpool = subprocess.Popen(
-            ["zpool", "iostat", "-v", str(interval)],
+            ["zpool", "iostat", "-v", str(collection_interval)],
             stdout=subprocess.PIPE,
         )
     except OSError, e:
@@ -227,21 +235,21 @@ def main():
                 # which is a since-boot summary similar to iostat
                 # and is useless to us
                 for poolname, stats in capacity_stats_pool.items():
-                    fm = "zfs.df.pool.1kblocks.%s %d %s poolname=%s"
+                    fm = "zfs.df.pool.kb.%s %d %s pool=%s"
                     for statname, statnumber in stats.items():
                         print fm % (statname, timestamp, statnumber, poolname)
                 for poolname, stats in io_stats_pool.items():
-                    fm = "zfs.io.pool.%s %d %s poolname=%s"
+                    fm = "zfs.io.pool.%s %d %s pool=%s"
                     for statname, statnumber in stats.items():
                         print fm % (statname, timestamp, statnumber, poolname)
                 for devicename, stats in capacity_stats_device.items():
-                    fm = "zfs.df.device.1kblocks.%s %d %s devicename=%s poolname=%s"
+                    fm = "zfs.df.device.kb.%s %d %s device=%s pool=%s"
                     poolname, devicename = devicename.split(" ", 1)
                     for statname, statnumber in stats.items():
                         print fm % (statname, timestamp, statnumber,
                                     devicename, poolname)
                 for devicename, stats in io_stats_device.items():
-                    fm = "zfs.io.device.%s %d %s devicename=%s poolname=%s"
+                    fm = "zfs.io.device.%s %d %s device=%s pool=%s"
                     poolname, devicename = devicename.split(" ", 1)
                     for statname, statnumber in stats.items():
                         print fm % (statname, timestamp, statnumber,
