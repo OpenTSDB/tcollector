@@ -67,7 +67,7 @@ def request(server, uri):
   server.request("GET", uri)
   resp = server.getresponse()
   if resp.status != httplib.OK:
-    raise FlumError(resp)
+    raise FlumeError(resp)
   return json.loads(resp.read())
 
 
