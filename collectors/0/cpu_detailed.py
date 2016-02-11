@@ -23,6 +23,10 @@ This plugin tracks, for all CPUs:
 - system %
 - interrupt %
 - idle %
+
+Requirements :
+- FreeBSD : top
+- Linux : mpstat
 '''
 
 import errno
@@ -32,13 +36,16 @@ import subprocess
 import re
 import signal
 import os
+import platform
 
 from collectors.lib import utils
 
 try:
     from collectors.etc import cpu_detailed_conf
 except ImportError:
-    sys.exit(13)
+    cpu_detailed_conf = None
+
+DEFAULT_COLLECTION_INTERVAL=15
 
 signal_received = None
 def handlesignal(signum, stack):
@@ -48,8 +55,10 @@ def handlesignal(signum, stack):
 def main():
     """top main loop"""
 
-    config = cpu_detailed_conf.get_config()
-    collection_interval=config['collection_interval']
+    collection_interval=DEFAULT_COLLECTION_INTERVAL
+    if(cpu_detailed_conf):
+        config = cpu_detailed_conf.get_config()
+        collection_interval=config['collection_interval']
 
     global signal_received
 
@@ -57,10 +66,16 @@ def main():
     signal.signal(signal.SIGINT, handlesignal)
 
     try:
-        p_top = subprocess.Popen(
-            ["top", "-t", "-I", "-P", "-n", "-s"+str(collection_interval), "-d40320"],
-            stdout=subprocess.PIPE,
-        )
+        if platform.system() == "FreeBSD":
+            p_top = subprocess.Popen(
+                ["top", "-t", "-I", "-P", "-n", "-s"+str(collection_interval), "-d"+str((365*24*3600)/collection_interval)],
+                stdout=subprocess.PIPE,
+            )
+        else:
+            p_top = subprocess.Popen(
+                ["mpstat", "-P", "ALL", str(collection_interval)],
+                stdout=subprocess.PIPE,
+            )
     except OSError, e:
         if e.errno == errno.ENOENT:
             # it makes no sense to run this collector here
@@ -79,23 +94,23 @@ def main():
             # end of the program, die
             break
 
-        fields = line.split()
+        fields = re.sub(r"%( [uni][a-z]+,?)?", "", line).split()
         if len(fields) <= 0:
             continue
 
-        if fields[0] == "CPU":
+        if (((fields[0] == "CPU") or (re.match("[0-9][0-9]:[0-9][0-9]:[0-9][0-9]",fields[0]))) and (re.match("[0-9]+:?",fields[1]))):
             timestamp = int(time.time())
-            cpuid=fields[1][:-1]
-            cpuuser=fields[2][:-1]
-            cpunice=fields[4][:-1]
-            cpusystem=fields[6][:-1]
-            cpuinterrupt=fields[8][:-1]
-            cpuidle=fields[10][:-1]
-            print ("cpu.user %s %s cpuname=%s" % (timestamp, cpuuser, cpuid))
-            print ("cpu.nice %s %s cpuname=%s" % (timestamp, cpunice, cpuid))
-            print ("cpu.system %s %s cpuname=%s" % (timestamp, cpusystem, cpuid))
-            print ("cpu.interrupt %s %s cpuname=%s" % (timestamp, cpuinterrupt, cpuid))
-            print ("cpu.idle %s %s cpuname=%s" % (timestamp, cpuidle, cpuid))
+            cpuid=fields[1].replace(":","")
+            cpuuser=fields[2]
+            cpunice=fields[3]
+            cpusystem=fields[4]
+            cpuinterrupt=fields[6]
+            cpuidle=fields[-1]
+            print ("cpu.usr %s %s cpu=%s" % (timestamp, cpuuser, cpuid))
+            print ("cpu.nice %s %s cpu=%s" % (timestamp, cpunice, cpuid))
+            print ("cpu.sys %s %s cpu=%s" % (timestamp, cpusystem, cpuid))
+            print ("cpu.irq %s %s cpu=%s" % (timestamp, cpuinterrupt, cpuid))
+            print ("cpu.idle %s %s cpu=%s" % (timestamp, cpuidle, cpuid))
 
     if signal_received is None:
         signal_received = signal.SIGTERM
