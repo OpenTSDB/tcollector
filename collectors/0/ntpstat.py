@@ -31,13 +31,15 @@ try:
 except ImportError:
   ntpstat_conf = None
 
-COLLECTION_INTERVAL = 60  # seconds
+DEFAULT_COLLECTION_INTERVAL=120
 
 def main():
     """ntpstats main loop"""
 
-    if not (ntpstat_conf and ntpstat_conf.enabled()):
-        sys.exit(13)
+    collection_interval=DEFAULT_COLLECTION_INTERVAL
+    if(ntpstat_conf):
+        config = ntpstat_conf.get_config()
+        collection_interval=config['collection_interval']
 
     utils.drop_privileges()
 
@@ -67,7 +69,7 @@ def main():
             print >> sys.stderr, "ntpq -p, returned %r" % (ntp_proc.returncode)
 
         sys.stdout.flush()
-        time.sleep(COLLECTION_INTERVAL)
+        time.sleep(collection_interval)
 
 if __name__ == "__main__":
     main()
