@@ -41,9 +41,9 @@ import platform
 from collectors.lib import utils
 
 try:
-    from collectors.etc import cpu_detailed_conf
+    from collectors.etc import cpus_pctusage_conf
 except ImportError:
-    cpu_detailed_conf = None
+    cpus_pctusage_conf = None
 
 DEFAULT_COLLECTION_INTERVAL=15
 
@@ -56,8 +56,8 @@ def main():
     """top main loop"""
 
     collection_interval=DEFAULT_COLLECTION_INTERVAL
-    if(cpu_detailed_conf):
-        config = cpu_detailed_conf.get_config()
+    if(cpus_pctusage_conf):
+        config = cpus_pctusage_conf.get_config()
         collection_interval=config['collection_interval']
 
     global signal_received
