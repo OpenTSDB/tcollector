@@ -16,8 +16,6 @@
 Collects statistics about running processes from /proc into TSDB.
 
 Currently the following is collected:
- - Number of running KVM processes
- - CPU and memory statistics about KVM processes
  - Number of running tcollector processes
  - CPU and memory statistics from tcollector process and children
 
@@ -64,9 +62,6 @@ class Process(object):
 
         return self._cmdline
 
-    def is_kvm_process(self):
-        return self.comm == "kvm"
-
     def stat(self):
         """ Returns /proc/[pid]/stat as dict.
 
@@ -112,10 +107,7 @@ class ProcessTable(object):
             else:
                 try:
                     p = Process(pid)
-                    if p.is_kvm_process():
-                        new[pid] = KvmProcess(pid)
-                    else:
-                        new[pid] = p
+                    new[pid] = p
                 except ProcessTerminatedError:
                     continue
         self.processes = new
@@ -123,49 +115,6 @@ class ProcessTable(object):
     def filter(self, cond):
         """ Return processes for that the function cond evaluates to true. """
         return filter(cond, self.processes.values())
-
-
-class KvmProcess(Process):
-    def __init__(self, pid):
-        super(KvmProcess, self).__init__(pid)
-        self._uuid = None
-
-    @property
-    def uuid(self):
-        if self._uuid is None:
-            if "-uuid" in self.cmdline:
-                self._uuid = self.cmdline[
-                        self.cmdline.index("-uuid") + 1]
-            else:
-                self._uuid = "unset"
-
-        return self._uuid
-
-
-def collect_kvm_stats(processes):
-    kvm_procs = processes.filter(lambda p: p.is_kvm_process())
-    ts = int(time.time())
-    print("kvm.processes %s %s" % (ts, len(kvm_procs)))
-
-    for process in kvm_procs:
-        try:
-            stat = process.stat()
-        except ProcessTerminatedError:
-            continue
-        for metric in ("guest_time", "cguest_time", "cutime",
-                       "utime", "stime", "cstime", "vsize", "rss"):
-            # guest_time and cguest_time not available for kernel < 2.6.24
-            if metric in ("guest_time", "cguest_time") and metric not in stat:
-                continue
-            print("kvm.cputime %s %s pid=%s type=%s uuid=%s" %
-                (ts, stat[metric], process.pid, metric, process.uuid))
-
-        print("kvm.mem_bytes %s %s pid=%s type=vsize uuid=%s" % (ts,
-            stat["vsize"], process.pid, process.uuid))
-        print("kvm.mem_bytes %s %s pid=%s type=rss uuid=%s" % (ts,
-            int(stat["rss"]) * resource.getpagesize(), process.pid,
-            process.uuid))
-
 
 def collect_tcollect_stats(processes):
     # print a msg and do nothing if the parent process isn't tcollector
@@ -217,7 +166,6 @@ def main():
     while True:
         processes = ProcessTable()
         processes.update()
-        collect_kvm_stats(processes)
         collect_tcollect_stats(processes)
 
         time.sleep(COLLECTION_INTERVAL)
