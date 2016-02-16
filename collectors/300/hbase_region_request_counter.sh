@@ -1,33 +1,42 @@
 #!/bin/bash
 # Tcollector to do some TCP analysis for region usage in HBase
+# This file is part of tcollector.
+# Copyright (C) 2013 The tcollector Authors.
+#
+# This program is free software: you can redistribute it and/or modify it
+# under the terms of the GNU Lesser General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or (at your
+# option) any later version. This program is distributed in the hope that it
+# will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty
+# of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Lesser
+# General Public License for more details. You should have received a copy
+# of the GNU Lesser General Public License along with this program. If not,
+# see <http://www.gnu.org/licenses/>.
+#
 # Created by: Geoffrey Anderson <geoff@box.com>
 # Created on: 2013-03-26
 # Updated by: Geoffrey Anderson <geoff@box.com>
 # Updated on: 2013-03-27
 
 
-####
-# Variables you can change
-####
-# Name of the metric to use for this. There will automatically be tags for "table" and "region"
-metric_name='hadoop.hbase.regionserver.regions.requests'
-# duration to capture tcpdump data in seconds
-sleep_time=11
+from collectors.etc import hbase_region_request_counter_conf
+from collectors.lib import utils
 
+CONFIG = hbase_region_request_counter_conf.get_config()
+metric_name = CONFIG['metric_name']
+sleep_time = CONFIG['sleep_time']
+hbase_tables = CONFIG['hbase_tables']
 
-
-####
-# Additional variables for this script, change if necessary
-####
 tmp_dir='/tmp'
 lock_file="${self}.lockfile"
 tcpdump_raw_file="${self}.tcpdump.raw"
 tcpdump_temp_file="${self}.tcpdump.out"
 result_file="${self}.result.txt"
 self="$(basename $0)"
-hbase_tables=''
 
-
+if not hbase_region_request_counter_conf.enabled():
+  sys.stderr.write("hbase_region_request_counter collector is not enabled.")
+  sys.exit(13)
 
 ####
 # Functions
