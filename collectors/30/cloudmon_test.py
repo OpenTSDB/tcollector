@@ -34,7 +34,7 @@ def process(content):
         else:
             comps = [ss.strip() for ss in s.split(':')]
             metric_name = comps[0]
-            if stype == 'counters':
+            if stype == 'counters' or stype == 'gauges':
                 val = int(comps[1])
                 print("%s %d %d" % (metric_name, ts, val))
             elif stype == 'metrics':
