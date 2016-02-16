@@ -14,11 +14,11 @@ from collectors.lib import utils
 
 CONFIG = docker_conf.get_config()
 
-COLLECTION_INTERVAL = 15  # seconds
-CGROUP_PATH = "/sys/fs/cgroup"
-ENABLED = False
+COLLECTION_INTERVAL = CONFIG['interval']
+CGROUP_PATH =CONFIG['cgroup_path']
+ENABLED = docker_conf.enabled()
 
-if not docker_conf.enabled():
+if not ENABLED:
   sys.stderr.write("Docker collector is not enabled")
   sys.exit(13)
 
