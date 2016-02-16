@@ -8,6 +8,7 @@ import sys
 import time
 from string import Template
 import re
+from collectors.etc import mapr_metrics_conf
 from collectors.lib import utils
 
 
@@ -22,6 +23,8 @@ try:
 except ImportError:
   utils.err("No mapr_metrics configuration found!")
   sys.exit(13)
+
+CONFIG = mapr_metrics_conf.get_config()
 
 
 def get_metrics(webserver_url, username, password, params):
@@ -51,11 +54,11 @@ def get_metrics(webserver_url, username, password, params):
 def main():
   schema = "https"
 
-  username = mapr_metrics_conf.username
-  password = mapr_metrics_conf.password
-  webserver = mapr_metrics_conf.webserver
-  port = mapr_metrics_conf.port
-  if mapr_metrics_conf.no_ssl:
+  username = CONFIG['username']
+  password = CONFIG['password']
+  webserver = CONFIG['webserver']
+  port = CONFIG['port']
+  if CONFIG['no_ssl']:
     schema = "http"
   webserver_url = "%s://%s:%d/rest/node/metrics" % (schema, webserver, port)
 
@@ -81,7 +84,7 @@ class Metrics2TSD:
     return re.sub('\.', '_', cluster_name)
 
   def run(self):
-    seconds_delay = 10
+    seconds_delay = CONFIG['interval']
 
     while True:
       end = datetime.datetime.now()
@@ -173,9 +176,6 @@ class Metrics2TSD:
           t['interface'] = obj
         metric = self.metric_template.substitute(grouping=group.lower(), metric=metric_name)
         self.print_opentsdb_message(metric, timestamp, value, t)
-        #if metric in last_values:
-        #	self.send_counter(metric, last_values[metric], value, timestamp, t)
-        last_values[metric] = value
 
   def print_opentsdb_message(self, metric, timestamp, value, tags):
     tag_string = " ".join(map(lambda x: "%s=%s" % x, tags.items()))
@@ -191,7 +191,7 @@ class Metrics2TSD:
 
 
 if __name__ == "__main__":
-  if mapr_metrics_conf.enabled:
+  if mapr_metrics_conf.enabled():
     sys.stdin.close()
     sys.exit(main())
   else:
