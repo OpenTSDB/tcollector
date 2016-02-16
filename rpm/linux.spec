@@ -1,8 +1,6 @@
 %post
 if [ "$1" = 1 ]; then
   chkconfig --add tcollector
-  chkconfig tcollector on
-  service tcollector start
 fi
 %preun
 if [ "$1" = 0 ]; then
