@@ -26,6 +26,15 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - TCollector and all collectors now using '/usr/bin/env python' rather than '/usr/bin/python' [#263](https://github.com/OpenTSDB/tcollector/pull/263)
 - Elasticsearch Collector now allows multiple+configurable targets [#207](https://github.com/OpenTSDB/tcollector/pull/207)
 
+### Packaging Changes
+- The RPM no longer starts or enables TCollector on installation
+- Enable RPM subpackages. Allows you to create 3 packages
+  - A base package with the just the tcollector
+  - A collectors subpackage with just collectors
+  - An eos subpackage with EOS-only collectors (depends on EosSDK)
+- %{rootdir} was hardcoded instead of using the pwd passed to %{_srcrpmdir}.
+- The sub-packages were missing a dependency on the main package.
+
 ## [1.2.0] - 2015-05
 ### Initial Baseline
 - This is the current release, so the CHANGELOG is from here forward.
