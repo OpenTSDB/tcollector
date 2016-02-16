@@ -61,14 +61,14 @@ import re
 import subprocess
 import sys
 import time
+from collectors.lib import utils
+from collectors.etc import redis_stats_conf
 
 try:
     import redis
     has_redis = True
 except ImportError:
     has_redis = False
-
-from collectors.lib import utils
 
 # If we are root, drop privileges to this user, if necessary.  NOTE: if this is
 # not root, this MUST be the user that you run redis-server under.  If not, we
@@ -96,7 +96,8 @@ def main():
         utils.drop_privileges(user=USER)
     sys.stdin.close()
 
-    interval = 15
+    config = redis_stats_conf.get_config()
+    interval = config['collection_interval']
 
     # we scan for instances here to see if there are any redis servers
     # running on this machine...

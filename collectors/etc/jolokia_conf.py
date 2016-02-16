@@ -66,7 +66,7 @@ def get_config():
     # }
 
     config = {
-        'interval': 20,
+        'interval': 15,
         'common_monitors': [{
             'mbean': 'java.lang:type=*',
             'metric': 'java.lang',
