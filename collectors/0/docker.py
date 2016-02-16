@@ -9,9 +9,18 @@ import sys
 import time
 import json
 
+from collectors.etc import docker_conf
 from collectors.lib import utils
 
+CONFIG = docker_conf.get_config()
+
 COLLECTION_INTERVAL = 15  # seconds
+CGROUP_PATH = "/sys/fs/cgroup"
+ENABLED = False
+
+if not docker_conf.enabled():
+  sys.stderr.write("Docker collector is not enabled")
+  sys.exit(13)
 
 # proc_names example:
 # $ cat cpuacct.stat
@@ -87,7 +96,7 @@ def senddata(datatosend, containerid):
             datatosend += " containername="+containernames[containerid]
         if (containerid in containerimages):
             datatosend += " containerimage="+containerimages[containerid]
-        print datatosend
+        print "docker.%s" % datatosend
     sys.stdout.flush()
 
 def readdockerstats(path, containerid):
@@ -153,31 +162,31 @@ def main():
         if (cache == 4):
             cache = 0
 
-        if os.path.isdir("/sys/fs/cgroup"):
-            for level1 in os.listdir("/sys/fs/cgroup"):
-                if (os.path.isdir("/sys/fs/cgroup/"+level1+"/docker")\
-                # /sys/fs/cgroup/cpu and /sys/fs/cgroup/cpuacct are often links to /sys/fs/cgroup/cpu,cpuacct
-                and not (((level1 == "cpu,cpuacct") or (level1 == "cpuacct")) and (os.path.isdir("/sys/fs/cgroup/cpu/docker")))):
-                    for level2 in os.listdir("/sys/fs/cgroup/"+level1+"/docker"):
-                        if os.path.isdir("/sys/fs/cgroup/"+level1+"/docker/"+level2):
-                            readdockerstats("/sys/fs/cgroup/"+level1+"/docker/"+level2, level2)
+        if os.path.isdir(CGROUP_PATH):
+            for level1 in os.listdir(CGROUP_PATH):
+                if (os.path.isdir(CGROUP_PATH + "/"+level1+"/docker")\
+                # /cgroup/cpu and /cgroup/cpuacct are often links to /cgroup/cpu,cpuacct
+                and not (((level1 == "cpu,cpuacct") or (level1 == "cpuacct")) and (os.path.isdir(CGROUP_PATH + "/cpu/docker")))):
+                    for level2 in os.listdir(CGROUP_PATH + "/"+level1+"/docker"):
+                        if os.path.isdir(CGROUP_PATH + "/"+level1+"/docker/"+level2):
+                            readdockerstats(CGROUP_PATH + "/"+level1+"/docker/"+level2, level2)
                 else:
                     # If Docker cgroup is handled by slice
                     # http://www.freedesktop.org/software/systemd/man/systemd.slice.html
                     for slicename in ("system.slice", "machine.slice", "user.slice"):
-                        if (os.path.isdir("/sys/fs/cgroup/"+level1+"/"+slicename)\
-                        # /sys/fs/cgroup/cpu and /sys/fs/cgroup/cpuacct are often links to /sys/fs/cgroup/cpu,cpuacct
-                        and not (((level1 == "cpu,cpuacct") or (level1 == "cpuacct")) and (os.path.isdir("/sys/fs/cgroup/cpu/"+slicename)))):
-                            for level2 in os.listdir("/sys/fs/cgroup/"+level1+"/"+slicename):
-                                if os.path.isdir("/sys/fs/cgroup/"+level1+"/"+slicename+"/"+level2):
+                        if (os.path.isdir(CGROUP_PATH + "/"+level1+"/"+slicename)\
+                        # /cgroup/cpu and /cgroup/cpuacct are often links to /cgroup/cpu,cpuacct
+                        and not (((level1 == "cpu,cpuacct") or (level1 == "cpuacct")) and (os.path.isdir(CGROUP_PATH + "/cpu/"+slicename)))):
+                            for level2 in os.listdir(CGROUP_PATH + "/"+level1+"/"+slicename):
+                                if os.path.isdir(CGROUP_PATH + "/"+level1+"/"+slicename+"/"+level2):
                                     m = re.search("^docker-(\w+)\.scope$", level2)
                                     if m:
-                                        readdockerstats("/sys/fs/cgroup/"+level1+"/"+slicename+"/"+level2, m.group(1))
+                                        readdockerstats(CGROUP_PATH + "/"+level1+"/"+slicename+"/"+level2, m.group(1))
                                         break
-        if os.path.isdir("/cgroup/lxc"):
-            for level1 in os.listdir("/cgroup/lxc"):
-                if os.path.isdir("/cgroup/lxc/"+level1):
-                    readdockerstats("/cgroup/lxc/"+level1, level1)
+        if os.path.isdir(CGROUP_PATH + "/lxc"):
+            for level1 in os.listdir(CGROUP_PATH + "/lxc"):
+                if os.path.isdir(CGROUP_PATH + "/lxc/"+level1):
+                    readdockerstats(CGROUP_PATH + "/lxc/"+level1, level1)
         time.sleep(COLLECTION_INTERVAL)
 
 if __name__ == "__main__":
