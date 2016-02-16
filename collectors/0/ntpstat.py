@@ -31,7 +31,7 @@ try:
 except ImportError:
   ntpstat_conf = None
 
-DEFAULT_COLLECTION_INTERVAL=120
+DEFAULT_COLLECTION_INTERVAL=60
 
 def main():
     """ntpstats main loop"""

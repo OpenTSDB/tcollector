@@ -29,7 +29,7 @@ try:
 except ImportError:
     smart_stats_conf = None
 
-DEFAULT_COLLECTION_INTERVAL=300
+DEFAULT_COLLECTION_INTERVAL=120
 
 TWCLI = "/usr/sbin/tw_cli"
 ARCCONF = "/usr/local/bin/arcconf"

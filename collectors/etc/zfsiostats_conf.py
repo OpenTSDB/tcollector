@@ -3,7 +3,7 @@
 def get_config():
 
     config = {
-        'collection_interval': 10    # Seconds, how often to collect metric data
+        'collection_interval': 15    # Seconds, how often to collect metric data
     }
 
     return config
