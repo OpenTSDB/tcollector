@@ -33,7 +33,7 @@ nfs_client_proc_names = {
         # nfsv4.1 client ops
         "exchange_id", "create_ses", "destroy_ses", "sequence", "get_lease_t",
         "reclaim_comp", "layoutget", "getdevinfo", "layoutcommit", "layoutreturn",
-        "getdevlist",
+        "getdevlist", "getdevinfo", "ds_write", "ds_commit"
     ),
     "proc3": (
         "null", "getattr", "setattr", "lookup", "access", "readlink",
