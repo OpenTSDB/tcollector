@@ -10,7 +10,8 @@ import exceptions
 import threading
 import Queue
 from time import mktime
-from collectors.etc import awsconf
+from collectors.lib import utils
+from collectors.etc import aws_cloudwatch_conf
 
 try:
     import boto.ec2
@@ -21,7 +22,16 @@ except ImportError:
 
 ILLEGAL_CHARS_REGEX = re.compile('[^a-zA-Z0-9\- _./]')
 
-COLLECTION_INTERVAL = 300
+path = os.path.dirname(os.path.realpath(__file__))
+COLLECTION_INTERVAL = int(path.split('/')[-1])
+
+if COLLECTION_INTERVAL == 0:
+  sys.stderr.write("AWS Cloudwatch Stats is not a long running collector\n")
+  sys.exit(13)
+
+if COLLECTION_INTERVAL < 60:
+  sys.stderr.write("AWS Cloudwatch Stats is an heavy collector and should not be run more than once per minute.\n")
+  sys.exit(13)
 
 STATISTICS = frozenset([
                         'Minimum',
@@ -33,8 +43,17 @@ STATISTICS = frozenset([
 
 sendQueue = Queue.Queue()
 
+def validate_config():
+    access_key, secret_access_key = aws_cloudwatch_conf.get_accesskey_secretkey()
+    if access_key == '<access_key_id>' or secret_access_key == '<secret_access_key>':
+      sys.stderr.write("Cloudwatch Collector is not configured\n")
+      sys.exit(13)
+    if not aws_cloudwatch_conf.enabled:
+      sys.stderr.write("Cloudwatch Collector is not enabled\n")
+      sys.exit(13)
+
 def cloudwatch_connect_to_region(region):
-    access_key, secret_access_key = awsconf.get_accesskey_secretkey()
+    access_key, secret_access_key = aws_cloudwatch_conf.get_accesskey_secretkey()
     try:
         conn =  boto.ec2.cloudwatch.connect_to_region(region, aws_access_key_id=access_key, aws_secret_access_key=secret_access_key)
     except:
@@ -85,7 +104,7 @@ def build_tag_list(metric_name, region, dimensions):
     return metric_name.strip().lower(), tags.strip().lower()
 
 def ec2_connect_to_region(region):
-    access_key, secret_access_key = awsconf.get_accesskey_secretkey()
+    access_key, secret_access_key = aws_cloudwatch_conf.get_accesskey_secretkey()
     return boto.ec2.connect_to_region(region, aws_access_key_id=access_key, aws_secret_access_key=secret_access_key)
 
 def ec2_list_regions():
@@ -125,8 +144,6 @@ def send_metrics():
             datapoints[timestamp].append(output)
             sendQueue.task_done()
         sys.stderr.write("Queue Emptied, sorting output")
-    #    sortedDatapoints = OrderedDict(sorted(datapoints.iteritems(), key=lambda x: x[0]))
-     #   for timestamp,outputs in sortedDatapoints.iteritems:
         for outputs in sorted(datapoints.iteritems(), key=lambda x: x[1]):
             for output in outputs:
                 for t in output:
@@ -149,6 +166,8 @@ def validate_line_parses(line):
 
 def main():
     try:
+        utils.drop_privileges()
+        validate_config()
         regions = ec2_list_regions()
         for reg in regions:
             for statistic in STATISTICS:
