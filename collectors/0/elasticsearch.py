@@ -23,6 +23,7 @@ except ImportError:
   json = None  # Handled gracefully in main.  Not available by default in <2.6
 import socket
 import sys
+import threading
 import time
 import re
 
@@ -52,22 +53,32 @@ class ESError(RuntimeError):
     self.resp = resp
 
 
-def request(server, uri):
+def request(server, uri, json_in = True):
   """Does a GET request of the given uri on the given HTTPConnection."""
   server.request("GET", uri)
   resp = server.getresponse()
   if resp.status != httplib.OK:
     raise ESError(resp)
-  return json.loads(resp.read())
+  if json_in:
+    return json.loads(resp.read())
+  else:
+    return resp.read()
 
 
 def cluster_health(server):
   return request(server, "/_cluster/health")
 
 
-def cluster_state(server):
-  return request(server, "/_cluster/state"
-                 + "?filter_routing_table=true&filter_metadata=true&filter_blocks=true")
+def cluster_stats(server):
+  return request(server, "/_cluster/stats")
+
+
+def cluster_master_node(server):
+  return request(server, "/_cat/master", json_in = False).split()[0]
+
+
+def index_stats(server):
+  return request(server, "/_cat/indices?v&bytes=b", json_in = False)
 
 
 def node_status(server):
@@ -85,8 +96,9 @@ def node_stats(server, version):
   return request(server, url)
 
 def printmetric(metric, ts, value, tags):
+  # Warning, this should be called inside a lock
   if tags:
-    tags = " " + " ".join("%s=%s" % (name, value)
+    tags = " " + " ".join("%s=%s" % (name.replace(" ",""), value.replace(" ",""))
                           for name, value in tags.iteritems())
   else:
     tags = ""
@@ -94,6 +106,11 @@ def printmetric(metric, ts, value, tags):
          % (metric, ts, value, tags))
 
 def _traverse(metric, stats, ts, tags):
+  """
+     Recursively traverse the json tree and print out leaf numeric values
+     Please make sure you call this inside a lock and don't add locking
+     inside this function
+  """
   #print metric,stats,ts,tags
   if isinstance(stats,dict):
     if "timestamp" in stats:
@@ -107,10 +124,51 @@ def _traverse(metric, stats, ts, tags):
       _traverse(metric + "." + str(count), value, ts, tags)
       count += 1
   if utils.is_numeric(stats):
+    if isinstance(stats, int):
+      stats = int(stats) # handle bool and other "int"s
     printmetric(metric, ts, stats, tags)
   return
 
-def _collect_server(server, version):
+def _collect_indices(server, metric, tags, lock):
+  ts = int(time.time())
+  rawtable = index_stats(server).split("\n")
+  header = rawtable.pop(0).strip()
+  headerlist = [x.strip() for x in header.split()]
+  for line in rawtable:
+    # Copy the cluster tag
+    newtags = {"cluster": tags["cluster"]}
+    # Now parse each input
+    values = line.split()
+    count = 0
+    for value in values:
+      try:
+        value = float(value)
+        if int(value) == value:
+          value = int(value)
+        # now print value
+        with lock:
+          printmetric(metric + ".cluster.byindex." + headerlist[count], ts, value, newtags)
+      except ValueError, ve:
+        # add this as a tag
+        newtags[headerlist[count]] = value
+      count += 1
+
+def _collect_master(server, nodeid, metric, tags, lock):
+  ts = int(time.time())
+  chealth = cluster_health(server)
+  if "status" in chealth:
+    with lock:
+      printmetric(metric + ".cluster.status", ts,
+        STATUS_MAP.get(chealth["status"], -1), tags)
+  with lock:
+    _traverse(metric + ".cluster", chealth, ts, tags)
+
+  ts = int(time.time())  # In case last call took a while.
+  cstats = cluster_stats(server)
+  with lock:
+    _traverse(metric + ".cluster", cstats, ts, tags)
+
+def _collect_server(server, version, lock):
   ts = int(time.time())
   rootmetric = "elasticsearch"
   nstats = node_stats(server, version)
@@ -118,20 +176,19 @@ def _collect_server(server, version):
   nodeid, nstats = nstats["nodes"].popitem()
   node_name = nstats["name"]
   tags = {"cluster": cluster_name, "node": node_name}
+  #tags.update(nstats["attributes"])
 
-  is_master = nodeid == cluster_state(server)["master_node"]
-  printmetric(rootmetric + ".is_master", ts, int(is_master), tags)
+  is_master = nodeid == cluster_master_node(server)
+  with lock:
+    printmetric(rootmetric + ".is_master", ts, is_master, tags)
   if is_master:
-    ts = int(time.time())  # In case last call took a while.
-    cstats = cluster_health(server)
-    for stat, value in cstats.iteritems():
-      if stat == "status":
-        value = STATUS_MAP.get(value, -1)
-      elif not utils.is_numeric(value):
-        continue
-      printmetric(rootmetric + ".cluster." + stat, ts, value, tags)
+    _collect_master(server, nodeid, rootmetric, tags, lock)
 
-  _traverse(rootmetric, nstats, ts, tags)
+    _collect_indices(server, rootmetric, tags, lock)
+
+  with lock:
+    _traverse(rootmetric, nstats, ts, tags)
+
 
 def main(argv):
   utils.drop_privileges()
@@ -155,12 +212,17 @@ def main(argv):
   if len( servers ) == 0:
     return 13  # No ES running, ask tcollector to not respawn us.
 
-  status = node_status(server)
-  version = status["version"]["number"]
-
+  lock = threading.Lock()
   while True:
+    threads = []
     for server in servers:
-      _collect_server(server, version)
+      status = node_status(server)
+      version = status["version"]["number"]
+      t = threading.Thread(target = _collect_server, args = (server, version, lock))
+      t.start()
+      threads.append(t)
+    for thread in threads:
+      t.join()
     time.sleep(COLLECTION_INTERVAL)
 
 if __name__ == "__main__":
