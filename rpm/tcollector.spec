@@ -74,6 +74,17 @@ mkdir -p %{buildroot}/%{py2_sitelib}/
 %{tcollectordir}/collectors/etc/zabbix_bridge_conf.py
 %{tcollectordir}/tcollector.py
 
+%postun
+# $1 --> if 0, then it is a deinstall
+# $1 --> if 1, then it is an upgrade
+if [ $1 -eq 0 ] ; then
+    # This is a removal, not an upgrade
+    #  $1 versions will remain after this uninstall
+
+    # Clean up collectors
+    rm -f /etc/init.d/tcollector
+    rm -rf %{tcollectordir}
+
 
 %package collectors
 Summary: The linux OpenTSDB collectors
@@ -90,6 +101,22 @@ Requires: tcollector >= 1.2.1
 %{tcollectordir}/collectors/0/procnettcp.py
 %{tcollectordir}/collectors/0/procstats.py
 %{tcollectordir}/collectors/0/smart_stats.py
+
+%postun collectors
+# $1 --> if 0, then it is a deinstall
+# $1 --> if 1, then it is an upgrade
+if [ $1 -eq 0 ] ; then
+    # This is a removal, not an upgrade
+    #  $1 versions will remain after this uninstall
+
+    # Clean up collectors
+    rm -f %{tcollectordir}/collectors/0/dfstat.py
+    rm -f %{tcollectordir}/collectors/0/ifstat.py
+    rm -f %{tcollectordir}/collectors/0/iostat.py
+    rm -f %{tcollectordir}/collectors/0/netstat.py
+    rm -f %{tcollectordir}/collectors/0/procnettcp.py
+    rm -f %{tcollectordir}/collectors/0/procstats.py
+    rm -f %{tcollectordir}/collectors/0/smart_stats.py
 
 
 %package eos
@@ -111,3 +138,18 @@ you run make swix, all three packages will be included.
 %{tcollectordir}/collectors/0/agentmem.sh
 %{tcollectordir}/collectors/0/eos.py
 %{py2_sitelib}/tcollector_agent.py
+
+
+%postun eos
+# $1 --> if 0, then it is a deinstall
+# $1 --> if 1, then it is an upgrade
+if [ $1 -eq 0 ] ; then
+    # This is a removal, not an upgrade
+    #  $1 versions will remain after this uninstall
+
+    # Clean up eos
+    rm -f /usr/bin/tcollector
+    rm -f %{tcollectordir}/collectors/0/agentcpu.sh
+    rm -f %{tcollectordir}/collectors/0/agentmem.sh
+    rm -f %{tcollectordir}/collectors/0/eos.py
+    rm -f %{py2_sitelib}/tcollector_agent.py
