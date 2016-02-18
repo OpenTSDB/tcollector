@@ -250,12 +250,23 @@ class TcollectorAgent(eossdk.AgentHandler,
       # and setup the sender to start writing out to the tsd
       hosts = [(options.host, options.port)]
       reconnect_interval = 0
+      kwargs = {}
+      if self.get_agent_mgr().agent_option("transport") == "http":
+         kwargs["http"] = True
+      elif self.get_agent_mgr().agent_option("transport") == "https":
+         kwargs["http"] = True
+         kwargs["ssl"] = True
+      if self.get_agent_mgr().agent_option("username"):
+         kwargs["http_username"] = self.get_agent_mgr().agent_option("username")
+      if self.get_agent_mgr().agent_option("password"):
+         kwargs["http_password"] = self.get_agent_mgr().agent_option("password")
       sender = tcollector.SenderThread(reader,
                                        options.dryrun,
                                        hosts,
                                        not options.no_tcollector_stats,
                                        self.tags_,
-                                       reconnect_interval)
+                                       reconnect_interval,
+                                       **kwargs)
       self.sender_thread_ = sender
       sender.start()
       debug("SenderThread startup complete")
