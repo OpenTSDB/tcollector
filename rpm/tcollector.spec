@@ -84,7 +84,7 @@ if [ $1 -eq 0 ] ; then
     # Clean up collectors
     rm -f /etc/init.d/tcollector
     rm -rf %{tcollectordir}
-
+fi
 
 %package collectors
 Summary: The linux OpenTSDB collectors
@@ -117,7 +117,7 @@ if [ $1 -eq 0 ] ; then
     rm -f %{tcollectordir}/collectors/0/procnettcp.py
     rm -f %{tcollectordir}/collectors/0/procstats.py
     rm -f %{tcollectordir}/collectors/0/smart_stats.py
-
+fi
 
 %package eos
 Summary: Linux Collectors and Arista EOS Collectors
@@ -153,3 +153,4 @@ if [ $1 -eq 0 ] ; then
     rm -f %{tcollectordir}/collectors/0/agentmem.sh
     rm -f %{tcollectordir}/collectors/0/eos.py
     rm -f %{py2_sitelib}/tcollector_agent.py
+fi
