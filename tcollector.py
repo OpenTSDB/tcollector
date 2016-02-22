@@ -809,87 +809,124 @@ def setup_logging(logfile=DEFAULT_LOG, max_bytes=None, backup_count=None):
 def parse_cmdline(argv):
     """Parses the command-line."""
 
+    try:
+        from collectors.etc import config
+        defaults = config.get_defaults()
+    except ImportError:
+        sys.stderr.write("ImportError: Could not load defaults from configuration. Using hardcoded values")
+        defaults = {
+            'verbose': False,
+            'no_tcollector_stats': False,
+            'evictinterval': 6000,
+            'dedupinterval': 300,
+            'allowed_inactivity_time': 600,
+            'dryrun': False,
+            'maxtags': 8,
+            'max_bytes': 64 * 1024 * 1024,
+            'http_password': False,
+            'reconnectinterval': 0,
+            'http_username': False,
+            'port': 4242,
+            'pidfile': '/Users/jcreasy/tcollector.pid',
+            'http': False,
+            'tags': [],
+            'remove_inactive_collectors': False,
+            'host': 'localhost',
+            'backup_count': 1,
+            'logfile': '/var/log/tcollector.log',
+            'cdir': default_cdir,
+            'ssl': False,
+            'stdin': False,
+            'daemonize': False,
+            'hosts': False
+        }
+    except:
+        sys.stderr.write("Unexpected error: %s" % sys.exc_info()[0])
+        raise
+
     # get arguments
-    default_cdir = os.path.join(os.path.dirname(os.path.realpath(sys.argv[0])),
-                                'collectors')
     parser = OptionParser(description='Manages collectors which gather '
                                        'data and report back.')
     parser.add_option('-c', '--collector-dir', dest='cdir', metavar='DIR',
-                      default=default_cdir,
-                      help='Directory where the collectors are located.')
+                        default=defaults['cdir'],
+                        help='Directory where the collectors are located.')
     parser.add_option('-d', '--dry-run', dest='dryrun', action='store_true',
-                      default=False,
-                      help='Don\'t actually send anything to the TSD, '
+                        default=defaults['dryrun'],
+                        help='Don\'t actually send anything to the TSD, '
                            'just print the datapoints.')
     parser.add_option('-D', '--daemonize', dest='daemonize', action='store_true',
-                      default=False, help='Run as a background daemon.')
-    parser.add_option('-H', '--host', dest='host', default='localhost',
-                      metavar='HOST',
-                      help='Hostname to use to connect to the TSD.')
-    parser.add_option('-L', '--hosts-list', dest='hosts', default=False,
-                      metavar='HOSTS',
-                      help='List of host:port to connect to tsd\'s (comma separated).')
+                        default=defaults['daemonize'],
+                        help='Run as a background daemon.')
+    parser.add_option('-H', '--host', dest='host',
+                        metavar='HOST',
+                        default=defaults['host'],
+                        help='Hostname to use to connect to the TSD.')
+    parser.add_option('-L', '--hosts-list', dest='hosts',
+                        metavar='HOSTS',
+                        default=defaults['hosts'],
+                        help='List of host:port to connect to tsd\'s (comma separated).')
     parser.add_option('--no-tcollector-stats', dest='no_tcollector_stats',
-                      default=False, action='store_true',
-                      help='Prevent tcollector from reporting its own stats to TSD')
+                        action='store_true',
+                        default=defaults['no_tcollector_stats'],
+                        help='Prevent tcollector from reporting its own stats to TSD')
     parser.add_option('-s', '--stdin', dest='stdin', action='store_true',
-                      default=False,
-                      help='Run once, read and dedup data points from stdin.')
+                        default=defaults['stdin'],
+                        help='Run once, read and dedup data points from stdin.')
     parser.add_option('-p', '--port', dest='port', type='int',
-                      default=DEFAULT_PORT, metavar='PORT',
-                      help='Port to connect to the TSD instance on. '
-                           'default=%default')
-    parser.add_option('-v', dest='verbose', action='store_true', default=False,
-                      help='Verbose mode (log debug messages).')
+                        default=defaults['port'], metavar='PORT',
+                        help='Port to connect to the TSD instance on. '
+                        'default=%default')
+    parser.add_option('-v', dest='verbose', action='store_true',
+                        default=defaults['verbose'],
+                        help='Verbose mode (log debug messages).')
     parser.add_option('-t', '--tag', dest='tags', action='append',
-                      default=[], metavar='TAG',
-                      help='Tags to append to all timeseries we send, '
-                           'e.g.: -t TAG=VALUE -t TAG2=VALUE')
+                        default=defaults['tags'], metavar='TAG',
+                        help='Tags to append to all timeseries we send, '
+                            'e.g.: -t TAG=VALUE -t TAG2=VALUE')
     parser.add_option('-P', '--pidfile', dest='pidfile',
-                      default='/var/run/tcollector.pid',
-                      metavar='FILE', help='Write our pidfile')
+                        default=defaults['pidfile'],
+                        metavar='FILE', help='Write our pidfile')
     parser.add_option('--dedup-interval', dest='dedupinterval', type='int',
-                      default=300, metavar='DEDUPINTERVAL',
-                      help='Number of seconds in which successive duplicate '
+                        default=defaults['dedupinterval'], metavar='DEDUPINTERVAL',
+                        help='Number of seconds in which successive duplicate '
                            'datapoints are suppressed before sending to the TSD. '
                            'Use zero to disable. '
                            'default=%default')
     parser.add_option('--evict-interval', dest='evictinterval', type='int',
-                      default=6000, metavar='EVICTINTERVAL',
-                      help='Number of seconds after which to remove cached '
+                        default=defaults['evictinterval'], metavar='EVICTINTERVAL',
+                        help='Number of seconds after which to remove cached '
                            'values of old data points to save memory. '
                            'default=%default')
     parser.add_option('--allowed-inactivity-time', dest='allowed_inactivity_time', type='int',
-                      default=ALLOWED_INACTIVITY_TIME, metavar='ALLOWEDINACTIVITYTIME',
-                      help='How long to wait for datapoints before assuming '
-                           'a collector is dead and restart it. '
-                           'default=%default')
+                        default=ALLOWED_INACTIVITY_TIME, metavar='ALLOWEDINACTIVITYTIME',
+                            help='How long to wait for datapoints before assuming '
+                                'a collector is dead and restart it. '
+                                'default=%default')
     parser.add_option('--remove-inactive-collectors', dest='remove_inactive_collectors', action='store_true',
-                      default=False, help='Remove collectors not sending data '
+                        default=defaults['remove_inactive_collectors'], help='Remove collectors not sending data '
                                           'in the max allowed inactivity interval')
     parser.add_option('--max-bytes', dest='max_bytes', type='int',
-                      default=64 * 1024 * 1024,
-                      help='Maximum bytes per a logfile.')
+                        default=defaults['max_bytes'],
+                        help='Maximum bytes per a logfile.')
     parser.add_option('--backup-count', dest='backup_count', type='int',
-                      default=0, help='Maximum number of logfiles to backup.')
+                        default=defaults['backup_count'], help='Maximum number of logfiles to backup.')
     parser.add_option('--logfile', dest='logfile', type='str',
-                      default=DEFAULT_LOG,
-                      help='Filename where logs are written to.')
+                        default=DEFAULT_LOG,
+                        help='Filename where logs are written to.')
     parser.add_option('--reconnect-interval',dest='reconnectinterval', type='int',
-                      default=0, metavar='RECONNECTINTERVAL',
-                      help='Number of seconds after which the connection to'
+                        default=defaults['reconnectinterval'], metavar='RECONNECTINTERVAL',
+                        help='Number of seconds after which the connection to'
                            'the TSD hostname reconnects itself. This is useful'
-                           'when the hostname is a multiple A record (RRDNS).'
-                           )
-    parser.add_option('--max-tags', dest='maxtags', type=int, default=8,
-                      help='The maximum number of tags to send to our TSD Instances')
-    parser.add_option('--http', dest='http', action='store_true', default=False,
-                      help='Send the data via the http interface')
-    parser.add_option('--http-username', dest='http_username', default=False,
+                           'when the hostname is a multiple A record (RRDNS).')
+    parser.add_option('--max-tags', dest='maxtags', type=int, default=defaults['maxtags'],
+                        help='The maximum number of tags to send to our TSD Instances')
+    parser.add_option('--http', dest='http', action='store_true', default=defaults['http'],
+                        help='Send the data via the http interface')
+    parser.add_option('--http-username', dest='http_username', default=defaults['http_username'],
                       help='Username to use for HTTP Basic Auth when sending the data via HTTP')
-    parser.add_option('--http-password', dest='http_password', default=False,
+    parser.add_option('--http-password', dest='http_password', default=defaults['http_password'],
                       help='Password to use for HTTP Basic Auth when sending the data via HTTP')
-    parser.add_option('--ssl', dest='ssl', action='store_true', default=False,
+    parser.add_option('--ssl', dest='ssl', action='store_true', default=defaults['ssl'],
                       help='Enable SSL - used in conjunction with http')
     (options, args) = parser.parse_args(args=argv[1:])
     if options.dedupinterval < 0:
@@ -947,7 +984,12 @@ def setup_python_path(collector_dir):
 def main(argv):
     """The main tcollector entry point and loop."""
 
-    options, args = parse_cmdline(argv)
+    try:
+        options, args = parse_cmdline(argv)
+    except:
+        sys.stderr.write("Unexpected error: %s" % sys.exc_info()[0])
+        return 1;
+
     if options.daemonize:
         daemonize()
     setup_logging(options.logfile, options.max_bytes or None,
