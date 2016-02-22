@@ -11,9 +11,9 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - rtt.py - Pings a configured set of hosts and records the result [#183](https://github.com/OpenTSDB/tcollector/pull/183)
 - aws_cloudwatch.py - Collects metrics from AWS Cloudwatch [#246](https://github.com/OpenTSDB/tcollector/pull/246)
 - tcp_bridge.py - Listens on a TCP port for metrics to relay to configured hosts [#252](https://github.com/OpenTSDB/tcollector/pull/252)
-- ntp.py - Gathers offset of clock from NTP
-- mapr_metrics.py - Gathers MAPR metrics for Hadoop nodes
-- tcollector.py - Gathers metrics on CPU and Memory usage of TCollector and the collectors
+- ntp.py - Gathers offset of clock from NTP [#265](https://github.com/OpenTSDB/tcollector/pull/265)
+- mapr_metrics.py - Gathers MAPR metrics for Hadoop nodes [#196](https://github.com/OpenTSDB/tcollector/pull/196)
+- tcollector.py - Gathers metrics on CPU and Memory usage of TCollector and the collectors [#276](https://github.com/OpenTSDB/tcollector/pull/276)
 
 ### Bugfixes
 - zookeper.py [#221](https://github.com/OpenTSDB/tcollector/pull/221)
