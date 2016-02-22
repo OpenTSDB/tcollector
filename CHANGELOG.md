@@ -11,6 +11,9 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - rtt.py - Pings a configured set of hosts and records the result [#183](https://github.com/OpenTSDB/tcollector/pull/183)
 - aws_cloudwatch.py - Collects metrics from AWS Cloudwatch [#246](https://github.com/OpenTSDB/tcollector/pull/246)
 - tcp_bridge.py - Listens on a TCP port for metrics to relay to configured hosts [#252](https://github.com/OpenTSDB/tcollector/pull/252)
+- ntp.py - Gathers offset of clock from NTP
+- mapr_metrics.py - Gathers MAPR metrics for Hadoop nodes
+- tcollector.py - Gathers metrics on CPU and Memory usage of TCollector and the collectors
 
 ### Bugfixes
 - zookeper.py [#221](https://github.com/OpenTSDB/tcollector/pull/221)
@@ -25,6 +28,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Improved FreeBSD compatiblity [#256](https://github.com/OpenTSDB/tcollector/pull/256) [#257](https://github.com/OpenTSDB/tcollector/pull/257) [#258](https://github.com/OpenTSDB/tcollector/pull/258) [#263](https://github.com/OpenTSDB/tcollector/pull/263)
 - TCollector and all collectors now using '/usr/bin/env python' rather than '/usr/bin/python' [#263](https://github.com/OpenTSDB/tcollector/pull/263)
 - Elasticsearch Collector now allows multiple+configurable targets [#207](https://github.com/OpenTSDB/tcollector/pull/207)
+- TCollector now reads default values from the configuration [#287](https://github.com/OpenTSDB/tcollector/pull/287)
 
 ### Packaging Changes
 - The RPM no longer starts or enables TCollector on installation
