@@ -3,21 +3,8 @@
 # Semi Universal start-stop script
 # Keep it sh compatible, test with bash, dash, ksh, and zsh.
 
-# TSD_HOST=dns.name.of.tsd
-# TSD_HOSTS=dns.name.of.tsd:portoftsd,other.name.of.tsd:portofothertsd
 SCRIPT_DIR="$(cd $(dirname $0) && pwd)"
 TCOLLECTOR_PATH=${TCOLLECTOR_PATH-"${SCRIPT_DIR}"}
-LOG=${LOG-'/var/log/tcollector.log'}
-HOSTNAME=$(hostname)
-PIDFILE=${PIDFILE-'/var/run/tcollector.pid'}
-TSD_PORT=${TSD_PORT-4242}
-
-test -n "$TSD_HOSTS" || {
-    test -n "$TSD_HOST" && TSD_HOSTS=${TSD_HOST}:${TSD_PORT} || {
-      echo >&2 "TSD_HOST and TSD_HOSTS is not set in $0, at least one is required."
-      exit 1
-    }
-}
 
 PROG=$TCOLLECTOR_PATH/tcollector.py
 COMMAND=$1
@@ -26,8 +13,9 @@ COMMAND=$1
 test "$#" -gt 0 && {
     shift
 }
-ARGS="-c $TCOLLECTOR_PATH/collectors -L $TSD_HOSTS -t host=$HOSTNAME -P $PIDFILE --logfile $LOG"
-ARGS="$ARGS $@"
+
+# Arguments
+ARGS="$@"
 
 # Sanity checks.
 test -d "$TCOLLECTOR_PATH" || {
@@ -41,16 +29,6 @@ test -f "$PROG" || {
     echo >&2 "You might need to set the TCOLLECTOR_PATH variable in $0"
     exit 3
 }
-
-for i in "$PIDFILE" "$LOG"; do
-    # If the file doesn't exist, check that we have write access to its parent
-    # directory to be able to create it.
-    test -e "$i" || i=`dirname "$i"`
-    test -w "$i" || {
-        echo >&2 "$0: error: Cannot write to $i"
-        exit 4
-    }
-done
 
 which_python () {
     for python in /usr/bin/python2.7 /usr/bin/python2.6 /usr/bin/python2.5 /usr/bin/python /usr/local/bin/python; do
@@ -66,27 +44,25 @@ start () {
     echo "Starting $PROG"
     # eval is neccesary for zsh support as multiple-word variables are not 
     # split into words by default, see zsh help for SH_WORD_SPLIT.
-    eval "$PYTHON $PROG $ARGS" >> $LOG 2>&1 &
+    eval "$PYTHON $PROG $ARGS" &
 }
 
 # stop_program [signum]
 stop_program () {
     echo "Stopping $PROG"
-    pkill $1 -f "/usr/bin/python.* $PROG -c"
+    pkill $1 -f "$PYTHON $PROG"
 }
 
 status () {
-    if pgrep -f "/usr/bin/python.* $PROG -c" >/dev/null; then
+    if pgrep -f "$PYTHON $PROG" >/dev/null; then
         echo "$PROG" running
         return 0
     fi
     return 1
 }
 
-forcerestart () {
-    stop_program
-    try=1
-    sleep 1
+forcestop () {
+    try=0
     while status; do
         try=$((try + 1))
         if [ $try -gt 3 ]; then
@@ -97,41 +73,30 @@ forcerestart () {
         echo "Waiting for $PROG to die.."
         sleep 5
     done
+}
+
+forcerestart () {
+    forcestop
     start
 }
 
 case $COMMAND in
-    start)  status || start
-        ;;
-    force-restart)
-        forcerestart
+    start)
+        status || start
         ;;
     restart)
-        # tcollector already respawns collectors if they
-        # have changed on-disk, and kills old ones/starts
-        # new ones.  The only thing tcollector doesn't do
-        # is restart itself if itself has changed. For a more
-        # graceful restart, just make sure we're running and
-        # restart only if tcollector is newer on disk than
-        # since it started.  This doesn't check for dependencies
-        # like asyncproc.py, but that's ok.
-        if status; then
-            newer=$(find $PROG -newer $PIDFILE | wc -l)
-            if [ $newer -gt 0 ]; then
-                forcerestart
-            fi
-        else
-            start
-        fi
+        forcerestart
         ;;
     'stop') 
         # stop is an alias in ksh93 for 'kill -s STOP'
-        stop_program
+        forcestop
         ;;
-    status) status
-            exit $?
+    status)
+        status
+        exit $?
         ;;
-    *)  echo >&2 "usage: $0 <start [args]|stop|restart|status|force-restart>"
+    *)
+        echo >&2 "usage: $0 <start [args]|stop|restart [args]|status>"
         exit 1
         ;;
 esac
