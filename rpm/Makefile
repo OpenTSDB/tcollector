@@ -24,7 +24,7 @@ CP_P := cp -p
 # In some environment this command can be called `gsha1sum' or `digest'.
 SHA1SUM := sha1sum
 ZIP := zip -9
-PYTHON_VERSION := 2.7
+PYTHON_VERSION := 2.6
 PYTHON := python$(PYTHON_VERSION)
 
 # Our "source tree" is in the parent directory, always.

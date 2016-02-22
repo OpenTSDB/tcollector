@@ -20,7 +20,7 @@ License:        LGPLv3+
 Summary:        Data collection framework for OpenTSDB
 URL:            http://opentsdb.net/tcollector.html
 Provides:       tcollector = @PACKAGE_VERSION@-@RPM_REVISION@_@GIT_SHORTSHA1@
-Requires:       python(abi) = @PYTHON_VERSION@
+Requires:       python(abi) >= @PYTHON_VERSION@
 
 %description
 The tcollector package includes two subpackages.  The base tcollector
