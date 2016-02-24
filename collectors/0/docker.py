@@ -17,6 +17,7 @@ CONFIG = docker_conf.get_config()
 COLLECTION_INTERVAL = CONFIG['interval']
 CGROUP_PATH =CONFIG['cgroup_path']
 ENABLED = docker_conf.enabled()
+DOCKER_SOCK = CONFIG['socket_path']
 
 if not ENABLED:
   sys.stderr.write("Docker collector is not enabled")
@@ -28,10 +29,10 @@ if not ENABLED:
 # system 72
 proc_names = {
     "cpuacct.stat": (
-  "user", "system",
+      "user", "system",
     ),
     "memory.stat": (
-  "cache", "rss", "mapped_file", "pgfault", "pgmajfault", "swap", "active_anon",
+        "cache", "rss", "mapped_file", "pgfault", "pgmajfault", "swap", "active_anon",
         "inactive_anon", "active_file", "inactive_file", "unevictable",
         "hierarchical_memory_limit", "hierarchical_memsw_limit",
     ),
@@ -57,9 +58,9 @@ def getnameandimage(containerid):
     sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     sock.settimeout(5)
     try:
-        r = sock.connect_ex('/var/run/docker.sock')
+        r = sock.connect_ex(DOCKER_SOCK)
         if (r != 0):
-            print >>sys.stderr, "Can not connect to /var/run/docker.sock"
+            print >>sys.stderr, "Can not connect to %s" % (DOCKER_SOCK)
         else:
             message = 'GET /containers/' + containerid + '/json HTTP/1.1\n\n'
             sock.sendall(message)
@@ -116,16 +117,32 @@ def readdockerstats(path, containerid):
                 return 1
             ts = int(time.time())
 
-            # proc_names
+            # proc_name
             if (file_stat in proc_names.keys()):
                 datatosend = None
                 f_stat.seek(0)
                 for line in f_stat:
+                    tags = None
+                    subcattype = None
                     fields = line.split()
-                    if fields[0] in proc_names[file_stat]:
-                        datatosend = file_stat.split('.')[0]+"."+fields[0]+" %d %s" % (ts, fields[1])
+                    category = file_stat.split('.')[0]
+                    subcategory = fields[0]
+                    value = fields[1]
+                    if subcategory in proc_names[file_stat]:
+                        if category == 'memory':
+                            if subcategory in ['active_anon', 'inactive_anon']:
+                              subcattype = subcategory.split('_')[0]
+                              subcategory = 'anon'
+                            if subcategory in ['active_file', 'inactive_file']:
+                              subcattype = subcategory.split('_')[0]
+                              subcategory = 'file'
+                            tags = "type=%s" % subcategory
+                            if subcattype != None:
+                              tags += " subtype=%s" % subcattype
+                            datatosend = "%s %d %s %s" % (category, ts, value, tags)
+                        else:
+                            datatosend = "%s.%s %d %s" % (category, subcategory, ts, value)
                         senddata(datatosend, containerid)
-
             # proc_names_to_agg
             else:
                 if (file_stat in proc_names_to_agg.keys()):
@@ -136,14 +153,13 @@ def readdockerstats(path, containerid):
                         for line in f_stat:
                             fields = line.split()
                             if fields[1] == field_to_match:
-                                datatosend = file_stat+"."+fields[1].lower()
+                                datatosend = "%s.%s" % (file_stat, fields[1].lower())
                                 try:
                                     count += int(fields[2])
                                 except:
                                     pass
                         if datatosend:
-                            senddata(datatosend+" %d %s" % (ts, count), containerid)
-
+                            senddata("%s %d %s" % (datatosend, ts, count), containerid)
             f_stat.close()
 
 def main():
