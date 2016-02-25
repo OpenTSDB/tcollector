@@ -758,7 +758,8 @@ class SenderThread(threading.Thread):
                                                       indent=4)
             return
 
-        self.pick_connection()
+	if((self.current_tsd == -1) or (len(self.hosts) > 1)):
+        	self.pick_connection()
         # print "Using server: %s:%s" % (self.host, self.port)
         # url = "http://%s:%s/api/put?details" % (self.host, self.port)
         # print "Url is %s" % url
