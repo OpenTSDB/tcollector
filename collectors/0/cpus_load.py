@@ -82,6 +82,8 @@ def main():
             sys.exit(13) # we signal tcollector to not run us
         raise
 
+    timestamp = 0
+
     while signal_received is None:
         try:
             line = p_top.stdout.readline()
@@ -98,9 +100,9 @@ def main():
         if len(fields) <= 0:
             continue
 
-        timestamp = int(time.time())
-
         if (((fields[0] == "CPU") or (re.match("[0-9][0-9]:[0-9][0-9]:[0-9][0-9]",fields[0]))) and (re.match("[0-9]+:?",fields[1]))):
+            if(fields[1] == "0"):
+                timestamp = int(time.time())
             cpuid=fields[1].replace(":","")
             cpuuser=fields[2]
             cpunice=fields[3]
@@ -113,7 +115,8 @@ def main():
             print ("cpu.irq %s %s cpu=%s" % (timestamp, cpuinterrupt, cpuid))
             print ("cpu.idle %s %s cpu=%s" % (timestamp, cpuidle, cpuid))
         
-        if (re.match("(.* load averages: *)",line)):
+        elif (re.match("(.* load averages: *)",line)):
+            timestamp = int(time.time())
             fields = re.sub(r".* load averages: *|,", "", line).split()
             print ("load.1m %s %s" % (timestamp, fields[0]))
             print ("load.5m %s %s" % (timestamp, fields[1]))
