@@ -49,15 +49,11 @@ def get_metrics(webserver_url, username, password, params):
 	return data
 
 def main():
-	schema = "https"
-
 	username = mapr_metrics_conf.username
 	password = mapr_metrics_conf.password
 	webserver = mapr_metrics_conf.webserver
 	port = mapr_metrics_conf.port
-	if mapr_metrics_conf.no_ssl:
-		schema = "http"
-	webserver_url = "%s://%s:%d/rest/node/metrics" % (schema, webserver, port)
+	webserver_url = "%s/rest/node/metrics" % webserver
 
 	m = Metrics2TSD(webserver_url, username, password)
 	m.run()
