@@ -123,9 +123,9 @@ def _traverse(metric, stats, ts, tags):
     for value in stats:
       _traverse(metric + "." + str(count), value, ts, tags)
       count += 1
-  if utils.is_numeric(stats):
+  if utils.is_numeric(stats) and not isinstance(stats, bool):
     if isinstance(stats, int):
-      stats = int(stats) # handle bool and other "int"s
+      stats = int(stats)
     printmetric(metric, ts, stats, tags)
   return
 
