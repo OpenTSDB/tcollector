@@ -828,7 +828,7 @@ def parse_cmdline(argv):
             'reconnectinterval': 0,
             'http_username': False,
             'port': 4242,
-            'pidfile': '/Users/jcreasy/tcollector.pid',
+            'pidfile': '/var/run/tcollector.pid',
             'http': False,
             'tags': [],
             'remove_inactive_collectors': False,
