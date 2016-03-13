@@ -1,12 +1,15 @@
 #!/bin/bash
 
-if [[ ! -d "/tmp/log" ]]; then
-    mkdir /tmp/log
+log_folder=/tmp/log
+run_folder=/tmp/run
+
+if [[ ! -d $log_folder ]]; then
+    mkdir "$log_folder"
 fi
 
-if [[ ! -d "/tmp/run" ]]; then
-    mkdir /tmp/run
+if [[ ! -d $run_folder ]]; then
+    mkdir "$run_folder"
 fi
 
-./tcollector.py --logfile /tmp/log/tcollector.log -P /tmp/run/tcollector.pid --dedup-interval 0 "$@"
+./tcollector.py --logfile "$log_folder/tcollector.log" -P "$run_folder/tcollector.pid" --dedup-interval 0 "$@"
 
