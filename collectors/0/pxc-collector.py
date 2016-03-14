@@ -26,7 +26,7 @@ import MySQLdb as mysql
 import time
 import sys
 import os.path
-from collectors.etc import pxcconf
+from collectors.etc import pxcconfig
 from collectors.lib import utils
 
 __author__     = "Kai Laufer"
@@ -34,47 +34,54 @@ __version__    = "1.0.1"
 __email__      = "mail@kai-laufer.de"
 
 """ You can find these functions and additional information in etc/pxcconf.py """
-prefix      = pxcconf.getPrefix() # Prefix for the collector, e.g. pxc -> pxc.wsrep_replicated_bytes
-interval    = pxcconf.getInterval() # Interval for checking MySQL statistics
-galeraFile  = pxcconf.getGaleraFile() # Path to a galera specific file for ensuring that check won't run with a usual MySQL server. Default: "/usr/lib/libgalera_smm.so"
-login       = pxcconf.getUserPassword() # MySQL-User, MySQL-Password and MySQL-Host (localhost)
-myMap       = pxcconf.getKeyMap() # Status variables which should be read
-mysqlUser   = login[0]
-mysqlPasswd = login[1]
-mysqlHost   = login[2]
+prefix      = pxcconfig.getPrefix() or "pxc" # Prefix for the collector, e.g. pxc -> pxc.wsrep_replicated_bytes
+interval    = pxcconfig.getInterval() or 1 # Interval for checking MySQL statistics
+galeraFile  = pxcconfig.getGaleraFile() or "/usr/lib/libgalera_smm.so" # Path to a galera specific file for ensuring that check won't run with a usual MySQL server. Default: "/usr/lib/libgalera_smm.so"
+login       = pxcconfig.getUserPassword() # MySQL-User, MySQL-Password and MySQL-Host (localhost)
+myMap       = pxcconfig.getKeyMap() or ( "wsrep_last_committed", "wsrep_replicated", "wsrep_repl_keys", "wsrep_local_commits" ) # Status variables which should be read
+mysqlUser   = login[0] or "root"
+mysqlPasswd = login[1] or ""
+mysqlHost   = login[2] or "localhost"
 
 def getRow():
-	db      = mysql.connect(host=mysqlHost, user=mysqlUser, passwd=mysqlPasswd)
-	cursor  = db.cursor()
-	cursor.execute("SHOW STATUS LIKE '%wsrep%'")
-	result  = cursor.fetchall()
-	db.close()
-	return result
+        """ Test connection """
+        try:
+                db      = mysql.connect(host=mysqlHost, user=mysqlUser, passwd=mysqlPasswd)
+                cursor  = db.cursor()
+                cursor.execute("SHOW STATUS LIKE '%wsrep%'")
+                result  = cursor.fetchall()
+
+        except:
+                print "Error: unable to fetch data - Check your configuration!"
+                sys.exit(13) # Don't respawn collector
+
+        db.close()
+        return result
 
 class TSDResult(object):
-	""" Create TSD output """
-	def __init__(self, key, value, prefix, timestamp):
-        	self.key       = key
-	        self.value     = value
-	        self.prefix    = prefix
-	        self.timestamp = timestamp
+        """ Create TSD output """
+        def __init__(self, key, value, prefix, timestamp):
+                self.key       = key
+                self.value     = value
+                self.prefix    = prefix
+                self.timestamp = timestamp
 
-	def TSDRow(self):
-        	return "%s.%s %s %s" % (self.prefix, self.key, self.timestamp, self.value)
+        def TSDRow(self):
+                return "%s.%s %s %s" % (self.prefix, self.key, self.timestamp, self.value)
 
 def main():
-	if os.path.isfile(galeraFile) is True:
-		while True:
-	                rows = getRow()
-	                for row in rows:
-				timestamp = int(time.time())
-	                        if row[0] in myMap:
-	                                result = TSDResult(row[0], row[1], prefix, timestamp)
-					print result.TSDRow()
-			time.sleep(interval)
-		return 0
-	else:
-		return 2
+        if os.path.isfile(galeraFile) is True:
+                while True:
+                        rows = getRow()
+                        for row in rows:
+                                timestamp = int(time.time())
+                                if row[0] in myMap:
+                                        result = TSDResult(row[0], row[1], prefix, timestamp)
+                                        print result.TSDRow()
+                        time.sleep(interval)
+                return 0
+        else:
+                return 2
 
 if __name__ == "__main__":
-	sys.exit(main())
+        sys.exit(main())
