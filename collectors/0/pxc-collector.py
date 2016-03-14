@@ -26,7 +26,7 @@ import MySQLdb as mysql
 import time
 import sys
 import os.path
-from collectors.etc import pxcconfig
+from collectors.etc import pxcconf
 from collectors.lib import utils
 
 __author__     = "Kai Laufer"
@@ -34,11 +34,11 @@ __version__    = "1.0.1"
 __email__      = "mail@kai-laufer.de"
 
 """ You can find these functions and additional information in etc/pxcconf.py """
-prefix      = pxcconfig.getPrefix() or "pxc" # Prefix for the collector, e.g. pxc -> pxc.wsrep_replicated_bytes
-interval    = pxcconfig.getInterval() or 1 # Interval for checking MySQL statistics
-galeraFile  = pxcconfig.getGaleraFile() or "/usr/lib/libgalera_smm.so" # Path to a galera specific file for ensuring that check won't run with a usual MySQL server. Default: "/usr/lib/libgalera_smm.so"
-login       = pxcconfig.getUserPassword() # MySQL-User, MySQL-Password and MySQL-Host (localhost)
-myMap       = pxcconfig.getKeyMap() or ( "wsrep_last_committed", "wsrep_replicated", "wsrep_repl_keys", "wsrep_local_commits" ) # Status variables which should be read
+prefix      = pxcconf.getPrefix() or "pxc" # Prefix for the collector, e.g. pxc -> pxc.wsrep_replicated_bytes
+interval    = pxcconf.getInterval() or 1 # Interval for checking MySQL statistics
+galeraFile  = pxcconf.getGaleraFile() or "/usr/lib/libgalera_smm.so" # Path to a galera specific file for ensuring that check won't run with a usual MySQL server. Default: "/usr/lib/libgalera_smm.so"
+login       = pxcconf.getUserPassword() # MySQL-User, MySQL-Password and MySQL-Host (localhost)
+myMap       = pxcconf.getKeyMap() or ( "wsrep_last_committed", "wsrep_replicated", "wsrep_repl_keys", "wsrep_local_commits" ) # Status variables which should be read
 mysqlUser   = login[0] or "root"
 mysqlPasswd = login[1] or ""
 mysqlHost   = login[2] or "localhost"
