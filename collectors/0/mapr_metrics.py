@@ -53,11 +53,11 @@ def main():
 	password = mapr_metrics_conf.password
 	webserver = mapr_metrics_conf.webserver
 	port = mapr_metrics_conf.port
-	webserver_url = "%s/rest/node/metrics" % webserver
+	webserver_url = "https://%s:%s/rest/node/metrics" % (webserver, port)
 
 	m = Metrics2TSD(webserver_url, username, password)
 	m.run()
-	
+
 class Metrics2TSD:
 	def __init__(self, webserver_url, username='mapr', password='mapr'):
 		self.metric_template = Template('mapr.$grouping.$metric')
@@ -77,7 +77,7 @@ class Metrics2TSD:
 		return re.sub('\.', '_', cluster_name)
 
 	def run(self):
-		seconds_delay = 10	
+		seconds_delay = 10
 
 		while True:
 			end = datetime.datetime.now()
@@ -149,7 +149,7 @@ class Metrics2TSD:
 					except KeyError as e:
 						utils.err('%s is not in metrics data.' % e)
 			time.sleep(seconds_delay)
-		
+
 
 	def group_metrics(self, group, last_values, all_metrics, tags={}):
 		node = all_metrics['NODE']
@@ -177,7 +177,7 @@ class Metrics2TSD:
 		tag_string = " ".join(map(lambda x: "%s=%s" % x, tags.items()))
 		message = "%s %i %d %s" % (metric, timestamp, value, tag_string)
 		print "%s\n" % message
-	
+
 	def send_gauge(self, metric, value, timestamp, tags={}):
 		self.print_opentsdb_message(metric, timestamp, value, tags)
 
