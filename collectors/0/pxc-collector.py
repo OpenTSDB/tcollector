@@ -1,5 +1,18 @@
 #!/usr/bin/env python
 
+# This file is part of tcollector.
+# Copyright (C) 2010-2016  The tcollector Authors.
+#
+# This program is free software: you can redistribute it and/or modify it
+# under the terms of the GNU Lesser General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or (at your
+# option) any later version.  This program is distributed in the hope that it
+# will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty
+# of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser
+# General Public License for more details.  You should have received a copy
+# of the GNU Lesser General Public License along with this program.  If not,
+# see <http://www.gnu.org/licenses/>.
+
 """
 TCollector for Percona XtraDB Clusters
 
@@ -17,16 +30,15 @@ from collectors.etc import pxcconf
 from collectors.lib import utils
 
 __author__     = "Kai Laufer"
-__license__    = "GPL"
-__version__    = "1.0.0"
+__version__    = "1.0.1"
 __email__      = "mail@kai-laufer.de"
 
-""" You can find these functions in etc/pxcconf.py """
-prefix      = pxcconf.getPrefix()
-interval    = pxcconf.getInterval()
-galeraFile  = pxcconf.getGaleraFile()
-login       = pxcconf.getUserPassword()
-myMap       = pxcconf.getKeyMap()
+""" You can find these functions and additional information in etc/pxcconf.py """
+prefix      = pxcconf.getPrefix() # Prefix for the collector, e.g. pxc -> pxc.wsrep_replicated_bytes
+interval    = pxcconf.getInterval() # Interval for checking MySQL statistics
+galeraFile  = pxcconf.getGaleraFile() # Path to a galera specific file for ensuring that check won't run with a usual MySQL server. Default: "/usr/lib/libgalera_smm.so"
+login       = pxcconf.getUserPassword() # MySQL-User, MySQL-Password and MySQL-Host (localhost)
+myMap       = pxcconf.getKeyMap() # Status variables which should be read
 mysqlUser   = login[0]
 mysqlPasswd = login[1]
 mysqlHost   = login[2]
