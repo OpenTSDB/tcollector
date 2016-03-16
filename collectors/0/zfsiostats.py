@@ -47,6 +47,7 @@ except ImportError:
     zfsiostats_conf = None
 
 DEFAULT_COLLECTION_INTERVAL=15
+DEFAULT_REPORT_CAPACITY_EVERY_X_TIMES=20
 
 def convert_to_bytes(string):
     """Take a string in the form 1234K, and convert to bytes"""
@@ -121,9 +122,11 @@ def main():
     global signal_received
 
     collection_interval=DEFAULT_COLLECTION_INTERVAL
+    report_capacity_every_x_times=DEFAULT_REPORT_CAPACITY_EVERY_X_TIMES
     if(zfsiostats_conf):
         config = zfsiostats_conf.get_config()
         collection_interval=config['collection_interval']
+        report_capacity_every_x_times=config['report_capacity_every_x_times']
 
     signal.signal(signal.SIGTERM, handlesignal)
     signal.signal(signal.SIGINT, handlesignal)
@@ -140,6 +143,7 @@ def main():
         raise
 
     firstloop = True
+    report_capacity = 1
     lastleg = 0
     ltype = None
     timestamp = int(time.time())
@@ -234,20 +238,23 @@ def main():
                 # this flag prevents printing out of the data in the first loop
                 # which is a since-boot summary similar to iostat
                 # and is useless to us
-                for poolname, stats in capacity_stats_pool.items():
-                    fm = "zfs.df.pool.kb.%s %d %s pool=%s"
-                    for statname, statnumber in stats.items():
-                        print fm % (statname, timestamp, statnumber, poolname)
+                if report_capacity == report_capacity_every_x_times:
+                    report_capacity=0
+                    for poolname, stats in capacity_stats_pool.items():
+                        fm = "zfs.df.pool.kb.%s %d %s pool=%s"
+                        for statname, statnumber in stats.items():
+                            print fm % (statname, timestamp, statnumber, poolname)
+                    for devicename, stats in capacity_stats_device.items():
+                        fm = "zfs.df.device.kb.%s %d %s device=%s pool=%s"
+                        poolname, devicename = devicename.split(" ", 1)
+                        for statname, statnumber in stats.items():
+                            print fm % (statname, timestamp, statnumber,
+                                        devicename, poolname)
+                report_capacity += 1
                 for poolname, stats in io_stats_pool.items():
                     fm = "zfs.io.pool.%s %d %s pool=%s"
                     for statname, statnumber in stats.items():
                         print fm % (statname, timestamp, statnumber, poolname)
-                for devicename, stats in capacity_stats_device.items():
-                    fm = "zfs.df.device.kb.%s %d %s device=%s pool=%s"
-                    poolname, devicename = devicename.split(" ", 1)
-                    for statname, statnumber in stats.items():
-                        print fm % (statname, timestamp, statnumber,
-                                    devicename, poolname)
                 for devicename, stats in io_stats_device.items():
                     fm = "zfs.io.device.%s %d %s device=%s pool=%s"
                     poolname, devicename = devicename.split(" ", 1)

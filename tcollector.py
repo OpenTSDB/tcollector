@@ -758,7 +758,8 @@ class SenderThread(threading.Thread):
                                                       indent=4)
             return
 
-        self.pick_connection()
+        if((self.current_tsd == -1) or (len(self.hosts) > 1)):
+            self.pick_connection()
         # print "Using server: %s:%s" % (self.host, self.port)
         # url = "http://%s:%s/api/put?details" % (self.host, self.port)
         # print "Url is %s" % url
@@ -827,7 +828,7 @@ def parse_cmdline(argv):
             'reconnectinterval': 0,
             'http_username': False,
             'port': 4242,
-            'pidfile': '/Users/jcreasy/tcollector.pid',
+            'pidfile': '/var/run/tcollector.pid',
             'http': False,
             'tags': [],
             'remove_inactive_collectors': False,
