@@ -96,7 +96,7 @@ def main():
             # end of the program, die
             break
 
-        fields = re.sub(r"%( [uni][a-z]+,?)?", "", line).split()
+        fields = re.sub(r"%( [uni][a-z]+,?)? | AM | PM ", "", line).split()
         if len(fields) <= 0:
             continue
 
