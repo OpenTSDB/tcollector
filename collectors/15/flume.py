@@ -81,12 +81,9 @@ def main(argv):
   server = httplib.HTTPConnection(FLUME_HOST, FLUME_PORT)
   try:
     server.connect()
-  except socket.error, (erno, e):
-    if erno == errno.ECONNREFUSED:
-      # Nothing really wrong if the Flume server is unavailable, we should just try again next time.
-      return 0
-    else:
-      raise
+  except:
+    # Nothing really wrong if the Flume server is unavailable, we should just try again next time.
+    return 0
 
   if json is None:
     err("This collector requires the `json' Python module.")
