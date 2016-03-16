@@ -20,6 +20,7 @@ def get_settings():
     "mongos": "192.168.0.13:27017",
     "replica": "192.168.0.14:27017",
     "username": "",
-    "password": ""
+    "password": "",
+    "interval": 15
   }
 

@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 #
 # This file is part of tcollector.
 # mongo3.py -- a MongoDB 3.x collector for tcollector/OpenTSDB
@@ -181,7 +181,7 @@ REPLICA_METRICS = (
 )
 
 def runServerStatus(c):
-    res = c.db.command('serverStatus')
+    res = c.admin.command('serverStatus')
     ts = int(time.time())
 
     for metric in CONFIG_METRICS:
@@ -257,6 +257,7 @@ def runReplSetGetStatus(c):
             print 'mongo.replica.%s %d %s replica_set=%s replica=%s replica_state=%s replica_health=%s' % (metric, ts, cur, replica_set_name, replica_name, replica_state, replica_health)
 
 def loadEnv():
+    global USER, PASS, INTERVAL, DB_NAMES, CONFIG_CONN, MONGOS_CONN, REPLICA_CONN
     for item in mongodb3_conf.get_settings()['db'].split(','):
         DB_NAMES.append(item)
 
@@ -276,6 +277,7 @@ def loadEnv():
             REPLICA_CONN.append({'host': host_port[0], 'port': int(host_port[1]), 'link': None})
     USER = mongodb3_conf.get_settings()['username']
     PASS = mongodb3_conf.get_settings()['password']
+    INTERVAL = mongodb3_conf.get_settings()['interval']
 
 def main():
     loadEnv()
