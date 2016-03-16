@@ -25,7 +25,8 @@ def get_config():
   # Scientific Linux says 'redhat' here
   # CentOS 5 says 'redhat'
   # CentOS >=6 says 'centos'
-  if platform.dist()[0] in ['centos', 'redhat']:
+  # CentOS >=7 cgroup is located on /sys/fs/cgroup
+  if platform.dist()[0] in ['centos', 'redhat'] and not platform.dist()[1].startswith("7."):
     cgroup_path = '/cgroup'
   else:
     cgroup_path = '/sys/fs/cgroup'
