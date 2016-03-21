@@ -989,7 +989,7 @@ def main(argv):
         options, args = parse_cmdline(argv)
     except:
         sys.stderr.write("Unexpected error: %s" % sys.exc_info()[0])
-        return 1;
+        return 1
 
     if options.daemonize:
         daemonize()
