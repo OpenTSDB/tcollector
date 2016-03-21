@@ -815,6 +815,7 @@ def parse_cmdline(argv):
         defaults = config.get_defaults()
     except ImportError:
         sys.stderr.write("ImportError: Could not load defaults from configuration. Using hardcoded values")
+        default_cdir = os.path.join(os.path.dirname(os.path.realpath(sys.argv[0])), 'collectors')
         defaults = {
             'verbose': False,
             'no_tcollector_stats': False,
