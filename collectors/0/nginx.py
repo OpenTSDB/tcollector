@@ -26,7 +26,7 @@ interval = 30  # seconds
 
 NUM_USERS_TO_DEL_EMPTY_STATS = 100
 
-nginx_status_url = 'http://127.0.0.1:8080/nginx_status'
+nginx_status_url = 'http://127.0.0.1:80/nginx_status'
 
 # There are two ways to collect Nginx's stats.
 # 1. [yi-ThinkPad-T430 scripts (master)]$ curl http://localhost:8080/nginx_status
