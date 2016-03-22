@@ -152,7 +152,7 @@ def main():
                 tmp_req_type = tmp_pair[0]
                 tmp_resp_status = tmp_pair[1]
                 print_metric(tmp_req_type, ts_curr, \
-                        num_req_per_resp_code_per_user[tmp_metric_name][remote_addr], \
+                        num_req_per_resp_code_per_user[tmp_metric_name][tmp_user], \
                         tags="nginx_remote_addr=%s nginx_status=%s nginx_status_prefix=%s" % (tmp_user, tmp_resp_status, tmp_resp_status[0]))
 
 
