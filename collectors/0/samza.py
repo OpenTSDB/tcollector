@@ -20,11 +20,8 @@ KAFKA_BOOTSTRAP_SERVERS = [
 
 KAFKA_METRICS_TOPIC = 'samza_metrics'  # Pulls metrics from the "samza_metrics" Kafka topic
 KAFKA_METRICS_GROUP_ID = 'tcollector'
-
-METRICS_TO_REPORT = [
-    'org.apache.samza.metrics.JvmMetrics',
-    'org.apache.samza.container.SamzaContainerMetrics'
-]
+SAMZA_CONSUMER_LAG_METRIC_NAME = 'samza.consumer.lag'
+CONSUMER_LAG_PATTERN = re.compile(r'kafka.+-(\d+)-messages-behind-high-watermark')
 
 def main(argv):
 
@@ -64,41 +61,90 @@ def main(argv):
         metrics_raw = message_json['metrics']
         header_raw = message_json['header']
 
-        metrics = {}
-        for m in METRICS_TO_REPORT:
-            if m in  metrics_raw:
-                metrics[m] = metrics_raw[m]
+        # reporting logic is specific to the type of metric reported
+        report_jvm_and_container_metrics(metrics_raw, header_raw)
+        report_consumer_lag(metrics_raw, header_raw)
 
-        tags = {}
-        tags['job-name'] = "%s-%s" % (header_raw['job-name'], header_raw['job-id'])
-        tags['container-name'] = header_raw['container-name']
-        tags['host'] = header_raw['host']
 
+def report_jvm_and_container_metrics(metrics_raw, header_raw):
+
+    metrics = {}
+    for m in ['org.apache.samza.metrics.JvmMetrics', 'org.apache.samza.container.SamzaContainerMetrics']:
+        if m in  metrics_raw:
+            metrics[m] = metrics_raw[m]
+
+    tags = create_standard_tags(header_raw)
+    ts = int(header_raw['time'] / 1000)
+
+    for metric_type, metric_map in metrics.iteritems():
+        for metric_name, metric_val in metric_map.iteritems():
+            print_jvm_and_container_metric(sanitize(metric_type),
+                        sanitize(metric_name),
+                        ts,
+                        metric_val,
+                        tags)
+        sys.stdout.flush()
+
+
+def report_consumer_lag(metrics_raw, header_raw):
+
+    m = 'org.apache.samza.system.kafka.KafkaSystemConsumerMetrics'
+
+    if m in  metrics_raw:
+        metric = metrics_raw[m]
+        tags = create_standard_tags(header_raw)
         ts = int(header_raw['time'] / 1000)
 
-        for metric_type, metric_map in metrics.iteritems():
-            for metric_name, metric_val in metric_map.iteritems():
-                print_metric(sanitize(metric_type),
-                            sanitize(metric_name),
+        for metric_name, metric_val in metric.iteritems():
+
+            m = CONSUMER_LAG_PATTERN.match(metric_name)
+            if m:
+                # Partition number is a part of the metric name when reported to Kafka.
+                # Include it as a tag instead so that the metric can be aggregated.
+                tags['partition'] = m.group(1)
+
+                print_consumer_lag(
                             ts,
                             metric_val,
-                            **tags)
-            sys.stdout.flush()
+                            tags)
+        sys.stdout.flush()
+
+
+def create_standard_tags(header_raw):
+    tags = {}
+    tags['job-name'] = "%s-%s" % (header_raw['job-name'], header_raw['job-id'])
+    tags['container-name'] = header_raw['container-name']
+    tags['host'] = header_raw['host']
+    return tags
+
+
+def print_jvm_and_container_metric(metric_type, metric_name, ts, value, tags):
+    if (is_valid_value(value)):
+        print ("%s.%s %d %s %s" %
+               (metric_type.replace('org.apache.', ''), metric_name, ts, value, to_tsdb_tag_str(tags)))
+
+
+def print_consumer_lag(ts, value, tags):
+    if (is_valid_value(value)):
+        print ("%s %d %s %s" % (SAMZA_CONSUMER_LAG_METRIC_NAME, ts, value, to_tsdb_tag_str(tags)))
+
+
+def is_valid_value(value):
+    return unicode(str(value), 'utf-8').isnumeric()
+
+def to_tsdb_tag_str(tags):
+    if tags:
+          tags_str = " " + " ".join("%s=%s" % (sanitize(name), v)
+                                for name, v in tags.iteritems())
+    else:
+      tags_str = ""
+
+    return tags_str
+
 
 
 def sanitize(s):
     return re.sub('[^0-9a-zA-Z-_.]+', '-', str(s))
-
-
-def print_metric(metric_type, metric_name, ts, value, **tags):
-
-    if (unicode(str(value), 'utf-8').isnumeric()):
-        if tags:
-          tags = " " + " ".join("%s=%s" % (sanitize(name), v)
-                                for name, v in tags.iteritems())
-        else:
-          tags = ""
-        print ("%s.%s %d %s %s" % (metric_type.replace('org.apache.', ''), metric_name, ts, value, tags))
 
 
 if __name__ == "__main__":
