@@ -1346,6 +1346,9 @@ def spawn_collector(col):
     # other logic and it makes no sense to update the last spawn time if the
     # collector didn't actually start.
     col.lastspawn = int(time.time())
+    # Without setting last_datapoint here, a long running check (>15s) will be 
+    # killed by check_children() the first time check_children is called.
+    col.last_datapoint = col.lastspawn
     set_nonblocking(col.proc.stdout.fileno())
     set_nonblocking(col.proc.stderr.fileno())
     if col.proc.pid > 0:
