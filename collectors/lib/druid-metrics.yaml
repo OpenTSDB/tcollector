@@ -47,13 +47,21 @@ metrics:
     query/wait/time:
       type: TIMER
       tags:
+        - dataSource
+        - type
         - segment
 
     # time taken to query individual segment or hit the cache (historical)
     query/segmentAndCache/time:
       type: TIMER
       tags:
+        - dataSource
+        - type
         - segment
+
+    # Number of segments in queue waiting to be scanned (historical, realtime)
+    segment/scan/pending:
+      type: GAUGE
 
     # Number of cache entries
     query/cache/total/numEntries:
