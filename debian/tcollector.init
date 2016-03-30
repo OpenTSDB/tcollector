@@ -8,6 +8,7 @@
 # Short-Description: Starts tcollector
 ### END INIT INFO
 
+PYTHONPATH="$PYTHONPATH:/usr/lib/tcollector"
 PATH=/sbin:/bin:/usr/sbin:/usr/bin
 DAEMON=/usr/bin/tcollector
 EXTRA_TAGS=""
@@ -64,7 +65,7 @@ case $1 in
             fi
         fi
 
-        $taskset start-stop-daemon --start --quiet -u $RUN_AS_USER\
+        PYTHONPATH=$PYTHONPATH $taskset start-stop-daemon --start --quiet -u $RUN_AS_USER\
             --pidfile "$PIDFILE" --chuid $RUN_AS_USER:$RUN_AS_GROUP\
             --startas $DAEMON -- -c "$COLLECTOR_PATH" -L $TSD_HOSTS\
             -t host=$HOSTNAME --dedup-interval $DEDUP_INTERVAL\
