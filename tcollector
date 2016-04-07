@@ -1,0 +1,102 @@
+#!/bin/sh
+
+# Semi Universal start-stop script
+# Keep it sh compatible, test with bash, dash, ksh, and zsh.
+
+SCRIPT_DIR="$(cd $(dirname $0) && pwd)"
+TCOLLECTOR_PATH=${TCOLLECTOR_PATH-"${SCRIPT_DIR}"}
+
+PROG=$TCOLLECTOR_PATH/tcollector.py
+COMMAND=$1
+
+# some shells fail to shift if nothing to shift
+test "$#" -gt 0 && {
+    shift
+}
+
+# Arguments
+ARGS="$@"
+
+# Sanity checks.
+test -d "$TCOLLECTOR_PATH" || {
+    echo >&2 "No such directory: $TCOLLECTOR_PATH"
+    echo >&2 "You might need to set the TCOLLECTOR_PATH variable in $0"
+    exit 2
+}
+
+test -f "$PROG" || {
+    echo >&2 "No such file: $PROG"
+    echo >&2 "You might need to set the TCOLLECTOR_PATH variable in $0"
+    exit 3
+}
+
+which_python () {
+    for python in /usr/bin/python2.7 /usr/bin/python2.6 /usr/bin/python2.5 /usr/bin/python /usr/local/bin/python; do
+        test -x "$python" && echo "$python" && return
+    done
+    echo >&2 'Could not find a Python interpreter'
+    exit 1
+}
+
+PYTHON=$(which_python)
+
+start () {
+    echo "Starting $PROG"
+    # eval is neccesary for zsh support as multiple-word variables are not 
+    # split into words by default, see zsh help for SH_WORD_SPLIT.
+    eval "$PYTHON $PROG $ARGS" &
+}
+
+# stop_program [signum]
+stop_program () {
+    echo "Stopping $PROG"
+    pkill $1 -f "$PYTHON $PROG"
+}
+
+status () {
+    if pgrep -f "$PYTHON $PROG" >/dev/null; then
+        echo "$PROG" running
+        return 0
+    fi
+    return 1
+}
+
+forcestop () {
+    try=0
+    while status; do
+        try=$((try + 1))
+        if [ $try -gt 3 ]; then
+            stop_program -9
+        else
+            stop_program
+        fi
+        echo "Waiting for $PROG to die.."
+        sleep 5
+    done
+}
+
+forcerestart () {
+    forcestop
+    start
+}
+
+case $COMMAND in
+    start)
+        status || start
+        ;;
+    restart)
+        forcerestart
+        ;;
+    'stop') 
+        # stop is an alias in ksh93 for 'kill -s STOP'
+        forcestop
+        ;;
+    status)
+        status
+        exit $?
+        ;;
+    *)
+        echo >&2 "usage: $0 <start [args]|stop|restart [args]|status>"
+        exit 1
+        ;;
+esac
