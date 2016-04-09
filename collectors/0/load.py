@@ -27,6 +27,10 @@ This plugin tracks, for all CPUs:
 Requirements :
 - FreeBSD : top
 - Linux : mpstat
+
+In addition, for FreeBSD, it reports :
+- load average (1m, 5m, 15m)
+- number of processes (total, running, sleeping)
 '''
 
 import errno
@@ -41,9 +45,9 @@ import platform
 from collectors.lib import utils
 
 try:
-    from collectors.etc import cpus_load_conf
+    from collectors.etc import load_conf
 except ImportError:
-    cpus_load_conf = None
+    load_conf = None
 
 DEFAULT_COLLECTION_INTERVAL=15
 
@@ -56,8 +60,8 @@ def main():
     """top main loop"""
 
     collection_interval=DEFAULT_COLLECTION_INTERVAL
-    if(cpus_load_conf):
-        config = cpus_load_conf.get_config()
+    if(load_conf):
+        config = load_conf.get_config()
         collection_interval=config['collection_interval']
 
     global signal_received
@@ -96,7 +100,7 @@ def main():
             # end of the program, die
             break
 
-        fields = re.sub(r"%( [uni][a-z]+,?)? | AM | PM ", "", line).split()
+        fields = re.sub(r"%( [uni][a-z]+,?)?| AM | PM ", "", line).split()
         if len(fields) <= 0:
             continue
 
@@ -121,6 +125,19 @@ def main():
             print ("load.1m %s %s" % (timestamp, fields[0]))
             print ("load.5m %s %s" % (timestamp, fields[1]))
             print ("load.15m %s %s" % (timestamp, fields[2]))
+
+        elif (re.match("[0-9]+ processes:",line)):
+            fields = re.sub(r",", "", line).split()
+            running=0
+            sleeping=0
+            for i in range(len(fields)):
+                if(fields[i] == "running"):
+                    running=fields[i-1]
+                if(fields[i] == "sleeping"):
+                    sleeping=fields[i-1]
+            print ("ps.all %s %s" % (timestamp, fields[0]))
+            print ("ps.run %s %s" % (timestamp, running))
+            print ("ps.sleep %s %s" % (timestamp, sleeping))
 
     if signal_received is None:
         signal_received = signal.SIGTERM
