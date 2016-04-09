@@ -45,9 +45,9 @@ import platform
 from collectors.lib import utils
 
 try:
-    from collectors.etc import load_conf
+    from collectors.etc import sysload_conf
 except ImportError:
-    load_conf = None
+    sysload_conf = None
 
 DEFAULT_COLLECTION_INTERVAL=15
 
@@ -60,8 +60,8 @@ def main():
     """top main loop"""
 
     collection_interval=DEFAULT_COLLECTION_INTERVAL
-    if(load_conf):
-        config = load_conf.get_config()
+    if(sysload_conf):
+        config = sysload_conf.get_config()
         collection_interval=config['collection_interval']
 
     global signal_received
