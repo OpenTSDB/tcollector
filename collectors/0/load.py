@@ -72,7 +72,7 @@ def main():
     try:
         if platform.system() == "FreeBSD":
             p_top = subprocess.Popen(
-                ["top", "-t", "-I", "-P", "-n", "-s"+str(collection_interval), "-d"+str((365*24*3600)/collection_interval)],
+                ["top", "-u", "-t", "-I", "-P", "-n", "-s"+str(collection_interval), "-d"+str((365*24*3600)/collection_interval)],
                 stdout=subprocess.PIPE,
             )
         else:
