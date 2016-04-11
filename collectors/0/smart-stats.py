@@ -29,8 +29,9 @@ NO_CONTROLLER = "Controllers found: 0"
 BROKEN_DRIVER_VERSIONS = ("1.1-5",)
 
 SMART_CTL = "smartctl"
-SLEEP_BETWEEN_POLLS = 60
-COMMAND_TIMEOUT = 10
+NUMERIC = 1
+SLEEP_BETWEEN_POLLS = 300
+COMMAND_TIMEOUT = 60
 
 # Common smart attributes, add more to this list if you start seeing
 # numbers instead of attribute names in TSD results.
@@ -163,10 +164,19 @@ def process_output(drive, smart_output):
       if len(fields) < 2:
         continue
       field = fields[0]
-      if len(fields) > 2 and field in ATTRIBUTE_MAP:
-        metric = ATTRIBUTE_MAP[field]
+      if len(fields) > 2:
+        metric_raw = "_raw"
+        metric_normalized = "_normalized"
+        if NUMERIC == 0 and field in ATTRIBUTE_MAP:
+          metric_raw = ATTRIBUTE_MAP[field] + metric_raw
+          metric_normalized = ATTRIBUTE_MAP[field] + metric_normalized
+        else:
+          metric_raw = "smart_" + field + metric_raw
+          metric_normalized = "smart_" + field + metric_normalized
         value = fields[9].split()[0]
-        print ("smart.%s %d %s disk=%s" % (metric, ts, value, drive))
+        print ("smart.%s %d %s disk=%s" % (metric_raw, ts, value, drive))       
+        value = fields[4]
+        print ("smart.%s %d %s disk=%s" % (metric_normalized, ts, value, drive))
         if is_seagate and metric in ("seek_error_rate", "raw_read_error_rate"):
           # It appears that some Seagate drives (and possibly some Western
           # Digital ones too) use the first 16 bits to store error counts,
