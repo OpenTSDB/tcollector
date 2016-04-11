@@ -233,7 +233,7 @@ def main():
   while True:
     for drive in drives:
       signal.alarm(COMMAND_TIMEOUT)
-      smart_ctl = subprocess.Popen(SMART_CTL + " -i -A /dev/" + drive,
+      smart_ctl = subprocess.Popen(SMART_CTL + " -i -A " + drive.split('#')[0],
                                    shell=True, stdout=subprocess.PIPE)
       smart_output = smart_ctl.communicate()[0]
       signal.alarm(0)
