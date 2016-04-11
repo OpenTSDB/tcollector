@@ -149,11 +149,11 @@ def find_sockfiles():
   paths = []
   # Look for socket files.
   for dir in SEARCH_DIRS:
-    if not os.path.isdir(dir):
+    if not os.path.isdir(dir) or not os.access(dir, os.R_OK):
       continue
     for name in os.listdir(dir):
       subdir = os.path.join(dir, name)
-      if not os.path.isdir(subdir):
+      if not os.path.isdir(subdir) or not os.access(subdir, os.R_OK):
         continue
       for subname in os.listdir(subdir):
         path = os.path.join(subdir, subname)
@@ -243,6 +243,19 @@ def collectInnodbStatus(db):
       printmetric("innodb.locks.os_waits", m.group(2), " type=rw-shared")
       printmetric("innodb.locks.spin_waits", m.group(3), " type=rw-exclusive")
       printmetric("innodb.locks.os_waits", m.group(4), " type=rw-exclusive")
+      continue
+    # GG 20141015 - RW-shared and RW-excl got separate lines and rounds in 5.5+
+    m = match("RW-shared spins (\d+), rounds (\d+), OS waits (\d+)")
+    if m:
+      printmetric("locks.spin_waits", m.group(1), " type=rw-shared")
+      printmetric("locks.rounds", m.group(2), " type=rw-shared")
+      printmetric("locks.os_waits", m.group(3), " type=rw-shared")
+      continue
+    m = match("RW-excl spins (\d+), rounds (\d+), OS waits (\d+)")
+    if m:
+      printmetric("locks.spin_waits", m.group(1), " type=rw-exclusive")
+      printmetric("locks.rounds", m.group(2), " type=rw-exclusive")
+      printmetric("locks.os_waits", m.group(3), " type=rw-exclusive")
       continue
     # INSERT BUFFER AND ADAPTIVE HASH INDEX
     # TODO(tsuna): According to the code in ibuf0ibuf.c, this line and

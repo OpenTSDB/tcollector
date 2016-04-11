@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 # This file is part of tcollector.
 # Copyright (C) 2010  The tcollector Authors.
 #
@@ -45,7 +45,7 @@ class HBaseRegionserver(HadoopHttp):
         tag_dict = {"namespace": namespace, "table": table, "region": region}
 
         if any( not v for k,v in tag_dict.iteritems()):
-            utils.err("Error splitting %s", full_metric_name)
+            utils.err("Error splitting %s" % full_metric_name)
         else:
             self.emit_metric(context, current_time, metric_name, value, tag_dict)
 

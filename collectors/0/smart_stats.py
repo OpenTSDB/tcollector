@@ -22,6 +22,15 @@ import subprocess
 import sys
 import time
 
+from collectors.lib import utils
+
+try:
+    from collectors.etc import smart_stats_conf
+except ImportError:
+    smart_stats_conf = None
+
+DEFAULT_COLLECTION_INTERVAL=120
+
 TWCLI = "/usr/sbin/tw_cli"
 ARCCONF = "/usr/local/bin/arcconf"
 ARCCONF_ARGS = "GETVERSION 1"
@@ -30,8 +39,7 @@ BROKEN_DRIVER_VERSIONS = ("1.1-5",)
 
 SMART_CTL = "smartctl"
 NUMERIC = 1
-SLEEP_BETWEEN_POLLS = 300
-COMMAND_TIMEOUT = 60
+COMMAND_TIMEOUT = 10
 
 # Common smart attributes, add more to this list if you start seeing
 # numbers instead of attribute names in TSD results.
@@ -200,6 +208,11 @@ def process_output(drive, smart_output):
 def main():
   """main loop for SMART collector"""
 
+  collection_interval=DEFAULT_COLLECTION_INTERVAL
+  if(smart_stats_conf):
+    config = smart_stats_conf.get_config()
+    collection_interval=config['collection_interval']
+
   # Get the list of block devices.
   scan_open = subprocess.Popen(SMART_CTL + " --scan-open",
                                shell=True, stdout=subprocess.PIPE)
@@ -213,13 +226,14 @@ def main():
 
   # to make sure we are done with smartctl in COMMAND_TIMEOUT seconds
   signal.signal(signal.SIGALRM, alarm_handler)
+
   if smart_is_broken(drives):
     sys.exit(13)
 
   while True:
     for drive in drives:
       signal.alarm(COMMAND_TIMEOUT)
-      smart_ctl = subprocess.Popen(SMART_CTL + " -i -A " + drive.split('#')[0],
+      smart_ctl = subprocess.Popen(SMART_CTL + " -i -A /dev/" + drive,
                                    shell=True, stdout=subprocess.PIPE)
       smart_output = smart_ctl.communicate()[0]
       signal.alarm(0)
@@ -235,7 +249,7 @@ def main():
         process_output(drive_s[0][5:], smart_output)
 
     sys.stdout.flush()
-    time.sleep(SLEEP_BETWEEN_POLLS)
+    time.sleep(collection_interval)
 
 
 if __name__ == "__main__":

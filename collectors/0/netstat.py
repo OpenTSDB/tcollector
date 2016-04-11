@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 # This file is part of tcollector.
 # Copyright (C) 2011  The tcollector Authors.
 #
@@ -115,6 +115,7 @@ def main():
         "Tcp:": "tcp",  # We don't collect anything from here for now.
         "Udp:": "udp",
         "UdpLite:": "udplite",  # We don't collect anything from here for now.
+        "Arista:": "arista",  # We don't collect anything from here for now.
         }
 
     # Any stat in /proc/net/{netstat,snmp} that doesn't appear in this dict will
@@ -243,6 +244,8 @@ def main():
             "SndbufErrors": ("errors", "direction=out reason=nomem"),
         },
         "udplite": {
+        },
+        "arista": {
         },
     }
 

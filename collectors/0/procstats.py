@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 # This file is part of tcollector.
 # Copyright (C) 2010  The tcollector Authors.
 #
@@ -95,6 +95,7 @@ def main():
     f_scaling_min  = dict([])
     f_scaling_max  = dict([])
     f_scaling_cur  = dict([])
+    f_softirqs = open("/proc/softirqs", "r")
     for cpu in glob.glob("/sys/devices/system/cpu/cpu[0-9]*/cpufreq/scaling_cur_freq"):
         m = re.match("/sys/devices/system/cpu/cpu([0-9]*)/cpufreq/scaling_cur_freq", cpu)
         if not m:
@@ -219,6 +220,27 @@ def main():
                         break
                     print ("proc.interrupts %s %s type=%s cpu=%s"
                            % (ts, val, irq_type, i))
+
+        f_softirqs.seek(0)
+        ts = int(time.time())
+        # Get number of CPUs from description line.
+        num_cpus = len(f_softirqs.readline().split())
+        for line in f_softirqs:
+            cols = line.split()
+
+            irq_type = cols[0].rstrip(":")
+            for i, val in enumerate(cols[1:]):
+                if i >= num_cpus:
+                    # All values read, remaining cols contain textual
+                    # description
+                    break
+                if not val.isdigit():
+                    # something is weird, there should only be digit values
+                    sys.stderr.write("Unexpected softirq value %r in"
+                                     " %r: " % (val, cols))
+                    break
+                print ("proc.softirqs %s %s type=%s cpu=%s"
+                       % (ts, val, irq_type, i))
 
         print_numa_stats(numastats)
 
