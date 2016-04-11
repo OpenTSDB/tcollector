@@ -218,7 +218,12 @@ def main():
                                shell=True, stdout=subprocess.PIPE)
   drives = scan_open.communicate()[0]
   drives = drives.split('\n')
-  drives = [drive for drive in drives if drive]
+  drives = [dev for dev in drives if dev]
+  drives2 = [dev for dev in glob.glob("/dev/[hs]d[a-z]") if not any(dev in drive for drive in drives)]
+  if drives2:
+    drives.extend(drives2)
+  if not drives:
+    drives = [dev for dev in glob.glob("/dev/da[0-9]")+glob.glob("/dev/da[0-9][0-9]")]
   # Exit gracefully if no block devices found
   if not drives:
     sys.exit(13)
@@ -243,7 +248,7 @@ def main():
         else:
           print >>sys.stderr, "Command exited with: %d" % smart_ctl.returncode
       drive_s = drive.split()
-      if "megaraid" in drive_s[2]:
+      if len(drive_s) > 2 and "megaraid" in drive_s[2]:
         process_output(drive_s[5][1:len(drive_s[5])-1], smart_output)
       else:
         process_output(drive_s[0][5:], smart_output)
