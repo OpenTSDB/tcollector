@@ -29,7 +29,7 @@ try:
 except ImportError:
     smart_stats_conf = None
 
-DEFAULT_COLLECTION_INTERVAL=120
+DEFAULT_COLLECTION_INTERVAL=300
 
 TWCLI = "/usr/sbin/tw_cli"
 ARCCONF = "/usr/local/bin/arcconf"
@@ -185,17 +185,17 @@ def process_output(drive, smart_output):
         print ("smart.%s %d %s disk=%s" % (metric_raw, ts, value, drive))       
         value = fields[4]
         print ("smart.%s %d %s disk=%s" % (metric_normalized, ts, value, drive))
-        if is_seagate and metric in ("seek_error_rate", "raw_read_error_rate"):
+        if is_seagate and metric_raw in ("seek_error_rate", "raw_read_error_rate"):
           # It appears that some Seagate drives (and possibly some Western
           # Digital ones too) use the first 16 bits to store error counts,
           # and the low 32 bits to store operation counts, out of these 48
           # bit values.  So try to be helpful and extract these here.
           value = int(value)
           print ("smart.%s %d %d disk=%s"
-                 % (metric.replace("error_rate", "count"), ts,
+                 % (metric_raw.replace("error_rate", "count"), ts,
                     value & 0xFFFFFFFF, drive))
           print ("smart.%s %d %d disk=%s"
-                 % (metric.replace("error_rate", "errors"), ts,
+                 % (metric_raw.replace("error_rate", "errors"), ts,
                     (value & 0xFFFF00000000) >> 32, drive))
     elif line.startswith("ID#"):
       data_marker = True
