@@ -14,10 +14,12 @@ import time
 import subprocess
 import re
 
+from collectors.etc import couchbase_conf
 from collectors.lib import utils
 
-COLLECTION_INTERVAL = 15
-COUCHBASE_INITFILE = "/etc/init.d/couchbase-server"
+CONFIG = couchbase_conf.get_config()
+COLLECTION_INTERVAL = CONFIG['collection_interval']
+COUCHBASE_INITFILE = CONFIG['couchbase_initfile']
 
 KEYS = frozenset( [
                   'bucket_active_conns',

@@ -100,6 +100,7 @@ class TcollectorAgent(eossdk.AgentHandler,
       eossdk.AgentHandler.__init__(self, sdk.get_agent_mgr())
       eossdk.TimeoutHandler.__init__(self, sdk.get_timeout_mgr())
       eossdk.SystemHandler.__init__(self, sdk.get_system_mgr())
+      self.vrf_mgr_ = sdk.get_vrf_mgr()
 
       # Agent local status
       self.tcollector_running_ = False
@@ -155,7 +156,7 @@ class TcollectorAgent(eossdk.AgentHandler,
       asynchronously, this is done out of a timer callback. """
       if self.shutdown_in_progress_:
          # Not yet complete, check again in a second.
-         self.next_timeout_is(eossdk.now() + 1)
+         self.timeout_time_is(eossdk.now() + 1)
       else:
          # tcollector shutdown complete. Check to make sure
          # we weren't re-enabled while shutting down.
@@ -221,10 +222,10 @@ class TcollectorAgent(eossdk.AgentHandler,
       else:
          return DEFAULT_TSD_PORT
 
-   def on_hostname(self, hostname):
-      debug("Hostname changed to", hostname)
-      self.tags_["host"] = hostname
-      self.sender_thread_.tags = sorted(self.tags_.iteritems())
+   def _socket_at(self, family, socktype, proto):
+      vrf = self.get_agent_mgr().agent_option("vrf") or ""
+      fd = self.vrf_mgr_.socket_at(family, socktype, proto, vrf)
+      return socket._socketobject(_sock=socket.fromfd(fd, family, socktype, proto))
 
    def start(self):
       tcollector = self.module_
@@ -233,6 +234,7 @@ class TcollectorAgent(eossdk.AgentHandler,
               "--host", self._get_tsd_host(),
               "--port", str(self._get_tsd_port()),
               "--collector-dir=/usr/local/tcollector/collectors"]
+      tcollector.socket.socket = self._socket_at
       debug("Starting tcollector", args)
       options, args = tcollector.parse_cmdline(args)
       tcollector.setup_python_path(TCOLLECTOR_PATH)
@@ -248,12 +250,23 @@ class TcollectorAgent(eossdk.AgentHandler,
       # and setup the sender to start writing out to the tsd
       hosts = [(options.host, options.port)]
       reconnect_interval = 0
+      kwargs = {}
+      if self.get_agent_mgr().agent_option("transport") == "http":
+         kwargs["http"] = True
+      elif self.get_agent_mgr().agent_option("transport") == "https":
+         kwargs["http"] = True
+         kwargs["ssl"] = True
+      if self.get_agent_mgr().agent_option("username"):
+         kwargs["http_username"] = self.get_agent_mgr().agent_option("username")
+      if self.get_agent_mgr().agent_option("password"):
+         kwargs["http_password"] = self.get_agent_mgr().agent_option("password")
       sender = tcollector.SenderThread(reader,
                                        options.dryrun,
                                        hosts,
                                        not options.no_tcollector_stats,
                                        self.tags_,
-                                       reconnect_interval)
+                                       reconnect_interval,
+                                       **kwargs)
       self.sender_thread_ = sender
       sender.start()
       debug("SenderThread startup complete")
@@ -296,7 +309,7 @@ class TcollectorAgent(eossdk.AgentHandler,
       threading.Thread(target=do_stop, name="stopTcollector").start()
 
       # Setup timeout handler to poll for stopTcollector thread completion
-      self.next_timeout_is(eossdk.now() + 1)
+      self.timeout_time_is(eossdk.now() + 1)
 
 def main():
    sdk = eossdk.Sdk()

@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 # This file is part of tcollector.
 # Copyright (C) 2010-2013  The tcollector Authors.
 #
@@ -78,11 +78,12 @@ def main():
 
       if fs_spec == "none":
         continue
-      if fs_vfstype in FSTYPE_IGNORE or fs_vfstype.startswith("fuse."):
+      elif fs_vfstype in FSTYPE_IGNORE or fs_vfstype.startswith("fuse."):
         continue
       # startswith(tuple) avoided to preserve support of Python 2.4
-      if fs_file.startswith("/dev") or fs_file.startswith("/sys") or \
-            fs_file.startswith("/proc") or fs_file.startswith("/lib"):
+      elif fs_file.startswith("/dev") or fs_file.startswith("/sys") or \
+            fs_file.startswith("/proc") or fs_file.startswith("/lib") or \
+            fs_file.startswith("net:"):
         continue
 
       # keep /dev/xxx device with shorter fs_file (remove mount binds)
@@ -105,7 +106,7 @@ def main():
       try:
         r = os.statvfs(fs_file)
       except OSError, e:
-        utils.err("error: can't get info for mount point: %s" % fs_file)
+        utils.err("can't get info for mount point: %s: %s" % (fs_file, e))
         continue
 
       used = r.f_blocks - r.f_bfree

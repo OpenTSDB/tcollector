@@ -1,4 +1,17 @@
-#!/usr/bin/python
+#!/usr/bin/env python
+# This file is part of tcollector.
+# Copyright (C) 2013  The tcollector Authors.
+#
+# This program is free software: you can redistribute it and/or modify it
+# under the terms of the GNU Lesser General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or (at your
+# option) any later version.  This program is distributed in the hope that it
+# will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty
+# of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser
+# General Public License for more details.  You should have received a copy
+# of the GNU Lesser General Public License along with this program.  If not,
+# see <http://www.gnu.org/licenses/>.
+#
 
 """ 
 Zookeeper collector
@@ -10,7 +23,7 @@ http://zookeeper.apache.org/doc/trunk/zookeeperAdmin.html#sc_zkCommands
 import sys
 import socket
 import time
-import subprocess
+from subprocess import Popen, PIPE, CalledProcessError
 import re
 from collectors.lib import utils
 
@@ -47,10 +60,16 @@ def scan_zk_instances():
 
     instances = []
     try:
-        listen_sock = subprocess.check_output(["netstat", "-lnpt"], stderr=subprocess.PIPE)
-    except subprocess.CalledProcessError:
-        utils.err("netstat directory doesn't exist in PATH variable")
+        netstat = Popen(["netstat", "-lnpt"], stderr=PIPE, stdout=PIPE)
+        ret = netstat.wait()
+        if ret:
+            raise CalledProcessError(ret, "netstat -lnpt", "netstat returned code %i" % ret)
+        listen_sock = netstat.stdout.read()
+    except OSError:
+        utils.err("netstat is not in PATH")
         return instances
+    except CalledProcessError, err:
+        utils.err("Error: %s" % err)
 
     for line in listen_sock.split("\n"):
         if not "java" in line:
@@ -67,24 +86,22 @@ def scan_zk_instances():
             fd = open("/proc/%d/cmdline" % pid)
             cmdline = fd.readline()
             if "org.apache.zookeeper.server.quorum.QuorumPeerMain" in cmdline:
+                data = None
                 try:
-                    if tcp_version == "tcp6":
-                        sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
-                    else:
-                        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    sock = connect_socket(tcp_version, port)
                     sock.settimeout(0.5)
-                    sock.connect((ip, port))
                     sock.send("ruok\n")
                     data = sock.recv(1024)
-                except:
-                    pass
+                except Exception, err:
+                    utils.err(err)
                 finally:
-                    sock.close()
+                    if sock: 
+                        sock.close()
                 if data == "imok":	
                     instances.append([ip, port, tcp_version])
                     data = ""
-        except:
-            continue
+        except Exception, err:
+            utils.err(err)
         finally:
             fd.close()
     return instances 
@@ -93,12 +110,25 @@ def print_stat(metric, ts, value, tags=""):
     if value is not None:
         print "zookeeper.%s %i %s %s" % (metric, ts, value, tags)
 
+def connect_socket(tcp_version, port):
+    sock = None
+    if tcp_version == "tcp6":
+        sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+        ipaddr = '::1'
+    else:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        ipaddr = '127.0.0.1'
+    try:
+        sock.connect((ipaddr, port))
+    except Exception, err:
+        utils.err(err)
+    return sock
+
 def main():
     if USER != "root":
         utils.drop_privileges(user=USER)
 
-    last_scan = time.time()
-    instances = scan_zk_instances()
+    last_scan = time.time() - SCAN_INTERVAL
 
     while True:
         ts = time.time()
@@ -114,16 +144,10 @@ def main():
         # Iterate over every zookeeper instance and get statistics
         for ip, port, tcp_version in instances:
             tags = "port=%s" % port
-            if tcp_version == "tcp6":
-                sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
-            else:
-                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            try:
-                sock.connect((ip, port))
-            except:
-                utils.err("ZK Instance listening at port %d went away" % port)
-                instances.remove([ip, port, tcp_version])
-                break
+
+            sock = connect_socket(tcp_version, port)
+            if sock is None:
+                continue
 
             sock.send("mntr\n")
             data = sock.recv(1024)
