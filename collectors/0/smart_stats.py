@@ -17,6 +17,7 @@
 
 import glob
 import os
+import re
 import signal
 import subprocess
 import sys
@@ -214,12 +215,13 @@ def main():
     collection_interval=config['collection_interval']
 
   # Get the list of block devices.
+  drives = [dev for dev in glob.glob("/dev/[hs]d[a-z]{1,2}")]
   scan_open = subprocess.Popen(SMART_CTL + " --scan-open",
                                shell=True, stdout=subprocess.PIPE)
-  drives = scan_open.communicate()[0]
-  drives = drives.split('\n')
-  drives = [dev for dev in drives if dev]
-  drives2 = [dev for dev in glob.glob("/dev/[hs]d[a-z]") if not any(dev in drive for drive in drives)]
+  drives2 = scan_open.communicate()[0]
+  drives2 = drives2.split('\n')
+  drives2 = [dev for dev in drives2 if dev]
+  drives2 = [dev for dev in drives2 if not any(dev in drive for drive in drives)]
   if drives2:
     drives.extend(drives2)
   if not drives:
@@ -231,16 +233,22 @@ def main():
 
   # to make sure we are done with smartctl in COMMAND_TIMEOUT seconds
   signal.signal(signal.SIGALRM, alarm_handler)
+  
+  reg = re.compile("Serial Number:\s+[A-Z0-9-]+", re.M)
 
   if smart_is_broken(drives):
     sys.exit(13)
-
+  serials = []
   while True:
     for drive in drives:
       signal.alarm(COMMAND_TIMEOUT)
       smart_ctl = subprocess.Popen(SMART_CTL + " -i -A " + drive.split('#')[0],
                                    shell=True, stdout=subprocess.PIPE)
       smart_output = smart_ctl.communicate()[0]
+      search = reg.search(smart_output)
+      serial = ""
+      if search:
+        serial = search.group()[18:]
       signal.alarm(0)
       if smart_ctl.returncode != 0:
         if smart_ctl.returncode == 127:
@@ -248,11 +256,12 @@ def main():
         else:
           print >>sys.stderr, "Command exited with: %d" % smart_ctl.returncode
       drive_s = drive.split()
-      if len(drive_s) > 2 and "megaraid" in drive_s[2]:
-        process_output(drive_s[5][1:len(drive_s[5])-1], smart_output)
-      else:
-        process_output(drive_s[0][5:], smart_output)
-
+      if serial and serial not in serials:
+        serials.append(serial)
+        if len(drive_s) > 2 and "megaraid" in drive_s[2]:
+          process_output(drive_s[5][1:len(drive_s[5])-1], smart_output)
+        else:
+          process_output(drive_s[0][5:], smart_output)
     sys.stdout.flush()
     time.sleep(collection_interval)
 
