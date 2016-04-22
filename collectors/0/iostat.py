@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python2.6
 # This file is part of tcollector.
 # Copyright (C) 2010  The tcollector Authors.
 #
@@ -68,11 +68,17 @@
 import sys
 import time
 import os
+from os.path import basename
 import re
 import copy
+import subprocess
+import errno
 
-from collectors.lib import utils
+sys.path.append('/usr/lib/tcollector/plugins/lib')
+from awlutils import *
+import utils
 
+one_shot = 0
 COLLECTION_INTERVAL = 60  # seconds
 
 # Docs come from the Linux kernel's Documentation/iostats.txt
@@ -96,6 +102,9 @@ FIELDS_PART = (
     "write_issued",
     "write_sectors",
 )
+
+device_hash = {}
+devicetype_hash = {}
 
 prev_times = (0,0)
 def read_uptime():
@@ -134,6 +143,68 @@ def is_device(device_name, allow_virtual):
     return os.access(devicename, os.F_OK)
 
 
+def list_device():
+    """  
+      lvdisplay | awk '/LV Name/{blockdev=$3} /Block device/{bdid=$3; sub("[0-9]*:","dm-",bdid); print bdid,blockdev;}'
+	dm-14 lv_images2
+	dm-15 lv_lock2
+	dm-7 lv_home
+	dm-8 lv_tmp
+	dm-9 lv_var
+	dm-10 lv_varlog
+
+      multipath -ll |grep "dm-" |awk '{print $3 " " $1}'  
+      	dm-3 FS-SPDVSP02B-1
+	dm-2 FS-SPDVSP02B-0
+	dm-4 FS-SPDVSP01B-1332
+	dm-0 FS-SPDVSP01B-0
+	dm-1 FS-SPDVSP02B-1332
+
+        then go accross /sys/block/%s/slaves/* to find all the slave of the mapper
+        then find all non treated dm- in /sys/block/dm-* (ie for partition on ASM device)
+
+    """
+    try:
+        cmd = "$(which lvdisplay) | awk '/LV Name/{blockdev=$3} /Block device/{bdid=$3; sub(\"[0-9]*:\",\"dm-\",bdid); print bdid,blockdev;}'"
+        ns_proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+        stdout, _ = ns_proc.communicate()
+        for line in stdout.rstrip().split("\n"):
+            mapper = line.split()[0]
+            name = line.split()[1]
+            device_hash[mapper] = name
+
+
+        cmd="/sbin/multipath -ll |grep \"dm-\" |awk '{print $3 \" \" $1}'"
+        ns_proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+        stdout, _ = ns_proc.communicate()
+        for line in stdout.rstrip().split("\n"):
+            mapper,friendly_name = line.split()
+            device_hash[mapper] = friendly_name
+            #finding all slaves in /sys/block/device/slaves/
+            for dev in glob.glob("/sys/block/%s/slaves/*"%mapper):
+                dev = basename(dev)
+                device_hash[dev] = friendly_name
+        #Still need to do a list of dm who are partition of a mapper
+        for dev in glob.glob("/sys/block/dm-*"):
+           dev = basename(dev)
+           if dev in device_hash.keys():
+               continue
+           else:
+               name_dm = basename(glob.glob("/sys/block/%s/slaves/*"%dev)[0])
+               device_hash[dev] =  device_hash[name_dm]
+
+#	print "DEBUG",device_hash
+    except Exception as e:
+        sys.stderr.write("Cant execute : %s\n" % str(e))
+        sys.exit(13)
+
+def get_name(devicename):
+        result = device_hash.get(devicename, "")
+        if not result:
+            return ""
+        else:
+            return "mapper="+result
+
 def main():
     """iostats main loop."""
     init_stats = {
@@ -149,6 +220,7 @@ def main():
         "msec_total": 0,
         "msec_weighted_total": 0,
     }
+    list_device()
     prev_stats = dict()
     f_diskstats = open("/proc/diskstats")
     HZ = get_system_hz()
@@ -171,16 +243,16 @@ def main():
                 continue
 
             if int(values[1]) % 16 == 0 and int(values[0]) > 1:
-                metric = "iostat.disk."
+                metric = "sys.iostat.disk."
             else:
-                metric = "iostat.part."
+                metric = "sys.iostat.part."
 
             device = values[2]
             if len(values) == 14:
                 # full stats line
                 for i in range(11):
-                    print("%s%s %d %s dev=%s"
-                          % (metric, FIELDS_DISK[i], ts, values[i+3], device))
+                    print("%s%s %d %s dev=%s %s"
+                          % (metric, FIELDS_DISK[i], ts, values[i+3], device, get_name(device)))
 
                 ret = is_device(device, 0)
                 # if a device or a partition, calculate the svctm/await/util
@@ -214,16 +286,16 @@ def main():
                         w_await = (float(wr_ticks) - float(prev_wr_ticks) ) / float(wr_ios - prev_wr_ios)
                     if nr_ios != prev_nr_ios:
                         await = (float(rd_ticks) + float(wr_ticks) - float(prev_rd_ticks) - float(prev_wr_ticks)) / float(nr_ios - prev_nr_ios)
-                    print("%s%s %d %.2f dev=%s"
-                          % (metric, "svctm", ts, svctm, device))
-                    print("%s%s %d %.2f dev=%s"
-                          % (metric, "r_await", ts, r_await, device))
-                    print("%s%s %d %.2f dev=%s"
-                          % (metric, "w_await", ts, w_await, device))
-                    print("%s%s %d %.2f dev=%s"
-                          % (metric, "await", ts, await, device))
-                    print("%s%s %d %.2f dev=%s"
-                          % (metric, "util", ts, float(util/1000.0), device))
+                    print("%s%s %d %.2f dev=%s %s"
+                          % (metric, "svctm", ts, svctm, device, get_name(device)))
+                    print("%s%s %d %.2f dev=%s %s"
+                          % (metric, "r_await", ts, r_await, device, get_name(device)))
+                    print("%s%s %d %.2f dev=%s %s"
+                          % (metric, "w_await", ts, w_await, device, get_name(device)))
+                    print("%s%s %d %.2f dev=%s %s"
+                          % (metric, "await", ts, await, device, get_name(device)))
+                    print("%s%s %d %.2f dev=%s %s"
+                          % (metric, "util", ts, float(util/1000.0), device, get_name(device)))
 
                     prev_stats[device] = copy.deepcopy(stats)
 
@@ -237,6 +309,8 @@ def main():
                 continue
 
         sys.stdout.flush()
+	if one_shot:
+	   exit(2)
         time.sleep(COLLECTION_INTERVAL)
 
 
