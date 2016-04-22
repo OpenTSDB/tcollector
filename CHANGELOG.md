@@ -2,9 +2,25 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
-## [1.3.1-SNAPSHOT](https://github.com/OpenTSDB/tcollector/issues?utf8=%E2%9C%93&q=milestone%3A1.3.1+)
+## [1.3.1](https://github.com/OpenTSDB/tcollector/issues?utf8=%E2%9C%93&q=milestone%3A1.3.1+)
 ### Collectors Added
 - docker.py - Pulls metrics from a local Docker instance, tries /var/run/docker.sock, then localhost API
+- pxc-collector.py - Added Percona XtraDB Cluster Collector [#301](https://github.com/OpenTSDB/tcollector/pull/301)
+- mongo3.py - Added MongoDB 3 Collector [#302](https://github.com/OpenTSDB/tcollector/pull/302)
+
+### Bugfixes
+- startstop - Fixed issue where host was still required [#291](https://github.com/OpenTSDB/tcollector/pull/291)
+- tcollector.py - Fixed default pid location [#299](https://github.com/OpenTSDB/tcollector/pull/299)
+- tcollector.py - Few bugs related to new configuration [#305(https://github.com/OpenTSDB/tcollector/pull/305) [#306](https://github.com/OpenTSDB/tcollector/pull/306) [#307](https://github.com/OpenTSDB/tcollector/pull/307)
+- tcollector.py - Fixed issues with default cdir and classpath on Debian [#308](https://github.com/OpenTSDB/tcollector/pull/308)
+- tcollector.py - Fixed issue with last_datapoint for longer running collectors [#309](https://github.com/OpenTSDB/tcollector/pull/309)
+
+### Improvements
+- Improved ZFS Iostat collector [#294](https://github.com/OpenTSDB/tcollector/pull/294)
+- Avoid picking new connction with just one host [#295](https://github.com/OpenTSDB/tcollector/pull/295)
+- Improved CPI pctusage [#298](https://github.com/OpenTSDB/tcollector/pull/298)
+- Fixed CGROUP path for EL7 [#304](https://github.com/OpenTSDB/tcollector/pull/304)
+
 
 ## [1.3.0](https://github.com/OpenTSDB/tcollector/issues?utf8=%E2%9C%93&q=milestone%3A1.3.0)
 ### Collectors Added
