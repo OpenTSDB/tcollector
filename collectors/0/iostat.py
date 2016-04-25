@@ -74,11 +74,8 @@ import copy
 import subprocess
 import errno
 
-sys.path.append('/usr/lib/tcollector/plugins/lib')
-from awlutils import *
 import utils
 
-one_shot = 0
 COLLECTION_INTERVAL = 60  # seconds
 
 # Docs come from the Linux kernel's Documentation/iostats.txt
@@ -243,9 +240,9 @@ def main():
                 continue
 
             if int(values[1]) % 16 == 0 and int(values[0]) > 1:
-                metric = "sys.iostat.disk."
+                metric = "iostat.disk."
             else:
-                metric = "sys.iostat.part."
+                metric = "iostat.part."
 
             device = values[2]
             if len(values) == 14:
@@ -309,8 +306,6 @@ def main():
                 continue
 
         sys.stdout.flush()
-	if one_shot:
-	   exit(2)
         time.sleep(COLLECTION_INTERVAL)
 
 
