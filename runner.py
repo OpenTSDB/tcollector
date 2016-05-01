@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-import atexit
 import os
 import signal
 import logging
@@ -22,7 +21,7 @@ from optparse import OptionParser
 COLLECTORS = {}
 GENERATION = 0
 DEFAULT_LOG = '/var/log/tcollector.log'
-LOG = logging.getLogger('tcollector')
+LOG = logging.getLogger('runner')
 DEFAULT_PORT = 4242
 ALLOWED_INACTIVITY_TIME = 600  # seconds
 
@@ -55,6 +54,8 @@ def main(argv):
     if options.verbose:
         LOG.setLevel(logging.DEBUG)  # up our level
 
+    LOG.info('agent starting..., %s', argv)
+
     if options.pidfile:
         write_pid(options.pidfile)
 
@@ -80,7 +81,6 @@ def main(argv):
     setup_python_path(options.cdir)
 
     # gracefully handle death for normal termination paths and abnormal
-    atexit.register(shutdown)
     for sig in (signal.SIGTERM, signal.SIGINT):
         signal.signal(sig, shutdown_signal)
 
@@ -104,22 +104,28 @@ def main(argv):
             options.hosts.append((options.host, options.port))
 
     sender = Sender(options, tags)
+
+    LOG.info('agent finish initializing, enter main loop.')
     main_loop(options, sender, {}, {})
 
 
 def main_loop(options, sender, configs, collectors):
     while True:
         start = time.time()
-
-        changed_configs = reload_collector_confs(configs, options)
-        load_collectors(options.cdir, changed_configs, collectors)
-        data = []
-        for name, collector in collectors.iteritems():
-            try:
-                data.extend(collector.collector_instance())
-            except:
-                LOG.error('failed to execute collector %s. skip. %s', name, traceback.format_exc())
-        sender.send_data_via_http(data)
+        try:
+            changed_configs = reload_collector_confs(configs, options)
+            load_collectors(options.cdir, changed_configs, collectors)
+            data = []
+            for name, collector in collectors.iteritems():
+                try:
+                    data.extend(collector.collector_instance())
+                except:
+                    LOG.error('failed to execute collector %s. skip. %s', name, traceback.format_exc())
+            sender.send_data_via_http(data)
+            import datetime
+            sys.stdout.write('sent data at %s\n' % datetime.datetime.fromtimestamp(start).strftime('%Y-%m-%d %H:%M:%S'))
+        except:
+            LOG.error('failed collection loop. %s', traceback.format_exc())
 
         end = time.time()
         sleepsec = 2 - (end - start) if 2 > (end - start) else 0
@@ -134,14 +140,12 @@ def load_collectors(coldir, configs, collectors):
             collector_path_name = '%s/%s.py' % (collector_dir, name)
             if conf.getboolean(SECTION_BASE, CONFIG_ENABLED):
                 if os.path.isfile(collector_path_name) and os.access(collector_path_name, os.X_OK):
-                    mtime = os.path.getmtime(collector_path_name)
-                    if (name not in collectors) or (collectors[name].mtime < mtime):
-                        collector_class_name = conf.get(SECTION_BASE, CONFIG_COLLECTOR_CLASS)
-                        collector_class = load_collector_module(name, collector_dir, collector_class_name)
-                        collector_instance = collector_class(conf)
-                        interval = conf.getint(SECTION_BASE, CONFIG_INTERVAL)
-                        collectors[name] = Collector(collector_instance, interval)
-                        LOG.info('loaded collector %s from %s', name, collector_path_name)
+                    collector_class_name = conf.get(SECTION_BASE, CONFIG_COLLECTOR_CLASS)
+                    collector_class = load_collector_module(name, collector_dir, collector_class_name)
+                    collector_instance = collector_class(conf, LOG)
+                    interval = conf.getint(SECTION_BASE, CONFIG_INTERVAL)
+                    collectors[name] = Collector(collector_instance, interval)
+                    LOG.info('loaded collector %s from %s', name, collector_path_name)
                 else:
                     LOG.warn('failed to access collector file: %s', collector_path_name)
             elif name in collectors:
@@ -161,6 +165,7 @@ def load_collector_module(module_name, module_path, collector_class_name=None):
     return getattr(mod, collector_class_name)
 
 
+# noinspection SpellCheckingInspection
 def setup_logging(logfile=DEFAULT_LOG, max_bytes=None, backup_count=None):
     """Sets up logging and associated handlers."""
 
@@ -172,7 +177,7 @@ def setup_logging(logfile=DEFAULT_LOG, max_bytes=None, backup_count=None):
     else:  # Setup stream handler.
         ch = logging.StreamHandler(sys.stdout)
 
-    ch.setFormatter(logging.Formatter('%(asctime)s %(name)s[%(process)d] '
+    ch.setFormatter(logging.Formatter('%(asctime)s %(name)s[%(process)d]:%(lineno)d '
                                       '%(levelname)s: %(message)s'))
     LOG.addHandler(ch)
 
@@ -180,37 +185,7 @@ def setup_logging(logfile=DEFAULT_LOG, max_bytes=None, backup_count=None):
 def parse_cmdline(argv):
 
     try:
-        from collectors.etc import config
-        defaults = config.get_defaults()
-    except ImportError:
-        sys.stderr.write("ImportError: Could not load defaults from configuration. Using hardcoded values")
-        default_cdir = os.path.join(os.path.dirname(os.path.realpath(sys.argv[0])), 'collectors')
-        defaults = {
-            'verbose': False,
-            'no_tcollector_stats': False,
-            'evictinterval': 6000,
-            'dedupinterval': 300,
-            'allowed_inactivity_time': 600,
-            'dryrun': False,
-            'maxtags': 8,
-            'max_bytes': 64 * 1024 * 1024,
-            'http_password': False,
-            'reconnectinterval': 0,
-            'http_username': False,
-            'port': 4242,
-            'pidfile': '/var/run/tcollector.pid',
-            'http': False,
-            'tags': [],
-            'remove_inactive_collectors': False,
-            'host': 'localhost',
-            'backup_count': 1,
-            'logfile': '/var/log/tcollector.log',
-            'cdir': default_cdir,
-            'ssl': False,
-            'stdin': False,
-            'daemonize': False,
-            'hosts': False
-        }
+        defaults = get_defaults()
     except:
         sys.stderr.write("Unexpected error: %s" % sys.exc_info()[0])
         raise
@@ -338,98 +313,6 @@ def daemonize():
             pass  # ... ignore the exception.
 
 
-# To be removed
-def list_config_modules(etcdir):
-    """Returns an iterator that yields the name of all the config modules."""
-    if not os.path.isdir(etcdir):
-        return iter(())  # Empty iterator.
-    return (name for name in os.listdir(etcdir)
-            if (name.endswith('.py') and os.path.isfile(os.path.join(etcdir, name))))
-
-
-def load_etc_dir(options, tags):
-    """Loads any Python module from tcollector's own 'etc' directory.
-
-    Returns: A dict of path -> (module, timestamp).
-    """
-
-    etcdir = os.path.join(options.cdir, 'etc')
-    sys.path.append(etcdir)  # So we can import modules from the etc dir.
-    modules = {}  # path -> (module, timestamp)
-    for name in list_config_modules(etcdir):
-        path = os.path.join(etcdir, name)
-        module = load_config_module(name, options, tags)
-        modules[path] = (module, os.path.getmtime(path))
-    return modules
-
-
-def load_config_module(name, options, tags):
-    """Imports the config module of the given name
-
-    The 'name' argument can be a string, in which case the module will be
-    loaded by name, or it can be a module object, in which case the module
-    will get reloaded.
-
-    If the module has an 'onload' function, calls it.
-    Returns: the reference to the module loaded.
-    """
-
-    if isinstance(name, str):
-        LOG.info('Loading %s', name)
-        d = {}
-        # Strip the trailing .py
-        module = __import__(name[:-3], d, d)
-    else:
-        module = reload(name)
-    onload = module.__dict__.get('onload')
-    if callable(onload):
-        try:
-            onload(options, tags)
-        except:
-            LOG.fatal('Exception while loading %s', name)
-            raise
-    return module
-
-
-def reload_changed_config_modules(modules, options, tags):
-
-    etcdir = os.path.join(options.cdir, 'etc')
-    current_modules = set(list_config_modules(etcdir))
-    current_paths = set(os.path.join(etcdir, name)
-                        for name in current_modules)
-    changed = False
-
-    # Reload any module that has changed.
-    for path, (module, timestamp) in modules.iteritems():
-        if path not in current_paths:  # Module was removed.
-            continue
-        mtime = os.path.getmtime(path)
-        if mtime > timestamp:
-            LOG.info('Reloading %s, file has changed', path)
-            module = load_config_module(module, options, tags)
-            modules[path] = (module, mtime)
-            changed = True
-
-    # Remove any module that has been removed.
-    for path in set(modules).difference(current_paths):
-        LOG.info('%s has been removed, tcollector should be restarted', path)
-        del modules[path]
-        changed = True
-
-    # Check for any modules that may have been added.
-    for name in current_modules:
-        path = os.path.join(etcdir, name)
-        if path not in modules:
-            module = load_config_module(name, options, tags)
-            modules[path] = (module, os.path.getmtime(path))
-            changed = True
-
-    return changed
-
-
-# end: To be removed
-
-
 def list_collector_confs(confdir):
     if not os.path.isdir(confdir):
         LOG.warn('collector conf directory %s is not a directory', confdir)
@@ -441,8 +324,6 @@ def list_collector_confs(confdir):
 def reload_collector_confs(collector_confs, options):
     confdir = os.path.join(options.cdir, 'conf')
     current_collector_confs = set(list_collector_confs(confdir))
-    current_paths = set(os.path.join(confdir, name)
-                        for name in current_collector_confs)
     changed_collector_confs = {}
 
     # Reload any module that has changed.
@@ -458,8 +339,8 @@ def reload_collector_confs(collector_confs, options):
             changed_collector_confs[filename] = (path, config, mtime)
 
     # Remove any module that has been removed.
-    for filename in set(collector_confs).difference(current_paths):
-        LOG.info('%s has been removed, tcollector should be restarted', filename)
+    for filename in set(collector_confs).difference(current_collector_confs):
+        LOG.info('%s has been removed, agent should be restarted', filename)
         del collector_confs[filename]
 
     # Check for any modules that may have been added.
@@ -508,6 +389,39 @@ def setup_python_path(collector_dir):
 def shutdown():
     LOG.info('exiting')
     sys.exit(1)
+
+
+def get_defaults():
+    default_cdir = os.path.join(os.path.dirname(os.path.realpath(sys.argv[0])), 'collectors')
+
+    defaults = {
+        'verbose': False,
+        'no_tcollector_stats': False,
+        'evictinterval': 6000,
+        'dedupinterval': 300,
+        'allowed_inactivity_time': 600,
+        'dryrun': False,
+        'maxtags': 8,
+        'max_bytes': 64 * 1024 * 1024,
+        'http_password': False,
+        'reconnectinterval': 0,
+        'http_username': False,
+        'port': 4242,
+        'pidfile': '/var/run/tcollector.pid',
+        'http': False,
+        'tags': [],
+        'remove_inactive_collectors': False,
+        'host': 'localhost',
+        'backup_count': 1,
+        'logfile': '/var/log/tcollector.log',
+        'cdir': default_cdir,
+        'ssl': False,
+        'stdin': False,
+        'daemonize': False,
+        'hosts': False
+    }
+
+    return defaults
 
 
 # noinspection PyUnusedLocal

@@ -1,11 +1,12 @@
 import time
 import random
+from collectors.lib.collectorbase import CollectorBase
 
 
-class TestCollector(object):
+class TestCollector(CollectorBase):
 
-    def __init__(self, config):
-        self.config = config
+    def __init__(self, config, logger):
+        super(TestCollector, self).__init__(config, logger)
 
     def __call__(self):
         ts = time.time()
