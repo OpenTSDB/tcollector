@@ -19,7 +19,6 @@ from optparse import OptionParser
 
 # global variables.
 COLLECTORS = {}
-GENERATION = 0
 DEFAULT_LOG = '/var/log/tcollector.log'
 LOG = logging.getLogger('runner')
 DEFAULT_PORT = 4242
@@ -106,30 +105,46 @@ def main(argv):
     sender = Sender(options, tags)
 
     LOG.info('agent finish initializing, enter main loop.')
-    main_loop(options, sender, {}, {})
+    main_loop(options, sender, {}, COLLECTORS)
 
 
 def main_loop(options, sender, configs, collectors):
+    loop_interval = options.collection_interval
+    loop_count = 0
     while True:
         start = time.time()
         try:
-            changed_configs = reload_collector_confs(configs, options)
+            changed_configs, deleted_configs = reload_collector_confs(configs, options)
+            close_collecotors(deleted_configs, collectors)
             load_collectors(options.cdir, changed_configs, collectors)
+
             data = []
             for name, collector in collectors.iteritems():
                 try:
-                    data.extend(collector.collector_instance())
+                    if loop_count % (max(1, collector.interval / loop_interval)) == 0:
+                        data.extend(collector.collector_instance())
                 except:
                     LOG.error('failed to execute collector %s. skip. %s', name, traceback.format_exc())
             sender.send_data_via_http(data)
-            import datetime
-            sys.stdout.write('sent data at %s\n' % datetime.datetime.fromtimestamp(start).strftime('%Y-%m-%d %H:%M:%S'))
+            if options.verbose:
+                import datetime
+                sys.stdout.write('sent data at %s\n' % datetime.datetime.fromtimestamp(start).strftime('%Y-%m-%d %H:%M:%S'))
         except:
             LOG.error('failed collection loop. %s', traceback.format_exc())
 
         end = time.time()
-        sleepsec = 2 - (end - start) if 2 > (end - start) else 0
+        sleepsec = loop_interval - (end - start) if loop_interval > (end - start) else 0
+        loop_count += 1
         time.sleep(sleepsec)
+
+
+def close_collecotors(configs, collectors):
+    for config_filename in configs.keys():
+        try:
+            name = os.path.splitext(config_filename)[0]
+            collectors[name].collector_instance.close()
+        except:
+            LOG.error('failed to close collector %s', config_filename)
 
 
 def load_collectors(coldir, configs, collectors):
@@ -144,7 +159,7 @@ def load_collectors(coldir, configs, collectors):
                     collector_class = load_collector_module(name, collector_dir, collector_class_name)
                     collector_instance = collector_class(conf, LOG)
                     interval = conf.getint(SECTION_BASE, CONFIG_INTERVAL)
-                    collectors[name] = Collector(collector_instance, interval)
+                    collectors[name] = CollectorInfo(collector_instance, interval)
                     LOG.info('loaded collector %s from %s', name, collector_path_name)
                 else:
                     LOG.warn('failed to access collector file: %s', collector_path_name)
@@ -177,7 +192,7 @@ def setup_logging(logfile=DEFAULT_LOG, max_bytes=None, backup_count=None):
     else:  # Setup stream handler.
         ch = logging.StreamHandler(sys.stdout)
 
-    ch.setFormatter(logging.Formatter('%(asctime)s %(name)s[%(process)d]:%(lineno)d '
+    ch.setFormatter(logging.Formatter('%(asctime)s %(name)s[%(process)d:%(thread)d]:%(lineno)d '
                                       '%(levelname)s: %(message)s'))
     LOG.addHandler(ch)
 
@@ -274,6 +289,8 @@ def parse_cmdline(argv):
                       help='Password to use for HTTP Basic Auth when sending the data via HTTP')
     parser.add_option('--ssl', dest='ssl', action='store_true', default=defaults['ssl'],
                       help='Enable SSL - used in conjunction with http')
+    parser.add_option('--collection-interval', dest='connection_interval', type='int', default=defaults['collection_interval'],
+                      help='minimum collection interval')
     (options, args) = parser.parse_args(args=argv[1:])
     if options.dedupinterval < 0:
         parser.error('--dedup-interval must be at least 0 seconds')
@@ -322,9 +339,19 @@ def list_collector_confs(confdir):
 
 
 def reload_collector_confs(collector_confs, options):
+    """
+    load and reload collector conf file
+    Args:
+        collector_confs:
+        options:
+
+    Returns: changed collector confs and deleted collector confs
+
+    """
     confdir = os.path.join(options.cdir, 'conf')
     current_collector_confs = set(list_collector_confs(confdir))
     changed_collector_confs = {}
+    deleted_collector_confs = {}
 
     # Reload any module that has changed.
     for filename, (path, conf, timestamp) in collector_confs.iteritems():
@@ -341,18 +368,19 @@ def reload_collector_confs(collector_confs, options):
     # Remove any module that has been removed.
     for filename in set(collector_confs).difference(current_collector_confs):
         LOG.info('%s has been removed, agent should be restarted', filename)
+        deleted_collector_confs[filename] = collector_confs[filename]
         del collector_confs[filename]
 
     # Check for any modules that may have been added.
-    for name in current_collector_confs:
-        path = os.path.join(confdir, name)
-        if name not in collector_confs:
+    for filename in current_collector_confs:
+        path = os.path.join(confdir, filename)
+        if filename not in collector_confs:
             LOG.info('adding conf %s', path)
             config = ConfigParser.SafeConfigParser(default_config())
             config.read(path)
-            collector_confs[name] = (path, config, os.path.getmtime(path))
-            changed_collector_confs[name] = (path, config, os.path.getmtime(path))
-    return changed_collector_confs
+            collector_confs[filename] = (path, config, os.path.getmtime(path))
+            changed_collector_confs[filename] = (path, config, os.path.getmtime(path))
+    return changed_collector_confs, deleted_collector_confs
 
 
 def default_config():
@@ -388,6 +416,12 @@ def setup_python_path(collector_dir):
 
 def shutdown():
     LOG.info('exiting')
+    for name, collector in COLLECTORS.iteritems():
+        try:
+            LOG('close collector %s', name)
+            collector.collector_instance.close()
+        except:
+            LOG.error('failed to close collector %s. skip. %s', name, traceback.format_exc())
     sys.exit(1)
 
 
@@ -418,7 +452,8 @@ def get_defaults():
         'ssl': False,
         'stdin': False,
         'daemonize': False,
-        'hosts': False
+        'hosts': False,
+        'collection_interval': 15
     }
 
     return defaults
@@ -430,7 +465,7 @@ def shutdown_signal(signum, frame):
     shutdown()
 
 
-class Collector(object):
+class CollectorInfo(object):
     def __init__(self, collector_instance, interval):
         self.collector_instance = collector_instance
         self.interval = interval

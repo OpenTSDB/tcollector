@@ -20,7 +20,7 @@ class Cloudmon(CollectorBase):
             url = self.get_config('stats_url', 'http://localhost:9999/stats.txt?period=60')
             response = urllib2.urlopen(url + '?period=60')
             content = response.read()
-            self.process(content)
+            return self.process(content)
 
         except Exception:
             self.log_error('unexpected error. %s', traceback.format_exc())
@@ -88,10 +88,10 @@ metrics:
 
 def dryrun():
     while(True):
-        cloudmon = Cloudmon(None, None)
-        cloudmon()
+        cloudmon_inst = Cloudmon(None, None)
+        cloudmon_inst()
         time.sleep(10)
 
 
-#if __name__ == "__main__":
-#    dryrun()
+if __name__ == "__main__":
+    dryrun()

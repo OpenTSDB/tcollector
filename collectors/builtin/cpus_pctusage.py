@@ -29,96 +29,59 @@ Requirements :
 - Linux : mpstat
 '''
 
-import errno
-import sys
 import time
 import subprocess
 import re
-import signal
-import os
 import platform
 
 from collectors.lib.collectorbase import CollectorBase
 
-try:
-    from collectors.etc import cpus_pctusage_conf
-except ImportError:
-    cpus_pctusage_conf = None
 
-DEFAULT_COLLECTION_INTERVAL=15
-
-signal_received = None
-def handlesignal(signum, stack):
-    global signal_received
-    signal_received = signum
-
-def main():
-    """top main loop"""
-
-    collection_interval=DEFAULT_COLLECTION_INTERVAL
-    if(cpus_pctusage_conf):
-        config = cpus_pctusage_conf.get_config()
-        collection_interval=config['collection_interval']
-
-    global signal_received
-
-    signal.signal(signal.SIGTERM, handlesignal)
-    signal.signal(signal.SIGINT, handlesignal)
-
-    try:
+class CpusPctusage(CollectorBase):
+    def __init__(self, config, logger):
+        super(CpusPctusage, self).__init__(config, logger)
+        collection_interval = self.get_config('interval')
         if platform.system() == "FreeBSD":
-            p_top = subprocess.Popen(
-                ["top", "-t", "-I", "-P", "-n", "-s"+str(collection_interval), "-d"+str((365*24*3600)/collection_interval)],
+            self.p_top = subprocess.Popen(
+                ["top", "-t", "-I", "-P", "-n", "-s" + str(collection_interval), "-d" + str((365*24*3600) / collection_interval)],
                 stdout=subprocess.PIPE,
             )
         else:
-            p_top = subprocess.Popen(
+            self.p_top = subprocess.Popen(
                 ["mpstat", "-P", "ALL", str(collection_interval)],
                 stdout=subprocess.PIPE,
             )
-    except OSError, e:
-        if e.errno == errno.ENOENT:
-            # it makes no sense to run this collector here
-            sys.exit(13) # we signal tcollector to not run us
-        raise
 
-    while signal_received is None:
-        try:
-            line = p_top.stdout.readline()
-        except (IOError, OSError), e:
-            if e.errno in (errno.EINTR, errno.EAGAIN):
-                break
-            raise
+    def __call__(self):
+        ret_metrics = []
+        line = self.p_top.stdout.readline()
+        while line:
+            fields = re.sub(r"%( [uni][a-z]+,?)? | AM | PM ", "", line).split()
+            if len(fields) <= 0:
+                continue
 
-        if not line:
-            # end of the program, die
-            break
+            if (((fields[0] == "CPU") or (re.match("[0-9][0-9]:[0-9][0-9]:[0-9][0-9]",fields[0]))) and (re.match("[0-9]+:?",fields[1]))):
+                timestamp = int(time.time())
+                cpuid=fields[1].replace(":","")
+                cpuuser=fields[2]
+                cpunice=fields[3]
+                cpusystem=fields[4]
+                cpuinterrupt=fields[6]
+                cpuidle=fields[-1]
+                ret_metrics.append("cpu.usr %s %s cpu=%s" % (timestamp, cpuuser, cpuid))
+                ret_metrics.append("cpu.nice %s %s cpu=%s" % (timestamp, cpunice, cpuid))
+                ret_metrics.append("cpu.sys %s %s cpu=%s" % (timestamp, cpusystem, cpuid))
+                ret_metrics.append("cpu.irq %s %s cpu=%s" % (timestamp, cpuinterrupt, cpuid))
+                ret_metrics.append("cpu.idle %s %s cpu=%s" % (timestamp, cpuidle, cpuid))
+            line = self.p_top.stdout.readline()
 
-        fields = re.sub(r"%( [uni][a-z]+,?)? | AM | PM ", "", line).split()
-        if len(fields) <= 0:
-            continue
+        return ret_metrics
 
-        if (((fields[0] == "CPU") or (re.match("[0-9][0-9]:[0-9][0-9]:[0-9][0-9]",fields[0]))) and (re.match("[0-9]+:?",fields[1]))):
-            timestamp = int(time.time())
-            cpuid=fields[1].replace(":","")
-            cpuuser=fields[2]
-            cpunice=fields[3]
-            cpusystem=fields[4]
-            cpuinterrupt=fields[6]
-            cpuidle=fields[-1]
-            print ("cpu.usr %s %s cpu=%s" % (timestamp, cpuuser, cpuid))
-            print ("cpu.nice %s %s cpu=%s" % (timestamp, cpunice, cpuid))
-            print ("cpu.sys %s %s cpu=%s" % (timestamp, cpusystem, cpuid))
-            print ("cpu.irq %s %s cpu=%s" % (timestamp, cpuinterrupt, cpuid))
-            print ("cpu.idle %s %s cpu=%s" % (timestamp, cpuidle, cpuid))
+    def close(self):
+        self.close_subprocess_async(self.p_top, __name__)
 
-    if signal_received is None:
-        signal_received = signal.SIGTERM
-    try:
-        os.kill(p_top.pid, signal_received)
-    except Exception:
-        pass
-    p_top.wait()
 
 if __name__ == "__main__":
-    main()
+    cpus_pctusage_inst = CpusPctusage(None, None)
+    cpus_pctusage_inst()
+
