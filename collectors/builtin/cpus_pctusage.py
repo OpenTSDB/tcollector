@@ -38,8 +38,8 @@ from collectors.lib.collectorbase import CollectorBase
 
 
 class CpusPctusage(CollectorBase):
-    def __init__(self, config, logger):
-        super(CpusPctusage, self).__init__(config, logger)
+    def __init__(self, config, logger, readq):
+        super(CpusPctusage, self).__init__(config, logger, readq)
         collection_interval = self.get_config('interval')
         if platform.system() == "FreeBSD":
             self.p_top = subprocess.Popen(
@@ -53,7 +53,6 @@ class CpusPctusage(CollectorBase):
             )
 
     def __call__(self):
-        ret_metrics = []
         line = self.p_top.stdout.readline()
         while line:
             fields = re.sub(r"%( [uni][a-z]+,?)? | AM | PM ", "", line).split()
@@ -68,20 +67,19 @@ class CpusPctusage(CollectorBase):
                 cpusystem=fields[4]
                 cpuinterrupt=fields[6]
                 cpuidle=fields[-1]
-                ret_metrics.append("cpu.usr %s %s cpu=%s" % (timestamp, cpuuser, cpuid))
-                ret_metrics.append("cpu.nice %s %s cpu=%s" % (timestamp, cpunice, cpuid))
-                ret_metrics.append("cpu.sys %s %s cpu=%s" % (timestamp, cpusystem, cpuid))
-                ret_metrics.append("cpu.irq %s %s cpu=%s" % (timestamp, cpuinterrupt, cpuid))
-                ret_metrics.append("cpu.idle %s %s cpu=%s" % (timestamp, cpuidle, cpuid))
+                self._readq.nput("cpu.usr %s %s cpu=%s" % (timestamp, cpuuser, cpuid))
+                self._readq.nput("cpu.nice %s %s cpu=%s" % (timestamp, cpunice, cpuid))
+                self._readq.nput("cpu.sys %s %s cpu=%s" % (timestamp, cpusystem, cpuid))
+                self._readq.nput("cpu.irq %s %s cpu=%s" % (timestamp, cpuinterrupt, cpuid))
+                self._readq.nput("cpu.idle %s %s cpu=%s" % (timestamp, cpuidle, cpuid))
             line = self.p_top.stdout.readline()
-
-        return ret_metrics
 
     def close(self):
         self.close_subprocess_async(self.p_top, __name__)
 
 
 if __name__ == "__main__":
-    cpus_pctusage_inst = CpusPctusage(None, None)
+    from Queue import Queue
+    cpus_pctusage_inst = CpusPctusage(None, None, Queue())
     cpus_pctusage_inst()
 

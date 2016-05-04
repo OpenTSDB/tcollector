@@ -5,12 +5,14 @@ import signal
 import os
 import time
 from threading import Thread
+from Queue import Queue
 
 
 class CollectorBase(object):
-    def __init__(self, config, logger):
+    def __init__(self, config, logger, readq):
         self._config = config
         self._logger = logger
+        self._readq = readq
 
     def log_info(self, msg, *args):
         if self._logger:
@@ -41,6 +43,10 @@ class CollectorBase(object):
             return self._config.get(section, key)
         else:
             return default
+
+    def safe_close(self, filehandle):
+        if filehandle:
+            filehandle.close()
 
     def close(self):
         """ any collector uses expensive OS resources like filehandles or sockets, etc. needs to close them here

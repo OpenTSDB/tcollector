@@ -85,8 +85,8 @@ def get_accesskey_secretkey():
 
 
 class AwsCloudWatchStats(CollectorBase):
-    def __init__(self, config, logger):
-        super(AwsCloudWatchStats, self).__init__(config, logger)
+    def __init__(self, config, logger, readq):
+        super(AwsCloudWatchStats, self).__init__(config, logger, readq)
         if self.get_config('interval', None) < 60:
             sys.stderr.write(
                 "AWS Cloudwatch Stats is an heavy collector and should not be run more than once per minute.\n")
@@ -108,10 +108,8 @@ class AwsCloudWatchStats(CollectorBase):
         except:
             raise
 
-        ret_metrics = []
         if not sendQueue.empty():
-            self.send_metrics(ret_metrics)
-        return ret_metrics
+            self.send_metrics()
 
     def handle_region(self, region, statistic):
         try:
@@ -132,7 +130,7 @@ class AwsCloudWatchStats(CollectorBase):
         else:
             self.log_info("finished region " + region + "," + statistic + "\n")
 
-    def send_metrics(self, ret_metrics):
+    def send_metrics(self):
         self.log_info("Processing sendQueue \n")
         datapoints = {}
         try:
@@ -148,7 +146,7 @@ class AwsCloudWatchStats(CollectorBase):
             for outputs in sorted(datapoints.iteritems(), key=lambda x: x[1]):
                 for output in outputs:
                     for t in output:
-                        ret_metrics.append(t)
+                        self._readq.nput(t)
         except exceptions.KeyboardInterrupt:
             return 0
 
@@ -190,5 +188,6 @@ class AwsCloudWatchStats(CollectorBase):
         return True
 
 if __name__ == "__main__":
-    aws_stats = AwsCloudWatchStats(None, None)
+    from Queue import Queue
+    aws_stats = AwsCloudWatchStats(None, None, Queue())
     aws_stats()

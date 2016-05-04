@@ -135,14 +135,12 @@ def is_device(device_name, allow_virtual):
 
 # noinspection SpellCheckingInspection
 class Iostat(CollectorBase):
-    def __init__(self, config, logger):
-        super(Iostat, self).__init__(config, logger)
+    def __init__(self, config, logger, readq):
+        super(Iostat, self).__init__(config, logger, readq)
         self.f_diskstats = open("/proc/diskstats")
         self.hz = get_system_hz()
 
     def __call__(self):
-        ret_metrics = []
-
         init_stats = {
             "read_requests": 0,
             "read_merged": 0,
@@ -182,7 +180,7 @@ class Iostat(CollectorBase):
             if len(values) == 14:
                 # full stats line
                 for i in range(11):
-                    ret_metrics.append("%s%s %d %s dev=%s" % (metric, FIELDS_DISK[i], ts, values[i + 3], device))
+                    self._readq.nput("%s%s %d %s dev=%s" % (metric, FIELDS_DISK[i], ts, values[i + 3], device))
 
                 ret = is_device(device, 0)
                 # if a device or a partition, calculate the svctm/await/util
@@ -196,7 +194,7 @@ class Iostat(CollectorBase):
                     prev_rd_ios = float(prev_stats[device].get("read_requests"))
                     prev_wr_ios = float(prev_stats[device].get("write_requests"))
                     prev_nr_ios = prev_rd_ios + prev_wr_ios
-                    tput = ((nr_ios - prev_nr_ios) * float(hz) / float(itv))
+                    tput = ((nr_ios - prev_nr_ios) * float(self.hz) / float(itv))
                     util = ((float(stats.get("msec_total")) - float(prev_stats[device].get("msec_total"))) * float(self.hz) / float(itv))
                     svctm = 0.0
                     await = 0.0
@@ -216,25 +214,26 @@ class Iostat(CollectorBase):
                         w_await = (float(wr_ticks) - float(prev_wr_ticks)) / float(wr_ios - prev_wr_ios)
                     if nr_ios != prev_nr_ios:
                         await = (float(rd_ticks) + float(wr_ticks) - float(prev_rd_ticks) - float(prev_wr_ticks)) / float(nr_ios - prev_nr_ios)
-                    ret_metrics.append("%s%s %d %.2f dev=%s" % (metric, "svctm", ts, svctm, device))
-                    ret_metrics.append("%s%s %d %.2f dev=%s" % (metric, "r_await", ts, r_await, device))
-                    ret_metrics.append("%s%s %d %.2f dev=%s" % (metric, "w_await", ts, w_await, device))
-                    ret_metrics.append("%s%s %d %.2f dev=%s" % (metric, "await", ts, await, device))
-                    ret_metrics.append("%s%s %d %.2f dev=%s" % (metric, "util", ts, float(util / 1000.0), device))
+                    self._readq.nput("%s%s %d %.2f dev=%s" % (metric, "svctm", ts, svctm, device))
+                    self._readq.nput("%s%s %d %.2f dev=%s" % (metric, "r_await", ts, r_await, device))
+                    self._readq.nput("%s%s %d %.2f dev=%s" % (metric, "w_await", ts, w_await, device))
+                    self._readq.nput("%s%s %d %.2f dev=%s" % (metric, "await", ts, await, device))
+                    self._readq.nput("%s%s %d %.2f dev=%s" % (metric, "util", ts, float(util / 1000.0), device))
 
                     prev_stats[device] = copy.deepcopy(stats)
 
             elif len(values) == 7:
                 # partial stats line
                 for i in range(4):
-                    ret_metrics.append("%s%s %d %s dev=%s" % (metric, FIELDS_PART[i], ts, values[i + 3], device))
+                    self._readq.nput("%s%s %d %s dev=%s" % (metric, FIELDS_PART[i], ts, values[i + 3], device))
             else:
                 self.log_error("Cannot parse /proc/diskstats line: %s", line)
                 continue
 
-        return ret_metrics
-
+    def close(self):
+        self.safe_close(self.f_diskstats)
 
 if __name__ == "__main__":
-    iostat = Iostat(None, None)
+    from Queue import Queue
+    iostat = Iostat(None, None, Queue())
     iostat()

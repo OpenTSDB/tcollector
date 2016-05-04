@@ -41,8 +41,8 @@ FIELDS = ("bytes", "packets", "errs", "dropped",
 
 
 class Ifstat(CollectorBase):
-    def __init__(self, config, logger):
-        super(Ifstat, self).__init__(config, logger)
+    def __init__(self, config, logger, readq):
+        super(Ifstat, self).__init__(config, logger, readq)
         self.f_netdev = open("/proc/net/dev")
 
     def __call__(self):
@@ -55,7 +55,6 @@ class Ifstat(CollectorBase):
 
         self.f_netdev.seek(0)
         ts = int(time.time())
-        ret_metrics = []
         for line in self.f_netdev:
             m = re.match("\s+(eth?\d+|em\d+_\d+/\d+|em\d+_\d+|em\d+|"
                          "p\d+p\d+_\d+/\d+|p\d+p\d+_\d+|p\d+p\d+):(.*)", line)
@@ -69,10 +68,13 @@ class Ifstat(CollectorBase):
                     return "out"
                 return "in"
             for i in xrange(16):
-                ret_metrics.append("proc.net.%s %d %s iface=%s direction=%s" % (FIELDS[i], ts, stats[i], intf, direction(i)))
+                self._readq.nput("proc.net.%s %d %s iface=%s direction=%s" % (FIELDS[i], ts, stats[i], intf, direction(i)))
 
-        return ret_metrics
+    def close(self):
+        self.safe_close(self.f_netdev)
+
 
 if __name__ == "__main__":
-    ifstat = Ifstat(None, None)
+    from Queue import Queue
+    ifstat = Ifstat(None, None, Queue())
     ifstat()

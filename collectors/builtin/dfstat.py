@@ -47,9 +47,10 @@ FSTYPE_IGNORE = frozenset([
   "rootfs",
 ])
 
+
 class Dfstat(CollectorBase):
-    def __init__(self, config, logger):
-        super(Dfstat, self).__init__(config, logger)
+    def __init__(self, config, logger, readq):
+        super(Dfstat, self).__init__(config, logger, readq)
         self.f_mounts = open("/proc/mounts", "r")
 
     def __call__(self):
@@ -115,13 +116,13 @@ class Dfstat(CollectorBase):
             else:
                 percent_used = used * 100.0 / r.f_blocks
 
-            ret_metrics.append("df.bytes.total %d %s mount=%s fstype=%s"
+            self._readq.nput("df.bytes.total %d %s mount=%s fstype=%s"
                   % (ts, r.f_frsize * r.f_blocks, fs_file, fs_vfstype))
-            ret_metrics.append("df.bytes.used %d %s mount=%s fstype=%s"
+            self._readq.nput("df.bytes.used %d %s mount=%s fstype=%s"
                   % (ts, r.f_frsize * used, fs_file, fs_vfstype))
-            ret_metrics.append("df.bytes.percentused %d %s mount=%s fstype=%s"
+            self._readq.nput("df.bytes.percentused %d %s mount=%s fstype=%s"
                   % (ts, percent_used, fs_file, fs_vfstype))
-            ret_metrics.append("df.bytes.free %d %s mount=%s fstype=%s"
+            self._readq.nput("df.bytes.free %d %s mount=%s fstype=%s"
                   % (ts, r.f_frsize * r.f_bfree, fs_file, fs_vfstype))
 
             used = r.f_files - r.f_ffree
@@ -132,16 +133,21 @@ class Dfstat(CollectorBase):
             else:
                 percent_used = used * 100.0 / r.f_files
 
-            ret_metrics.append("df.inodes.total %d %s mount=%s fstype=%s"
+            self._readq.nput("df.inodes.total %d %s mount=%s fstype=%s"
                   % (ts, r.f_files, fs_file, fs_vfstype))
-            ret_metrics.append("df.inodes.used %d %s mount=%s fstype=%s"
+            self._readq.nput("df.inodes.used %d %s mount=%s fstype=%s"
                   % (ts, used, fs_file, fs_vfstype))
-            ret_metrics.append("df.inodes.percentused %d %s mount=%s fstype=%s"
+            self._readq.nput("df.inodes.percentused %d %s mount=%s fstype=%s"
                   % (ts, percent_used, fs_file, fs_vfstype))
-            ret_metrics.append("df.inodes.free %d %s mount=%s fstype=%s"
+            self._readq.nput("df.inodes.free %d %s mount=%s fstype=%s"
                   % (ts, r.f_ffree, fs_file, fs_vfstype))
         return ret_metrics
 
+    def close(self):
+        self.safe_close(self.f_mounts)
+
+
 if __name__ == "__main__":
-    dfstat_inst = Dfstat(None, None)
+    from Queue import Queue
+    dfstat_inst = Dfstat(None, None, Queue())
     dfstat_inst()

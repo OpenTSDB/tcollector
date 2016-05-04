@@ -62,7 +62,7 @@ def list_bucket(bin_dir):
     return buckets
 
 
-def collect_stats(bin_dir, bucket, ret_metrics):
+def collect_stats(bin_dir, bucket, readq):
     """Returns statistics related to a particular bucket"""
     if not os.path.isfile("%s/cbstats" % bin_dir):
         return
@@ -77,12 +77,12 @@ def collect_stats(bin_dir, bucket, ret_metrics):
         metric = stat.split(":")[0].lstrip(" ")
         value = stat.split(":")[1].lstrip(" \t")
         if metric in KEYS:
-            ret_metrics.append("couchbase.%s %i %s bucket=%s" % (metric, ts, value, bucket))
+            readq.nput("couchbase.%s %i %s bucket=%s" % (metric, ts, value, bucket))
 
 
 class Couchbase(CollectorBase):
-    def __init__(self, config, logger):
-        super(Couchbase, self).__init__(config, logger)
+    def __init__(self, config, logger, readq):
+        super(Couchbase, self).__init__(config, logger, readq)
         utils.drop_privileges()
 
         couchbase_initfile = self.get_config('couchbase_initfile', '/etc/init.d/couchbase-server')
@@ -103,13 +103,11 @@ class Couchbase(CollectorBase):
             raise
 
     def __call__(self):
-        ret_metrics = []
         # Listing bucket everytime so as to start collecting datapoints
         # of any new bucket.
         buckets = list_bucket(self.bin_dir)
         for b in buckets:
-            collect_stats(self.bin_dir, b, ret_metrics)
-        return ret_metrics
+            collect_stats(self.bin_dir, b, self._readq)
 
     def find_couchbase_pid(self, couchbase_initfile):
         if not os.path.isfile(couchbase_initfile):
@@ -171,5 +169,6 @@ class Couchbase(CollectorBase):
 
 
 if __name__ == "__main__":
-    couchbase_inst = Couchbase(None, None)
+    from Queue import Queue
+    couchbase_inst = Couchbase(None, None, Queue())
     couchbase_inst()

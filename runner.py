@@ -14,15 +14,23 @@ import json
 import urllib2
 import random
 import base64
+import threading
 from logging.handlers import RotatingFileHandler
 from optparse import OptionParser
+from Queue import Queue
+from Queue import Full
+from Queue import Empty
 
 # global variables.
 COLLECTORS = {}
 DEFAULT_LOG = '/var/log/tcollector.log'
 LOG = logging.getLogger('runner')
+# TODO consider put into config file
 DEFAULT_PORT = 4242
 ALLOWED_INACTIVITY_TIME = 600  # seconds
+MAX_UNCAUGHT_EXCEPTIONS = 100
+MAX_SENDQ_SIZE = 10000
+MAX_READQ_SIZE = 100000
 
 # config constants
 SECTION_BASE = 'base'
@@ -102,13 +110,15 @@ def main(argv):
         if options.host != "localhost" or options.port != DEFAULT_PORT:
             options.hosts.append((options.host, options.port))
 
-    sender = Sender(options, tags)
+    readq = NonBlockingQueue(MAX_READQ_SIZE)
+    sender = Sender(readq, options, tags)
+    sender.start()
 
     LOG.info('agent finish initializing, enter main loop.')
-    main_loop(options, sender, {}, COLLECTORS)
+    main_loop(readq, options, {}, COLLECTORS)
 
 
-def main_loop(options, sender, configs, collectors):
+def main_loop(readq, options, configs, collectors):
     loop_interval = options.collection_interval
     loop_count = 0
     while True:
@@ -116,7 +126,7 @@ def main_loop(options, sender, configs, collectors):
         try:
             changed_configs, deleted_configs = reload_collector_confs(configs, options)
             close_collecotors(deleted_configs, collectors)
-            load_collectors(options.cdir, changed_configs, collectors)
+            load_collectors(options.cdir, changed_configs, collectors, readq)
 
             data = []
             for name, collector in collectors.iteritems():
@@ -125,7 +135,7 @@ def main_loop(options, sender, configs, collectors):
                         data.extend(collector.collector_instance())
                 except:
                     LOG.error('failed to execute collector %s. skip. %s', name, traceback.format_exc())
-            sender.send_data_via_http(data)
+
             if options.verbose:
                 import datetime
                 sys.stdout.write('sent data at %s\n' % datetime.datetime.fromtimestamp(start).strftime('%Y-%m-%d %H:%M:%S'))
@@ -147,7 +157,7 @@ def close_collecotors(configs, collectors):
             LOG.error('failed to close collector %s', config_filename)
 
 
-def load_collectors(coldir, configs, collectors):
+def load_collectors(coldir, configs, collectors, readq):
     collector_dir = '%s/builtin' % coldir
     for config_filename, (path, conf, timestamp) in configs.iteritems():
         try:
@@ -157,7 +167,7 @@ def load_collectors(coldir, configs, collectors):
                 if os.path.isfile(collector_path_name) and os.access(collector_path_name, os.X_OK):
                     collector_class_name = conf.get(SECTION_BASE, CONFIG_COLLECTOR_CLASS)
                     collector_class = load_collector_module(name, collector_dir, collector_class_name)
-                    collector_instance = collector_class(conf, LOG)
+                    collector_instance = collector_class(conf, LOG, readq)
                     interval = conf.getint(SECTION_BASE, CONFIG_INTERVAL)
                     collectors[name] = CollectorInfo(collector_instance, interval)
                     LOG.info('loaded collector %s from %s', name, collector_path_name)
@@ -418,6 +428,7 @@ def shutdown():
     LOG.info('exiting')
     for name, collector in COLLECTORS.iteritems():
         try:
+            # there are collectors spawning subprocesses (shell top), we need to close them
             LOG('close collector %s', name)
             collector.collector_instance.close()
         except:
@@ -471,9 +482,26 @@ class CollectorInfo(object):
         self.interval = interval
 
 
+class NonBlockingQueue(Queue):
+    def __init__(self):
+        self.dropped = 0
+
+    def nput(self, value):
+        """A nonblocking put, that simply logs and discards the value when the
+           queue is full, and returns false if we dropped."""
+        try:
+            self.put(value, False)
+        except Full:
+            LOG.error("DROPPED LINE: %s", value)
+            self.dropped += 1
+            return False
+        return True
+
+
 # noinspection PyDictCreation
-class Sender(object):
-    def __init__(self, options, tags):
+class Sender(threading.Thread):
+    def __init__(self, readq, options, tags):
+        self.readq = readq
         self.hosts = options.hosts
         self.http_username = options.http_username
         self.http_password = options.http_password
@@ -485,37 +513,80 @@ class Sender(object):
         self.blacklisted_hosts = set()
         random.shuffle(self.hosts)
 
-    def send_data_via_http(self, data):
-        metrics = []
-        for line in data:
-            # print " %s" % line
-            parts = line.split(None, 3)
-            # not all metrics have metric-specific tags
-            if len(parts) == 4:
-                (metric, timestamp, value, raw_tags) = parts
-            else:
-                (metric, timestamp, value) = parts
-                raw_tags = ""
-            # process the tags
-            metric_tags = {}
-            for tag in raw_tags.strip().split():
-                (tag_key, tag_value) = tag.split("=", 1)
-                metric_tags[tag_key] = tag_value
-            metric_entry = {}
-            metric_entry["metric"] = metric
-            metric_entry["timestamp"] = long(timestamp)
-            metric_entry["value"] = float(value)
-            metric_entry["tags"] = dict(self.tags).copy()
-            if len(metric_tags) + len(metric_entry["tags"]) > self.maxtags:
-                metric_tags_orig = set(metric_tags)
-                subset_metric_keys = frozenset(
-                        metric_tags[:len(metric_tags[:self.maxtags - len(metric_entry["tags"])])])
-                metric_tags = dict((k, v) for k, v in metric_tags.iteritems() if k in subset_metric_keys)
-                LOG.error("Exceeding maximum permitted metric tags - removing %s for metric %s",
-                          str(metric_tags_orig - set(metric_tags)), metric)
-            metric_entry["tags"].update(metric_tags)
-            metrics.append(metric_entry)
+    def run(self):
+        """Main loop.  A simple scheduler.  Loop waiting for 5
+           seconds for data on the queue.  If there's no data, just
+           loop and make sure our connection is still open.  If there
+           is data, wait 5 more seconds and grab all of the pending data and
+           send it.  A little better than sending every line as its
+           own packet."""
 
+        errors = 0  # How many uncaught exceptions in a row we got.
+        while True:
+            metrics = []
+            try:
+                try:
+                    line = self.reader.readerq.get(True, 5)
+                except Empty:
+                    continue
+                metrics.append(self.process(line))
+                time.sleep(5)  # Wait for more data
+                while True:
+                    # prevents self.sendq fast growing in case of sending fails
+                    # in send_data()
+                    if len(self.sendq) > MAX_SENDQ_SIZE:
+                        break
+                    try:
+                        line = self.reader.readerq.get(False)
+                    except Empty:
+                        break
+                    metrics.append(self.process(line))
+
+                self.send_data(metrics)
+                errors = 0  # We managed to do a successful iteration.
+            except (ArithmeticError, EOFError, EnvironmentError, LookupError,
+                    ValueError), e:
+                errors += 1
+                if errors > MAX_UNCAUGHT_EXCEPTIONS:
+                    shutdown()
+                    raise
+                LOG.exception('exception in Sender, ignoring')
+                time.sleep(1)
+                continue
+            except:
+                LOG.exception('Uncaught exception in Sender, going to exit')
+                shutdown()
+                raise
+
+    def process(self, line):
+        parts = line.split(None, 3)
+        # not all metrics have metric-specific tags
+        if len(parts) == 4:
+            (metric, timestamp, value, raw_tags) = parts
+        else:
+            (metric, timestamp, value) = parts
+            raw_tags = ""
+        # process the tags
+        metric_tags = {}
+        for tag in raw_tags.strip().split():
+            (tag_key, tag_value) = tag.split("=", 1)
+            metric_tags[tag_key] = tag_value
+        metric_entry = {}
+        metric_entry["metric"] = metric
+        metric_entry["timestamp"] = long(timestamp)
+        metric_entry["value"] = float(value)
+        metric_entry["tags"] = dict(self.tags).copy()
+        if len(metric_tags) + len(metric_entry["tags"]) > self.maxtags:
+            metric_tags_orig = set(metric_tags)
+            subset_metric_keys = frozenset(
+                    metric_tags[:len(metric_tags[:self.maxtags - len(metric_entry["tags"])])])
+            metric_tags = dict((k, v) for k, v in metric_tags.iteritems() if k in subset_metric_keys)
+            LOG.error("Exceeding maximum permitted metric tags - removing %s for metric %s",
+                      str(metric_tags_orig - set(metric_tags)), metric)
+        metric_entry["tags"].update(metric_tags)
+        return metric_entry
+
+    def send_data_via_http(self, metrics):
         if self.dryrun:
             print "Would have sent:\n%s" % json.dumps(metrics,
                                                       sort_keys=True,
