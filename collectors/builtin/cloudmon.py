@@ -3,7 +3,6 @@
 import urllib2
 import time
 import re
-import traceback
 from collectors.lib import utils
 from collectors.lib.collectorbase import CollectorBase
 
@@ -21,9 +20,8 @@ class Cloudmon(CollectorBase):
             response = urllib2.urlopen(url + '?period=60')
             content = response.read()
             return self.process(content)
-
-        except Exception:
-            self.log_error('unexpected error. %s', traceback.format_exc())
+        except:
+            self.log_exception('unexpected error.')
 
     def process(self, content):
         ts = time.time()

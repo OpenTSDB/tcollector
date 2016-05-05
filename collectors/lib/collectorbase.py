@@ -5,7 +5,6 @@ import signal
 import os
 import time
 from threading import Thread
-from Queue import Queue
 
 
 class CollectorBase(object):
@@ -14,27 +13,27 @@ class CollectorBase(object):
         self._logger = logger
         self._readq = readq
 
-    def log_info(self, msg, *args):
+    def log_info(self, msg, *args, **kwargs):
         if self._logger:
-            self._logger.info(msg, args)
+            self._logger.info(msg, *args, **kwargs)
         else:
             sys.stdout.write("INFO: " + msg % args)
 
-    def log_error(self, msg, *args):
+    def log_error(self, msg, *args, **kwargs):
         if self._logger:
-            self._logger.error(msg, args)
+            self._logger.error(msg, *args, **kwargs)
         else:
             sys.stderr.write("ERROR: " + msg % args)
 
-    def log_warn(self, msg, *args):
+    def log_warn(self, msg, *args, **kwargs):
         if self._logger:
-            self._logger.warn(msg, args)
+            self._logger.warn(msg, *args, **kwargs)
         else:
             sys.stdout.write("WARN: " + msg % args)
 
     def log_exception(self, msg, *args, **kwargs):
         if self._logger:
-            self._logger.exception(msg, args, kwargs)
+            self._logger.exception(msg, *args, **kwargs)
         else:
             sys.stderr.write("ERROR: " + msg % args)
 
@@ -67,7 +66,7 @@ class CollectorBase(object):
     def _stop_subprocess(self, proc, collector_name):
         pid = proc.pid
         try:
-            _kill(proc)
+            _kill(pid)
             for attempt in range(5):
                 if proc.poll() is not None:
                     return
@@ -82,5 +81,5 @@ class CollectorBase(object):
             self.log_exception('ignoring uncaught exception while close subprocess %d', proc.pid)
 
 
-def _kill(proc, signum=signal.SIGTERM):
-        os.killpg(proc.pid, signum)
+def _kill(pid, signum=signal.SIGTERM):
+        os.killpg(pid, signum)

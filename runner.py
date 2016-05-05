@@ -128,13 +128,12 @@ def main_loop(readq, options, configs, collectors):
             close_collecotors(deleted_configs, collectors)
             load_collectors(options.cdir, changed_configs, collectors, readq)
 
-            data = []
             for name, collector in collectors.iteritems():
                 try:
                     if loop_count % (max(1, collector.interval / loop_interval)) == 0:
-                        data.extend(collector.collector_instance())
+                        collector.collector_instance()
                 except:
-                    LOG.error('failed to execute collector %s. skip. %s', name, traceback.format_exc())
+                    LOG.exception('failed to execute collector %s. skip.', name)
 
             if options.verbose:
                 import datetime
@@ -177,8 +176,7 @@ def load_collectors(coldir, configs, collectors, readq):
                 LOG.info("%s is disabled", collector_path_name)
                 del collectors[name]
         except:
-            LOG.error('failed to load collector %s, skipped. %s',
-                      collector_path_name if collector_path_name else config_filename, traceback.format_exc())
+            LOG.exception('failed to load collector %s, skipped.', collector_path_name if collector_path_name else config_filename)
 
 
 # caller to handle exception
@@ -202,7 +200,7 @@ def setup_logging(logfile=DEFAULT_LOG, max_bytes=None, backup_count=None):
     else:  # Setup stream handler.
         ch = logging.StreamHandler(sys.stdout)
 
-    ch.setFormatter(logging.Formatter('%(asctime)s %(name)s[%(process)d:%(thread)d]:%(lineno)d '
+    ch.setFormatter(logging.Formatter('%(asctime)s %(module)s[%(process)d:%(thread)d]:%(lineno)d '
                                       '%(levelname)s: %(message)s'))
     LOG.addHandler(ch)
 
@@ -299,7 +297,7 @@ def parse_cmdline(argv):
                       help='Password to use for HTTP Basic Auth when sending the data via HTTP')
     parser.add_option('--ssl', dest='ssl', action='store_true', default=defaults['ssl'],
                       help='Enable SSL - used in conjunction with http')
-    parser.add_option('--collection-interval', dest='connection_interval', type='int', default=defaults['collection_interval'],
+    parser.add_option('--collection-interval', dest='collection_interval', type='int', default=defaults['collection_interval'],
                       help='minimum collection interval')
     (options, args) = parser.parse_args(args=argv[1:])
     if options.dedupinterval < 0:
@@ -312,7 +310,7 @@ def parse_cmdline(argv):
     # We cannot write to stdout when we're a daemon.
     if (options.daemonize or options.max_bytes) and not options.backup_count:
         options.backup_count = 1
-    return (options, args)
+    return options, args
 
 
 def daemonize():
@@ -395,7 +393,7 @@ def reload_collector_confs(collector_confs, options):
 
 def default_config():
     return {
-        CONFIG_ENABLED: False,
+        CONFIG_ENABLED: 'False',
         CONFIG_INTERVAL: '15',
         CONFIG_COLLECTOR_CLASS: None
     }
@@ -429,7 +427,7 @@ def shutdown():
     for name, collector in COLLECTORS.iteritems():
         try:
             # there are collectors spawning subprocesses (shell top), we need to close them
-            LOG('close collector %s', name)
+            LOG.info('close collector %s', name)
             collector.collector_instance.close()
         except:
             LOG.error('failed to close collector %s. skip. %s', name, traceback.format_exc())
@@ -483,8 +481,7 @@ class CollectorInfo(object):
 
 
 class NonBlockingQueue(Queue):
-    def __init__(self):
-        self.dropped = 0
+    dropped = 0
 
     def nput(self, value):
         """A nonblocking put, that simply logs and discards the value when the
@@ -493,7 +490,7 @@ class NonBlockingQueue(Queue):
             self.put(value, False)
         except Full:
             LOG.error("DROPPED LINE: %s", value)
-            self.dropped += 1
+            NonBlockingQueue.dropped += 1
             return False
         return True
 
@@ -501,6 +498,7 @@ class NonBlockingQueue(Queue):
 # noinspection PyDictCreation
 class Sender(threading.Thread):
     def __init__(self, readq, options, tags):
+        super(Sender, self).__init__()
         self.readq = readq
         self.hosts = options.hosts
         self.http_username = options.http_username
@@ -526,7 +524,7 @@ class Sender(threading.Thread):
             metrics = []
             try:
                 try:
-                    line = self.reader.readerq.get(True, 5)
+                    line = self.readq.get(True, 5)
                 except Empty:
                     continue
                 metrics.append(self.process(line))
@@ -534,15 +532,15 @@ class Sender(threading.Thread):
                 while True:
                     # prevents self.sendq fast growing in case of sending fails
                     # in send_data()
-                    if len(self.sendq) > MAX_SENDQ_SIZE:
+                    if len(metrics) > MAX_SENDQ_SIZE:
                         break
                     try:
-                        line = self.reader.readerq.get(False)
+                        line = self.readq.get(False)
                     except Empty:
                         break
                     metrics.append(self.process(line))
 
-                self.send_data(metrics)
+                self.send_data_via_http(metrics)
                 errors = 0  # We managed to do a successful iteration.
             except (ArithmeticError, EOFError, EnvironmentError, LookupError,
                     ValueError), e:
@@ -578,8 +576,7 @@ class Sender(threading.Thread):
         metric_entry["tags"] = dict(self.tags).copy()
         if len(metric_tags) + len(metric_entry["tags"]) > self.maxtags:
             metric_tags_orig = set(metric_tags)
-            subset_metric_keys = frozenset(
-                    metric_tags[:len(metric_tags[:self.maxtags - len(metric_entry["tags"])])])
+            subset_metric_keys = frozenset(metric_tags[:len(metric_tags[:self.maxtags - len(metric_entry["tags"])])])
             metric_tags = dict((k, v) for k, v in metric_tags.iteritems() if k in subset_metric_keys)
             LOG.error("Exceeding maximum permitted metric tags - removing %s for metric %s",
                       str(metric_tags_orig - set(metric_tags)), metric)
@@ -619,7 +616,7 @@ class Sender(threading.Thread):
             #     print line,
             #     print
         except urllib2.HTTPError, e:
-            LOG.error("Got error %s", e)
+            LOG.exception("Got error when sending to server %s", self.host)
             # for line in http_error:
             #   print line,
 

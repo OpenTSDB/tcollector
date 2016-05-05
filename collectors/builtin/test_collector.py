@@ -5,8 +5,8 @@ from collectors.lib.collectorbase import CollectorBase
 
 class TestCollector(CollectorBase):
 
-    def __init__(self, config, logger):
-        super(TestCollector, self).__init__(config, logger)
+    def __init__(self, config, logger, readq):
+        super(TestCollector, self).__init__(config, logger, readq)
 
     def __call__(self):
         ts = time.time()
