@@ -18,16 +18,21 @@ import time
 import socket
 
 from collectors.lib import utils
-
-COLLECTION_INTERVAL = 1  # second
+from collectors.etc import buddyinfo_conf as config
 
 BUDDYINFO='/proc/buddyinfo'
 METRIC='proc.meminfo.buddyinfo'
 HOSTNAME=socket.gethostname()
 
-def main():
+CONFIG = config.get_config()
+COLLECTION_INTERVAL = CONFIG['interval']
 
-    """buddyinfo main loop"""
+if not CONFIG['enabled']:
+    sys.stderr.write("Buddy info collector is not enabled")
+    sys.exit(13)
+
+def main():
+    """buddyinfo collector main loop"""
     utils.drop_privileges()
 
     while True:
