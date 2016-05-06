@@ -35,23 +35,25 @@ def main():
     """buddyinfo collector main loop"""
     utils.drop_privileges()
 
-    while True:
-        epoch = int(time.time())
-        try:
-            with open(BUDDYINFO,'r') as buddyinfo:
+    try:
+        with open(BUDDYINFO,'r') as buddyinfo:
+            while True:
+                buddyinfo.seek(0)
+                epoch = int(time.time())
                 for line in buddyinfo.readlines(): 
                     zonedata = line.strip().split()
                     node = int(zonedata[1].strip(','))
                     zone = zonedata[3]
                     for order,val in enumerate(zonedata[4:]):
-                        print("%s %s %s host=%s zone=%s node=%d order=%d" % (METRIC, epoch, val, HOSTNAME, zone, node, order))
+                        print("%s %s %s host=%s zone=%s node=%d order=%d" % 
+                            (METRIC, epoch, val, HOSTNAME, zone, node, order))
 
-        except IOError, e:
-            utils.err("error: can't open %s: %s" % (BUDDYINFO,e))
-            return 13 # Ask tcollector to not respawn us
+                sys.stdout.flush()
+                time.sleep(COLLECTION_INTERVAL)
 
-        sys.stdout.flush()
-        time.sleep(COLLECTION_INTERVAL)
+    except IOError, e:
+        utils.err("error: can't open %s: %s" % (BUDDYINFO,e))
+        return 13 # Ask tcollector to not respawn us
 
 if __name__ == "__main__":
     sys.stdin.close()
