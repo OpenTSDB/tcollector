@@ -70,7 +70,7 @@ class Ifstat(CollectorBase):
             for i in xrange(16):
                 self._readq.nput("proc.net.%s %d %s iface=%s direction=%s" % (FIELDS[i], ts, stats[i], intf, direction(i)))
 
-    def close(self):
+    def cleanup(self):
         self.safe_close(self.f_netdev)
 
 

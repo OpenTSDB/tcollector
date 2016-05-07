@@ -143,7 +143,7 @@ class Dfstat(CollectorBase):
                   % (ts, r.f_ffree, fs_file, fs_vfstype))
         return ret_metrics
 
-    def close(self):
+    def cleanup(self):
         self.safe_close(self.f_mounts)
 
 

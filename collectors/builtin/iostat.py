@@ -230,7 +230,7 @@ class Iostat(CollectorBase):
                 self.log_error("Cannot parse /proc/diskstats line: %s", line)
                 continue
 
-    def close(self):
+    def cleanup(self):
         self.safe_close(self.f_diskstats)
 
 if __name__ == "__main__":

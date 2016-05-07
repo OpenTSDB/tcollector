@@ -7,7 +7,6 @@ import sys
 import re
 import socket
 import time
-import traceback
 import ConfigParser
 import imp
 import json
@@ -119,41 +118,97 @@ def main(argv):
 
 
 def main_loop(readq, options, configs, collectors):
-    loop_interval = options.collection_interval
-    loop_count = 0
+    loop_interval = options.update_interval
     while True:
         start = time.time()
         try:
             changed_configs, deleted_configs = reload_collector_confs(configs, options)
             close_collecotors(deleted_configs, collectors)
             load_collectors(options.cdir, changed_configs, collectors, readq)
-
-            for name, collector in collectors.iteritems():
-                try:
-                    if loop_count % (max(1, collector.interval / loop_interval)) == 0:
-                        collector.collector_instance()
-                except:
-                    LOG.exception('failed to execute collector %s. skip.', name)
-
             if options.verbose:
                 import datetime
                 sys.stdout.write('sent data at %s\n' % datetime.datetime.fromtimestamp(start).strftime('%Y-%m-%d %H:%M:%S'))
         except:
-            LOG.error('failed collection loop. %s', traceback.format_exc())
+            LOG.exception('failed collector update loop.')
 
         end = time.time()
-        sleepsec = loop_interval - (end - start) if loop_interval > (end - start) else 0
-        loop_count += 1
-        time.sleep(sleepsec)
+        sleep_reasonably(loop_interval, start, end)
+
+
+def reload_collector_confs(collector_confs, options):
+    """
+    load and reload collector conf file
+    Args:
+        collector_confs:
+        options:
+
+    Returns: changed collector confs and deleted collector confs
+
+    """
+    confdir = os.path.join(options.cdir, 'conf')
+    current_collector_confs = set(list_collector_confs(confdir))
+    changed_collector_confs = {}
+    deleted_collector_confs = {}
+
+    # Reload any module that has changed.
+    for filename, (path, conf, timestamp) in collector_confs.iteritems():
+        if filename not in current_collector_confs:  # Module was removed.
+            continue
+        mtime = os.path.getmtime(path)
+        if mtime > timestamp:
+            LOG.info('reloading %s, file has changed', path)
+            config = ConfigParser.SafeConfigParser(default_config())
+            config.read(path)
+            collector_confs[filename] = (path, config, mtime)
+            changed_collector_confs[filename] = (path, config, mtime)
+
+    # Remove any module that has been removed.
+    for filename in set(collector_confs).difference(current_collector_confs):
+        LOG.info('%s has been removed, agent should be restarted', filename)
+        deleted_collector_confs[filename] = collector_confs[filename]
+        del collector_confs[filename]
+
+    # Check for any modules that may have been added.
+    for filename in current_collector_confs:
+        path = os.path.join(confdir, filename)
+        if filename not in collector_confs:
+            LOG.info('adding conf %s', path)
+            config = ConfigParser.SafeConfigParser(default_config())
+            config.read(path)
+            collector_confs[filename] = (path, config, os.path.getmtime(path))
+            changed_collector_confs[filename] = (path, config, os.path.getmtime(path))
+    return changed_collector_confs, deleted_collector_confs
+
+
+def default_config():
+    return {
+        CONFIG_ENABLED: 'False',
+        CONFIG_INTERVAL: '15',
+        CONFIG_COLLECTOR_CLASS: None
+    }
+
+
+def list_collector_confs(confdir):
+    if not os.path.isdir(confdir):
+        LOG.warn('collector conf directory %s is not a directory', confdir)
+        return iter(())  # Empty iterator.
+    return (name for name in os.listdir(confdir)
+            if (name.endswith('.conf') and os.path.isfile(os.path.join(confdir, name))))
 
 
 def close_collecotors(configs, collectors):
     for config_filename in configs.keys():
-        try:
-            name = os.path.splitext(config_filename)[0]
-            collectors[name].collector_instance.close()
-        except:
-            LOG.error('failed to close collector %s', config_filename)
+        name = os.path.splitext(config_filename)[0]
+        close_single_collector(collectors, name)
+
+
+def close_single_collector(collectors, name):
+    try:
+        LOG.info('shutting down collector % that has been removed in config file', name)
+        collectors[name].shutdown()
+        del collectors[name]
+    except:
+        LOG.error('failed to shutdown collector %s', name)
 
 
 def load_collectors(coldir, configs, collectors, readq):
@@ -168,13 +223,17 @@ def load_collectors(coldir, configs, collectors, readq):
                     collector_class = load_collector_module(name, collector_dir, collector_class_name)
                     collector_instance = collector_class(conf, LOG, readq)
                     interval = conf.getint(SECTION_BASE, CONFIG_INTERVAL)
-                    collectors[name] = CollectorInfo(collector_instance, interval)
+
+                    # shutdown and remove old collector
+                    if name in collectors:
+                        close_single_collector(collectors, name)
+                    collectors[name] = CollectorExec(name, collector_instance, interval)
                     LOG.info('loaded collector %s from %s', name, collector_path_name)
                 else:
                     LOG.warn('failed to access collector file: %s', collector_path_name)
             elif name in collectors:
-                LOG.info("%s is disabled", collector_path_name)
-                del collectors[name]
+                LOG.info("%s is disabled, shut down and remove it", collector_path_name)
+                close_single_collector(collectors, name)
         except:
             LOG.exception('failed to load collector %s, skipped.', collector_path_name if collector_path_name else config_filename)
 
@@ -297,8 +356,8 @@ def parse_cmdline(argv):
                       help='Password to use for HTTP Basic Auth when sending the data via HTTP')
     parser.add_option('--ssl', dest='ssl', action='store_true', default=defaults['ssl'],
                       help='Enable SSL - used in conjunction with http')
-    parser.add_option('--collection-interval', dest='collection_interval', type='int', default=defaults['collection_interval'],
-                      help='minimum collection interval')
+    parser.add_option('--update-interval', dest='update_interval', type='int', default=defaults['update_interval'],
+                      help='interval the update of collector is picked up')
     (options, args) = parser.parse_args(args=argv[1:])
     if options.dedupinterval < 0:
         parser.error('--dedup-interval must be at least 0 seconds')
@@ -311,127 +370,6 @@ def parse_cmdline(argv):
     if (options.daemonize or options.max_bytes) and not options.backup_count:
         options.backup_count = 1
     return options, args
-
-
-def daemonize():
-    """Performs the necessary dance to become a background daemon."""
-    if os.fork():
-        os._exit(0)
-    os.chdir("/")
-    os.umask(022)
-    os.setsid()
-    os.umask(0)
-    if os.fork():
-        os._exit(0)
-    stdin = open(os.devnull)
-    stdout = open(os.devnull, 'w')
-    os.dup2(stdin.fileno(), 0)
-    os.dup2(stdout.fileno(), 1)
-    os.dup2(stdout.fileno(), 2)
-    stdin.close()
-    stdout.close()
-    os.umask(022)
-    for fd in xrange(3, 1024):
-        try:
-            os.close(fd)
-        except OSError:  # This FD wasn't opened...
-            pass  # ... ignore the exception.
-
-
-def list_collector_confs(confdir):
-    if not os.path.isdir(confdir):
-        LOG.warn('collector conf directory %s is not a directory', confdir)
-        return iter(())  # Empty iterator.
-    return (name for name in os.listdir(confdir)
-            if (name.endswith('.conf') and os.path.isfile(os.path.join(confdir, name))))
-
-
-def reload_collector_confs(collector_confs, options):
-    """
-    load and reload collector conf file
-    Args:
-        collector_confs:
-        options:
-
-    Returns: changed collector confs and deleted collector confs
-
-    """
-    confdir = os.path.join(options.cdir, 'conf')
-    current_collector_confs = set(list_collector_confs(confdir))
-    changed_collector_confs = {}
-    deleted_collector_confs = {}
-
-    # Reload any module that has changed.
-    for filename, (path, conf, timestamp) in collector_confs.iteritems():
-        if filename not in current_collector_confs:  # Module was removed.
-            continue
-        mtime = os.path.getmtime(path)
-        if mtime > timestamp:
-            LOG.info('reloading %s, file has changed', path)
-            config = ConfigParser.SafeConfigParser(default_config())
-            config.read(path)
-            collector_confs[filename] = (path, config, mtime)
-            changed_collector_confs[filename] = (path, config, mtime)
-
-    # Remove any module that has been removed.
-    for filename in set(collector_confs).difference(current_collector_confs):
-        LOG.info('%s has been removed, agent should be restarted', filename)
-        deleted_collector_confs[filename] = collector_confs[filename]
-        del collector_confs[filename]
-
-    # Check for any modules that may have been added.
-    for filename in current_collector_confs:
-        path = os.path.join(confdir, filename)
-        if filename not in collector_confs:
-            LOG.info('adding conf %s', path)
-            config = ConfigParser.SafeConfigParser(default_config())
-            config.read(path)
-            collector_confs[filename] = (path, config, os.path.getmtime(path))
-            changed_collector_confs[filename] = (path, config, os.path.getmtime(path))
-    return changed_collector_confs, deleted_collector_confs
-
-
-def default_config():
-    return {
-        CONFIG_ENABLED: 'False',
-        CONFIG_INTERVAL: '15',
-        CONFIG_COLLECTOR_CLASS: None
-    }
-
-
-def write_pid(pidfile):
-    """Write our pid to a pidfile."""
-    f = open(pidfile, "w")
-    try:
-        f.write(str(os.getpid()))
-    finally:
-        f.close()
-
-
-def setup_python_path(collector_dir):
-    """Sets up PYTHONPATH so that collectors can easily import common code."""
-    mydir = os.path.dirname(collector_dir)
-    libdir = os.path.join(mydir, 'collectors', 'lib')
-    if not os.path.isdir(libdir):
-        return
-    pythonpath = os.environ.get('PYTHONPATH', '')
-    if pythonpath:
-        pythonpath += ':'
-    pythonpath += mydir
-    os.environ['PYTHONPATH'] = pythonpath
-    LOG.debug('Set PYTHONPATH to %r', pythonpath)
-
-
-def shutdown():
-    LOG.info('exiting')
-    for name, collector in COLLECTORS.iteritems():
-        try:
-            # there are collectors spawning subprocesses (shell top), we need to close them
-            LOG.info('close collector %s', name)
-            collector.collector_instance.close()
-        except:
-            LOG.error('failed to close collector %s. skip. %s', name, traceback.format_exc())
-    sys.exit(1)
 
 
 def get_defaults():
@@ -462,10 +400,70 @@ def get_defaults():
         'stdin': False,
         'daemonize': False,
         'hosts': False,
-        'collection_interval': 15
+        'update_interval': 15
     }
 
     return defaults
+
+
+def daemonize():
+    """Performs the necessary dance to become a background daemon."""
+    if os.fork():
+        os._exit(0)
+    os.chdir("/")
+    os.umask(022)
+    os.setsid()
+    os.umask(0)
+    if os.fork():
+        os._exit(0)
+    stdin = open(os.devnull)
+    stdout = open(os.devnull, 'w')
+    os.dup2(stdin.fileno(), 0)
+    os.dup2(stdout.fileno(), 1)
+    os.dup2(stdout.fileno(), 2)
+    stdin.close()
+    stdout.close()
+    os.umask(022)
+    for fd in xrange(3, 1024):
+        try:
+            os.close(fd)
+        except OSError:  # This FD wasn't opened...
+            pass  # ... ignore the exception.
+
+
+def write_pid(pidfile):
+    """Write our pid to a pidfile."""
+    f = open(pidfile, "w")
+    try:
+        f.write(str(os.getpid()))
+    finally:
+        f.close()
+
+
+def setup_python_path(collector_dir):
+    """Sets up PYTHONPATH so that collectors can easily import common code."""
+    mydir = os.path.dirname(collector_dir)
+    libdir = os.path.join(mydir, 'collectors', 'lib')
+    if not os.path.isdir(libdir):
+        return
+    pythonpath = os.environ.get('PYTHONPATH', '')
+    if pythonpath:
+        pythonpath += ':'
+    pythonpath += mydir
+    os.environ['PYTHONPATH'] = pythonpath
+    LOG.debug('Set PYTHONPATH to %r', pythonpath)
+
+
+def shutdown():
+    LOG.info('exiting...')
+    for name, collector in COLLECTORS.iteritems():
+        try:
+            # there are collectors spawning subprocesses (shell top), we need to shut them down cleanly
+            LOG.info('shutdown collector %s', name)
+            collector.shutdown()
+        except:
+            LOG.exception('failed to close collector %s. skip.', name)
+    sys.exit(1)
 
 
 # noinspection PyUnusedLocal
@@ -474,10 +472,61 @@ def shutdown_signal(signum, frame):
     shutdown()
 
 
-class CollectorInfo(object):
-    def __init__(self, collector_instance, interval):
+def sleep_reasonably(interval, start, end):
+    sleepsec = interval - (end - start) if interval > (end - start) else 0
+    time.sleep(sleepsec)
+
+
+class CollectorExec(object):
+    def __init__(self, name, collector_instance, interval):
+        self._validate(name, 'name')
+        self._validate(collector_instance, 'collector_instance')
+        self._validate(interval, 'interval')
+
+        self._name = name
+        self._collector_instance = collector_instance
+        self._interval = interval
+        self._thread = CollectorThread(name, collector_instance, interval)
+        self._thread.start()
+
+    def shutdown(self):
+        LOG.info('starting to shut down %s', self._name)
+        if self._collector_instance:
+            self._collector_instance.signal_exit()
+        else:
+            LOG.error('no collector instance for %s', self._name)
+
+        if self._thread:
+            self._thread.exit = True
+        else:
+            LOG.error('no thread instance for %s', self._name)
+        self._thread.join()
+        LOG.info('finish shutting down %s', self._name)
+
+    def _validate(self, val, name):
+        if not val:
+            raise ValueError('%s is not set' % name)
+
+
+class CollectorThread(threading.Thread):
+    def __init__(self, name, collector_instance, interval):
+        super(CollectorThread, self).__init__()
+        self.name = name
         self.collector_instance = collector_instance
         self.interval = interval
+        self.exit = False
+
+    def run(self):
+        LOG.info('started collector thread: %s', self.name)
+        while not self.exit:
+            start = time.time()
+            try:
+                self.collector_instance()
+            except:
+                LOG.exception('failed to execute collector %s', self.name)
+            end = time.time()
+            sleep_reasonably(self.interval, start, end)
+        self.collector_instance.cleanup()
 
 
 class NonBlockingQueue(Queue):

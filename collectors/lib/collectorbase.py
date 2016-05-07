@@ -12,7 +12,35 @@ class CollectorBase(object):
         self._config = config
         self._logger = logger
         self._readq = readq
+        self._exit = False
+        """ long running collector need to check this flag to ensure responsive to shut down request to this collector"""
 
+    def __call__(self):
+        """
+        any collector needs to implement it to collect metrics
+        Returns: None
+
+        """
+        pass
+
+    def cleanup(self):
+        """
+        any collector uses expensive OS resources like filehandles or sockets, etc. needs to close them here,
+        Returns:None
+
+        """
+        pass
+
+    def signal_exit(self):
+        """
+        signal collector to exit. any long running collector need to check _exit flag to ensure responsive to shut
+        down request to this collector
+        Returns:
+
+        """
+        self._exit = True
+
+    # below are convenient methods available to all collectors
     def log_info(self, msg, *args, **kwargs):
         if self._logger:
             self._logger.info(msg, *args, **kwargs)
@@ -47,23 +75,16 @@ class CollectorBase(object):
         if filehandle:
             filehandle.close()
 
-    def close(self):
-        """ any collector uses expensive OS resources like filehandles or sockets, etc. needs to close them here
-        Returns:None
-
-        """
-        pass
-
     def close_subprocess_async(self, proc, collector_name):
         if not proc:
             return
 
         if proc.poll() is None:
             tname = 'killsubproc-%s' % collector_name
-            t = Thread(target=self._stop_subprocess, name=tname, args=(proc, collector_name))
+            t = Thread(target=self.stop_subprocess, name=tname, args=(proc, collector_name))
             t.start()
 
-    def _stop_subprocess(self, proc, collector_name):
+    def stop_subprocess(self, proc, collector_name):
         pid = proc.pid
         try:
             _kill(pid)

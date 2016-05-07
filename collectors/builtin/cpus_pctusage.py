@@ -53,8 +53,9 @@ class CpusPctusage(CollectorBase):
             )
 
     def __call__(self):
-        line = self.p_top.stdout.readline()
-        while line:
+
+        while True:
+            line = self.p_top.stdout.readline()
             fields = re.sub(r"%( [uni][a-z]+,?)? | AM | PM ", "", line).split()
             if len(fields) <= 0:
                 continue
@@ -72,10 +73,9 @@ class CpusPctusage(CollectorBase):
                 self._readq.nput("cpu.sys %s %s cpu=%s" % (timestamp, cpusystem, cpuid))
                 self._readq.nput("cpu.irq %s %s cpu=%s" % (timestamp, cpuinterrupt, cpuid))
                 self._readq.nput("cpu.idle %s %s cpu=%s" % (timestamp, cpuidle, cpuid))
-            line = self.p_top.stdout.readline()
 
-    def close(self):
-        self.close_subprocess_async(self.p_top, __name__)
+    def cleanup(self):
+        self.close_subprocess(self.p_top, __name__)
 
 
 if __name__ == "__main__":
