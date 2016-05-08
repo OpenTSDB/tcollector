@@ -76,8 +76,9 @@ class Procstats(CollectorBase):
                 self.f_scaling_cur[cpu_no] = open(self.f_scaling % (cpu_no, "scaling_cur"), "r")
 
             self.numastats = find_sysfs_numa_stats()
-        finally:
+        except:
             self.cleanup()
+            raise
 
     def cleanup(self):
         self.safe_close(self.f_uptime)
@@ -93,7 +94,7 @@ class Procstats(CollectorBase):
         self._cleanup_dict(self.f_scaling_cur)
 
     def _cleanup_dict(self, d):
-        for key, val in d.iteritems:
+        for key, val in d.iteritems():
             self.safe_close(val)
 
     def __call__(self):

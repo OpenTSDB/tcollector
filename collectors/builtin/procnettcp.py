@@ -50,10 +50,10 @@
 
 import os
 import pwd
-import sys
 import time
 
 from collectors.lib import utils
+from Queue import Queue
 from collectors.lib.collectorbase import CollectorBase
 
 
@@ -142,44 +142,49 @@ def is_public_ip(ipstr):
     return True
 
 
-def main(unused_args):
-    """procnettcp main loop"""
-    try:           # On some Linux kernel versions, with lots of connections
-      os.nice(19)  # this collector can be very CPU intensive.  So be nicer.
-    except OSError, e:
-      print >>sys.stderr, "warning: failed to self-renice:", e
+class Procnettcp(CollectorBase):
+    def __init__(self, config, logger, readq):
+        super(Procnettcp, self).__init__(config, logger, readq)
+        try:           # On some Linux kernel versions, with lots of connections
+            os.nice(19)  # this collector can be very CPU intensive.  So be nicer.
+        except OSError:
+            self.log_exception("warning: failed to self-renice:")
 
-    interval = 60
+        # resolve the list of users to match on into UIDs
+        self.uids = {}
+        for user in USERS:
+            try:
+                self.uids[str(pwd.getpwnam(user)[2])] = user
+            except KeyError:
+                continue
 
-    # resolve the list of users to match on into UIDs
-    uids = {}
-    for user in USERS:
         try:
-            uids[str(pwd.getpwnam(user)[2])] = user
-        except KeyError:
-            continue
+            self.tcp = open("/proc/net/tcp")
+            # if IPv6 is enabled, even IPv4 connections will also
+            # appear in tcp6. It has the same format, apart from the
+            # address size
+            try:
+                self.tcp6 = open("/proc/net/tcp6")
+            except IOError, (errno, msg):
+                if errno == 2:  # No such file => IPv6 is disabled.
+                    self.tcp6 = None
+                else:
+                    raise
+        except IOError:
+            self.log_exception("Failed to open proc/net/tcp file")
+            self.cleanup()
+            raise
 
-    try:
-        tcp = open("/proc/net/tcp")
-        # if IPv6 is enabled, even IPv4 connections will also
-        # appear in tcp6. It has the same format, apart from the
-        # address size
-        try:
-            tcp6 = open("/proc/net/tcp6")
-        except IOError, (errno, msg):
-            if errno == 2:  # No such file => IPv6 is disabled.
-                tcp6 = None
-            else:
-                raise
-    except IOError, e:
-        print >>sys.stderr, "Failed to open input file: %s" % (e,)
-        return 13  # Ask tcollector to not re-start us immediately.
+        utils.drop_privileges()
 
-    utils.drop_privileges()
-    while True:
+    def cleanup(self):
+        self.safe_close(self.tcp)
+        self.safe_close(self.tcp6)
+
+    def __call__(self):
         counter = {}
 
-        for procfile in (tcp, tcp6):
+        for procfile in (self.tcp, self.tcp6):
             if procfile is None:
                 continue
             procfile.seek(0)
@@ -207,8 +212,7 @@ def main(unused_args):
                 else:
                     endpoint = "internal"
 
-
-                user = uids.get(uid, "other")
+                user = self.uids.get(uid, "other")
 
                 key = "state=" + TCPSTATES[state] + " endpoint=" + endpoint + \
                       " service=" + service + " user=" + user
@@ -225,12 +229,11 @@ def main(unused_args):
                         key = ("state=%s endpoint=%s service=%s user=%s"
                                % (TCPSTATES[state], endpoint, service, user))
                         if key in counter:
-                            print "proc.net.tcp", ts, counter[key], key
+                            self._readq.nput("proc.net.tcp", ts, counter[key], key)
                         else:
-                            print "proc.net.tcp", ts, "0", key
+                            self._readq.nput("proc.net.tcp", ts, "0", key)
 
-        sys.stdout.flush()
-        time.sleep(interval)
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv))
+    procnettcp_inst = Procnettcp(None, None, Queue())
+    procnettcp_inst()
