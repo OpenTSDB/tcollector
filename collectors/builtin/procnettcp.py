@@ -229,9 +229,9 @@ class Procnettcp(CollectorBase):
                         key = ("state=%s endpoint=%s service=%s user=%s"
                                % (TCPSTATES[state], endpoint, service, user))
                         if key in counter:
-                            self._readq.nput("proc.net.tcp", ts, counter[key], key)
+                            self._readq.nput("proc.net.tcp {0} {1} {2}".format(ts, counter[key], key))
                         else:
-                            self._readq.nput("proc.net.tcp", ts, "0", key)
+                            self._readq.nput("proc.net.tcp {0} {1} {2}".format(ts, "0", key))
 
 
 if __name__ == "__main__":
