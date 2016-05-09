@@ -71,9 +71,9 @@ class CollectorBase(object):
         else:
             return default
 
-    def safe_close(self, filehandle):
-        if filehandle:
-            filehandle.close()
+    def safe_close(self, handle):
+        if handle:
+            handle.close()
 
     def close_subprocess_async(self, proc, collector_name):
         if not proc:
