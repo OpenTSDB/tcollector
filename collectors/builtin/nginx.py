@@ -15,19 +15,17 @@
 """Nginx stats for TSDB"""
 
 import calendar
-import sys
 import time
 import re
 import requests
+from Queue import Queue
 
 from collectors.lib import utils
 from collectors.lib.collectorbase import CollectorBase
 
-interval = 30  # seconds
-
 NUM_USERS_TO_DEL_EMPTY_STATS = 100
-
 nginx_status_url = 'http://127.0.0.1:80/nginx_status'
+
 
 # There are two ways to collect Nginx's stats.
 # 1. [yi-ThinkPad-T430 scripts (master)]$ curl http://localhost:8080/nginx_status
@@ -49,46 +47,52 @@ nginx_status_url = 'http://127.0.0.1:80/nginx_status'
 def find_access_log():
     return "/var/log/nginx/access.log"
 
-def print_metric(metric, ts, value, tags=""):
-    if value is not None:
-        print "nginx/%s %d %s %s" % (metric, ts, value, tags)
 
-def main():
-    """Nginx main loop"""
+class Nginx(CollectorBase):
+    def print_metric(self, metric, ts, value, tags=""):
+        if value is not None:
+            self._readq.nput("nginx/%s %d %s %s" % (metric, ts, value, tags))
 
-    access_log = open(find_access_log())
-    utils.drop_privileges()
+    def __init__(self, config, logger, readq):
+        super(Nginx, self).__init__(config, logger, readq)
+        try:
+            self.access_log = open(find_access_log())
+            utils.drop_privileges()
+            self.nginx_server = requests.Session()
+            self.num_req_per_resp_code_per_user = {}
 
-    nginx_server = requests.Session()
+            # We just care about ethN and emN interfaces.  We specifically
+            # want to avoid bond interfaces, because interface
+            # stats are still kept on the child interfaces when
+            # you bond.  By skipping bond we avoid double counting.
+            self.access_log.seek(0)
+        except:
+            self.cleanup()
 
-    num_req_per_resp_code_per_user = {}
+    def cleanup(self):
+        self.safe_close(self.access_log)
 
-    # We just care about ethN and emN interfaces.  We specifically
-    # want to avoid bond interfaces, because interface
-    # stats are still kept on the child interfaces when
-    # you bond.  By skipping bond we avoid double counting.
-    access_log.seek(0)
-    while True:
+    def __init__(self):
         ts_curr = int(time.time())
         # To collect status from http://nignx_server/nginx_status first.
-        collect_nginx_status(nginx_server, ts_curr)
+        self.collect_nginx_status(ts_curr)
 
         # To parse nginx logs.
         # To continue with the current position in each loop.
-        access_log.seek(0, 1)
+        self.access_log.seek(0, 1)
 
         # Reset all the statistics each time when collecting metrics.
         # Note that we should explicitly set each value to zero. 
         # Otherwise, Opentsdb will not know and try interpolation instead.
-        for metric in num_req_per_resp_code_per_user.keys():
+        for metric in self.num_req_per_resp_code_per_user.keys():
             # There may be too many remote address and we don't want to keep so many empty metrics for memory efficiency.
-            if len(num_req_per_resp_code_per_user[metric]) > NUM_USERS_TO_DEL_EMPTY_STATS :
-                num_req_per_resp_code_per_user[metric] = {}
+            if len(self.num_req_per_resp_code_per_user[metric]) > NUM_USERS_TO_DEL_EMPTY_STATS:
+                self.num_req_per_resp_code_per_user[metric] = {}
             else:
-                for remote_addr in num_req_per_resp_code_per_user[metric]:                
-                    num_req_per_resp_code_per_user[metric][remote_addr] = 0
+                for remote_addr in self.num_req_per_resp_code_per_user[metric]:
+                    self.num_req_per_resp_code_per_user[metric][remote_addr] = 0
 
-        for line in access_log:
+        for line in self.access_log:
             # This pattern is hardcoded to match this string
             # 172.17.0.1 - - [20/Mar/2016:18:14:01 +0000] "GET /api HTTP/1.1" 304 0 "http://localhost:8080/" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/48.0.2564.116 Safari/537.36" "-" "0.002"
             # which is based on the log_format:
@@ -99,18 +103,18 @@ def main():
             # 
             # TODO: To make it more general
             #
-            m=re.match(r"([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}) "  # $remote_addr
-                    ".* " # - $remote_user
-                    "\[([0-9][0-9]/(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)/[0-9]{4}:.*)\] " #[$time_local]
-                    "\"((GET|POST|PUT|DELETE) .*)\" " # "$request"
-                    "([1-5][0-9]{2}) " # $status
-                    "([0-9]+) " # $body_bytes_sent
-                    "\"(.+)\" " # $http_referer
-                    "\"(.+)\" " # $http_user_agent
-                    "\"(.+)\" " # $http_x_forwarded_for
-                    "\"(.+)\"", # $request_time
-                    line)
-            
+            m = re.match(r"([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}) "  # $remote_addr
+                         ".* "  # - $remote_user
+                         "\[([0-9][0-9]/(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)/[0-9]{4}:.*)\] "  # [$time_local]
+                         "\"((GET|POST|PUT|DELETE) .*)\" "  # "$request"
+                         "([1-5][0-9]{2}) "  # $status
+                         "([0-9]+) "  # $body_bytes_sent
+                         "\"(.+)\" "  # $http_referer
+                         "\"(.+)\" "  # $http_user_agent
+                         "\"(.+)\" "  # $http_x_forwarded_for
+                         "\"(.+)\"",  # $request_time
+                         line)
+
             if not m:
                 continue
 
@@ -127,71 +131,69 @@ def main():
             ts_struct = time.strptime(time_local, "%d/%b/%Y:%H:%M:%S +0000")
             ts = calendar.timegm(ts_struct)
 
-            print_metric("%s/request_time" % request_type, ts, request_time, \
-                    tags="nginx_remote_addr=%s nginx_status=%s" % (remote_addr, response_status))
+            self.print_metric("%s/request_time" % request_type, ts, request_time,
+                              tags="nginx_remote_addr=%s nginx_status=%s" % (remote_addr, response_status))
 
-            print_metric("%s/body_bytes_sent" % request_type, ts, body_bytes_sent, \
-                    tags="nginx_remote_addr=%s" % remote_addr)
+            self.print_metric("%s/body_bytes_sent" % request_type, ts, body_bytes_sent,
+                              tags="nginx_remote_addr=%s" % remote_addr)
 
             # Count how many request per response status in this period.
             tmp_metric_name = "%s/%s" % (request_type, response_status)
-            if tmp_metric_name in num_req_per_resp_code_per_user:
-                if remote_addr in num_req_per_resp_code_per_user[tmp_metric_name]:
-                    num_req_per_resp_code_per_user[tmp_metric_name][remote_addr] += 1
+            if tmp_metric_name in self.num_req_per_resp_code_per_user:
+                if remote_addr in self.num_req_per_resp_code_per_user[tmp_metric_name]:
+                    self.num_req_per_resp_code_per_user[tmp_metric_name][remote_addr] += 1
                 else:
-                    num_req_per_resp_code_per_user[tmp_metric_name][remote_addr] = 1
+                    self.num_req_per_resp_code_per_user[tmp_metric_name][remote_addr] = 1
 
             else:
-                num_req_per_resp_code_per_user[tmp_metric_name] = {}
-                num_req_per_resp_code_per_user[tmp_metric_name][remote_addr] = 1
-
+                self.num_req_per_resp_code_per_user[tmp_metric_name] = {}
+                self.num_req_per_resp_code_per_user[tmp_metric_name][remote_addr] = 1
 
         # Print statistics of how many requests with specific response code for each user.
-        for tmp_metric_name in num_req_per_resp_code_per_user.keys():
-            for tmp_user in num_req_per_resp_code_per_user[tmp_metric_name].keys():
+        for tmp_metric_name in self.num_req_per_resp_code_per_user.keys():
+            for tmp_user in self.num_req_per_resp_code_per_user[tmp_metric_name].keys():
                 tmp_pair = tmp_metric_name.split('/')
                 tmp_req_type = tmp_pair[0]
                 tmp_resp_status = tmp_pair[1]
-                print_metric(tmp_req_type, ts_curr, \
-                        num_req_per_resp_code_per_user[tmp_metric_name][tmp_user], \
-                        tags="nginx_remote_addr=%s nginx_status=%s nginx_status_prefix=%s" % (tmp_user, tmp_resp_status, tmp_resp_status[0]))
+                self.print_metric(tmp_req_type, ts_curr, self.num_req_per_resp_code_per_user[tmp_metric_name][tmp_user],
+                                  tags='nginx_remote_addr=%s nginx_status=%s nginx_status_prefix=%s' % (
+                                  tmp_user, tmp_resp_status, tmp_resp_status[0]))
 
+    def collect_nginx_status(self, ts_curr):
+        stats = request(self.nginx_server, nginx_status_url)
+        m = re.match(r"Active connections:\s+(\d+)\s+"
+                     "\nserver accepts handled requests\n\s+(\d+)\s+(\d+)\s+(\d+)\s+"
+                     "\nReading:\s+(\d+)\s+Writing:\s+(\d+)\s+Waiting:\s+(\d+)\s+\n",
+                     stats)
 
-        sys.stdout.flush()
-        time.sleep(interval)
+        self.print_metric("active_connections", ts_curr, m.group(1))
+        self.print_metric("total_accepted_connections", ts_curr, m.group(2))
+        self.print_metric("total_handled_connections", ts_curr, m.group(3))
+        self.print_metric("total_number_handled_requests", ts_curr, m.group(4))
+        self.print_metric("number_requests_reading", ts_curr, m.group(5))
+        self.print_metric("number_requests_writing", ts_curr, m.group(6))
+        self.print_metric("number_requests_waiting", ts_curr, m.group(7))
+
 
 class HTTPError(RuntimeError):
-  """Exception raised if we don't get a 200 OK from ElasticSearch."""
+    """Exception raised if we don't get a 200 OK from ElasticSearch."""
 
-  def __init__(self, resp):
-    RuntimeError.__init__(self, str(resp))
-    self.resp = resp
+    def __init__(self, resp):
+        RuntimeError.__init__(self, str(resp))
+        self.resp = resp
 
 
 def request(server, uri):
-  """Does a GET request of the given uri"""
-  #print 'To send request: %s%s' % (HTTPS_PREFIX, uri)
-  resp=server.get(uri)
+    """Does a GET request of the given uri"""
+    # print 'To send request: %s%s' % (HTTPS_PREFIX, uri)
+    resp = server.get(uri)
 
-  if resp.status_code != 200:
-    raise HTTPError(resp)
+    if resp.status_code != 200:
+        raise HTTPError(resp)
 
-  return resp.text
+    return resp.text
 
-def collect_nginx_status(nginx_server, ts_curr):
-    stats = request(nginx_server, nginx_status_url)
-    m = re.match(r"Active connections:\s+(\d+)\s+"
-            "\nserver accepts handled requests\n\s+(\d+)\s+(\d+)\s+(\d+)\s+"
-            "\nReading:\s+(\d+)\s+Writing:\s+(\d+)\s+Waiting:\s+(\d+)\s+\n",
-            stats)
-
-    print_metric("active_connections", ts_curr, m.group(1))
-    print_metric("total_accepted_connections", ts_curr, m.group(2))
-    print_metric("total_handled_connections", ts_curr, m.group(3))
-    print_metric("total_number_handled_requests", ts_curr, m.group(4))
-    print_metric("number_requests_reading", ts_curr, m.group(5))
-    print_metric("number_requests_writing", ts_curr, m.group(6))
-    print_metric("number_requests_waiting", ts_curr, m.group(7))
 
 if __name__ == "__main__":
-    sys.exit(main())
+    inst = Nginx(None, None, Queue())
+    inst()
