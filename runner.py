@@ -110,8 +110,9 @@ def main(argv):
             options.hosts.append((options.host, options.port))
 
     readq = NonBlockingQueue(MAX_READQ_SIZE)
-    sender = Sender(readq, options, tags)
-    sender.start()
+    global SENDER
+    SENDER = Sender(readq, options, tags)
+    SENDER.start()
 
     LOG.info('agent finish initializing, enter main loop.')
     main_loop(readq, options, {}, COLLECTORS)
@@ -456,6 +457,7 @@ def setup_python_path(collector_dir):
 
 def shutdown():
     LOG.info('exiting...')
+    SENDER.shutdown()
     for name, collector in COLLECTORS.iteritems():
         try:
             # there are collectors spawning subprocesses (shell top), we need to shut them down cleanly
@@ -470,7 +472,7 @@ def shutdown():
         except:
             LOG.exception('failed to wait shutdown collector %s. skip.', name)
 
-    LOG.info('total %d collectors exited exited', len(COLLECTORS))
+    LOG.info('total %d collectors exited', len(COLLECTORS))
     sys.exit(1)
 
 
@@ -566,6 +568,7 @@ class NonBlockingQueue(Queue):
 class Sender(threading.Thread):
     def __init__(self, readq, options, tags):
         super(Sender, self).__init__()
+        self.exit = False
         self.readq = readq
         self.hosts = options.hosts
         self.http_username = options.http_username
@@ -578,6 +581,9 @@ class Sender(threading.Thread):
         self.blacklisted_hosts = set()
         random.shuffle(self.hosts)
 
+    def shutdown(self):
+        self.exit = True
+
     def run(self):
         """Main loop.  A simple scheduler.  Loop waiting for 5
            seconds for data on the queue.  If there's no data, just
@@ -587,7 +593,8 @@ class Sender(threading.Thread):
            own packet."""
 
         errors = 0  # How many uncaught exceptions in a row we got.
-        while True:
+        LOG.info('sender thread started')
+        while not self.exit:
             metrics = []
             try:
                 try:
@@ -622,6 +629,7 @@ class Sender(threading.Thread):
                 LOG.exception('Uncaught exception in Sender, going to exit')
                 shutdown()
                 raise
+        LOG.info('sender thread exited')
 
     def process(self, line):
         parts = line.split(None, 3)
