@@ -51,10 +51,11 @@ class CpusPctusage(CollectorBase):
                 ["mpstat", "-P", "ALL", str(collection_interval)],
                 stdout=subprocess.PIPE,
             )
+        self.log_info('CpusPctusage created subprocess %d', self.p_top.pid)
 
     def __call__(self):
 
-        while True:
+        while not self._exit:
             line = self.p_top.stdout.readline()
             fields = re.sub(r"%( [uni][a-z]+,?)? | AM | PM ", "", line).split()
             if len(fields) <= 0:
@@ -62,12 +63,12 @@ class CpusPctusage(CollectorBase):
 
             if (((fields[0] == "CPU") or (re.match("[0-9][0-9]:[0-9][0-9]:[0-9][0-9]",fields[0]))) and (re.match("[0-9]+:?",fields[1]))):
                 timestamp = int(time.time())
-                cpuid=fields[1].replace(":","")
-                cpuuser=fields[2]
-                cpunice=fields[3]
-                cpusystem=fields[4]
-                cpuinterrupt=fields[6]
-                cpuidle=fields[-1]
+                cpuid = fields[1].replace(":","")
+                cpuuser = fields[2]
+                cpunice = fields[3]
+                cpusystem = fields[4]
+                cpuinterrupt = fields[6]
+                cpuidle = fields[-1]
                 self._readq.nput("cpu.usr %s %s cpu=%s" % (timestamp, cpuuser, cpuid))
                 self._readq.nput("cpu.nice %s %s cpu=%s" % (timestamp, cpunice, cpuid))
                 self._readq.nput("cpu.sys %s %s cpu=%s" % (timestamp, cpusystem, cpuid))
@@ -75,7 +76,8 @@ class CpusPctusage(CollectorBase):
                 self._readq.nput("cpu.idle %s %s cpu=%s" % (timestamp, cpuidle, cpuid))
 
     def cleanup(self):
-        self.close_subprocess(self.p_top, __name__)
+        self.log_info('CpusPctusage stop subprocess %d', self.p_top.pid)
+        self.stop_subprocess(self.p_top, __name__)
 
 
 if __name__ == "__main__":

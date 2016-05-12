@@ -31,7 +31,7 @@ class CollectorBase(object):
         """
         pass
 
-    def signal_exit(self):
+    def     signal_exit(self):
         """
         signal collector to exit. any long running collector need to check _exit flag to ensure responsive to shut
         down request to this collector
@@ -103,4 +103,4 @@ class CollectorBase(object):
 
 
 def _kill(pid, signum=signal.SIGTERM):
-        os.killpg(pid, signum)
+        os.kill(pid, signum)

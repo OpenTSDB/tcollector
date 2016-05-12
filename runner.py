@@ -20,7 +20,7 @@ from Queue import Queue
 from Queue import Full
 from Queue import Empty
 
-# global variables.
+# global variables._
 COLLECTORS = {}
 DEFAULT_LOG = '/var/log/tcollector.log'
 LOG = logging.getLogger('runner')
@@ -459,10 +459,18 @@ def shutdown():
     for name, collector in COLLECTORS.iteritems():
         try:
             # there are collectors spawning subprocesses (shell top), we need to shut them down cleanly
-            LOG.info('shutdown collector %s', name)
-            collector.shutdown()
+            collector.signal_shutdown()
         except:
-            LOG.exception('failed to close collector %s. skip.', name)
+            LOG.exception('failed to signal shutdown collector %s. skip.', name)
+
+    for name, collector in COLLECTORS.iteritems():
+        try:
+            # there are collectors spawning subprocesses (shell top), we need to shut them down cleanly
+            collector.wait_shutdown()
+        except:
+            LOG.exception('failed to wait shutdown collector %s. skip.', name)
+
+    LOG.info('total %d collectors exited exited', len(COLLECTORS))
     sys.exit(1)
 
 
@@ -489,7 +497,7 @@ class CollectorExec(object):
         self._thread = CollectorThread(name, collector_instance, interval)
         self._thread.start()
 
-    def shutdown(self):
+    def shutdown(self, wait=True):
         LOG.info('starting to shut down %s', self._name)
         if self._collector_instance:
             self._collector_instance.signal_exit()
@@ -500,6 +508,16 @@ class CollectorExec(object):
             self._thread.exit = True
         else:
             LOG.error('no thread instance for %s', self._name)
+        if wait:
+            self._thread.join()
+            LOG.info('finish shutting down %s', self._name)
+
+    def signal_shutdown(self):
+        """ signal shutdown without waiting for the thread to exit, should used in pair with wait_shutdown"""
+        self.shutdown(False)
+
+    def wait_shutdown(self):
+        """ used in pair with signal_shutdown to wait for the thread to exit """
         self._thread.join()
         LOG.info('finish shutting down %s', self._name)
 
