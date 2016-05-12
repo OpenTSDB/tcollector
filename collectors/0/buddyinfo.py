@@ -20,9 +20,9 @@ import socket
 from collectors.lib import utils
 from collectors.etc import buddyinfo_conf as config
 
-BUDDYINFO='/proc/buddyinfo'
-METRIC='proc.meminfo.buddyinfo'
-HOSTNAME=socket.gethostname()
+BUDDYINFO = '/proc/buddyinfo'
+METRIC = 'proc.meminfo.buddyinfo'
+HOSTNAME = socket.gethostname()
 
 CONFIG = config.get_config()
 COLLECTION_INTERVAL = CONFIG['interval']
