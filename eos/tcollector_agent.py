@@ -260,6 +260,8 @@ class TcollectorAgent(eossdk.AgentHandler,
          kwargs["http_username"] = self.get_agent_mgr().agent_option("username")
       if self.get_agent_mgr().agent_option("password"):
          kwargs["http_password"] = self.get_agent_mgr().agent_option("password")
+      if self.get_agent_mgr().agent_option("dedupinterval"):
+         kwargs["dedupinterval"] = self.get_agent_mgr().agent_option("dedupinterval")
       sender = tcollector.SenderThread(reader,
                                        options.dryrun,
                                        hosts,
