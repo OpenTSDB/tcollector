@@ -234,6 +234,11 @@ class TcollectorAgent(eossdk.AgentHandler,
               "--host", self._get_tsd_host(),
               "--port", str(self._get_tsd_port()),
               "--collector-dir=/usr/local/tcollector/collectors"]
+
+      if self.get_agent_mgr().agent_option("dedup-interval"):
+          args.append("--dedup-interval=%s" %
+                      self.get_agent_mgr().agent_option("dedup-interval"))
+
       tcollector.socket.socket = self._socket_at
       debug("Starting tcollector", args)
       options, args = tcollector.parse_cmdline(args)
@@ -260,8 +265,6 @@ class TcollectorAgent(eossdk.AgentHandler,
          kwargs["http_username"] = self.get_agent_mgr().agent_option("username")
       if self.get_agent_mgr().agent_option("password"):
          kwargs["http_password"] = self.get_agent_mgr().agent_option("password")
-      if self.get_agent_mgr().agent_option("dedupinterval"):
-         kwargs["dedupinterval"] = self.get_agent_mgr().agent_option("dedupinterval")
       sender = tcollector.SenderThread(reader,
                                        options.dryrun,
                                        hosts,

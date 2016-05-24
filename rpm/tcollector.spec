@@ -152,5 +152,6 @@ if [ $1 -eq 0 ] ; then
     rm -f %{tcollectordir}/collectors/0/agentcpu.sh
     rm -f %{tcollectordir}/collectors/0/agentmem.sh
     rm -f %{tcollectordir}/collectors/0/eos.py
-    rm -f %{py2_sitelib}/tcollector_agent.py
+    rm -f %{py2_sitelib}/tcollector_agent.py*
+
 fi
