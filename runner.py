@@ -19,6 +19,7 @@ from optparse import OptionParser
 from Queue import Queue
 from Queue import Full
 from Queue import Empty
+import ssl
 
 # global variables._
 COLLECTORS = {}
@@ -109,9 +110,12 @@ def main(argv):
         if options.host != "localhost" or options.port != DEFAULT_PORT:
             options.hosts.append((options.host, options.port))
 
+    runner_config = load_runner_conf()
+    token = runner_config.get('base', 'token')
+
     readq = NonBlockingQueue(MAX_READQ_SIZE)
     global SENDER
-    SENDER = Sender(readq, options, tags)
+    SENDER = Sender(token, readq, options, tags)
     SENDER.start()
 
     LOG.info('agent finish initializing, enter main loop.')
@@ -134,6 +138,13 @@ def main_loop(readq, options, configs, collectors):
 
         end = time.time()
         sleep_reasonably(loop_interval, start, end)
+
+
+def load_runner_conf():
+    runner_config_path = os.path.splitext(__file__)[0] + ".conf"
+    runner_config = ConfigParser.SafeConfigParser()
+    runner_config.read(runner_config_path)
+    return runner_config
 
 
 def reload_collector_confs(collector_confs, options):
@@ -566,8 +577,9 @@ class NonBlockingQueue(Queue):
 
 # noinspection PyDictCreation
 class Sender(threading.Thread):
-    def __init__(self, readq, options, tags):
+    def __init__(self, token, readq, options, tags):
         super(Sender, self).__init__()
+        self.token = token
         self.exit = False
         self.readq = readq
         self.hosts = options.hosts
@@ -659,8 +671,9 @@ class Sender(threading.Thread):
         return metric_entry
 
     def send_data_via_http(self, metrics):
+        data = {'token': self.token, 'metrics': metrics}
         if self.dryrun:
-            print "Would have sent:\n%s" % json.dumps(metrics,
+            print "Would have sent:\n%s" % json.dumps(data,
                                                       sort_keys=True,
                                                       indent=4)
             return
@@ -683,7 +696,13 @@ class Sender(threading.Thread):
                            % base64.b64encode("%s:%s" % (self.http_username, self.http_password)))
         req.add_header("Content-Type", "application/json")
         try:
-            response = urllib2.urlopen(req, json.dumps(metrics))
+            if self.ssl:
+                ctx = ssl.create_default_context()
+                ctx.check_hostname = False
+                ctx.verify_mode = ssl.CERT_NONE
+                response = urllib2.urlopen(req, json.dumps(data), context=ctx)
+            else:
+                response = urllib2.urlopen(req, json.dumps(data))
             LOG.debug("Received response %s", response.getcode())
             # print "Got response code: %s" % response.getcode()
             # print "Content:"
