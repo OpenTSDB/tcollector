@@ -29,7 +29,7 @@ LOG = logging.getLogger('runner')
 DEFAULT_PORT = 4242
 ALLOWED_INACTIVITY_TIME = 600  # seconds
 MAX_UNCAUGHT_EXCEPTIONS = 100
-MAX_SENDQ_SIZE = 10000
+MAX_SENDQ_SIZE = 20000      # this should match tsd.http.request.max_chunk, usually 1/3. json adds considerable overhead
 MAX_READQ_SIZE = 100000
 
 # config constants
@@ -608,25 +608,27 @@ class Sender(threading.Thread):
         LOG.info('sender thread started')
         while not self.exit:
             metrics = []
+            byte_count = 0
             try:
                 try:
                     line = self.readq.get(True, 5)
                 except Empty:
+                    time.sleep(5)  # Wait for more data
                     continue
                 metrics.append(self.process(line))
-                time.sleep(5)  # Wait for more data
-                while True:
+                byte_count += len(line)
+                while byte_count < MAX_SENDQ_SIZE:
                     # prevents self.sendq fast growing in case of sending fails
                     # in send_data()
-                    if len(metrics) > MAX_SENDQ_SIZE:
-                        break
                     try:
                         line = self.readq.get(False)
                     except Empty:
                         break
                     metrics.append(self.process(line))
+                    byte_count += len(line)
 
                 self.send_data_via_http(metrics)
+                LOG.info('send %d bytes, readq size %d', byte_count, self.readq.qsize())
                 errors = 0  # We managed to do a successful iteration.
             except (ArithmeticError, EOFError, EnvironmentError, LookupError,
                     ValueError), e:
@@ -696,13 +698,15 @@ class Sender(threading.Thread):
                            % base64.b64encode("%s:%s" % (self.http_username, self.http_password)))
         req.add_header("Content-Type", "application/json")
         try:
+            payload = json.dumps(data)
+            LOG.info('put request payload %d', len(payload))
             if self.ssl:
                 ctx = ssl.create_default_context()
                 ctx.check_hostname = False
                 ctx.verify_mode = ssl.CERT_NONE
-                response = urllib2.urlopen(req, json.dumps(data), context=ctx)
+                response = urllib2.urlopen(req, payload, context=ctx)
             else:
-                response = urllib2.urlopen(req, json.dumps(data))
+                response = urllib2.urlopen(req, payload)
             LOG.debug("Received response %s", response.getcode())
             # print "Got response code: %s" % response.getcode()
             # print "Content:"
