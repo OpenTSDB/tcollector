@@ -176,7 +176,7 @@ def main():
             nfsvol = rpc_metrics[device]['mounts'][0]
             for metric in KEY_METRICS+['other']:
                 for field in rpc_metrics[device][metric]:
-                    print "proc.mountstats.%s.%s %d %s nfshost=%s nfsvol=%s" % (metric.lower(), field.lower(), ts, rpc_metrics[device]['other'][field], nfshost, nfsvol)
+                    print "proc.mountstats.%s.%s %d %s nfshost=%s nfsvol=%s" % (metric.lower(), field.lower(), ts, rpc_metrics[device][metric][field], nfshost, nfsvol)
             for field in BYTES_FIELDS:
                 print "proc.mountstats.bytes.%s %d %s nfshost=%s nfsvol=%s" % (field.lower(), ts, rpc_metrics[device]['bytes'][field], nfshost, nfsvol)
 
