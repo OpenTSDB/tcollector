@@ -134,6 +134,21 @@ def is_device(device_name, allow_virtual):
     return os.access(devicename, os.F_OK)
 
 
+cached_device_sector_size={}
+def get_device_sector_size(device_name):
+    if device_name not in cached_device_sector_size:
+        filename = "/sys/block/"+device_name+"sda/queue/hw_sector_size"
+
+        if os.path.exists(filename):
+            with open(filename,"r") as f:
+                sector_size = int(f.readline())
+        else:
+            #hmmm?
+            sector_size = 512; #best guess
+        cached_device_sector_size[device_name] = sector_size
+    return cached_device_sector_size[device_name]
+
+
 def main():
     """iostats main loop."""
     init_stats = {
@@ -181,6 +196,14 @@ def main():
                 for i in range(11):
                     print("%s%s %d %s dev=%s"
                           % (metric, FIELDS_DISK[i], ts, values[i+3], device))
+                    if FIELDS_DISK[i]=="read_sectors":
+                        v = long(values[i+3]) * get_device_sector_size(device)
+                        print("%s%s %d %s dev=%s"
+                              % (metric, "read_bytes", ts, v, device))
+                    if FIELDS_DISK[i]=="write_sectors":
+                        v = long(values[i+3]) * get_device_sector_size(device)
+                        print("%s%s %d %s dev=%s"
+                              % (metric, "write_bytes", ts, v, device))
 
                 ret = is_device(device, 0)
                 # if a device or a partition, calculate the svctm/await/util
