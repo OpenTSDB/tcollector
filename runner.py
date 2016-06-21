@@ -555,9 +555,18 @@ class CollectorThread(threading.Thread):
                 self.collector_instance()
             except:
                 LOG.exception('failed to execute collector %s', self.name)
-            end = time.time()
-            sleep_reasonably(self.interval, start, end)
+            self.sleep_responsively(start)
         self.collector_instance.cleanup()
+
+    def sleep_responsively(self, start):
+        max_sleepsec = 5
+        end = time.time()
+        sleepsec = self.interval - (end - start) if self.interval > (end - start) else 0
+        while not self.exit and sleepsec > 0:
+            sleepsec = sleepsec if sleepsec < max_sleepsec else max_sleepsec
+            time.sleep(sleepsec)
+            end = time.time()
+            sleepsec = self.interval - (end - start) if self.interval > (end - start) else 0
 
 
 class NonBlockingQueue(Queue):
@@ -594,6 +603,7 @@ class Sender(threading.Thread):
         random.shuffle(self.hosts)
 
     def shutdown(self):
+        LOG.info("signaled sender thread shutdown.")
         self.exit = True
 
     def run(self):
@@ -631,7 +641,7 @@ class Sender(threading.Thread):
                 LOG.info('send %d bytes, readq size %d', byte_count, self.readq.qsize())
                 errors = 0  # We managed to do a successful iteration.
             except (ArithmeticError, EOFError, EnvironmentError, LookupError,
-                    ValueError), e:
+                    ValueError):
                 errors += 1
                 if errors > MAX_UNCAUGHT_EXCEPTIONS:
                     shutdown()
