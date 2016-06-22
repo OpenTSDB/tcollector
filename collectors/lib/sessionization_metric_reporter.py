@@ -23,7 +23,7 @@ class SessionizationMetricReporter(SamzaMetricReporter):
             metric = metrics_raw[m]
             tags = self.create_standard_tags(header_raw)
             ts = int(header_raw['time'] / 1000)
-            tags['source'] = header_raw['source']
+            tags['source'] = self.sanitize(header_raw['source'])
 
             for metric_name, metric_val in metric.iteritems():
                 self.print_metrics(
