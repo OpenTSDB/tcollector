@@ -15,7 +15,7 @@ class SamzaMetricReporter:
     """
 
     SAMZA_CONSUMER_LAG_METRIC_NAME = 'samza.consumer.lag'
-    CONSUMER_LAG_PATTERN = re.compile(r'kafka.+-(\d+)-messages-behind-high-watermark')
+    CONSUMER_LAG_PATTERN = re.compile(r'kafka-(.+)-(\d+)-messages-behind-high-watermark')
 
     def __init__(self, consumer_group_id, kafka_bootstrap_servers, kafka_metrics_topic='samza_metrics'):
         utils.drop_privileges()
@@ -91,9 +91,12 @@ class SamzaMetricReporter:
 
                 m = self.CONSUMER_LAG_PATTERN.match(metric_name)
                 if m:
+                    # Kafka topic can be extracted from the metric name. This is needed when
+                    # a Samza job consumes from multiple sources.
+                    tags['topic'] = m.group(1)
                     # Partition number is a part of the metric name when reported to Kafka.
                     # Include it as a tag instead so that the metric can be aggregated.
-                    tags['partition'] = m.group(1)
+                    tags['partition'] = m.group(2)
 
                     self.print_consumer_lag(
                         ts,
