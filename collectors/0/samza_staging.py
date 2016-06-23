@@ -5,6 +5,7 @@ from collectors.lib.samza_metric_reporter import SamzaMetricReporter
 
 CONSUMER_GROUP_ID = "tcollector_samza_staging"
 
+# FIXME: Should we set this as an ENV?
 KAFKA_BOOTSTRAP_SERVERS = [
     "kafkaStaging-1:9092",
     "kafkaStaging-2:9092"
