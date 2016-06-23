@@ -45,7 +45,7 @@ def collect(db):
 
     # Replication lag time (could be slave only or a master / slave combo)
     cursor.execute("SELECT "
-                   "(EXTRACT (EPOCH FROM now() - pg_last_xact_replay_timestamp()) * 1000)::INTEGER AS replication_lag_time, "
+                   "CASE WHEN pg_is_in_recovery() THEN (EXTRACT (EPOCH FROM now() - pg_last_xact_replay_timestamp()) * 1000)::INTEGER ELSE NULL END AS replication_lag_time, "
                    "pg_xlog_location_diff(pg_last_xlog_receive_location(), pg_last_xlog_replay_location()) AS replication_lag_bytes, "
                    "pg_is_in_recovery() AS in_recovery;")
     ts = time.time()
