@@ -27,6 +27,10 @@ This plugin tracks, for all CPUs:
 Requirements :
 - FreeBSD : top
 - Linux : mpstat
+
+In addition, for FreeBSD, it reports :
+- load average (1m, 5m, 15m)
+- number of processes (total, running, sleeping)
 '''
 
 import errno
@@ -41,9 +45,9 @@ import platform
 from collectors.lib import utils
 
 try:
-    from collectors.etc import cpus_pctusage_conf
+    from collectors.etc import sysload_conf
 except ImportError:
-    cpus_pctusage_conf = None
+    sysload_conf = None
 
 DEFAULT_COLLECTION_INTERVAL=15
 
@@ -56,8 +60,8 @@ def main():
     """top main loop"""
 
     collection_interval=DEFAULT_COLLECTION_INTERVAL
-    if(cpus_pctusage_conf):
-        config = cpus_pctusage_conf.get_config()
+    if(sysload_conf):
+        config = sysload_conf.get_config()
         collection_interval=config['collection_interval']
 
     global signal_received
@@ -68,7 +72,7 @@ def main():
     try:
         if platform.system() == "FreeBSD":
             p_top = subprocess.Popen(
-                ["top", "-t", "-I", "-P", "-n", "-s"+str(collection_interval), "-d"+str((365*24*3600)/collection_interval)],
+                ["top", "-u", "-t", "-I", "-P", "-n", "-s"+str(collection_interval), "-d"+str((365*24*3600)/collection_interval)],
                 stdout=subprocess.PIPE,
             )
         else:
@@ -82,6 +86,8 @@ def main():
             sys.exit(13) # we signal tcollector to not run us
         raise
 
+    timestamp = 0
+
     while signal_received is None:
         try:
             line = p_top.stdout.readline()
@@ -94,12 +100,13 @@ def main():
             # end of the program, die
             break
 
-        fields = re.sub(r"%( [uni][a-z]+,?)? | AM | PM ", "", line).split()
+        fields = re.sub(r"%( [uni][a-z]+,?)?| AM | PM ", "", line).split()
         if len(fields) <= 0:
             continue
 
         if (((fields[0] == "CPU") or (re.match("[0-9][0-9]:[0-9][0-9]:[0-9][0-9]",fields[0]))) and (re.match("[0-9]+:?",fields[1]))):
-            timestamp = int(time.time())
+            if(fields[1] == "0"):
+                timestamp = int(time.time())
             cpuid=fields[1].replace(":","")
             cpuuser=fields[2]
             cpunice=fields[3]
@@ -111,6 +118,26 @@ def main():
             print ("cpu.sys %s %s cpu=%s" % (timestamp, cpusystem, cpuid))
             print ("cpu.irq %s %s cpu=%s" % (timestamp, cpuinterrupt, cpuid))
             print ("cpu.idle %s %s cpu=%s" % (timestamp, cpuidle, cpuid))
+        
+        elif (re.match("(.* load averages: *)",line)):
+            timestamp = int(time.time())
+            fields = re.sub(r".* load averages: *|,", "", line).split()
+            print ("load.1m %s %s" % (timestamp, fields[0]))
+            print ("load.5m %s %s" % (timestamp, fields[1]))
+            print ("load.15m %s %s" % (timestamp, fields[2]))
+
+        elif (re.match("[0-9]+ processes:",line)):
+            fields = re.sub(r",", "", line).split()
+            running=0
+            sleeping=0
+            for i in range(len(fields)):
+                if(fields[i] == "running"):
+                    running=fields[i-1]
+                if(fields[i] == "sleeping"):
+                    sleeping=fields[i-1]
+            print ("ps.all %s %s" % (timestamp, fields[0]))
+            print ("ps.run %s %s" % (timestamp, running))
+            print ("ps.sleep %s %s" % (timestamp, sleeping))
 
     if signal_received is None:
         signal_received = signal.SIGTERM
