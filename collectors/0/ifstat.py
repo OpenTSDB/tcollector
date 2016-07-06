@@ -56,8 +56,25 @@ def main():
         f_netdev.seek(0)
         ts = int(time.time())
         for line in f_netdev:
-            m = re.match("\s+(eth?\d+|em\d+_\d+/\d+|em\d+_\d+|em\d+|"
-                         "p\d+p\d+_\d+/\d+|p\d+p\d+_\d+|p\d+p\d+):(.*)", line)
+            m = re.match(r'''
+                \s+
+                (
+                    eth?\d+ |
+                    em\d+_\d+/\d+ | em\d+_\d+ | em\d+ |
+                    p\d+p\d+_\d+/\d+ | p\d+p\d+_\d+ | p\d+p\d+ |
+                    (?:   # Start of 'predictable network interface names'
+                        (?:en|sl|wl|ww)
+                        (?:
+                            b\d+ |           # BCMA bus
+                            c[0-9a-f]+ |     # CCW bus group
+                            o\d+(?:d\d+)? |  # On-board device
+                            s\d+(?:f\d+)?(?:d\d+)? |  # Hotplug slots
+                            x[0-9a-f]+ |     # Raw MAC address
+                            p\d+s\d+(?:f\d+)?(?:d\d+)? | # PCI geographic loc
+                            p\d+s\d+(?:f\d+)?(?:u\d+)*(?:c\d+)?(?:i\d+)? # USB
+                         )
+                    )
+                ):(.*)''', line, re.VERBOSE)
             if not m:
                 continue
             intf = m.group(1)
