@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#! /usr/bin/python
 
 # This file is part of tcollector.
 # Copyright (C) 2013  The tcollector Authors.
@@ -17,6 +17,7 @@
 
 import glob
 import os
+import re
 import signal
 import subprocess
 import sys
@@ -29,7 +30,7 @@ try:
 except ImportError:
     smart_stats_conf = None
 
-DEFAULT_COLLECTION_INTERVAL=120
+DEFAULT_COLLECTION_INTERVAL=300
 
 TWCLI = "/usr/sbin/tw_cli"
 ARCCONF = "/usr/local/bin/arcconf"
@@ -38,6 +39,7 @@ NO_CONTROLLER = "Controllers found: 0"
 BROKEN_DRIVER_VERSIONS = ("1.1-5",)
 
 SMART_CTL = "smartctl"
+NUMERIC = 1
 COMMAND_TIMEOUT = 10
 
 # Common smart attributes, add more to this list if you start seeing
@@ -142,7 +144,7 @@ def is_3ware_driver_broken(drives):
   for i in reversed(xrange(len(drives))):
     drive = drives[i]
     signal.alarm(COMMAND_TIMEOUT)
-    smart_ctl = subprocess.Popen(SMART_CTL + " -i /dev/" + drive,
+    smart_ctl = subprocess.Popen(SMART_CTL + " -i " + drive.split("#")[0],
                                  shell=True, stdout=subprocess.PIPE)
     smart_output = smart_ctl.communicate()[0]
     if "supports SMART and is Disabled" in smart_output:
@@ -171,21 +173,30 @@ def process_output(drive, smart_output):
       if len(fields) < 2:
         continue
       field = fields[0]
-      if len(fields) > 2 and field in ATTRIBUTE_MAP:
-        metric = ATTRIBUTE_MAP[field]
+      if len(fields) > 2:
+        metric_raw = "_raw"
+        metric_normalized = "_normalized"
+        if NUMERIC == 0 and field in ATTRIBUTE_MAP:
+          metric_raw = ATTRIBUTE_MAP[field] + metric_raw
+          metric_normalized = ATTRIBUTE_MAP[field] + metric_normalized
+        else:
+          metric_raw = "smart_" + field + metric_raw
+          metric_normalized = "smart_" + field + metric_normalized
         value = fields[9].split()[0]
-        print ("smart.%s %d %s disk=%s" % (metric, ts, value, drive))
-        if is_seagate and metric in ("seek_error_rate", "raw_read_error_rate"):
+        print ("smart.%s %d %s disk=%s" % (metric_raw, ts, value, drive))       
+        value = fields[4]
+        print ("smart.%s %d %s disk=%s" % (metric_normalized, ts, value, drive))
+        if is_seagate and metric_raw in ("seek_error_rate", "raw_read_error_rate"):
           # It appears that some Seagate drives (and possibly some Western
           # Digital ones too) use the first 16 bits to store error counts,
           # and the low 32 bits to store operation counts, out of these 48
           # bit values.  So try to be helpful and extract these here.
           value = int(value)
           print ("smart.%s %d %d disk=%s"
-                 % (metric.replace("error_rate", "count"), ts,
+                 % (metric_raw.replace("error_rate", "count"), ts,
                     value & 0xFFFFFFFF, drive))
           print ("smart.%s %d %d disk=%s"
-                 % (metric.replace("error_rate", "errors"), ts,
+                 % (metric_raw.replace("error_rate", "errors"), ts,
                     (value & 0xFFFF00000000) >> 32, drive))
     elif line.startswith("ID#"):
       data_marker = True
@@ -204,10 +215,17 @@ def main():
     collection_interval=config['collection_interval']
 
   # Get the list of block devices.
-  drives = [dev[5:] for dev in glob.glob("/dev/[hs]d[a-z]")]
-  # Try FreeBSD drives if no block devices found
+  drives = [dev for dev in glob.glob("/dev/[hs]d[a-z]{1,2}")]
+  scan_open = subprocess.Popen(SMART_CTL + " --scan-open",
+                               shell=True, stdout=subprocess.PIPE)
+  drives2 = scan_open.communicate()[0]
+  drives2 = drives2.split('\n')
+  drives2 = [dev for dev in drives2 if dev]
+  drives2 = [dev for dev in drives2 if not any(dev in drive for drive in drives)]
+  if drives2:
+    drives.extend(drives2)
   if not drives:
-    drives = [dev[5:] for dev in glob.glob("/dev/da[0-9]")+glob.glob("/dev/da[0-9][0-9]")]
+    drives = [dev for dev in glob.glob("/dev/da[0-9]")+glob.glob("/dev/da[0-9][0-9]")]
   # Exit gracefully if no block devices found
   if not drives:
     sys.exit(13)
@@ -215,24 +233,35 @@ def main():
 
   # to make sure we are done with smartctl in COMMAND_TIMEOUT seconds
   signal.signal(signal.SIGALRM, alarm_handler)
+  
+  reg = re.compile("Serial Number:\s+[A-Z0-9-]+", re.M)
 
   if smart_is_broken(drives):
     sys.exit(13)
-
+  serials = []
   while True:
     for drive in drives:
       signal.alarm(COMMAND_TIMEOUT)
-      smart_ctl = subprocess.Popen(SMART_CTL + " -i -A /dev/" + drive,
+      smart_ctl = subprocess.Popen(SMART_CTL + " -i -A " + drive.split('#')[0],
                                    shell=True, stdout=subprocess.PIPE)
       smart_output = smart_ctl.communicate()[0]
+      search = reg.search(smart_output)
+      serial = ""
+      if search:
+        serial = search.group()[18:]
       signal.alarm(0)
       if smart_ctl.returncode != 0:
         if smart_ctl.returncode == 127:
           sys.exit(13)
         else:
           print >>sys.stderr, "Command exited with: %d" % smart_ctl.returncode
-      process_output(drive, smart_output)
-
+      drive_s = drive.split()
+      if serial and serial not in serials:
+        serials.append(serial)
+        if len(drive_s) > 2 and "megaraid" in drive_s[2]:
+          process_output(drive_s[5][1:len(drive_s[5])-1], smart_output)
+        else:
+          process_output(drive_s[0][5:], smart_output)
     sys.stdout.flush()
     time.sleep(collection_interval)
 
