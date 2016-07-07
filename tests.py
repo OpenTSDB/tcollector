@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python
 # This file is part of tcollector.
 # Copyright (C) 2013  The tcollector Authors.
 #
