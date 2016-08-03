@@ -7,7 +7,8 @@ CONSUMER_GROUP_ID = "tcollector_sessionization_staging"
 
 KAFKA_BOOTSTRAP_SERVERS = [
     "kafkaStaging-1:9092",
-    "kafkaStaging-2:9092"
+    "kafkaStaging-2:9092",
+    "kafkaStaging-3:9092"
 ]
 
 
