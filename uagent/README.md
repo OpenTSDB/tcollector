@@ -16,7 +16,8 @@ HOW TO USE IT
 
 1. You need to have a web server (e.g. Apache2) that supports HTTPS;
    Remember to copy the ssl cert of the web server to your GNUPG home
-   directory and name it "server-certs.pem";
+   directory (which should be "install_root"/.gnupg. See step 3.)
+   and name it "server-certs.pem";
 2. Update "uagent.conf" and make suer "server_base" points to your web server
    (e.g. https://localhost)
 3. Update "uagent.conf" and make sure "install_root" points to the folder where
