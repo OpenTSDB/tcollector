@@ -20,6 +20,7 @@ install_root = config.get('envs', 'install_root')
 platform = config.get('envs', 'platform')
 gnupg_home = os.path.join(install_root, '.gnupg')
 download_path = os.path.join(install_root, 'download')
+unpack_path = os.path.join(download_path, 'unpack')
 
 
 class ExitCode(IntEnum):
@@ -284,6 +285,8 @@ def verify_file(filename):
 def download_file(url, limit):
     # Download the header first, to make sure the size is reasonable
     certs = os.path.join(gnupg_home, "server-certs.pem")
+    if (not os.path.isfile(certs)):
+        return ExitCode.ERR_DOWNLOAD_FAILED
     components = url.split('/')
     filename = components[len(components)-1]
     filename = os.path.join(download_path, filename)
@@ -370,6 +373,9 @@ def clear_directory(directory):
 def upgrade_once(url):
     """ Try to download agents from one place and then upgrade. """
 
+    if (os.path.isdir(download_path)):
+        clear_directory(download_path)
+
     # Download version.json from server
     exit_code = download_file(url+"/version.json", config.get('limits', 'max_version_file_size'))
     if (exit_code != ExitCode.OK):
@@ -405,7 +411,7 @@ def upgrade_once(url):
         return ExitCode.ERR_PARSING_NEW_VERSION
 
     # Are old and new versions the same?
-    if (old_version_file.version == new_version_file.version):
+    if (old_version_file.version >= new_version_file.version):
         return ExitCode.WARN_VERSION_SAME
 
     # See if old version falls in the 'upgradeFrom' range.
@@ -435,12 +441,11 @@ def upgrade_once(url):
         return ExitCode.ERR_BAD_SIGNATURE
 
     # Unpack and run install.py
-    dest_dir = os.path.join(download_path, "unpack")
-    exit_code = unpack_package_file(pkg_full_path, dest_dir)
+    exit_code = unpack_package_file(pkg_full_path, unpack_path)
     if (exit_code != ExitCode.OK):
         return exit_code
 
-    exit_code = run_install_script(os.path.join(dest_dir, 'install.py'))
+    exit_code = run_install_script(os.path.join(unpack_path, 'install.py'))
     if (exit_code != ExitCode.OK):
         return exit_code
 
@@ -475,5 +480,4 @@ def main():
 
 if __name__ == "__main__":
     exit_code = main()
-    print(exit_code)
     sys.exit(exit_code)
