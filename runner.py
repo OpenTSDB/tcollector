@@ -644,6 +644,7 @@ class Sender(threading.Thread):
                     ValueError):
                 errors += 1
                 if errors > MAX_UNCAUGHT_EXCEPTIONS:
+                    LOG.error("sender thread exceeds the max number of errors (%d). exit", MAX_UNCAUGHT_EXCEPTIONS)
                     shutdown()
                     raise
                 LOG.exception('exception in Sender, ignoring')
@@ -727,6 +728,9 @@ class Sender(threading.Thread):
             LOG.exception("Got error when sending to server %s", self.host)
             # for line in http_error:
             #   print line,
+        except:
+            LOG.exception("unknown error when sending to server %s:%d", self.host, self.port)
+            raise
 
     def pick_connection(self):
         """Picks up a random host/port connection."""
