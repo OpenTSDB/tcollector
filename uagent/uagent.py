@@ -1,6 +1,6 @@
-#!/usr/bin/python3.5
+#!/usr/bin/python2.7
 
-import configparser
+import ConfigParser
 import datetime
 import gnupg
 import hashlib
@@ -10,11 +10,11 @@ import requests
 import shutil
 import sys
 import tarfile
-from enum import IntEnum
+from enum import Enum
 
 
 # Globals
-config = configparser.SafeConfigParser()
+config = ConfigParser.SafeConfigParser()
 config.read('uagent.conf')
 install_root = config.get('envs', 'install_root')
 platform = config.get('envs', 'platform')
@@ -23,7 +23,7 @@ download_path = os.path.join(install_root, 'download')
 unpack_path = os.path.join(download_path, 'unpack')
 
 
-class ExitCode(IntEnum):
+class ExitCode(Enum):
     OK = 0
 
     USAGE = 100

@@ -1,4 +1,4 @@
-#!/usr/bin/python3.5
+#!/usr/bin/python2.7
 
 import gnupg
 import os
