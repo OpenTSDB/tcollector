@@ -2,7 +2,7 @@ CONTENTS
 
 uagent.py - The update agent that will download updates (of cloudwiz agent or update agent itself)
             and apply them to the local installation
-uagent.conf - Configuration file for the uagent.py.
+uagent.conf - Configuration file for the uagent.py. This file should always be placed under the same floder as that of uagent.py
 daemon.py - Run this if you want to run update agent in a long running loop.
 calc_checksum.py - Script that will calculate the checksum of a file.
 download_file.py - Download a file from server (whose pub cert must be located at gnupg-home/server-certs.pem)
@@ -18,7 +18,7 @@ HOW TO USE IT
    Remember to copy the ssl cert of the web server to your GNUPG home
    directory (which should be "install_root"/.gnupg. See step 3.)
    and name it "server-certs.pem";
-2. Update "uagent.conf" and make suer "server_base" points to your web server
+2. Update "uagent.conf" and make sure "server_base" points to your web server
    (e.g. https://localhost)
 3. Update "uagent.conf" and make sure "install_root" points to the folder where
    everything (cloudwiz-agent, update-agent, etc.) is installed;

@@ -15,7 +15,7 @@ from enum import Enum
 
 # Globals
 config = ConfigParser.SafeConfigParser()
-config.read('uagent.conf')
+config.read(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uagent.conf'))
 install_root = config.get('envs', 'install_root')
 platform = config.get('envs', 'platform')
 gnupg_home = os.path.join(install_root, '.gnupg')
