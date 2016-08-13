@@ -42,6 +42,7 @@ class ExitCode(Enum):
     ERR_BAD_SIGNATURE = 1009
     ERR_DOWNLOAD_FAILED = 1010
     ERR_PACKAGE_FILE_TOO_BIG = 1011
+    ERR_BAD_SERVER_URL = 1012
 
 
 class version_number:
@@ -257,6 +258,7 @@ class version_file:
 
 
 def calc_checksum(filename, blocksize = 65536):
+    """ Calculate the checksum of the given file. """
     hasher = hashlib.sha256()
     with open(filename, 'rb') as fh:
         buf = fh.read(blocksize)
@@ -267,10 +269,11 @@ def calc_checksum(filename, blocksize = 65536):
 
 
 def verify_file(filename):
-    # verify signature
+    """ Verify the signature of the given file. We assume the signature file name
+        is always in the form of <filename>.sig, under the same directory. """
     if (not os.path.isdir(gnupg_home)):
         return False
-    keyring = os.path.join(gnupg_home,"pubring.gpg")
+    keyring = os.path.join(gnupg_home, "pubring.gpg")
     if (not os.path.isfile(keyring)):
         return False
     sig_file = filename + ".sig"
@@ -283,13 +286,21 @@ def verify_file(filename):
 
 
 def download_file(url, limit):
+    """ Download the file located at 'url'. The file size cannot be bigger than 'limit'. """
+
+    # 'url' has to be HTTPS
+    if (not url.lower().startswith('https://')):
+        return ExitCode.ERR_BAD_SERVER_URL
+
     # Download the header first, to make sure the size is reasonable
     certs = os.path.join(gnupg_home, "server-certs.pem")
     if (not os.path.isfile(certs)):
         return ExitCode.ERR_DOWNLOAD_FAILED
+
     components = url.split('/')
     filename = components[len(components)-1]
     filename = os.path.join(download_path, filename)
+
     try:
         # make sure 'download_path' exists
         if (not os.path.isdir(download_path)):
@@ -300,7 +311,7 @@ def download_file(url, limit):
         if (response.status_code != 200):
             #print("requests.head: url={0}, status={1}".format(url, response.status_code))
             return ExitCode.ERR_DOWNLOAD_FAILED
-        if int(response.headers['Content-Length']) > int(limit):
+        if (int(response.headers['Content-Length']) > int(limit)):
             return ExitCode.ERR_PACKAGE_FILE_TOO_BIG
 
         # now download the file itself
@@ -325,6 +336,7 @@ def download_file(url, limit):
 
 
 def unpack_package_file(filename, dest_dir):
+    """ Unpack the package file (.tar.gz) into the 'dest_dir' folder. """
     try:
         if (os.path.isdir(dest_dir)):
             clear_directory(dest_dir)
@@ -341,9 +353,12 @@ def unpack_package_file(filename, dest_dir):
 
 
 def run_install_script(script):
+    """ Run the install.py script that's in the package we just downloaded.
+        Pass the install_root as argument to the script. """
     if (not os.path.isfile(script)):
         return ExitCode.ERR_INSTALL_SCRIPT_MISSING
     try:
+        # TODO: Run "python2.7 script install_root"
         os.system(script + ' ' + install_root)
     except:
         return ExitCode.ERR_INSTALL_SCRIPT_FAILED
@@ -351,6 +366,7 @@ def run_install_script(script):
 
 
 def is_offhour():
+    """ Off hour is defined as either weekends, or evening of weekdays. """
     day = datetime.datetime.today().weekday()
     if (day >= 5):
         return True
@@ -362,6 +378,7 @@ def is_offhour():
 
 
 def clear_directory(directory):
+    """ Remove everything under the given directory. """
     for f in os.listdir(directory):
         fullpath = os.path.join(directory, f)
         if (os.path.isfile(fullpath)):
@@ -371,7 +388,7 @@ def clear_directory(directory):
 
 
 def upgrade_once(url):
-    """ Try to download agents from one place and then upgrade. """
+    """ Try to download agents from the given place and then upgrade. """
 
     if (os.path.isdir(download_path)):
         clear_directory(download_path)
@@ -456,6 +473,13 @@ def upgrade_once(url):
 
 
 def main():
+    """ Try to download updates from 3 different locations on the server.
+            1. singles/<client-id>;
+            2. offhour
+            3. latest
+        The script will quit upon finding a valid update and will not look in other locations.
+    """
+
     base_url = config.get("urls", "server_base")
     client_id = config.get('envs', 'client_id')
 
