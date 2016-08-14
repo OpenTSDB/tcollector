@@ -10,7 +10,9 @@ import requests
 import shutil
 import sys
 import tarfile
+
 from enum import Enum
+from subprocess import call
 
 
 # Globals
@@ -21,6 +23,8 @@ platform = config.get('envs', 'platform')
 gnupg_home = os.path.join(install_root, '.gnupg')
 download_path = os.path.join(install_root, 'download')
 unpack_path = os.path.join(download_path, 'unpack')
+# TODO: This needs to point to our installation of Python
+python = '/usr/bin/python2.7'
 
 
 class ExitCode(Enum):
@@ -358,8 +362,7 @@ def run_install_script(script):
     if (not os.path.isfile(script)):
         return ExitCode.ERR_INSTALL_SCRIPT_MISSING
     try:
-        # TODO: Run "python2.7 script install_root"
-        os.system(script + ' ' + install_root)
+        call([python, script, install_root], cwd=unpack_path)
     except:
         return ExitCode.ERR_INSTALL_SCRIPT_FAILED
     return ExitCode.OK
