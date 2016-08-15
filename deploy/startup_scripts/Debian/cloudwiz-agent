@@ -104,7 +104,7 @@ case "$1" in
     ;;
   
   status)
-    $($supervisorctl_path -c $supervisor_file status) | grep $name
+    $supervisorctl_path -c $supervisor_file status | grep $name
     ;;
 
   *)

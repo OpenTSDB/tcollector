@@ -9,7 +9,7 @@ color_blue=$(tput setaf 4)
 agent_user="cwiz-user"
 agent_pass="cwiz-pass"
 agent_startup_scripts="cloudwiz-agent"
-download_source=${AGENT_URL:-"file:///tmp/publish/agent.tar.gz"}
+download_source=${AGENT_URL:-"file:///tmp/publish"}
 working_folder="/tmp"
 agent_install_folder="/opt/cloudwiz-agent"
 workspace_folder="${agent_install_folder}/workspace"
@@ -58,8 +58,8 @@ fi
 useradd -d "${agent_install_folder}" -p "$agent_pass" "$agent_user" 
 abort_if_failed "failed to create user $agent_user"
 
-log_info "downloading agent tarball ${download_source}/${OS} ${working_folder} and extract it"
-curl -Lo ${working_folder}/agent.tar.gz "${download_source}/${OS}"
+log_info "downloading agent tarball ${download_source}/${OS}/agent.tar.gz ${working_folder} and extract it"
+curl -Lo ${working_folder}/agent.tar.gz "${download_source}/${OS}/agent.tar.gz"
 abort_if_failed "failed to download tarball"
 tar -xzf "${working_folder}/agent.tar.gz" -C /
 abort_if_failed "failed to extract agent tarball"
