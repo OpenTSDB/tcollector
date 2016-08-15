@@ -1,0 +1,118 @@
+#!/bin/sh
+
+# chkconfig: 345 85 15
+# description: Cloudwiz Monitoring Agent - RPM package
+
+### BEGIN INIT INFO
+# Provides: cloudwiz-agent
+# Short-Description: Start and start cloudwiz-agent
+# Description: cloudwiz-agent is the monitoring agent component for CloudInsight
+# Required-Start:
+# Required-Stop:
+# Default-Start: 2 3 4 5
+# Default-Stop: 0 1 6
+### END INIT INFO
+
+PATH=$PATH:/sbin
+
+agent_install_folder="/opt/cloudwiz-agent"
+agent_collector_path="${agent_install_folder}/agent/runner.py"
+agent_env_folder="${agent_install_folder}/altenv"
+supervisor_pidfile="${agent_env_folder}/var/run/supervisord.pid"
+supervisor_file="${agent_env_folder}/etc/supervisord.conf"
+supervisor_sock="${agent_env_folder}/var/run/supervisor.sock"
+supervisorctl_path="${agent_env_folder}/bin/supervisorctl"
+supervisord_path="${agent_env_folder}/bin/supervisord"
+collector_pidfile="${agent_env_folder}/var/run/tcollector.pid"
+system_path="${agent_env_folder}/bin":$PATH
+name="cloudwiz-agent"
+
+. /etc/rc.d/init.d/functions
+
+log_info() {
+  echo "$1"
+}
+
+check_status() {
+  if [ -e $supervisor_sock ]; then
+    supervisor_processes=$($supervisorctl_path -c $supervisor_file status)
+    # number of running supervisor cloudwiz agent programs
+    cinsight_supervisor_processes=$(echo "$supervisor_processes" |
+                                    grep $name |
+                                    grep -c RUNNING
+                                    )
+    supervisor_config_programs=$(grep -c '\[program:' $supervisor_file)
+    if [ "$cinsight_supervisor_processes" -ne "$supervisor_config_programs" ]; then
+      log_info "$supervisor_processes"
+      log_info "$name (supervisor) is NOT running all child processes"
+      return 1
+    else
+      log_info "$name (supervisor) is running all child processes"
+      return 0
+    fi
+  else
+      log_info "$name (supervisor) is not running"
+      return 1
+  fi
+}
+
+if [ ! -x "$agent_collector_path" ]; then
+    log_info "$agent_collector_path not found. Exiting."
+    exit 0
+fi
+
+case "$1" in
+  start)
+    check_status
+    if [ $? -eq 0 ]; then
+      log_info "$name is already running"
+      exit 0
+    fi
+
+    log_info "starting $name (using supervisord $supervisord_path and conf $supervisor_file)"
+    PATH=$system_path daemon $supervisord_path -c $supervisor_file --pidfile $supervisor_pidfile &
+
+    #check if the agent is running once per second for 15 seconds
+    retries=15
+    while [ $retries -gt 1 ]; do
+      if check_status > /dev/null; then
+        # We've started up successfully. Exit cleanly
+        log_info "$name started successfully"
+        exit 0
+      else
+        retries=$(($retries - 1))
+        log_info "retry. $retries left"
+        sleep 1
+      fi
+    done
+    # After 10 tries the agent didn't start. Report an error
+    log_info "failed to start, check possible reason"
+    check_status # report what went wrong
+    $0 stop
+    exit 1
+    ;;
+  
+  stop)
+    log_info "stopping $name (stopping supervisord)"
+    killproc -p $supervisor_pidfile supervisord -TERM
+    sleep 2
+    log_info "$name stopped."
+    ;;
+ 
+  restart)
+    $0 stop
+    $0 start
+    ;;
+  
+  status)
+    $supervisorctl_path -c $supervisor_file status | grep $name
+    ;;
+
+  *)
+    N=/etc/init.d/$NAME
+    echo "Usage: $N {start|stop|restart|status}"
+    exit 1
+    ;;
+esac
+
+exit $?
