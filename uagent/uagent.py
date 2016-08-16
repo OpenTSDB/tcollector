@@ -14,7 +14,6 @@ import tarfile
 from enum import Enum
 from subprocess import call
 
-
 # Globals
 config = ConfigParser.SafeConfigParser()
 config.read(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uagent.conf'))
@@ -49,8 +48,9 @@ class ExitCode(Enum):
     ERR_BAD_SERVER_URL = 1012
 
 
-class version_number:
+class VersionNumber:
     """ This class represents a version number of the form <major>.<minor>.<patch>.<build> """
+
     def __init__(self, vstring):
         self._major = 0
         self._minor = 0
@@ -75,29 +75,33 @@ class version_number:
 
     def _get_major(self):
         return self._major
+
     def _set_major(self, value):
-        if (not isinstance(value, int)):
+        if not isinstance(value, int):
             raise TypeError("major must be an integer")
         self._major = value
 
     def _get_minor(self):
         return self._minor
+
     def _set_minor(self, value):
-        if (not isinstance(value, int)):
+        if not isinstance(value, int):
             raise TypeError("minor must be an integer")
         self._minor = value
 
     def _get_patch(self):
         return self._patch
+
     def _set_patch(self, value):
-        if (not isinstance(value, int)):
+        if not isinstance(value, int):
             raise TypeError("patch must be an integer")
         self._patch = value
 
     def _get_build(self):
         return self._build
+
     def _set_build(self, value):
-        if (not isinstance(value, int)):
+        if not isinstance(value, int):
             raise TypeError("build must be an integer")
         self._build = value
 
@@ -106,8 +110,8 @@ class version_number:
     patch = property(_get_patch, _set_patch)
     build = property(_get_build, _set_build)
 
-    def max_version_number():
-        mv = version_number('')
+    def max_version_number(self):
+        mv = VersionNumber('')
         mv._major = sys.maxsize
         mv._minor = sys.maxsize
         mv._patch = sys.maxsize
@@ -116,13 +120,13 @@ class version_number:
 
     def in_range(self, v_range):
         r = v_range.split('-')
-        f = version_number(r[0])
-        t = version_number(r[1])
-        return f <= self and self < t
+        f = VersionNumber(r[0])
+        t = VersionNumber(r[1])
+        return f <= self < t
 
     def beyond_range(self, v_range):
         r = v_range.split('-')
-        t = version_number(r[1])
+        t = VersionNumber(r[1])
         return self >= t
 
     def __str__(self):
@@ -132,98 +136,111 @@ class version_number:
     def cmp(self, other):
         if not isinstance(other, self.__class__):
             return NotImplemented
-        if (self._major != other._major):
-            return self._major - other._major;
-        elif (self._minor != other._minor):
-            return self._minor - other._minor;
-        elif (self._patch != other._patch):
-            return self._patch - other._patch;
+        if self._major != other._major:
+            return self._major - other._major
+        elif self._minor != other._minor:
+            return self._minor - other._minor
+        elif self._patch != other._patch:
+            return self._patch - other._patch
         else:
-            return self._build - other._build;
+            return self._build - other._build
 
     def __gt__(self, other):
         return self.cmp(other) > 0
+
     def __lt__(self, other):
         return self.cmp(other) < 0
+
     def __eq__(self, other):
         return self.cmp(other) == 0
+
     def __ne__(self, other):
         return self.cmp(other) != 0
+
     def __ge__(self, other):
         return self.cmp(other) >= 0
+
     def __le__(self, other):
         return self.cmp(other) <= 0
 
 
-class version_file:
+class VersionFile:
     """ This class represents a version.json file. """
+
     def __init__(self, filename):
         try:
             with open(filename, 'r') as fh:
                 version_json = json.loads(fh.read(int(config.get('limits', 'max_version_file_size'))))
-                if (version_json.get('version')):
-                    self._version = version_number(version_json.get('version'))
-                if (version_json.get('releaseDateUTC')):
+                if version_json.get('version'):
+                    self._version = VersionNumber(version_json.get('version'))
+                if version_json.get('releaseDateUTC'):
                     self._release_date_utc = version_json.get('releaseDateUTC')
-                if (version_json.get('platform')):
+                if version_json.get('platform'):
                     self._platform = version_json.get('platform')
-                if (version_json.get('checksum')):
+                if version_json.get('checksum'):
                     self._checksum = version_json.get('checksum')
-                if (version_json.get('upgradeFrom')):
+                if version_json.get('upgradeFrom'):
                     r = version_json.get('upgradeFrom').split('-')
-                    self._upgrade_min = version_number(r[0])
-                    self._upgrade_max = version_number(r[1])
-                if (version_json.get('packageFile')):
+                    self._upgrade_min = VersionNumber(r[0])
+                    self._upgrade_max = VersionNumber(r[1])
+                if version_json.get('packageFile'):
                     self._package_file = version_json.get('packageFile')
-        except json.decoder.JSONDecodeError:
+        except ValueError:
             print("Corrupted file %s" % filename)
 
     def _get_version(self):
         return self._version
+
     def _set_version(self, value):
-        if (not isinstance(value, version_number)):
-            raise TypeError("version must be a version_number")
+        if not isinstance(value, VersionNumber):
+            raise TypeError("version must be a VersionNumber")
         self._version = value
 
     def _get_release_date_utc(self):
         return self._release_date_utc
+
     def _set_release_date_utc(self, value):
-        if (not isinstance(value, str)):
+        if not isinstance(value, str):
             raise TypeError("release_date_utc must be a str")
         self._release_date_utc = value
 
     def _get_platform(self):
         return self._platform
+
     def _set_platform(self, value):
-        if (not isinstance(value, str)):
+        if not isinstance(value, str):
             raise TypeError("platform must be a str")
         self._platform = value
 
     def _get_checksum(self):
         return self._checksum
+
     def _set_checksum(self, value):
-        if (not isinstance(value, str)):
+        if not isinstance(value, str):
             raise TypeError("checksum must be a str")
         self._checksum = value
 
     def _get_upgrade_min(self):
         return self._upgrade_min
+
     def _set_upgrade_min(self, value):
-        if (not isinstance(value, version_number)):
+        if not isinstance(value, VersionNumber):
             raise TypeError("upgrade_min must be a version_number")
         self._upgrade_min = value
 
     def _get_upgrade_max(self):
         return self._upgrade_max
+
     def _set_upgrade_max(self, value):
-        if (not isinstance(value, version_number)):
+        if not isinstance(value, VersionNumber):
             raise TypeError("upgrade_max must be a version_number")
         self._upgrade_max = value
 
     def _get_package_file(self):
         return self._package_file
+
     def _set_package_file(self, value):
-        if (not isinstance(value, str)):
+        if not isinstance(value, str):
             raise TypeError("package_file must be a str")
         self._package_file = value
 
@@ -245,23 +262,23 @@ class version_file:
                 platform == self._platform)
 
     def validate_version_range(self):
-        return (self._upgrade_max <= self._version)
+        return self._upgrade_max <= self._version
 
     def validate_package_file(self):
         # Validate checksum
         pkg_file = os.path.join(download_path, self._package_file)
-        if (not os.path.isfile(pkg_file)):
+        if not os.path.isfile(pkg_file):
             return ExitCode.ERR_PACKAGE_FILE_MISSING
         actual_chksum = calc_checksum(pkg_file)
         if actual_chksum != self._checksum:
             return ExitCode.ERR_BAD_CHECKSUM
         # Validate signature
-        if (not verify_file(pkg_file)):
+        if not verify_file(pkg_file):
             return ExitCode.ERR_BAD_SIGNATURE
         return ExitCode.OK
 
 
-def calc_checksum(filename, blocksize = 65536):
+def calc_checksum(filename, blocksize=65536):
     """ Calculate the checksum of the given file. """
     hasher = hashlib.sha256()
     with open(filename, 'rb') as fh:
@@ -275,13 +292,13 @@ def calc_checksum(filename, blocksize = 65536):
 def verify_file(filename):
     """ Verify the signature of the given file. We assume the signature file name
         is always in the form of <filename>.sig, under the same directory. """
-    if (not os.path.isdir(gnupg_home)):
+    if not os.path.isdir(gnupg_home):
         return False
     keyring = os.path.join(gnupg_home, "pubring.gpg")
-    if (not os.path.isfile(keyring)):
+    if not os.path.isfile(keyring):
         return False
     sig_file = filename + ".sig"
-    if (not os.path.isfile(sig_file)):
+    if not os.path.isfile(sig_file):
         return False
     gpg = gnupg.GPG(gnupghome=gnupg_home, keyring=keyring)
     with open(sig_file, "rb") as fh:
@@ -293,39 +310,39 @@ def download_file(url, limit):
     """ Download the file located at 'url'. The file size cannot be bigger than 'limit'. """
 
     # 'url' has to be HTTPS
-    if (not url.lower().startswith('https://')):
+    if not url.lower().startswith('https://'):
         return ExitCode.ERR_BAD_SERVER_URL
 
     # Download the header first, to make sure the size is reasonable
     certs = os.path.join(gnupg_home, "server-certs.pem")
-    if (not os.path.isfile(certs)):
+    if not os.path.isfile(certs):
         return ExitCode.ERR_DOWNLOAD_FAILED
 
     components = url.split('/')
-    filename = components[len(components)-1]
+    filename = components[len(components) - 1]
     filename = os.path.join(download_path, filename)
 
     try:
         # make sure 'download_path' exists
-        if (not os.path.isdir(download_path)):
+        if not os.path.isdir(download_path):
             os.makedirs(download_path)
 
         # get header to check the size of the file
         response = requests.head(url, verify=certs, stream=True)
-        if (response.status_code != 200):
-            #print("requests.head: url={0}, status={1}".format(url, response.status_code))
+        if response.status_code != 200:
+            # print("requests.head: url={0}, status={1}".format(url, response.status_code))
             return ExitCode.ERR_DOWNLOAD_FAILED
-        if (int(response.headers['Content-Length']) > int(limit)):
+        if int(response.headers['Content-Length']) > int(limit):
             return ExitCode.ERR_PACKAGE_FILE_TOO_BIG
 
         # now download the file itself
         response = requests.get(url, verify=certs, stream=True)
-        if (response.status_code != 200):
-            #print("requests.get: url={0}, status={1}".format(url, response.status_code))
+        if response.status_code != 200:
+            # print("requests.get: url={0}, status={1}".format(url, response.status_code))
             return ExitCode.ERR_DOWNLOAD_FAILED
 
         # delete the file if already exist
-        if (os.path.isfile(filename)):
+        if os.path.isfile(filename):
             os.remove(filename)
 
         # save the downloaded file
@@ -342,7 +359,7 @@ def download_file(url, limit):
 def unpack_package_file(filename, dest_dir):
     """ Unpack the package file (.tar.gz) into the 'dest_dir' folder. """
     try:
-        if (os.path.isdir(dest_dir)):
+        if os.path.isdir(dest_dir):
             clear_directory(dest_dir)
         else:
             os.makedirs(dest_dir)
@@ -359,7 +376,7 @@ def unpack_package_file(filename, dest_dir):
 def run_install_script(script):
     """ Run the install.py script that's in the package we just downloaded.
         Pass the install_root as argument to the script. """
-    if (not os.path.isfile(script)):
+    if not os.path.isfile(script):
         return ExitCode.ERR_INSTALL_SCRIPT_MISSING
     try:
         call([python, script, install_root], cwd=unpack_path)
@@ -371,11 +388,11 @@ def run_install_script(script):
 def is_offhour():
     """ Off hour is defined as either weekends, or evening of weekdays. """
     day = datetime.datetime.today().weekday()
-    if (day >= 5):
+    if day >= 5:
         return True
     time = datetime.datetime.now().time()
     if ((time.hour < int(config.get('limits', 'offhour_morning'))) or
-        (time.hour > int(config.get('limits', 'offhour_evening')))):
+            (time.hour > int(config.get('limits', 'offhour_evening')))):
         return True
     return False
 
@@ -384,7 +401,7 @@ def clear_directory(directory):
     """ Remove everything under the given directory. """
     for f in os.listdir(directory):
         fullpath = os.path.join(directory, f)
-        if (os.path.isfile(fullpath)):
+        if os.path.isfile(fullpath):
             os.remove(fullpath)
         else:
             shutil.rmtree(fullpath)
@@ -393,80 +410,80 @@ def clear_directory(directory):
 def upgrade_once(url):
     """ Try to download agents from the given place and then upgrade. """
 
-    if (os.path.isdir(download_path)):
+    if os.path.isdir(download_path):
         clear_directory(download_path)
 
     # Download version.json from server
-    exit_code = download_file(url+"/version.json", config.get('limits', 'max_version_file_size'))
-    if (exit_code != ExitCode.OK):
+    exit_code = download_file(url + "/version.json", config.get('limits', 'max_version_file_size'))
+    if exit_code != ExitCode.OK:
         return exit_code
 
     # Download version.json.sig from server
-    exit_code = download_file(url+"/version.json.sig", config.get('limits', 'max_signature_file_size'))
-    if (exit_code != ExitCode.OK):
+    exit_code = download_file(url + "/version.json.sig", config.get('limits', 'max_signature_file_size'))
+    if exit_code != ExitCode.OK:
         return exit_code
 
     old_version_filename = os.path.join(install_root, "version.json")
     new_version_filename = os.path.join(download_path, "version.json")
 
     # Do old and new version.json exist?
-    if (not os.path.isfile(old_version_filename)):
+    if not os.path.isfile(old_version_filename):
         return ExitCode.ERR_OLD_VERSION_MISSING
-    if (not os.path.isfile(new_version_filename)):
+    if not os.path.isfile(new_version_filename):
         return ExitCode.ERR_NEW_VERSION_MISSING
 
     # Verify signature of version.json
-    if (not verify_file(new_version_filename)):
+    if not verify_file(new_version_filename):
         return ExitCode.ERR_BAD_SIGNATURE
 
     # Parse old and new version.json files.
-    old_version_file = version_file(old_version_filename)
-    new_version_file = version_file(new_version_filename)
+    old_version_file = VersionFile(old_version_filename)
+    new_version_file = VersionFile(new_version_filename)
 
     # Are old and new version.json valid?
-    if (not old_version_file.validate_attributes()):
+    if not old_version_file.validate_attributes():
         return ExitCode.ERR_PARSING_OLD_VERSION
     if ((not new_version_file.validate_attributes()) or
-        (not new_version_file.validate_version_range())):
+            (not new_version_file.validate_version_range())):
         return ExitCode.ERR_PARSING_NEW_VERSION
 
     # Are old and new versions the same?
-    if (old_version_file.version >= new_version_file.version):
+    if old_version_file.version >= new_version_file.version:
         return ExitCode.WARN_VERSION_SAME
 
     # See if old version falls in the 'upgradeFrom' range.
     if ((old_version_file.version < new_version_file.upgrade_min) or
-        (new_version_file.upgrade_max <= old_version_file.version)):
+            (new_version_file.upgrade_max <= old_version_file.version)):
         return ExitCode.WARN_OLD_VERSION_NOT_IN_RANGE
 
     # Download package.tar.gz from server
     pkg_file = new_version_file.package_file
-    exit_code = download_file(url+"/"+pkg_file, config.get('limits', 'max_package_file_size'))
-    if (exit_code != ExitCode.OK):
+    exit_code = download_file(url + "/" + pkg_file, config.get('limits', 'max_package_file_size'))
+    if exit_code != ExitCode.OK:
         return exit_code
 
     # Download package.tar.gz.sig from server
-    exit_code = download_file(url+"/"+pkg_file+".sig", config.get('limits', 'max_signature_file_size'))
-    if (exit_code != ExitCode.OK):
+    exit_code = download_file(url + "/" + pkg_file + ".sig", config.get('limits', 'max_signature_file_size'))
+    if exit_code != ExitCode.OK:
         return exit_code
 
     # Validate new package file checksum.
     exit_code = new_version_file.validate_package_file()
-    if (exit_code != ExitCode.OK):
+    if exit_code != ExitCode.OK:
         return exit_code
 
     # Verify signature of the package file
     pkg_full_path = os.path.join(download_path, pkg_file)
-    if (not verify_file(pkg_full_path)):
+    if not verify_file(pkg_full_path):
         return ExitCode.ERR_BAD_SIGNATURE
 
     # Unpack and run install.py
     exit_code = unpack_package_file(pkg_full_path, unpack_path)
-    if (exit_code != ExitCode.OK):
+    if exit_code != ExitCode.OK:
         return exit_code
 
     exit_code = run_install_script(os.path.join(unpack_path, 'install.py'))
-    if (exit_code != ExitCode.OK):
+    if exit_code != ExitCode.OK:
         return exit_code
 
     # override old version.json with new version.json
@@ -487,24 +504,24 @@ def main():
     client_id = config.get('envs', 'client_id')
 
     # Try client specific URL
-    exit_code = upgrade_once(base_url+"/singles/"+client_id+"/"+platform)
-    if (exit_code == ExitCode.OK):
+    exit_code = upgrade_once(base_url + "/singles/" + client_id + "/" + platform)
+    if exit_code == ExitCode.OK:
         return ExitCode.OK
 
     # Try off hour URL
-    if (is_offhour()):
-        exit_code = upgrade_once(base_url+"/offhour/"+platform)
-        if (exit_code == ExitCode.OK):
+    if is_offhour():
+        exit_code = upgrade_once(base_url + "/offhour/" + platform)
+        if exit_code == ExitCode.OK:
             return ExitCode.OK
 
     # Try latest URL
-    exit_code = upgrade_once(base_url+"/latest/"+platform)
-    if (exit_code == ExitCode.OK):
+    exit_code = upgrade_once(base_url + "/latest/" + platform)
+    if exit_code == ExitCode.OK:
         return ExitCode.OK
 
     return exit_code
 
 
 if __name__ == "__main__":
-    exit_code = main()
-    sys.exit(exit_code)
+    return_code = main()
+    sys.exit(return_code)
