@@ -348,7 +348,13 @@ def download_file(url, limit):
         # save the downloaded file
         with open(filename, "wb") as fh:
             response.raw.decode_content = True
-            shutil.copyfileobj(response.raw, fh)
+            total_size = 0
+            chunk_size = 4096
+            for chunk in response.iter_content(chunk_size):
+                fh.write(chunk)
+                total_size += chunk_size
+                if (total_size > limit):
+                    break
     except Exception as ex:
         print("Caught Exception:")
         print(ex)
