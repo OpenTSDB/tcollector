@@ -353,7 +353,7 @@ def download_file(url, limit):
             for chunk in response.iter_content(chunk_size):
                 fh.write(chunk)
                 total_size += chunk_size
-                if (total_size > limit):
+                if total_size > limit:
                     break
     except Exception as ex:
         print("Caught Exception:")
