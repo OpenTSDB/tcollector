@@ -14,16 +14,16 @@ import urllib2
 import random
 import base64
 import threading
-from logging.handlers import RotatingFileHandler
 from optparse import OptionParser
 from Queue import Queue
 from Queue import Full
 from Queue import Empty
 import ssl
+import common_utils
 
 # global variables._
 COLLECTORS = {}
-DEFAULT_LOG = '/var/log/tcollector.log'
+DEFAULT_LOG = '/var/log/cloudwiz-agent.log'
 LOG = logging.getLogger('runner')
 # TODO consider put into config file
 DEFAULT_PORT = 4242
@@ -55,8 +55,7 @@ def main(argv):
     if options.daemonize:
         daemonize()
 
-    setup_logging(options.logfile, options.max_bytes or None,
-                  options.backup_count or None)
+    common_utils.setup_logging(LOG, options.logfile, options.max_bytes or None, options.backup_count or None)
 
     if options.verbose:
         LOG.setLevel(logging.DEBUG)  # up our level
@@ -257,23 +256,6 @@ def load_collector_module(module_name, module_path, collector_class_name=None):
     if collector_class_name is None:
         collector_class_name = module_name.title().replace('_', '').replace('-', '')
     return getattr(mod, collector_class_name)
-
-
-# noinspection SpellCheckingInspection
-def setup_logging(logfile=DEFAULT_LOG, max_bytes=None, backup_count=None):
-    """Sets up logging and associated handlers."""
-
-    LOG.setLevel(logging.INFO)
-    if backup_count is not None and max_bytes is not None:
-        assert backup_count > 0
-        assert max_bytes > 0
-        ch = RotatingFileHandler(logfile, 'a', max_bytes, backup_count)
-    else:  # Setup stream handler.
-        ch = logging.StreamHandler(sys.stdout)
-
-    ch.setFormatter(logging.Formatter('%(asctime)s %(module)s[%(process)d:%(thread)d]:%(lineno)d '
-                                      '%(levelname)s: %(message)s'))
-    LOG.addHandler(ch)
 
 
 def parse_cmdline(argv):
