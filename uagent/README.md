@@ -26,3 +26,23 @@ HOW TO USE IT
 5. To run the update-agent in a long lived loop, run "daemon.py";
    Note that this script runs update-agent once an hour. You can adjust this
    in the "daemon.py" script itself.
+
+FOLDER STRUCTURE
+
+server_side:
+<server_base>/latest/<platform, Debian | RedHat>
+	files: agent.tar.gz        agent.tar.gz.sig    version.json        version.json.sig
+
+client_side:
+<install_root>/version.json: the current agent version info
+<install_root>/download: contains downloaded files
+<install_root>/.gnupg: the RSA public key and trustdb
+	files: pubring.gpg	trustdb.gpg
+
+
+USEFUL COMMANDS
+
+shasum -a 256 <tarball_file>
+gpg --armor --detach-sig -o agent.tar.gz.sig agent.tar.gz
+gpg --armor --detach-sig -o version.json.sig version.json
+gpg --verify version.json.sig version.json
