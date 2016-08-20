@@ -12,16 +12,15 @@
 # of the GNU Lesser General Public License along with this program.  If not,
 # see <http://www.gnu.org/licenses/>.
 
-import sys
-import time
-
 try:
     import json
 except ImportError:
     json = None
 
+from Queue import Queue
 from collectors.lib import utils
 from collectors.lib.hadoop_http import HadoopHttp
+from collectors.lib.hadoop_http import HadoopNode
 from collectors.lib.collectorbase import CollectorBase
 
 
@@ -33,39 +32,25 @@ REPLACEMENTS = {
 }
 
 
-class HadoopDataNode(HadoopHttp):
-    """
-    Class that will retrieve metrics from an Apache Hadoop DataNode's jmx page.
+class HadoopDataNode(CollectorBase):
+    def __init__(self, config, logger, readq):
+        super(HadoopDataNode, self).__init__(config, logger, readq)
 
-    This requires Apache Hadoop 1.0+ or Hadoop 2.0+.
-    Anything that has the jmx page will work but the best results will com from Hadoop 2.1.0+
-    """
+        self.service = self.get_config('service', 'hadoop')
+        self.daemon = self.get_config('daemon', 'datanode')
+        self.host = self.get_config('host', 'localhost')
+        self.port = self.get_config('port', 50075)
+        self.readq = readq
 
-    def __init__(self):
-        super(HadoopDataNode, self).__init__('hadoop', 'datanode', 'localhost', 50075)
+        utils.drop_privileges()
 
-    def emit(self):
-        current_time = int(time.time())
-        metrics = self.poll()
-        for context, metric_name, value in metrics:
-            for k, v in REPLACEMENTS.iteritems():
-                if any(c.startswith(k) for c in context):
-                    context = v
-            self.emit_metric(context, current_time, metric_name, value)
-
-
-def main(args):
-    utils.drop_privileges()
-    if json is None:
-        utils.err("This collector requires the `json' Python module.")
-        return 13  # Ask tcollector not to respawn us
-    datanode_service = HadoopDataNode()
-    while True:
-        datanode_service.emit()
-        time.sleep(15)
-    return 0
+    def __call__(self):
+        if json:
+            HadoopNode(self.service, self.daemon, self.host, self.port, REPLACEMENTS, self.readq, self._logger).emit()
+        else:
+            utils.err("This collector requires the `json' Python module.")
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv))
-
+    hadoopdatanode_inst = HadoopDataNode(None, None, Queue())
+    hadoopdatanode_inst()
