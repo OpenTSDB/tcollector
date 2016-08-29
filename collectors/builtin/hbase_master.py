@@ -28,15 +28,15 @@ from collectors.lib.hadoop_http import HadoopHttp
 EXCLUDED_CONTEXTS = ('regionserver', 'regions', )
 
 
-class HBaseMaster(HadoopHttp):
+class HBaseMasterHttp(HadoopHttp):
     """
     Class to get metrics from Apache HBase's master
 
     Require HBase 0.96.0+
     """
 
-    def __init__(self):
-        super(HBaseMaster, self).__init__('hbase', 'master', 'localhost', 60010)
+    def __init__(self, port, logger, readq):
+        super(HBaseMasterHttp, self).__init__('hbase', 'master', 'localhost', port, readq, logger)
 
     def emit(self):
         current_time = int(time.time())
@@ -47,18 +47,23 @@ class HBaseMaster(HadoopHttp):
             self.emit_metric(context, current_time, metric_name, value)
 
 
-def main(args):
-    utils.drop_privileges()
-    if json is None:
-        utils.err("This collector requires the `json' Python module.")
-        return 13  # Ask tcollector not to respawn us
-    hbase_service = HBaseMaster()
-    while True:
-        hbase_service.emit()
-        time.sleep(90)
-    return 0
+class HbaseMaster(CollectorBase):
+    def __init__(self, config, logger, readq):
+        super(HbaseMaster, self).__init__(config, logger, readq)
+
+        self.logger = logger
+        self.readq = readq
+        self.port = self.get_config('port', 60010)
+
+        utils.drop_privileges()
+
+    def __call__(self):
+        if json:
+            HBaseMasterHttp(self.port, self.logger, self.readq).emit()
+        else:
+            self.logger.error("This collector requires the `json' Python module.")
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv))
-
+    hbasemaster_inst = HbaseMaster(None, None, Queue())
+    hbasemaster_inst()

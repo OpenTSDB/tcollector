@@ -48,7 +48,7 @@ class HadoopDataNode(CollectorBase):
         if json:
             HadoopNode(self.service, self.daemon, self.host, self.port, REPLACEMENTS, self.readq, self._logger).emit()
         else:
-            utils.err("This collector requires the `json' Python module.")
+            self.logger.error("This collector requires the `json' Python module.")
 
 
 if __name__ == "__main__":

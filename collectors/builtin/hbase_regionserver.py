@@ -29,14 +29,14 @@ EMIT_REGION = True
 EXCLUDED_CONTEXTS = ("master")
 REGION_METRIC_PATTERN = re.compile(r"[N|n]amespace_(.*)_table_(.*)_region_(.*)_metric_(.*)")
 
-class HBaseRegionserver(HadoopHttp):
-    def __init__(self):
-        super(HBaseRegionserver, self).__init__("hbase", "regionserver", "localhost", 60030)
+class HBaseRegionserverHttp(HadoopHttp):
+    def __init__(self, port, logger, readq):
+        super(HBaseRegionserverHttp, self).__init__("hbase", "regionserver", "localhost", port, readq, logger)
 
     def emit_region_metric(self, context, current_time, full_metric_name, value):
 	match = REGION_METRIC_PATTERN.match(full_metric_name)
         if not match:
-            utils.err("Error splitting %s" % full_metric_name)
+            self.logger.error("Error splitting %s" % full_metric_name)
             return
 
         namespace = match.group(1)
@@ -46,7 +46,7 @@ class HBaseRegionserver(HadoopHttp):
         tag_dict = {"namespace": namespace, "table": table, "region": region}
 
         if any( not v for k,v in tag_dict.iteritems()):
-            utils.err("Error splitting %s" % full_metric_name)
+            self.logger.error("Error splitting %s" % full_metric_name)
         else:
             self.emit_metric(context, current_time, metric_name, value, tag_dict)
 
@@ -69,19 +69,23 @@ class HBaseRegionserver(HadoopHttp):
                 self.emit_metric(context, current_time, metric_name, value)
 
 
-def main(args):
-    utils.drop_privileges()
-    if json is None:
-        utils.err("This collector requires the `json' Python module.")
-        return 13  # Ask tcollector not to respawn us
-    hbase_service = HBaseRegionserver()
-    while True:
-        hbase_service.emit()
-        time.sleep(15)
-    return 0
+class HbaseRegionserver(CollectorBase):
+    def __init__(self, config, logger, readq):
+        super(HbaseRegionserver, self).__init__(config, logger, readq)
+
+        self.logger = logger
+        self.readq = readq
+        self.port = self.get_config('port', 60030)
+
+        utils.drop_privileges()
+
+    def __call__(self):
+        if json:
+            HBaseRegionserverHttp(self.port, self.logger, self.readq).emit()
+        else:
+            self.logger.error("This collector requires the `json' Python module.")
 
 
 if __name__ == "__main__":
-    import sys
-    sys.exit(main(sys.argv))
-
+    hbaseregionserver_inst = HbaseRegionserver(None, None, Queue())
+    hbaseregionserver_inst()
