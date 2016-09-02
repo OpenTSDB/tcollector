@@ -57,7 +57,7 @@ def main():
         ts = int(time.time())
         for line in f_netdev:
             m = re.match(r'''
-                \s+
+                \s*
                 (
                     eth?\d+ |
                     em\d+_\d+/\d+ | em\d+_\d+ | em\d+ |
