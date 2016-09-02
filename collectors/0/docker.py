@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 # More informations on https://docs.docker.com/articles/runmetrics/
 """Imports Docker stats from /sys/fs/cgroup."""
 
