@@ -262,5 +262,7 @@ abort_if_failed 'failed to add agent to tar file'
 log_info "publish agent tarball to $publish_location/$os_type"
 mkdir -p "$publish_location/$os_type"
 scp "${basedir}/agent.tar.gz" "${publish_location}/$os_type/"
+mkdir -p /tmp/publish/$os_type
+scp "${basedir}/agent.tar.gz" /tmp/publish/$os_type
 
 log_info "Done!"
