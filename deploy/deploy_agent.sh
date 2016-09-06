@@ -77,6 +77,13 @@ fi
 chown -R "$agent_user" "${altenv_etc_folder}"
 chown -R "$agent_user" "${altenv_var_folder}"
 
+log_info "creating download folder"
+mkdir -p ${agent_install_folder}/download/unpack
+abort_if_failed "failed to create ${agent_install_folder}/download/unpack"
+chown -R "$agent_user" "${agent_install_folder}/download"
+abort_if_failed "failed to change ownership of ${agent_install_folder}/download to $agent_user"
+log_info "finish creating download folder"
+
 log_info "copy cloudwiz scripts to init.d"
 mv -f "${agent_install_folder}/startup_scripts/${OS}/${agent_startup_scripts}" /etc/init.d/
 abort_if_failed "failed to mv ${agent_install_folder}/startup_scripts/${OS}/${agent_startup_scripts} to /etc/init.d"

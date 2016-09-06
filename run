@@ -11,5 +11,5 @@ if [[ ! -d $run_folder ]]; then
     mkdir "$run_folder"
 fi
 
-./runner.py --logfile "$log_folder/tcollector.log" -P "$run_folder/tcollector.pid" --dedup-interval 0 -H localhost "$@"
+./runner.py --logfile "$log_folder/collector.log" -P "$run_folder/collector.pid" --dedup-interval 0 -H localhost "$@"
 

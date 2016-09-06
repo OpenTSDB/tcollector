@@ -23,7 +23,7 @@ import common_utils
 
 # global variables._
 COLLECTORS = {}
-DEFAULT_LOG = '/var/log/cloudwiz-agent.log'
+DEFAULT_LOG = '/var/log/cloudwiz-collector.log'
 LOG = logging.getLogger('runner')
 # TODO consider put into config file
 DEFAULT_PORT = 4242
