@@ -16,6 +16,7 @@ workspace_folder="${agent_install_folder}/workspace"
 altenv_folder="${agent_install_folder}/altenv"
 altenv_etc_folder="${altenv_folder}/etc"
 altenv_var_folder="${altenv_folder}/var"
+altenv_cache_folder="${altenv_var_folder}/cache"
 
 function check_root() {
   if [[ "$USER" != "root" ]]; then
@@ -76,6 +77,9 @@ fi
 
 chown -R "$agent_user" "${altenv_etc_folder}"
 chown -R "$agent_user" "${altenv_var_folder}"
+
+mkdir -p "${altenv_cache_folder}"
+chown -R "$agent_user" "${altenv_cache_folder}"
 
 log_info "creating download folder"
 mkdir -p ${agent_install_folder}/download/unpack
