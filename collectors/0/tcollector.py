@@ -29,8 +29,11 @@ import time
 
 from collectors.lib import utils
 
-COLLECTION_INTERVAL = 15  # seconds
-
+try:
+    from collectors.etc import tcollector_conf
+except ImportError:
+    print >> sys.stderr, 'unable to import tcollector_conf'
+    tcollector_conf = None
 
 class ProcessTerminatedError(Exception):
     pass
@@ -161,14 +164,20 @@ def collect_tcollect_stats(processes):
 
 
 def main():
+    if not (tcollector_conf and tcollector_conf.enabled()):
+        print >> sys.stderr, 'not enabled, or tcollector_conf unavilable'
+        sys.exit(13)
+
     utils.drop_privileges()
+
+    config = tcollector_conf.get_config()
 
     while True:
         processes = ProcessTable()
         processes.update()
         collect_tcollect_stats(processes)
 
-        time.sleep(COLLECTION_INTERVAL)
+        time.sleep(config['connection_interval'])
 
 if __name__ == "__main__":
     main()
