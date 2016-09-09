@@ -19,7 +19,6 @@ except ImportError:
 
 from Queue import Queue
 from collectors.lib import utils
-from collectors.lib.hadoop_http import HadoopHttp
 from collectors.lib.hadoop_http import HadoopNode
 from collectors.lib.collectorbase import CollectorBase
 
@@ -50,5 +49,5 @@ class HadoopNameNode(CollectorBase):
 
 
 if __name__ == "__main__":
-    hadoopdatanode_inst = HadoopDataNode(None, None, Queue())
+    hadoopdatanode_inst = HadoopNameNode(None, None, Queue())
     hadoopdatanode_inst()

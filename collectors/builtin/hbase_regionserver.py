@@ -29,12 +29,13 @@ EMIT_REGION = True
 EXCLUDED_CONTEXTS = ("master")
 REGION_METRIC_PATTERN = re.compile(r"[N|n]amespace_(.*)_table_(.*)_region_(.*)_metric_(.*)")
 
+
 class HBaseRegionserverHttp(HadoopHttp):
     def __init__(self, port, logger, readq):
         super(HBaseRegionserverHttp, self).__init__("hbase", "regionserver", "localhost", port, readq, logger)
 
     def emit_region_metric(self, context, current_time, full_metric_name, value):
-	match = REGION_METRIC_PATTERN.match(full_metric_name)
+        match = REGION_METRIC_PATTERN.match(full_metric_name)
         if not match:
             self.logger.error("Error splitting %s" % full_metric_name)
             return

@@ -30,6 +30,7 @@ EXCLUDED_KEYS = (
     "name"
 )
 
+
 class HadoopHttp(object):
     def __init__(self, service, daemon, host, port, readq, logger, uri="/jmx"):
         self.service = service
