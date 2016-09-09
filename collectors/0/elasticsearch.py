@@ -23,6 +23,7 @@ except ImportError:
   json = None  # Handled gracefully in main.  Not available by default in <2.6
 import socket
 import sys
+import threading
 import time
 import re
 
@@ -52,22 +53,32 @@ class ESError(RuntimeError):
     self.resp = resp
 
 
-def request(server, uri):
+def request(server, uri, json_in = True):
   """Does a GET request of the given uri on the given HTTPConnection."""
   server.request("GET", uri)
   resp = server.getresponse()
   if resp.status != httplib.OK:
     raise ESError(resp)
-  return json.loads(resp.read())
+  if json_in:
+    return json.loads(resp.read())
+  else:
+    return resp.read()
 
 
 def cluster_health(server):
   return request(server, "/_cluster/health")
 
 
-def cluster_state(server):
-  return request(server, "/_cluster/state"
-                 + "?filter_routing_table=true&filter_metadata=true&filter_blocks=true")
+def cluster_stats(server):
+  return request(server, "/_cluster/stats")
+
+
+def cluster_master_node(server):
+  return request(server, "/_cat/master", json_in = False).split()[0]
+
+
+def index_stats(server):
+  return request(server, "/_cat/indices?v&bytes=b", json_in = False)
 
 
 def node_status(server):
@@ -84,143 +95,100 @@ def node_stats(server, version):
     url = "/_nodes/_local/stats"
   return request(server, url)
 
-def printmetric(metric, ts, value, **tags):
+def printmetric(metric, ts, value, tags):
+  # Warning, this should be called inside a lock
   if tags:
-    tags = " " + " ".join("%s=%s" % (name, value)
+    tags = " " + " ".join("%s=%s" % (name.replace(" ",""), value.replace(" ",""))
                           for name, value in tags.iteritems())
   else:
     tags = ""
-  print ("elasticsearch.%s %d %s %s"
+  print ("%s %d %s %s"
          % (metric, ts, value, tags))
 
-def _collect_server(server, version):
+def _traverse(metric, stats, ts, tags):
+  """
+     Recursively traverse the json tree and print out leaf numeric values
+     Please make sure you call this inside a lock and don't add locking
+     inside this function
+  """
+  #print metric,stats,ts,tags
+  if isinstance(stats,dict):
+    if "timestamp" in stats:
+      ts = stats["timestamp"] / 1000 # ms -> s
+    for key in stats.keys():
+      if key != "timestamp":
+        _traverse(metric + "." + key, stats[key], ts, tags)
+  if isinstance(stats, (list, set, tuple)):
+    count = 0
+    for value in stats:
+      _traverse(metric + "." + str(count), value, ts, tags)
+      count += 1
+  if utils.is_numeric(stats) and not isinstance(stats, bool):
+    if isinstance(stats, int):
+      stats = int(stats)
+    printmetric(metric, ts, stats, tags)
+  return
+
+def _collect_indices(server, metric, tags, lock):
   ts = int(time.time())
+  rawtable = index_stats(server).split("\n")
+  header = rawtable.pop(0).strip()
+  headerlist = [x.strip() for x in header.split()]
+  for line in rawtable:
+    # Copy the cluster tag
+    newtags = {"cluster": tags["cluster"]}
+    # Now parse each input
+    values = line.split()
+    count = 0
+    for value in values:
+      try:
+        value = float(value)
+        if int(value) == value:
+          value = int(value)
+        # now print value
+        with lock:
+          printmetric(metric + ".cluster.byindex." + headerlist[count], ts, value, newtags)
+      except ValueError, ve:
+        # add this as a tag
+        newtags[headerlist[count]] = value
+      count += 1
+
+def _collect_master(server, nodeid, metric, tags, lock):
+  ts = int(time.time())
+  chealth = cluster_health(server)
+  if "status" in chealth:
+    with lock:
+      printmetric(metric + ".cluster.status", ts,
+        STATUS_MAP.get(chealth["status"], -1), tags)
+  with lock:
+    _traverse(metric + ".cluster", chealth, ts, tags)
+
+  ts = int(time.time())  # In case last call took a while.
+  cstats = cluster_stats(server)
+  with lock:
+    _traverse(metric + ".cluster", cstats, ts, tags)
+
+def _collect_server(server, version, lock):
+  ts = int(time.time())
+  rootmetric = "elasticsearch"
   nstats = node_stats(server, version)
   cluster_name = nstats["cluster_name"]
   nodeid, nstats = nstats["nodes"].popitem()
   node_name = nstats["name"]
+  tags = {"cluster": cluster_name, "node": node_name}
+  #tags.update(nstats["attributes"])
 
-  is_master = nodeid == cluster_state(server)["master_node"]
-  printmetric("is_master", ts, int(is_master), node=node_name, cluster=cluster_name)
+  is_master = nodeid == cluster_master_node(server)
+  with lock:
+    printmetric(rootmetric + ".is_master", ts, is_master, tags)
   if is_master:
-    ts = int(time.time())  # In case last call took a while.
-    cstats = cluster_health(server)
-    for stat, value in cstats.iteritems():
-      if stat == "status":
-        value = STATUS_MAP.get(value, -1)
-      elif not utils.is_numeric(value):
-        continue
-      printmetric("cluster." + stat, ts, value, cluster=cluster_name)
+    _collect_master(server, nodeid, rootmetric, tags, lock)
 
-  if "os" in nstats:
-     ts = nstats["os"]["timestamp"] / 1000  # ms -> s
-  if "timestamp" in nstats:
-     ts = nstats["timestamp"] / 1000  # ms -> s
+    _collect_indices(server, rootmetric, tags, lock)
 
-  if "indices" in nstats:
-     indices = nstats["indices"]
-     if  "docs" in indices:
-        printmetric("num_docs", ts, indices["docs"]["count"], node=node_name, cluster=cluster_name)
-     if  "store" in indices:
-        printmetric("indices.size", ts, indices["store"]["size_in_bytes"], node=node_name, cluster=cluster_name)
-     if  "indexing" in indices:
-        d = indices["indexing"]
-        printmetric("indexing.index_total", ts, d["index_total"], node=node_name, cluster=cluster_name)
-        printmetric("indexing.index_time", ts, d["index_time_in_millis"], node=node_name, cluster=cluster_name)
-        printmetric("indexing.index_current", ts, d["index_current"], node=node_name, cluster=cluster_name)
-        printmetric("indexing.delete_total", ts, d["delete_total"], node=node_name, cluster=cluster_name)
-        printmetric("indexing.delete_time_in_millis", ts, d["delete_time_in_millis"], node=node_name, cluster=cluster_name)
-        printmetric("indexing.delete_current", ts, d["delete_current"], node=node_name, cluster=cluster_name)
-        del d
-     if  "get" in indices:
-        d = indices["get"]
-        printmetric("get.total", ts, d["total"], node=node_name, cluster=cluster_name)
-        printmetric("get.time", ts, d["time_in_millis"], node=node_name, cluster=cluster_name)
-        printmetric("get.exists_total", ts, d["exists_total"], node=node_name, cluster=cluster_name)
-        printmetric("get.exists_time", ts, d["exists_time_in_millis"], node=node_name, cluster=cluster_name)
-        printmetric("get.missing_total", ts, d["missing_total"], node=node_name, cluster=cluster_name)
-        printmetric("get.missing_time", ts, d["missing_time_in_millis"], node=node_name, cluster=cluster_name)
-        del d
-     if  "search" in indices:
-        d = indices["search"]
-        printmetric("search.query_total", ts, d["query_total"], node=node_name, cluster=cluster_name)
-        printmetric("search.query_time", ts, d["query_time_in_millis"], node=node_name, cluster=cluster_name)
-        printmetric("search.query_current", ts, d["query_current"], node=node_name, cluster=cluster_name)
-        printmetric("search.fetch_total", ts, d["fetch_total"], node=node_name, cluster=cluster_name)
-        printmetric("search.fetch_time", ts, d["fetch_time_in_millis"], node=node_name, cluster=cluster_name)
-        printmetric("search.fetch_current", ts, d["fetch_current"], node=node_name, cluster=cluster_name)
-        del d
-     if "cache" in indices:
-        d = indices["cache"]
-        printmetric("cache.field.evictions", ts, d["field_evictions"], node=node_name, cluster=cluster_name)
-        printmetric("cache.field.size", ts, d["field_size_in_bytes"], node=node_name, cluster=cluster_name)
-        printmetric("cache.filter.count", ts, d["filter_count"], node=node_name, cluster=cluster_name)
-        printmetric("cache.filter.evictions", ts, d["filter_evictions"], node=node_name, cluster=cluster_name)
-        printmetric("cache.filter.size", ts, d["filter_size_in_bytes"], node=node_name, cluster=cluster_name)
-        del d
-     if "merges" in indices:
-        d = indices["merges"]
-        printmetric("merges.current", ts, d["current"], node=node_name, cluster=cluster_name)
-        printmetric("merges.total", ts, d["total"], node=node_name, cluster=cluster_name)
-        printmetric("merges.total_time", ts, d["total_time_in_millis"] / 1000., node=node_name, cluster=cluster_name)
-        del d
-     del indices
-  if "process" in nstats:
-     process = nstats["process"]
-     ts = process["timestamp"] / 1000  # ms -> s
-     open_fds = process.get("open_file_descriptors")  # ES 0.17
-     if open_fds is None:
-       open_fds = process.get("fd")  # ES 0.16
-       if open_fds is not None:
-         open_fds = open_fds["total"]
-     if open_fds is not None:
-       printmetric("process.open_file_descriptors", ts, open_fds, node=node_name, cluster=cluster_name)
-     if "cpu" in process:
-        d = process["cpu"]
-        printmetric("process.cpu.percent", ts, d["percent"], node=node_name, cluster=cluster_name)
-        printmetric("process.cpu.sys", ts, d["sys_in_millis"] / 1000., node=node_name, cluster=cluster_name)
-        printmetric("process.cpu.user", ts, d["user_in_millis"] / 1000., node=node_name, cluster=cluster_name)
-        del d
-     if "mem" in process:
-        d = process["mem"]
-        printmetric("process.mem.resident", ts, d["resident_in_bytes"], node=node_name, cluster=cluster_name)
-        printmetric("process.mem.shared", ts, d["share_in_bytes"], node=node_name, cluster=cluster_name)
-        printmetric("process.mem.total_virtual", ts, d["total_virtual_in_bytes"], node=node_name, cluster=cluster_name)
-        del d
-     del process
-  if "jvm" in nstats:
-     jvm = nstats["jvm"]
-     ts = jvm["timestamp"] / 1000  # ms -> s
-     if "mem" in jvm:
-        d = jvm["mem"]
-        printmetric("jvm.mem.heap_used", ts, d["heap_used_in_bytes"], node=node_name, cluster=cluster_name)
-        printmetric("jvm.mem.heap_committed", ts, d["heap_committed_in_bytes"], node=node_name, cluster=cluster_name)
-        printmetric("jvm.mem.non_heap_used", ts, d["non_heap_used_in_bytes"], node=node_name, cluster=cluster_name)
-        printmetric("jvm.mem.non_heap_committed", ts, d["non_heap_committed_in_bytes"], node=node_name, cluster=cluster_name)
-        del d
-     if "threads" in jvm:
-        d = jvm["threads"]
-        printmetric("jvm.threads.count", ts, d["count"], node=node_name, cluster=cluster_name)
-        printmetric("jvm.threads.peak_count", ts, d["peak_count"], node=node_name, cluster=cluster_name)
-        del d
-     for gc, d in jvm["gc"]["collectors"].iteritems():
-       printmetric("jvm.gc.collection_count", ts, d["collection_count"], gc=gc, node=node_name, cluster=cluster_name)
-       printmetric("jvm.gc.collection_time", ts,
-                   d["collection_time_in_millis"] / 1000., gc=gc, node=node_name, cluster=cluster_name)
-     del jvm
-     del d
-  if "network" in nstats:
-     for stat, value in nstats["network"]["tcp"].iteritems():
-       if utils.is_numeric(value):
-         printmetric("network.tcp." + stat, ts, value, node=node_name, cluster=cluster_name)
-     for stat, value in nstats["transport"].iteritems():
-       if utils.is_numeric(value):
-         printmetric("transport." + stat, ts, value, node=node_name, cluster=cluster_name)
-  # New in ES 0.17:
-  for stat, value in nstats.get("http", {}).iteritems():
-    if utils.is_numeric(value):
-      printmetric("http." + stat, ts, value, node=node_name, cluster=cluster_name)
-  del nstats
+  with lock:
+    _traverse(rootmetric, nstats, ts, tags)
+
 
 def main(argv):
   utils.drop_privileges()
@@ -244,12 +212,17 @@ def main(argv):
   if len( servers ) == 0:
     return 13  # No ES running, ask tcollector to not respawn us.
 
-  status = node_status(server)
-  version = status["version"]["number"]
-
+  lock = threading.Lock()
   while True:
+    threads = []
     for server in servers:
-      _collect_server(server, version)
+      status = node_status(server)
+      version = status["version"]["number"]
+      t = threading.Thread(target = _collect_server, args = (server, version, lock))
+      t.start()
+      threads.append(t)
+    for thread in threads:
+      t.join()
     time.sleep(COLLECTION_INTERVAL)
 
 if __name__ == "__main__":

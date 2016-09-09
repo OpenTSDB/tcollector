@@ -21,8 +21,9 @@
 . /etc/init.d/functions
 
 TSD_HOST=tsd
+TSD_PORT=4242
 THIS_HOST=`hostname`
-TCOLLECTOR=${TCOLLECTOR-/usr/local/tcollector/tcollector.py}
+TCOLLECTOR=${TCOLLECTOR-HOMEDIR/tcollector.py}
 PIDFILE=${PIDFILE-/var/run/tcollector.pid}
 LOGFILE=${LOGFILE-/var/log/tcollector.log}
 LOGFILE_MAX_BYTES=${LOGFILE_MAX_BYTES-67108864}
@@ -49,6 +50,7 @@ if [ -z "$OPTIONS" ]; then
     OPTIONS="$OPTIONS -H $TSD_HOST"
   fi
   OPTIONS="$OPTIONS -t host=$THIS_HOST -P $PIDFILE"
+  OPTIONS="$OPTIONS -p $TSD_PORT"
   OPTIONS="$OPTIONS --reconnect-interval $RECONNECT_INTERVAL"
   OPTIONS="$OPTIONS --max-bytes $LOGFILE_MAX_BYTES --backup-count $LOGFILE_BACKUP_COUNT"
   OPTIONS="$OPTIONS --logfile $LOGFILE $EXTRA_TAGS_OPTS"

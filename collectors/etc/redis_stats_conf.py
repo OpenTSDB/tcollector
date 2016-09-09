@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 # This file is part of tcollector.
 # Copyright (C) 2015  The tcollector Authors.
 #
@@ -14,6 +14,6 @@
 
 def get_config():
   config = {
-    'interval': 15
+    'collection_interval': 15
   }
   return config

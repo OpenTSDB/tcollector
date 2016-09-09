@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 import os
 import sys
 import time
@@ -115,13 +115,13 @@ def ec2_list_regions():
 
 def handle_region(region, statistic):
     try:
-        sys.stderr.write("starting region " + region + "," + statistic + "\n")
+#        sys.stderr.write("starting region " + region + "," + statistic + "\n")
         region_conn = cloudwatch_connect_to_region(region)
         metrics = cloudwatch_list_metrics(region_conn)
         for metric in metrics:
             cloudwatch_query_metric(region, metric, statistic)
     except boto.exception.BotoServerError, e:
-        sys.stderr.write("finished region " + region + "," + statistic + "\n")
+#        sys.stderr.write("finished region " + region + "," + statistic + "\n")
         pass
     except exceptions.KeyboardInterrupt:
         return 0
@@ -129,7 +129,7 @@ def handle_region(region, statistic):
         sys.stderr.write("failed region " + region + "," + statistic + "\n")
         raise
     else:
-        sys.stderr.write("finished region " + region + "," + statistic + "\n")
+#        sys.stderr.write("finished region " + region + "," + statistic + "\n")
 
 def send_metrics():
     sys.stderr.write("Processing sendQueue \n")

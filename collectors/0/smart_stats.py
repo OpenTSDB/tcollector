@@ -207,7 +207,7 @@ def main():
   drives = [dev[5:] for dev in glob.glob("/dev/[hs]d[a-z]")]
   # Try FreeBSD drives if no block devices found
   if not drives:
-    drives = [dev[5:] for dev in glob.glob("/dev/da[0-9]")+glob.glob("/dev/da[0-9][0-9]")]
+    drives = [dev[5:] for dev in glob.glob("/dev/da[0-9]")+glob.glob("/dev/da[0-9][0-9]")+glob.glob("/dev/ada[0-9]")+glob.glob("/dev/ada[0-9][0-9]")]
   # Exit gracefully if no block devices found
   if not drives:
     sys.exit(13)
