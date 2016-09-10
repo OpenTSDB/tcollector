@@ -13,6 +13,8 @@
 # see <http://www.gnu.org/licenses/>.
 
 import httplib
+import time
+import sys
 try:
     import json
 except ImportError:
@@ -28,8 +30,9 @@ EXCLUDED_KEYS = (
     "name"
 )
 
+
 class HadoopHttp(object):
-    def __init__(self, service, daemon, host, port, uri="/jmx"):
+    def __init__(self, service, daemon, host, port, readq, logger, uri="/jmx"):
         self.service = service
         self.daemon = daemon
         self.port = port
@@ -37,6 +40,8 @@ class HadoopHttp(object):
         self.uri = uri
         self.server = httplib.HTTPConnection(self.host, self.port)
         self.server.auto_open = True
+        self._readq = readq
+        self.logger = logger
 
     def request(self):
         try:
@@ -44,6 +49,7 @@ class HadoopHttp(object):
             resp = self.server.getresponse().read()
         except:
             resp = '{}'
+            self.logger.warn('hadoop_http request failed: %s', sys.exc_info()[0])
         finally:
             self.server.close()
         return json.loads(resp)
@@ -78,11 +84,33 @@ class HadoopHttp(object):
 
     def emit_metric(self, context, current_time, metric_name, value, tag_dict=None):
         if not tag_dict:
-            print "%s.%s.%s.%s %d %d" % (self.service, self.daemon, ".".join(context), metric_name, current_time, value)
+            self._readq.nput("%s.%s.%s.%s %d %d" % (self.service, self.daemon, ".".join(context), metric_name, current_time, value))
         else:
             tag_string = " ".join([k + "=" + v for k, v in tag_dict.iteritems()])
-            print "%s.%s.%s.%s %d %d %s" % \
-                  (self.service, self.daemon, ".".join(context), metric_name, current_time, value, tag_string)
+            self._readq.nput("%s.%s.%s.%s %d %d %s" % \
+                  (self.service, self.daemon, ".".join(context), metric_name, current_time, value, tag_string))
 
     def emit(self):
         pass
+
+
+class HadoopNode(HadoopHttp):
+    """
+    Class that will retrieve metrics from an Apache Hadoop DataNode's jmx page.
+
+    This requires Apache Hadoop 1.0+ or Hadoop 2.0+.
+    Anything that has the jmx page will work but the best results will com from Hadoop 2.1.0+
+    """
+
+    def __init__(self, service, daemon, host, port, replacements, readq, logger):
+        super(HadoopNode, self).__init__(service, daemon, host, port, readq, logger)
+        self.replacements = replacements
+
+    def emit(self):
+        current_time = int(time.time())
+        metrics = self.poll()
+        for context, metric_name, value in metrics:
+            for k, v in self.replacements.iteritems():
+                if any(c.startswith(k) for c in context):
+                    context = v
+            self.emit_metric(context, current_time, metric_name, value)
