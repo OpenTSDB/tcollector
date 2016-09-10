@@ -172,13 +172,13 @@ if [[ ! "$skip" = true ]]; then
   log_info 'finish setting up psutil'
 
   log_info 'set up python-gnupg ...'
-  if [[ ! -f ${workspace_folder}/gnupg-2.0.2.tar.gz ]]; then
-    log_info 'download gnupg-2.0.2 tarball'
-    wget --directory-prefix="${workspace_folder}" https://pypi.python.org/packages/3d/91/0d1181069007854eb46eaa595be1d8c195e6213cff4750cbc1b79cf8c071/gnupg-2.0.2.tar.gz#md5=7ca1d438430428aac7bea1491b1c237e
+  if [[ ! -f ${workspace_folder}/python-gnupg-0.3.8.tar.gz ]]; then
+    log_info 'download python-gnupg-0.3.8 tarball'
+    wget --directory-prefix="${workspace_folder}" https://pypi.python.org/packages/source/p/python-gnupg/python-gnupg-0.3.8.tar.gz
   fi
-  tar -xzf "${workspace_folder}"/gnupg-2.0.2.tar.gz -C "${workspace_folder}"
+  tar -xzf "${workspace_folder}"/python-gnupg-0.3.8.tar.gz -C "${workspace_folder}"
   abort_if_failed 'failed to extact gnupg'
-  pushd "${workspace_folder}"/gnupg-2.0.2
+  pushd "${workspace_folder}"/python-gnupg-0.3.8
   "${altenv_bin_folder}"/python setup.py install --prefix="${altenv_folder}"
   abort_if_failed 'failed to install gnupg'
   popd
@@ -244,6 +244,7 @@ mkdir -p ${agent_install_folder}/.gnupg
 abort_if_failed "failed to create ${agent_install_folder}/.gnupg"
 yes | cp -f ${basedir}/gnupg/pubring.gpg ${agent_install_folder}/.gnupg
 yes | cp -f ${basedir}/gnupg/trustdb.gpg ${agent_install_folder}/.gnupg
+yes | cp -f ${basedir}/gnupg/server-certs.pem ${agent_install_folder}/.gnupg
 abort_if_failed "failed to copy gpg files"
 log_info "finish setting up uagent"
 

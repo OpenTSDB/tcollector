@@ -3,7 +3,7 @@
 import time
 import logging
 import signal
-from uagent import UAgent
+import uagent
 import sys
 from optparse import OptionParser
 from os import path
@@ -28,8 +28,8 @@ def main(argv):
     while True:
         LOG.info("uagnt daemon starting...")
         try:
-            uagent = UAgent(LOG)
-            exit_code = uagent.run()
+            agent = uagent.UAgent(LOG)
+            exit_code = agent.run()
             LOG.info("uagnt daemon finished. exit code %d. sleep for 1 hour and recheck.", exit_code)
             time.sleep(3600)
             # in case the update agent itself was upgraded

@@ -75,16 +75,11 @@ else
   sed -i "s/-H .* /-H $METRIC_SERVER_HOST /g" ${agent_install_folder}/agent/run
 fi
 
-chown -R "$agent_user" "${altenv_etc_folder}"
-chown -R "$agent_user" "${altenv_var_folder}"
-
 mkdir -p "${altenv_cache_folder}"
-chown -R "$agent_user" "${altenv_cache_folder}"
 
 log_info "creating download folder"
 mkdir -p ${agent_install_folder}/download/unpack
 abort_if_failed "failed to create ${agent_install_folder}/download/unpack"
-chown -R "$agent_user" "${agent_install_folder}/download"
 abort_if_failed "failed to change ownership of ${agent_install_folder}/download to $agent_user"
 log_info "finish creating download folder"
 
@@ -105,6 +100,8 @@ elif [ $OS = "RedHat" ]; then
 else
   printf "${color_red}unrecognized OS $OS. abort!${color_normal}\n"
 fi
+
+chown -hR "$agent_user" "${agent_install_folder}"
 
 log_info 'Done!'
 log_info 'run "sudo /etc/init.d/cloudwiz-agent start" to start'
