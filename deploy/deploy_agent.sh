@@ -45,6 +45,11 @@ if [ -z "${ORG_TOKEN// }" ]; then
   exit 1
 fi
 
+if [ -z "${CLIENT_ID// }" ]; then
+  echo "CLIENT_ID env variable is not set or empty"
+  exit 1
+fi
+
 log_info "recreate ${agent_install_folder}"
 rm -rf ${agent_install_folder}
 abort_if_failed "failed to delete ${agent_install_folder}"
@@ -66,6 +71,9 @@ tar -xzf "${working_folder}/agent.tar.gz" -C /
 abort_if_failed "failed to extract agent tarball"
 
 sed -i "s/<token>/$ORG_TOKEN/" ${agent_install_folder}/agent/runner.conf
+abort_if_failed "failed to set ORG_TOKEN value in runner.conf file"
+
+sed -i "/^client_id *= */c\client_id = $CLIENT_ID" ${agent_install_folder}/uagent/uagent.conf
 abort_if_failed "failed to set ORG_TOKEN value in runner.conf file"
 
 if [ -z "${METRIC_SERVER_HOST// }" ]; then
