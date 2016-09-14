@@ -145,11 +145,10 @@ def collect_tcollect_stats(processes):
         cpu_time += int(s["guest_time"])
         cpu_time += int(s["cguest_time"])
 
-        # ensure tcollector.py is used as name for tcollector.py,
-        # if tcollector.py is executed with "python tcollector.py", comm will
-        # contain "python"
-        if p.pid == tcol_pid:
-            comm = "tcollector.py"
+        # if <collector> is executed with "python <collector.py>",
+        # ensure <collector.py> is used as name
+        if p.comm == "python":
+            comm = p.cmdline[1].split('/')[-1]
         else:
             comm = p.comm
 
