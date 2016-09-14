@@ -130,6 +130,7 @@ def handle_region(region, statistic):
         raise
     else:
 #        sys.stderr.write("finished region " + region + "," + statistic + "\n")
+	return 1
 
 def send_metrics():
     sys.stderr.write("Processing sendQueue \n")
