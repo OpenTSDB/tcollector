@@ -1311,7 +1311,7 @@ def check_children(options):
     for col in all_living_collectors():
         now = int(time.time())
 
-        if col.last_datapoint < (now - options.allowed_inactivity_time):
+        if ((col.interval == 0) and (col.last_datapoint < (now - options.allowed_inactivity_time))):
             # It's too old, kill it
             LOG.warning('Terminating collector %s after %d seconds of inactivity',
                         col.name, now - col.last_datapoint)
