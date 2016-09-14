@@ -31,7 +31,7 @@ mkdir -p %{buildroot}/%{collectorsdir}/0/
 mkdir -p %{buildroot}/etc/init.d/
 
 # set homedir in init script
-%{__perl} -pe "s/HOMEDIR/%{tcollectordir}/;" -i %{rootdir}/rpm/initd.sh
+%{__perl} -pe "s|HOMEDIR|%{tcollectordir}|;" -i %{rootdir}/rpm/initd.sh
 # Install the init.d
 %{__install} -m 0755 -D %{rootdir}/rpm/initd.sh %{buildroot}/etc/init.d/tcollector
 
