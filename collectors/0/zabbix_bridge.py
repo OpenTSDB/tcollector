@@ -15,8 +15,9 @@
 # Dump all replication item/metric insert events from a zabbix mysql server
 #
 
-import re
+import sqlite3
 import sys
+import time
 
 try:
     from pymysqlreplication import BinLogStreamReader
@@ -26,11 +27,6 @@ try:
 except ImportError:
     BinLogStreamReader = None  # This is handled gracefully in main()
 
-try:
-    import pymysql
-except ImportError:
-    pymysql = None # This is handled gracefully in main()
-
 from collectors.etc import zabbix_bridge_conf
 from collectors.lib import utils
 
@@ -39,9 +35,6 @@ def main():
     utils.drop_privileges()
     if BinLogStreamReader is None:
         utils.err("error: Python module `pymysqlreplication' is missing")
-        return 1
-    if pymysql is None:
-        utils.err("error: Python module `pymysql' is missing")
         return 1
     settings = zabbix_bridge_conf.get_settings()
 
@@ -53,7 +46,19 @@ def main():
                                 resume_stream=True,
                                 blocking=True)
 
-    hostmap = gethostmap(settings) # Prime initial hostmap
+    db_filename = settings['sqlitedb']
+    dbcache = sqlite3.connect(':memory:')
+    cachecur = dbcache.cursor()
+    cachecur.execute("ATTACH DATABASE '%s' as 'dbfile'" % (db_filename,))
+    cachecur.execute('CREATE TABLE zabbix_cache AS SELECT * FROM dbfile.zabbix_cache')
+    cachecur.execute('CREATE UNIQUE INDEX uniq_zid on zabbix_cache (id)')
+
+    # tcollector.zabbix_bridge namespace for internal Zabbix bridge metrics.
+    log_pos = 0
+    key_lookup_miss = 0
+    sample_last_ts = int(time.time())
+    last_key_lookup_miss = 0
+
     for binlogevent in stream:
         if binlogevent.schema == settings['mysql']['db']:
             table = binlogevent.table
@@ -62,33 +67,29 @@ def main():
                 for row in binlogevent.rows:
                     r = row['values']
                     itemid = r['itemid']
-                    try:
-                        hm = hostmap[itemid]
-                        print "zbx.%s %d %s host=%s proxy=%s" % (hm['key'], r['clock'], r['value'], hm['host'], hm['proxy'])
-                    except KeyError:
+                    cachecur.execute('SELECT id, key, host, proxy FROM zabbix_cache WHERE id=?', (itemid,))
+                    row = cachecur.fetchone()
+                    if (row is not None):
+                        print "zbx.%s %d %s host=%s proxy=%s" % (row[1], r['clock'], r['value'], row[2], row[3])
+                        if ((int(time.time()) - sample_last_ts) > settings['internal_metric_interval']): # Sample internal metrics @ 10s intervals
+                            sample_last_ts = int(time.time())
+                            print "tcollector.zabbix_bridge.log_pos %d %s" % (sample_last_ts, log_pos)
+                            print "tcollector.zabbix_bridge.key_lookup_miss %d %s" % (sample_last_ts, key_lookup_miss)
+                            print "tcollector.zabbix_bridge.timestamp_drift %d %s" % (sample_last_ts, (sample_last_ts - r['clock']))
+                            if ((key_lookup_miss - last_key_lookup_miss) > settings['dbrefresh']):
+                                print "tcollector.zabbix_bridge.key_lookup_miss_reload %d %s" % (sample_last_ts, (key_lookup_miss - last_key_lookup_miss))
+                                cachecur.execute('DROP TABLE zabbix_cache')
+                                cachecur.execute('CREATE TABLE zabbix_cache AS SELECT * FROM dbfile.zabbix_cache')
+                                last_key_lookup_miss = key_lookup_miss
+                    else:
                         # TODO: Consider https://wiki.python.org/moin/PythonDecoratorLibrary#Retry
-                        hostmap = gethostmap(settings)
                         utils.err("error: Key lookup miss for %s" % (itemid))
+                        key_lookup_miss += 1
                 sys.stdout.flush()
-                # if n seconds old, reload
-                # settings['gethostmap_interval']
 
+    dbcache.close()
     stream.close()
 
-
-def gethostmap(settings):
-    conn = pymysql.connect(**settings['mysql'])
-    cur = conn.cursor()
-    cur.execute("SELECT i.itemid, i.key_, h.host, h2.host AS proxy FROM items i JOIN hosts h ON i.hostid=h.hostid LEFT JOIN hosts h2 ON h2.hostid=h.proxy_hostid")
-    # Translation of item key_
-    # Note: http://opentsdb.net/docs/build/html/user_guide/writing.html#metrics-and-tags
-    disallow = re.compile(settings['disallow'])
-    hostmap = {}
-    for row in cur:
-        hostmap[row[0]] = { 'key': re.sub(disallow, '_', row[1]), 'host': re.sub(disallow, '_', row[2]), 'proxy': row[3] }
-    cur.close()
-    conn.close()
-    return hostmap
 
 if __name__ == "__main__":
     sys.stdin.close()

@@ -12,7 +12,9 @@ def get_settings():
         'passwd': '',
         'db': 'zabbix'
     },
-    'slaveid': 3,                    # Slave identifier, it should be unique.
-    'disallow': '[^a-zA-Z0-9\-_\.]', # Regex of characters to replace with _.
-    'gethostmap_interval': 300       # How often to reload itemid, hostmap from DB.
+    'slaveid': 3,                       # Slave identifier, it should be unique.
+    'disallow': '[^a-zA-Z0-9\-_\.]',    # Regex of characters to replace with _.
+    'internal_metric_interval': 30,     # Internal metric interval drift and error counts.
+    'dbrefresh': 10,                    # Number of key misses before DB reload from file occurs
+    'sqlitedb': '/tmp/zabbix_bridge.db' # SQLite DB to cache items from Zabbix DB.
   }
