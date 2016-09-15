@@ -30,7 +30,7 @@ Requirements :
 
 In addition, for FreeBSD, it reports :
 - load average (1m, 5m, 15m)
-- number of processes (total, running, sleeping)
+- number of processes (total, starting, running, sleeping, stopped, zombie, waiting, lock)
 '''
 
 import errno
@@ -72,7 +72,7 @@ def main():
     try:
         if platform.system() == "FreeBSD":
             p_top = subprocess.Popen(
-                ["top", "-u", "-t", "-I", "-P", "-n", "-s"+str(collection_interval), "-d"+str((365*24*3600)/collection_interval)],
+                ["top", "-S", "-P", "-n", "-s"+str(collection_interval), "-dinfinity", "0"],
                 stdout=subprocess.PIPE,
             )
         else:
@@ -128,16 +128,36 @@ def main():
 
         elif (re.match("[0-9]+ processes:",line)):
             fields = re.sub(r",", "", line).split()
+            starting=0
             running=0
             sleeping=0
+            stopped=0
+            zombie=0
+            waiting=0
+            lock=0
             for i in range(len(fields)):
+                if(fields[i] == "starting"):
+                    starting=fields[i-1]
                 if(fields[i] == "running"):
                     running=fields[i-1]
                 if(fields[i] == "sleeping"):
                     sleeping=fields[i-1]
+                if(fields[i] == "stopped"):
+                    stopped=fields[i-1]
+                if(fields[i] == "zombie"):
+                    zombie=fields[i-1]
+                if(fields[i] == "waiting"):
+                    waiting=fields[i-1]
+                if(fields[i] == "lock"):
+                    lock=fields[i-1]
             print ("ps.all %s %s" % (timestamp, fields[0]))
+            print ("ps.start %s %s" % (timestamp, starting))
             print ("ps.run %s %s" % (timestamp, running))
             print ("ps.sleep %s %s" % (timestamp, sleeping))
+            print ("ps.stop %s %s" % (timestamp, stopped))
+            print ("ps.zomb %s %s" % (timestamp, zombie))
+            print ("ps.wait %s %s" % (timestamp, waiting))
+            print ("ps.lock %s %s" % (timestamp, lock))
 
     if signal_received is None:
         signal_received = signal.SIGTERM
