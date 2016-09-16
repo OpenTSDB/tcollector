@@ -60,9 +60,11 @@ def main():
     """top main loop"""
 
     collection_interval=DEFAULT_COLLECTION_INTERVAL
+    collect_every_cpu=1
     if(sysload_conf):
         config = sysload_conf.get_config()
         collection_interval=config['collection_interval']
+        collect_every_cpu=config['collect_every_cpu']
 
     global signal_received
 
@@ -71,15 +73,27 @@ def main():
 
     try:
         if platform.system() == "FreeBSD":
-            p_top = subprocess.Popen(
-                ["top", "-S", "-P", "-n", "-s"+str(collection_interval), "-dinfinity", "0"],
-                stdout=subprocess.PIPE,
-            )
+            if collect_every_cpu:
+                p_top = subprocess.Popen(
+                    ["top", "-S", "-P", "-n", "-s"+str(collection_interval), "-dinfinity", "0"],
+                    stdout=subprocess.PIPE,
+                )
+            else:
+                p_top = subprocess.Popen(
+                    ["top", "-S", "-n", "-s"+str(collection_interval), "-dinfinity", "0"],
+                    stdout=subprocess.PIPE,
+                )            
         else:
-            p_top = subprocess.Popen(
-                ["mpstat", "-P", "ALL", str(collection_interval)],
-                stdout=subprocess.PIPE,
-            )
+            if collect_every_cpu:
+                p_top = subprocess.Popen(
+                    ["mpstat", "-P", "ALL", str(collection_interval)],
+                    stdout=subprocess.PIPE,
+                )
+            else:
+                p_top = subprocess.Popen(
+                    ["mpstat", str(collection_interval)],
+                    stdout=subprocess.PIPE,
+                )
     except OSError, e:
         if e.errno == errno.ENOENT:
             # it makes no sense to run this collector here
@@ -100,12 +114,12 @@ def main():
             # end of the program, die
             break
 
-        fields = re.sub(r"%( [uni][a-z]+,?)?| AM | PM ", "", line).split()
+        fields = re.sub("CPU:", "CPU all:", re.sub(r"%( [uni][a-z]+,?)?| AM | PM ", "", line)).split()
         if len(fields) <= 0:
             continue
 
-        if (((fields[0] == "CPU") or (re.match("[0-9][0-9]:[0-9][0-9]:[0-9][0-9]",fields[0]))) and (re.match("[0-9]+:?",fields[1]))):
-            if(fields[1] == "0"):
+        if (((fields[0] == "CPU") or (re.match("[0-9][0-9]:[0-9][0-9]:[0-9][0-9]",fields[0]))) and ((collect_every_cpu and re.match("[0-9]+:?",fields[1])) or ((not collect_every_cpu) and re.match("all:?",fields[1])))):
+            if((fields[1] == "all") or (fields[1] == "0")):
                 timestamp = int(time.time())
             cpuid=fields[1].replace(":","")
             cpuuser=fields[2]
