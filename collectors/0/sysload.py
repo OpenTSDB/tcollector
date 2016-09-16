@@ -51,6 +51,22 @@ except ImportError:
 
 DEFAULT_COLLECTION_INTERVAL=15
 
+def convert_to_bytes(string):
+    """Take a string in the form 1234K, and convert to bytes"""
+    factors = {
+       "K": 1024,
+       "M": 1024 * 1024,
+       "G": 1024 * 1024 * 1024,
+       "T": 1024 * 1024 * 1024 * 1024,
+       "P": 1024 * 1024 * 1024 * 1024 * 1024,
+    }
+    for f, fm in factors.items():
+        if string.endswith(f):
+            number = float(string[:-1])
+            number = number * fm
+            return long(number)
+    return long(string)
+
 signal_received = None
 def handlesignal(signum, stack):
     global signal_received
@@ -176,6 +192,83 @@ def main():
             print ("ps.zomb %s %s" % (timestamp, zombie))
             print ("ps.wait %s %s" % (timestamp, waiting))
             print ("ps.lock %s %s" % (timestamp, lock))
+
+        elif(fields[0] == "Mem:"):
+            active=0
+            inact=0
+            wired=0
+            cache=0
+            buf=0
+            free=0
+            for i in range(len(fields)):
+                if(fields[i] == "Active"):
+                    active=convert_to_bytes(fields[i-1])
+                if(fields[i] == "Inact"):
+                    inact=convert_to_bytes(fields[i-1])
+                if(fields[i] == "Wired"):
+                    wired=convert_to_bytes(fields[i-1])
+                if(fields[i] == "Cache"):
+                    cache=convert_to_bytes(fields[i-1])
+                if(fields[i] == "Buf"):
+                    buf=convert_to_bytes(fields[i-1])
+                if(fields[i] == "Free"):
+                    free=convert_to_bytes(fields[i-1])
+            print ("mem.active %s %s" % (timestamp, active))
+            print ("mem.inact %s %s" % (timestamp, inact))
+            print ("mem.wired %s %s" % (timestamp, wired))
+            print ("mem.cache %s %s" % (timestamp, cache))
+            print ("mem.buf %s %s" % (timestamp, buf))
+            print ("mem.free %s %s" % (timestamp, free))
+
+        elif(fields[0] == "ARC:"):
+            total=0
+            mru=0
+            mfu=0
+            anon=0
+            header=0
+            other=0
+            for i in range(len(fields)):
+                if(fields[i] == "Total"):
+                    total=convert_to_bytes(fields[i-1])
+                if(fields[i] == "MRU"):
+                    mru=convert_to_bytes(fields[i-1])
+                if(fields[i] == "MFU"):
+                    mfu=convert_to_bytes(fields[i-1])
+                if(fields[i] == "Anon"):
+                    anon=convert_to_bytes(fields[i-1])
+                if(fields[i] == "Header"):
+                    header=convert_to_bytes(fields[i-1])
+                if(fields[i] == "Other"):
+                    other=convert_to_bytes(fields[i-1])
+            print ("arc.total %s %s" % (timestamp, total))
+            print ("arc.mru %s %s" % (timestamp, mru))
+            print ("arc.mfu %s %s" % (timestamp, mfu))
+            print ("arc.anon %s %s" % (timestamp, anon))
+            print ("arc.header %s %s" % (timestamp, header))
+            print ("arc.other %s %s" % (timestamp, other))
+
+        elif(fields[0] == "Swap:"):
+            total=0
+            free=0
+            inuse=0
+            inps=0
+            outps=0
+            for i in range(len(fields)):
+                if(fields[i] == "Total"):
+                    total=convert_to_bytes(fields[i-1])
+                if(fields[i] == "Free"):
+                    free=convert_to_bytes(fields[i-1])
+                if(fields[i] == "Inuse"):
+                    inuse=convert_to_bytes(fields[i-1])
+                if(fields[i] == "In"):
+                    inps=convert_to_bytes(fields[i-1])/collection_interval
+                if(fields[i] == "Out"):
+                    outps=convert_to_bytes(fields[i-1])/collection_interval
+            print ("swap.total %s %s" % (timestamp, total))
+            print ("swap.free %s %s" % (timestamp, free))
+            print ("swap.inuse %s %s" % (timestamp, inuse))
+            print ("swap.inps %s %s" % (timestamp, inps))
+            print ("swap.outps %s %s" % (timestamp, outps))
 
     if signal_received is None:
         signal_received = signal.SIGTERM
