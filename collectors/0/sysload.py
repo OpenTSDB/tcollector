@@ -60,7 +60,7 @@ def main():
     """top main loop"""
 
     collection_interval=DEFAULT_COLLECTION_INTERVAL
-    collect_every_cpu=1
+    collect_every_cpu=True
     if(sysload_conf):
         config = sysload_conf.get_config()
         collection_interval=config['collection_interval']
