@@ -114,7 +114,13 @@ def main():
             # end of the program, die
             break
 
-        fields = re.sub("CPU:", "CPU all:", re.sub(r"%( [uni][a-z]+,?)?| AM | PM ", "", line)).split()
+        # CPU: --> CPU all:  : FreeBSD, to match the all CPU
+        # %( [uni][a-z]+,?)? : FreeBSD, so that top output matches mpstat output
+        # AM                 : Linux, mpstat output depending on locale
+        # PM                 : Linux, mpstat output depending on locale
+        # .* load            : FreeBSD, to correctly match load averages
+        # ,                  : FreeBSD, to correctly match processes: Mem: ARC: and Swap:
+        fields = re.sub("CPU:", "CPU all:", re.sub(r"%( [uni][a-z]+,?)?| AM | PM |.* load |,", "", line)).split()
         if len(fields) <= 0:
             continue
 
@@ -133,15 +139,13 @@ def main():
             print ("cpu.irq %s %s cpu=%s" % (timestamp, cpuinterrupt, cpuid))
             print ("cpu.idle %s %s cpu=%s" % (timestamp, cpuidle, cpuid))
         
-        elif (re.match("(.* load averages: *)",line)):
+        elif(fields[0] == "averages:"):
             timestamp = int(time.time())
-            fields = re.sub(r".* load averages: *|,", "", line).split()
-            print ("load.1m %s %s" % (timestamp, fields[0]))
-            print ("load.5m %s %s" % (timestamp, fields[1]))
-            print ("load.15m %s %s" % (timestamp, fields[2]))
+            print ("load.1m %s %s" % (timestamp, fields[1]))
+            print ("load.5m %s %s" % (timestamp, fields[2]))
+            print ("load.15m %s %s" % (timestamp, fields[3]))
 
         elif (re.match("[0-9]+ processes:",line)):
-            fields = re.sub(r",", "", line).split()
             starting=0
             running=0
             sleeping=0
