@@ -127,6 +127,8 @@ def main():
         print "disk.ops.other %s %s disk=%s" % (timestamp, fields[14], fields[17])
         print "disk.ms.other %s %s disk=%s" % (timestamp, fields[15], fields[17])
         print "disk.busy %s %s disk=%s" % (timestamp, fields[16], fields[17])
+
+        sys.stdout.flush()
         
     if signal_received is None:
         signal_received = signal.SIGTERM
