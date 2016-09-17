@@ -122,6 +122,8 @@ def main():
         # analyze next process
         procnum+=1
 
+        sys.stdout.flush()
+
     if signal_received is None:
         signal_received = signal.SIGTERM
     try:
