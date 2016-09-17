@@ -764,21 +764,24 @@ class SenderThread(threading.Thread):
         # print "Using server: %s:%s" % (self.host, self.port)
         # url = "http://%s:%s/api/put?details" % (self.host, self.port)
         # print "Url is %s" % url
-        LOG.debug("Sending metrics to http://%s:%s/api/put?details",
-                  self.host, self.port)
         if self.ssl:
             protocol = "https"
         else:
             protocol = "http"
-        req = urllib2.Request("%s://%s:%s/api/put?details" % (
-            protocol, self.host, self.port))
+        LOG.debug("Sending metrics to %s://%s:%s/api/put?details",
+                  protocol, self.host, self.port)
+        details=""
+        if LOG.level == logging.DEBUG:
+            details="?details"
+        req = urllib2.Request("%s://%s:%s/api/put%s" % (
+            protocol, self.host, self.port, details))
         if self.http_username and self.http_password:
           req.add_header("Authorization", "Basic %s"
                          % base64.b64encode("%s:%s" % (self.http_username, self.http_password)))
         req.add_header("Content-Type", "application/json")
         try:
             response = urllib2.urlopen(req, json.dumps(metrics))
-            LOG.debug("Received response %s", response.getcode())
+            LOG.debug("Received response %s %s", response.getcode(), response.read())
             # clear out the sendq
             self.sendq = []
             # print "Got response code: %s" % response.getcode()
@@ -787,7 +790,7 @@ class SenderThread(threading.Thread):
             #     print line,
             #     print
         except urllib2.HTTPError, e:
-            LOG.error("Got error %s", e)
+            LOG.error("Got error %s %s", e, e.read())
             # for line in http_error:
             #   print line,
 
