@@ -270,6 +270,8 @@ def main():
             print ("swap.inps %s %s" % (timestamp, inps))
             print ("swap.outps %s %s" % (timestamp, outps))
 
+        sys.stdout.flush()
+
     if signal_received is None:
         signal_received = signal.SIGTERM
     try:
