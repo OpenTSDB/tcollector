@@ -781,7 +781,7 @@ class SenderThread(threading.Thread):
         req.add_header("Content-Type", "application/json")
         try:
             response = urllib2.urlopen(req, json.dumps(metrics))
-            LOG.debug("Received response %s %s", response.getcode(), response.read())
+            LOG.debug("Received response %s %s", response.getcode(), response.read().rstrip('\n'))
             # clear out the sendq
             self.sendq = []
             # print "Got response code: %s" % response.getcode()
@@ -790,7 +790,7 @@ class SenderThread(threading.Thread):
             #     print line,
             #     print
         except urllib2.HTTPError, e:
-            LOG.error("Got error %s %s", e, e.read())
+            LOG.error("Got error %s %s", e, e.read().rstrip('\n'))
             # for line in http_error:
             #   print line,
 
