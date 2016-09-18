@@ -106,9 +106,9 @@ def main():
             break
 
         if (not re.match(" *[0-9]",line)):
+            timestamp = int(time.time())
             continue
 
-        timestamp = int(time.time())
         fields = line.split()
 
         print "disk.queue %s %s disk=%s" % (timestamp, fields[0], fields[17])
