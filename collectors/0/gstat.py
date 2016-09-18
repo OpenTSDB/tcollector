@@ -105,7 +105,7 @@ def main():
             # end of the program, die
             break
 
-        if (not re.match(" *[0-9]",line)):
+        if (not re.match("^ *[0-9]",line)):
             timestamp = int(time.time())
             continue
 
