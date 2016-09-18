@@ -149,11 +149,11 @@ def main():
             cpusystem=fields[4]
             cpuinterrupt=fields[6]
             cpuidle=fields[-1]
-            print ("cpu.usr %s %s cpu=%s" % (timestamp, cpuuser, cpuid))
-            print ("cpu.nice %s %s cpu=%s" % (timestamp, cpunice, cpuid))
-            print ("cpu.sys %s %s cpu=%s" % (timestamp, cpusystem, cpuid))
-            print ("cpu.irq %s %s cpu=%s" % (timestamp, cpuinterrupt, cpuid))
-            print ("cpu.idle %s %s cpu=%s" % (timestamp, cpuidle, cpuid))
+            print ("cpu.usr %s %s cpu=%s" % (timestamp, float(cpuuser), cpuid))
+            print ("cpu.nice %s %s cpu=%s" % (timestamp, float(cpunice), cpuid))
+            print ("cpu.sys %s %s cpu=%s" % (timestamp, float(cpusystem), cpuid))
+            print ("cpu.irq %s %s cpu=%s" % (timestamp, float(cpuinterrupt), cpuid))
+            print ("cpu.idle %s %s cpu=%s" % (timestamp, float(cpuidle), cpuid))
         
         elif(fields[0] == "averages:"):
             timestamp = int(time.time())
