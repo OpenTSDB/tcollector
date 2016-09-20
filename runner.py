@@ -534,7 +534,9 @@ class CollectorThread(threading.Thread):
         while not self.exit:
             start = time.time()
             try:
+                LOG.info("start one collection for collector %s", self.name)
                 self.collector_instance()
+                LOG.info("finish one collection for collector %s", self.name)
             except:
                 LOG.exception('failed to execute collector %s', self.name)
             self.sleep_responsively(start)
