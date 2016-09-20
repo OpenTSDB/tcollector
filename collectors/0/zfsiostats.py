@@ -48,6 +48,7 @@ except ImportError:
 
 DEFAULT_COLLECTION_INTERVAL=15
 DEFAULT_REPORT_CAPACITY_EVERY_X_TIMES=20
+DEFAULT_REPORT_DISKS_IN_VDEVS=0
 
 def convert_to_bytes(string):
     """Take a string in the form 1234K, and convert to bytes"""
@@ -58,7 +59,7 @@ def convert_to_bytes(string):
        "T": 1024 * 1024 * 1024 * 1024,
        "P": 1024 * 1024 * 1024 * 1024 * 1024,
     }
-    if string == "-": return 0
+    if string == "-": return -1
     for f, fm in factors.items():
         if string.endswith(f):
             number = float(string[:-1])
@@ -75,7 +76,7 @@ def convert_wo_prefix(string):
        "T": 1000 * 1000 * 1000 * 1000,
        "P": 1000 * 1000 * 1000 * 1000 * 1000,
     }
-    if string == "-": return 0
+    if string == "-": return -1
     for f, fm in factors.items():
         if string.endswith(f):
             number = float(string[:-1])
@@ -83,16 +84,11 @@ def convert_wo_prefix(string):
             return long(number)
     return long(string)
 
-def extract_info(line):
+def extract_info(line,report_disks_in_vdevs):
     (poolname,
         alloc, free,
         read_issued, write_issued,
         read_throughput, write_throughput) = line.split()
-
-    s_df = {}
-    # 1k blocks
-    s_df["used"] = convert_to_bytes(alloc) / 1024
-    s_df["free"] = convert_to_bytes(free) / 1024
 
     s_io = {}
     # magnitudeless variable
@@ -101,6 +97,17 @@ def extract_info(line):
     # throughput
     s_io["bps.read"] = convert_to_bytes(read_throughput)
     s_io["bps.write"] = convert_to_bytes(write_throughput)
+    if ((s_io["ops.read"] < 0) or (s_io["ops.write"] < 0) or (s_io["bps.read"] < 0) or (s_io["bps.write"] < 0)):
+        s_io = {}
+
+    s_df = {}
+    # 1k blocks
+    s_df["used"] = convert_to_bytes(alloc) / 1024
+    s_df["free"] = convert_to_bytes(free) / 1024
+    if ((s_df["used"] < 0) or (s_df["free"] < 0)):
+        s_df = {}
+        if(report_disks_in_vdevs == 0):
+            s_io = {}
 
     return poolname, s_df, s_io
 
@@ -123,10 +130,12 @@ def main():
 
     collection_interval=DEFAULT_COLLECTION_INTERVAL
     report_capacity_every_x_times=DEFAULT_REPORT_CAPACITY_EVERY_X_TIMES
+    report_disks_in_vdevs=DEFAULT_REPORT_DISKS_IN_VDEVS
     if(zfsiostats_conf):
         config = zfsiostats_conf.get_config()
         collection_interval=config['collection_interval']
         report_capacity_every_x_times=config['report_capacity_every_x_times']
+        report_disks_in_vdevs=config['report_disks_in_vdevs']
 
     signal.signal(signal.SIGTERM, handlesignal)
     signal.signal(signal.SIGINT, handlesignal)
@@ -143,7 +152,7 @@ def main():
         raise
 
     firstloop = True
-    report_capacity = 1
+    report_capacity = (report_capacity_every_x_times-1)
     lastleg = 0
     ltype = None
     timestamp = int(time.time())
@@ -208,7 +217,7 @@ def main():
 
         elif ltype == T_POOL:
             line = line.strip()
-            poolname, s_df, s_io = extract_info(line)
+            poolname, s_df, s_io = extract_info(line,report_disks_in_vdevs)
             if parentpoolname == "":
                 parentpoolname = poolname
             else:
@@ -221,36 +230,37 @@ def main():
         elif ltype == T_LEG:
             last_leg = last_leg + 1
             line = line.strip()
-            devicename, s_df, s_io = extract_info(line)
+            devicename, s_df, s_io = extract_info(line,report_disks_in_vdevs)
             capacity_stats_device["%s %s%s" % (poolname, devicename, last_leg)] = s_df
             io_stats_device["%s %s%s" % (poolname, devicename, last_leg)] = s_io
 
         elif ltype == T_DEVICE:
             line = line.strip()
-            devicename, s_df, s_io = extract_info(line)
+            devicename, s_df, s_io = extract_info(line,report_disks_in_vdevs)
             capacity_stats_device["%s %s" % (poolname, devicename)] = s_df
             io_stats_device["%s %s" % (poolname, devicename)] = s_io
 
         elif ltype == T_EMPTY:
+            if report_capacity_every_x_times > 0:
+                report_capacity += 1
+            if report_capacity == report_capacity_every_x_times:
+                report_capacity=0
+                for poolname, stats in capacity_stats_pool.items():
+                    fm = "zfs.df.pool.kb.%s %d %s pool=%s"
+                    for statname, statnumber in stats.items():
+                        print fm % (statname, timestamp, statnumber, poolname)
+                for devicename, stats in capacity_stats_device.items():
+                    fm = "zfs.df.device.kb.%s %d %s device=%s pool=%s"
+                    poolname, devicename = devicename.split(" ", 1)
+                    for statname, statnumber in stats.items():
+                        print fm % (statname, timestamp, statnumber,
+                                    devicename, poolname)
             if firstloop:
-                firstloop = False
-            else:
                 # this flag prevents printing out of the data in the first loop
                 # which is a since-boot summary similar to iostat
                 # and is useless to us
-                if report_capacity == report_capacity_every_x_times:
-                    report_capacity=0
-                    for poolname, stats in capacity_stats_pool.items():
-                        fm = "zfs.df.pool.kb.%s %d %s pool=%s"
-                        for statname, statnumber in stats.items():
-                            print fm % (statname, timestamp, statnumber, poolname)
-                    for devicename, stats in capacity_stats_device.items():
-                        fm = "zfs.df.device.kb.%s %d %s device=%s pool=%s"
-                        poolname, devicename = devicename.split(" ", 1)
-                        for statname, statnumber in stats.items():
-                            print fm % (statname, timestamp, statnumber,
-                                        devicename, poolname)
-                report_capacity += 1
+                firstloop = False
+            else:
                 for poolname, stats in io_stats_pool.items():
                     fm = "zfs.io.pool.%s %d %s pool=%s"
                     for statname, statnumber in stats.items():
@@ -261,9 +271,7 @@ def main():
                     for statname, statnumber in stats.items():
                         print fm % (statname, timestamp, statnumber,
                                     devicename, poolname)
-                sys.stdout.flush()
-                # if this was the first loop, well, we're onto the second loop
-                # so we turh the flag off
+            sys.stdout.flush()
 
     if signal_received is None:
         signal_received = signal.SIGTERM
