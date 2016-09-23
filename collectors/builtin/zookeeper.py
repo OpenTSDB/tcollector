@@ -20,7 +20,6 @@ Refer to the following zookeeper commands documentation for details:
 http://zookeeper.apache.org/doc/trunk/zookeeperAdmin.html#sc_zkCommands
 """
 
-import sys
 import socket
 import time
 from subprocess import Popen, PIPE, CalledProcessError
@@ -28,138 +27,137 @@ import re
 from collectors.lib import utils
 from collectors.lib.collectorbase import CollectorBase
 
-COLLECTION_INTERVAL = 15  # seconds
 
-# Every SCAN_INTERVAL seconds, we look for new zookeeper instances.
-# Prevents the situation where you put up a new instance and we never notice.
-SCAN_INTERVAL = 600
+class Zookeeper(CollectorBase):
+    def __init__(self, config, logger, readq):
+        super(Zookeeper, self).__init__(config, logger, readq)
+        self.KEYS = frozenset([
+            "zk_avg_latency",
+            "zk_max_latency",
+            "zk_min_latency",
+            "zk_packets_received",
+            "zk_packets_sent",
+            "zk_num_alive_connections",
+            "zk_outstanding_requests",
+            "zk_approximate_data_size",
+            "zk_open_file_descriptor_count",
+        ])
+        user = self.get_config("USER", "root")
+        if user != "root":
+            utils.drop_privileges(user=user)
+        self.scan_interval = int(self.get_config("SCAN_INTERVAL", 600))
+        self.last_scan = time.time() - self.scan_interval
+        self.instances = []
 
-# If we are root, drop privileges to this user, if necessary.
-# NOTE: if this is not root, this MUST be the user that you run zookeeper
-# server under. If not, we will not be able to find your Zookeeper instances.
-USER = "root"
-
-KEYS = frozenset([
-    "zk_avg_latency",
-    "zk_max_latency",
-    "zk_min_latency",
-    "zk_packets_received",
-    "zk_packets_sent",
-    "zk_num_alive_connections",
-    "zk_outstanding_requests",
-    "zk_approximate_data_size",
-    "zk_open_file_descriptor_count",
-    ])
-
-def scan_zk_instances():
-    """ 
-    Finding out all the running instances of zookeeper
-    - Using netstat, finds out all listening java processes.	 
-    - Figures out ZK instances among java processes by looking for the 
-      string "org.apache.zookeeper.server.quorum.QuorumPeerMain" in cmdline.
-    """
-
-    instances = []
-    try:
-        netstat = Popen(["netstat", "-lnpt"], stderr=PIPE, stdout=PIPE)
-        ret = netstat.wait()
-        if ret:
-            raise CalledProcessError(ret, "netstat -lnpt", "netstat returned code %i" % ret)
-        listen_sock = netstat.stdout.read()
-    except OSError:
-        utils.err("netstat is not in PATH")
-        return instances
-    except CalledProcessError, err:
-        utils.err("Error: %s" % err)
-
-    for line in listen_sock.split("\n"):
-        if not "java" in line:
-            continue
-        listen_sock = line.split()[3]
-        tcp_version = line.split()[0]
-
-        m = re.match("(.+):(\d+)", listen_sock)
-        ip = m.group(1)
-        port = int(m.group(2))
-
-        pid = int(line.split()[6].split("/")[0])
-        try:
-            fd = open("/proc/%d/cmdline" % pid)
-            cmdline = fd.readline()
-            if "org.apache.zookeeper.server.quorum.QuorumPeerMain" in cmdline:
-                data = None
-                try:
-                    sock = connect_socket(tcp_version, port)
-                    sock.settimeout(0.5)
-                    sock.send("ruok\n")
-                    data = sock.recv(1024)
-                except Exception, err:
-                    utils.err(err)
-                finally:
-                    if sock: 
-                        sock.close()
-                if data == "imok":	
-                    instances.append([ip, port, tcp_version])
-                    data = ""
-        except Exception, err:
-            utils.err(err)
-        finally:
-            fd.close()
-    return instances 
-
-def print_stat(metric, ts, value, tags=""):
-    if value is not None:
-        print "zookeeper.%s %i %s %s" % (metric, ts, value, tags)
-
-def connect_socket(tcp_version, port):
-    sock = None
-    if tcp_version == "tcp6":
-        sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
-        ipaddr = '::1'
-    else:
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        ipaddr = '127.0.0.1'
-    try:
-        sock.connect((ipaddr, port))
-    except Exception, err:
-        utils.err(err)
-    return sock
-
-def main():
-    if USER != "root":
-        utils.drop_privileges(user=USER)
-
-    last_scan = time.time() - SCAN_INTERVAL
-
-    while True:
+    def __call__(self):
         ts = time.time()
 
         # We haven't looked for zookeeper instance recently, let's do that
-        if ts - last_scan > SCAN_INTERVAL:
-            instances = scan_zk_instances()
-            last_scan = ts
+        if ts - self.last_scan > self.scan_interval:
+            self.instances = self.scan_zk_instances()
+            self.last_scan = ts
 
-        if not instances:
-            return 13  # Ask tcollector not to respawn us
+        if not self.instances:
+            self.log_warn("no zookeeper instance found")
+            return 13
 
         # Iterate over every zookeeper instance and get statistics
-        for ip, port, tcp_version in instances:
+        for ip, port, tcp_version in self.instances:
             tags = "port=%s" % port
 
-            sock = connect_socket(tcp_version, port)
+            sock = self.connect_socket(tcp_version, port)
             if sock is None:
                 continue
 
-            sock.send("mntr\n")
-            data = sock.recv(1024)
-            for stat in data.splitlines():
-                metric = stat.split()[0]
-                value = stat.split()[1]
-                if metric in KEYS:
-                    print_stat(metric, ts, value, tags)
-            sock.close()
+            try:
+                sock.send("mntr\n")
+                data = sock.recv(1024)
+                for stat in data.splitlines():
+                    metric = stat.split()[0]
+                    if metric in self.KEYS:
+                        try:
+                            value = int(stat.split()[1])
+                            self._readq.nput("%s %d %d %s" % (metric, ts, value, tags))
+                        except ValueError:
+                            self.log_exception("failed to extract value for metric %s", metric)
+            finally:
+                sock.close()
 
-        time.sleep(COLLECTION_INTERVAL)
+    def scan_zk_instances(self):
+        """
+        Finding out all the running instances of zookeeper
+        - Using netstat, finds out all listening java processes.
+        - Figures out ZK instances among java processes by looking for the
+          string "org.apache.zookeeper.server.quorum.QuorumPeerMain" in cmdline.
+        """
+        self.log_info("scan for zookeeper instance")
+        instances = []
+        listen_sock = None
+        try:
+            netstat = Popen(["netstat", "-lnpt"], stderr=PIPE, stdout=PIPE)
+            ret = netstat.wait()
+            if ret:
+                raise CalledProcessError(ret, "netstat -lnpt", "netstat returned code %i" % ret)
+            listen_sock = netstat.stdout.read()
+        except OSError:
+            self.log_exception("netstat is not in PATH")
+            return instances
+        except CalledProcessError:
+            self.log_exception("Error run netstat in subprocess")
+
+        for line in listen_sock.split("\n"):
+            if "java" not in line:
+                continue
+            listen_sock = line.split()[3]
+            tcp_version = line.split()[0]
+
+            m = re.match("(.+):(\d+)", listen_sock)
+            ip = m.group(1)
+            port = int(m.group(2))
+
+            pid = int(line.split()[6].split("/")[0])
+            try:
+                fd = open("/proc/%d/cmdline" % pid)
+                cmdline = fd.readline()
+                if "org.apache.zookeeper.server.quorum.QuorumPeerMain" in cmdline:
+                    data = None
+                    sock = None
+                    try:
+                        sock = self.connect_socket(tcp_version, port)
+                        sock.settimeout(0.5)
+                        sock.send("ruok\n")
+                        data = sock.recv(1024)
+                    except Exception as e:
+                        self.log_warn(
+                            "exception [%s] when connecting to zookeeper, tcp version %s, port %d. this maybe ok",
+                            e, tcp_version, port)
+                    finally:
+                        if sock:
+                            sock.close()
+                    if data == "imok":
+                        instances.append([ip, port, tcp_version])
+            except Exception:
+                self.log_exception("error opening /proc/%d/cmdline", pid)
+            finally:
+                fd.close()
+        return instances
+
+    def connect_socket(self, tcp_version, port):
+        if tcp_version == "tcp6":
+            sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+            ipaddr = '::1'
+        else:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            ipaddr = '127.0.0.1'
+        try:
+            sock.connect((ipaddr, port))
+        except Exception:
+            self.log_exception("exception when connecting to zookeeper")
+        return sock
+
 
 if __name__ == "__main__":
-    sys.exit(main())	
+    from Queue import Queue
+
+    inst = Zookeeper(None, None, Queue())
+    inst()
