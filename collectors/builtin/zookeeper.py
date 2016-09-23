@@ -41,6 +41,9 @@ class Zookeeper(CollectorBase):
             "zk_outstanding_requests",
             "zk_approximate_data_size",
             "zk_open_file_descriptor_count",
+            "zk_znode_count",
+            "zk_watch_count",
+            "zk_ephemerals_count"
         ])
         user = self.get_config("USER", "root")
         if user != "root":
