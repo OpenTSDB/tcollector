@@ -238,8 +238,8 @@ def load_collectors(coldir, configs, collectors, readq):
                     # shutdown and remove old collector
                     if name in collectors:
                         close_single_collector(collectors, name)
+                    LOG.info('loading collector %s from %s', name, collector_path_name)
                     collectors[name] = CollectorExec(name, collector_instance, interval)
-                    LOG.info('loaded collector %s from %s', name, collector_path_name)
                 else:
                     LOG.warn('failed to access collector file: %s', collector_path_name)
             elif name in collectors:
