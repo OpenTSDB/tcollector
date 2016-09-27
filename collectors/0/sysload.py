@@ -63,7 +63,6 @@ def convert_to_bytes(string):
        "T": 1024 * 1024 * 1024 * 1024,
        "P": 1024 * 1024 * 1024 * 1024 * 1024,
        "E": 1024 * 1024 * 1024 * 1024 * 1024 * 1024,
-
     }
     for f, fm in factors.items():
         if string.endswith(f):
