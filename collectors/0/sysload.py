@@ -81,7 +81,7 @@ def main():
     """top main loop"""
 
     collection_interval=DEFAULT_COLLECTION_INTERVAL
-    collect_every_cpu=True
+    collect_every_cpu=1
     if(sysload_conf):
         config = sysload_conf.get_config()
         collection_interval=config['collection_interval']
@@ -94,7 +94,7 @@ def main():
 
     try:
         if platform.system() == "FreeBSD":
-            if collect_every_cpu:
+            if(collect_every_cpu != 0):
                 p_top = subprocess.Popen(
                     ["top", "-S", "-P", "-n", "-s"+str(collection_interval), "-dinfinity", "0"],
                     stdout=subprocess.PIPE,
@@ -105,7 +105,7 @@ def main():
                     stdout=subprocess.PIPE,
                 )            
         else:
-            if collect_every_cpu:
+            if(collect_every_cpu != 0):
                 p_top = subprocess.Popen(
                     ["mpstat", "-P", "ALL", str(collection_interval)],
                     stdout=subprocess.PIPE,
@@ -145,7 +145,7 @@ def main():
         if len(fields) <= 0:
             continue
 
-        if (((fields[0] == "CPU") or (re.match("[0-9][0-9]:[0-9][0-9]:[0-9][0-9]",fields[0]))) and ((collect_every_cpu and re.match("[0-9]+:?",fields[1])) or ((not collect_every_cpu) and re.match("all:?",fields[1])))):
+        if (((fields[0] == "CPU") or (re.match("[0-9][0-9]:[0-9][0-9]:[0-9][0-9]",fields[0]))) and (((collect_every_cpu != 0) and re.match("[0-9]+:?",fields[1])) or ((collect_every_cpu == 0) and re.match("all:?",fields[1])))):
             if((fields[1] == "all") or (fields[1] == "0")):
                 timestamp = int(time.time())
             cpuid=fields[1].replace(":","")
