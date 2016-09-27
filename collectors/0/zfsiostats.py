@@ -58,6 +58,7 @@ def convert_to_bytes(string):
        "G": 1024 * 1024 * 1024,
        "T": 1024 * 1024 * 1024 * 1024,
        "P": 1024 * 1024 * 1024 * 1024 * 1024,
+       "E": 1024 * 1024 * 1024 * 1024 * 1024 * 1024,
     }
     if string == "-": return -1
     for f, fm in factors.items():
@@ -75,6 +76,7 @@ def convert_wo_prefix(string):
        "G": 1000 * 1000 * 1000,
        "T": 1000 * 1000 * 1000 * 1000,
        "P": 1000 * 1000 * 1000 * 1000 * 1000,
+       "E": 1000 * 1000 * 1000 * 1000 * 1000 * 1000,
     }
     if string == "-": return -1
     for f, fm in factors.items():
