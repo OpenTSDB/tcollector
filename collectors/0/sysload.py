@@ -31,6 +31,9 @@ Requirements :
 In addition, for FreeBSD, it reports :
 - load average (1m, 5m, 15m)
 - number of processes (total, starting, running, sleeping, stopped, zombie, waiting, lock)
+- memory statistics (bytes) (active, inact, wired, cache, buf, free)
+- arc statistics (bytes) (total, mru, mfu, anon, header, other)
+- swap statistics (bytes) (total, free, inuse, in/s, out/s)
 '''
 
 import errno
@@ -59,6 +62,8 @@ def convert_to_bytes(string):
        "G": 1024 * 1024 * 1024,
        "T": 1024 * 1024 * 1024 * 1024,
        "P": 1024 * 1024 * 1024 * 1024 * 1024,
+       "E": 1024 * 1024 * 1024 * 1024 * 1024 * 1024,
+
     }
     for f, fm in factors.items():
         if string.endswith(f):
