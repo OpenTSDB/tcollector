@@ -2,7 +2,9 @@
 
 import urllib2
 import json
+from datetime import datetime
 from collectors.lib.collectorbase import CollectorBase
+from collectors.lib.counter_processor import CounterPorcessor
 
 
 class Tomcat(CollectorBase):
@@ -89,6 +91,7 @@ class Tomcat(CollectorBase):
 class JolokiaParserBase(object):
     def __init__(self, logger):
         self.logger = logger
+        self._counter_processors = {}
 
     def parse(self, json_dict, readq):
         status = json_dict["status"]
@@ -98,7 +101,12 @@ class JolokiaParserBase(object):
         value_dict = self.metric_dict(json_dict)
         for name in self.valid_metrics():
             if name in value_dict:
-                readq.nput("%s %d %d" % (self.metric_name(name), ts, value_dict[name]))
+                val = value_dict[name]
+                if self.iscounter(name):
+                    # origval = val
+                    val = self._get_counter_processor(name).process_counter(ts, val)
+                    # print '%s %s orig=%d, processed=%d' % (datetime.now(), name, origval, val)
+                readq.nput("%s %d %d" % (self.metric_name(name), ts, val))
 
     def metric_dict(self, json_dict):
         return json_dict["value"]
@@ -109,16 +117,29 @@ class JolokiaParserBase(object):
     def metric_name(self, name):
         return "%s.%s" % ("tomcat", name)
 
+    def iscounter(self, name):
+        return False
+
+    def _get_counter_processor(self, name):
+        if not self._counter_processors.has_key(name):
+            self._counter_processors[name] = CounterPorcessor()
+        return self._counter_processors[name]
+
 
 class JolokiaGlobalRequestProcessorParser(JolokiaParserBase):
     def __init__(self, logger):
         super(JolokiaGlobalRequestProcessorParser, self).__init__(logger)
+        self.metrics = ["bytesSent", "bytesReceived", "processingTime", "errorCount", "maxTime", "requestCount"]
+        self.isCounter = [True, True, False, True, False, True]
 
     def valid_metrics(self):
-        return ["bytesSent", "bytesReceived", "processingTime", "errorCount", "maxTime", "requestCount"]
+        return self.metrics
 
     def metric_name(self, name):
         return JolokiaParserBase.metric_name(self, "%s.%s" % ("requests", name))
+
+    def iscounter(self, name):
+        return self.isCounter[self.metrics.index(name)]
 
 
 class JolokiaMemoryParser(JolokiaParserBase):
