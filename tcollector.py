@@ -266,7 +266,7 @@ class ReaderThread(threading.Thread):
        All data read is put into the self.readerq Queue, which is
        consumed by the SenderThread."""
 
-    def __init__(self, dedupinterval, evictinterval):
+    def __init__(self, dedupinterval, evictinterval, deduponlyzero):
         """Constructor.
             Args:
               dedupinterval: If a metric sends the same value over successive
@@ -278,6 +278,7 @@ class ReaderThread(threading.Thread):
                 combination of (metric, tags).  Values older than
                 evictinterval will be removed from the cache to save RAM.
                 Invariant: evictinterval > dedupinterval
+              deduponlyzero: do the above only for 0 values.
         """
         assert evictinterval > dedupinterval, "%r <= %r" % (evictinterval,
                                                             dedupinterval)
@@ -288,6 +289,7 @@ class ReaderThread(threading.Thread):
         self.lines_dropped = 0
         self.dedupinterval = dedupinterval
         self.evictinterval = evictinterval
+        self.deduponlyzero = deduponlyzero
 
     def run(self):
         """Main loop for this thread.  Just reads from collectors,
@@ -402,7 +404,8 @@ class ReaderThread(threading.Thread):
             # The array consists of:
             # [ the metric's value, if this value was repeated, the line of data,
             #   the value's timestamp that it last changed ]
-            col.values[key] = (value, False, line, timestamp)
+            if (not self.deduponlyzero or (self.deduponlyzero and float(value) == 0.0)):
+                col.values[key] = (value, False, line, timestamp)
 
         col.lines_sent += 1
         if not self.readerq.nput(line):
@@ -825,6 +828,7 @@ def parse_cmdline(argv):
             'no_tcollector_stats': False,
             'evictinterval': 6000,
             'dedupinterval': 300,
+            'deduponlyzero': False,
             'allowed_inactivity_time': 600,
             'dryrun': False,
             'maxtags': 8,
@@ -898,6 +902,9 @@ def parse_cmdline(argv):
                            'datapoints are suppressed before sending to the TSD. '
                            'Use zero to disable. '
                            'default=%default')
+    parser.add_option('--dedup-only-zero', dest='deduponlyzero', action='store_true',
+                        default=defaults['deduponlyzero'],
+                        help='Only dedup 0 values.')
     parser.add_option('--evict-interval', dest='evictinterval', type='int',
                         default=defaults['evictinterval'], metavar='EVICTINTERVAL',
                         help='Number of seconds after which to remove cached '
@@ -1036,7 +1043,7 @@ def main(argv):
 
     # at this point we're ready to start processing, so start the ReaderThread
     # so we can have it running and pulling in data for us
-    reader = ReaderThread(options.dedupinterval, options.evictinterval)
+    reader = ReaderThread(options.dedupinterval, options.evictinterval, options.deduponlyzero)
     reader.start()
 
     # prepare list of (host, port) of TSDs given on CLI
