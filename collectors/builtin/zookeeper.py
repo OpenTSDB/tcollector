@@ -107,6 +107,7 @@ class Zookeeper(CollectorBase):
             return instances
         except CalledProcessError:
             self.log_exception("Error run netstat in subprocess")
+            return instances
 
         for line in listen_sock.split("\n"):
             if "java" not in line:

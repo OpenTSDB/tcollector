@@ -15,7 +15,7 @@ class CollectorBase(object):
         self._exit = False
         """ long running collector need to check this flag to ensure responsive to shut down request to this collector"""
 
-    def __call__(self):
+    def __call__(self, *arg):
         """
         any collector needs to implement it to collect metrics
         Returns: None
@@ -31,7 +31,7 @@ class CollectorBase(object):
         """
         pass
 
-    def     signal_exit(self):
+    def signal_exit(self):
         """
         signal collector to exit. any long running collector need to check _exit flag to ensure responsive to shut
         down request to this collector
