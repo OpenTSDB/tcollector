@@ -16,7 +16,7 @@ class Cloudmon(CollectorBase):
         try:
             utils.drop_privileges()
             # collect period 60 secs
-            url = self.get_config('stats_url', 'http://localhost:9999/stats.txt?period=60')
+            url = self.get_config('stats_url', 'http://localhost:9999/stats.txt')
             response = urllib2.urlopen(url + '?period=60')
             content = response.read()
             return self.process(content)
