@@ -253,6 +253,7 @@ def main():
 
         elif(fields[0] == "Swap:"):
             total=0
+            used=0
             free=0
             inuse=0
             inps=0
@@ -260,6 +261,8 @@ def main():
             for i in range(len(fields)):
                 if(fields[i] == "Total"):
                     total=convert_to_bytes(fields[i-1])
+                if(fields[i] == "Used"):
+                    used=convert_to_bytes(fields[i-1])
                 if(fields[i] == "Free"):
                     free=convert_to_bytes(fields[i-1])
                 if(fields[i] == "Inuse"):
@@ -269,6 +272,7 @@ def main():
                 if(fields[i] == "Out"):
                     outps=convert_to_bytes(fields[i-1])/collection_interval
             print ("swap.total %s %s" % (timestamp, total))
+            print ("swap.used %s %s" % (timestamp, used))
             print ("swap.free %s %s" % (timestamp, free))
             print ("swap.inuse %s %s" % (timestamp, inuse))
             print ("swap.inps %s %s" % (timestamp, inps))
