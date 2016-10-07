@@ -381,7 +381,8 @@ class ReaderThread(threading.Thread):
                 # we send the timestamp when this metric first became the current
                 # value instead of the last.  Fall through if we reach
                 # the dedup interval so we can print the value.
-                if (col.values[key][0] == value and
+                if ((not self.deduponlyzero or (self.deduponlyzero and float(value) == 0.0)) and
+                    col.values[key][0] == value and
                     (timestamp - col.values[key][3] < self.dedupinterval)):
                     col.values[key] = (value, True, line, col.values[key][3])
                     return
@@ -404,8 +405,7 @@ class ReaderThread(threading.Thread):
             # The array consists of:
             # [ the metric's value, if this value was repeated, the line of data,
             #   the value's timestamp that it last changed ]
-            if (not self.deduponlyzero or (self.deduponlyzero and float(value) == 0.0)):
-                col.values[key] = (value, False, line, timestamp)
+            col.values[key] = (value, False, line, timestamp)
 
         col.lines_sent += 1
         if not self.readerq.nput(line):
