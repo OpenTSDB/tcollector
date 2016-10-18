@@ -11,8 +11,10 @@ altenv_folder="${agent_install_folder}/altenv"
 altenv_bin_folder="${altenv_folder}/bin"
 altenv_etc_folder="${altenv_folder}/etc"
 altenv_var_folder="${altenv_folder}/var"
+altenv_usr_folder="${altenv_folder}/usr"
 altenv_run_folder="${altenv_var_folder}/run"
 altenv_log_folder="${altenv_var_folder}/log"
+altenv_ssl_folder="${altenv_usr_folder}/local/ssl"
 agent_collector_folder="${agent_install_folder}/$agent_folder_name"
 publish_location="./releases"
 
@@ -75,16 +77,47 @@ if [[ ! "$skip" = true ]]; then
   mkdir -p "${altenv_run_folder}"
   mkdir -p "${altenv_log_folder}"
 
+  log_info 'build openssl...'
+  if [[ ! -f ${workspace_folder}/openssl-1.0.2j.tar.gz ]]; then
+    log_info 'download openssl-1.0.2j package'
+    wget --directory-prefix="${workspace_folder}" https://www.openssl.org/source/openssl-1.0.2j.tar.gz
+    abort_if_failed 'failed to download openssl-1.0.2j package'
+  fi
+  tar -xzf "${workspace_folder}"/openssl-1.0.2j.tar.gz -C "${workspace_folder}"
+  abort_if_failed 'failed to extract openssl-1.0.2j tarball'
+
+  pushd "${workspace_folder}"/openssl-1.0.2j
+  ./config --prefix="${altenv_ssl_folder}" --openssldir="${altenv_ssl_folder}"
+  abort_if_failed 'openssl build: failed to run configure'
+  make
+  abort_if_failed 'openssl build: failed to run make'
+  make install
+  abort_if_failed 'openssl build: failed to run make install'
+  popd
+  log_info 'finish building openssl-1.0.2j'
+
   log_info 'setup python environment'
   if [[ ! -f ${workspace_folder}/Python-2.7.11.tgz ]]; then
     log_info 'download python-2.7.11 package'
     wget --directory-prefix="${workspace_folder}" https://www.python.org/ftp/python/2.7.11/Python-2.7.11.tgz
     abort_if_failed 'failed to download python-2.7.11 package'
   fi
+  rm -rf "${workspace_folder}"/Python-2.7.11
+  abort_if_failed "failed to remove folder ${workspace_folder}/Python-2.7.11"
   tar -xzf "${workspace_folder}"/Python-2.7.11.tgz -C "${workspace_folder}"
   abort_if_failed 'failed to extract python-2.7.11 tarball'
 
   pushd "${workspace_folder}"/Python-2.7.11
+  sed -i "s/^#_socket /_socket /" Modules/Setup.dist
+  abort_if_failed "failed to update Modules/Setup.dist to uncomment SSL 0"
+  sed -i "s/^#SSL=/SSL=${altenv_folder//\//\\/}/" Modules/Setup.dist
+  abort_if_failed "failed to update Modules/Setup.dist to uncomment SSL 1"
+  sed -i "s/^#_ssl _ssl/_ssl _ssl/" Modules/Setup.dist
+  abort_if_failed "failed to update Modules/Setup.dist to uncomment SSL 2"
+  sed -i "s/^#\t-DUSE_SSL/\t-DUSE_SSL/" Modules/Setup.dist
+  abort_if_failed "failed to update Modules/Setup.dist to uncomment SSL 3"
+  sed -i "s/^#\t-L\$(SSL)/\t-L\$(SSL)/" Modules/Setup.dist
+  abort_if_failed "failed to update Modules/Setup.dist to uncomment SSL 4"
   ./configure --prefix="${altenv_folder}"
   abort_if_failed 'python build: failed to run configure'
   make install
@@ -218,11 +251,11 @@ sed -i "/^log_folder=/c\log_folder=${agent_install_folder}/altenv/var/log" ${age
 sed -i "/^run_folder=/c\run_folder=${agent_install_folder}/altenv/var/run" ${agent_collector_folder}/run
 cp ${collector_source_path}/collectors/__init__.py ${agent_collector_folder}/collectors/__init__.py
 abort_if_failed 'failed to copy collectors/__init__.py'
-cp -al ${collector_source_path}/collectors/builtin ${agent_collector_folder}/collectors/builtin
+cp -ar ${collector_source_path}/collectors/builtin ${agent_collector_folder}/collectors/builtin
 abort_if_failed 'failed to copy-archive collectors/builtin'
-cp -al ${collector_source_path}/collectors/conf ${agent_collector_folder}/collectors/conf
+cp -ar ${collector_source_path}/collectors/conf ${agent_collector_folder}/collectors/conf
 abort_if_failed 'failed to copy-archive collectors/conf'
-cp -al ${collector_source_path}/collectors/lib ${agent_collector_folder}/collectors/lib
+cp -ar ${collector_source_path}/collectors/lib ${agent_collector_folder}/collectors/lib
 abort_if_failed 'failed to copy-archive collectors/lib'
 log_info 'modify python file scripts path'
 fix_python_recursively ${agent_collector_folder}

@@ -40,7 +40,7 @@ check_status() {
                                     grep $name |
                                     grep -c RUNNING
                                     )
-    supervisor_config_programs=$(grep -c '\[program:' $supervisor_file)
+    supervisor_config_programs=$(grep -c '^\[program:' $supervisor_file)
     if [ "$cinsight_supervisor_processes" -ne "$supervisor_config_programs" ]; then
       log_info "$supervisor_processes"
       log_info "$name (supervisor) is NOT running all child processes"
