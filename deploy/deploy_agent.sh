@@ -36,17 +36,32 @@ function log_info() {
   printf "${color_blue}$1${color_normal}\n"
 }
 
+function usage() {
+  printf "sudo ORG_TOKEN=<token> CLIENT_ID=<id> [METRIC_SERVER_HOST=<server>] deploy_agent.sh [-h|--log]\n"
+}
+
+if [ "$1" == "-h" ]; then
+  usage
+  exit 0
+fi
+
+if [ "$1" == "--log" ]; then
+  enable_log_collection=true
+fi
+
 OS=$(get_os)
 
 check_root
 
 if [ -z "${ORG_TOKEN// }" ]; then
   echo "ORG_TOKEN env variable is not set or empty"
+  usage
   exit 1
 fi
 
 if [ -z "${CLIENT_ID// }" ]; then
   echo "CLIENT_ID env variable is not set or empty"
+  usage
   exit 1
 fi
 
@@ -74,7 +89,13 @@ sed -i "s/<token>/$ORG_TOKEN/" ${agent_install_folder}/agent/runner.conf
 abort_if_failed "failed to set ORG_TOKEN value in runner.conf file"
 
 sed -i "/^client_id *= */c\client_id = $CLIENT_ID" ${agent_install_folder}/uagent/uagent.conf
-abort_if_failed "failed to set ORG_TOKEN value in runner.conf file"
+abort_if_failed "failed to set client_id value in ${agent_install_folder}/uagent/uagent.conf"
+
+if [ "$enable_log_collection" = true ]; then
+  log_info "config filebeat in ${altenv_etc_folder}/supervisord.conf"
+  sed -i "/\[group:cloudwiz-agent\]/i\\[program:filebeat\]\ncommand=${agent_install_folder}/filebeat-1.3.1/filebeat -c ${agent_install_folder}/filebeat-1.3.1/filebeat.yml\nstartsecs=5\nstartretries=3\nstopasgroup=true\n" ${altenv_etc_folder}/supervisord.conf
+  sed -i '/^programs=/ s/$/,filebeat/' ${altenv_etc_folder}/supervisord.conf
+fi
 
 if [ -z "${METRIC_SERVER_HOST// }" ]; then
   echo "METRIC_SERVER_HOST env variable is not set or empty, default to localhost"

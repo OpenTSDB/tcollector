@@ -33,6 +33,7 @@ function fix_python_recursively() {
 }
 
 os_type=$(get_os)
+bitness=$(uname -m)
 
 check_root
 
@@ -231,6 +232,17 @@ if [[ ! "$skip" = true ]]; then
   popd
   log_info 'finish setting up requests'
 
+  log_info 'set up filebeat ...'
+  if [[ ! -f ${workspace_folder}/filebeat-1.3.1-${bitness}.tar.gz ]]; then
+    log_info "download filebeat-1.3.1-${bitness}.tar.gz"
+    wget -O ${workspace_folder}/filebeat-1.3.1-${bitness}.tar.gz https://download.elastic.co/beats/filebeat/filebeat-1.3.1-${bitness}.tar.gz
+    abort_if_failed "failed to download filebeat-1.3.1-${bitness}.tar.gz"
+  fi
+  tar -xzf ${workspace_folder}/filebeat-1.3.1-${bitness}.tar.gz -C ${workspace_folder}
+  abort_if_failed "failed to extract tar -xzf ${workspace_folder}/filebeat-1.3.1-${bitness}.tar.gz -C ${workspace_folder}"
+  rm -rf ${workspace_folder}/filebeat-1.3.1
+  mv ${workspace_folder}/filebeat-1.3.1-${bitness} ${workspace_folder}/filebeat-1.3.1
+  abort_if_failed "failed to mv ${workspace_folder}/filebeat-1.3.1-${bitness} ${workspace_folder}/filebeat-1.3.1"
 fi
 
 log_info "setup agent/runner ${collector_source_path} => ${agent_collector_folder}"
@@ -291,6 +303,12 @@ log_info "finish copying common_utils.py"
 log_info "copy cloudwiz-agent startup scripts ${basedir}/startup_scripts/"
 yes | cp -f -r "${basedir}/startup_scripts" "${agent_install_folder}/" 
 abort_if_failed 'failed to copy startup scripts'
+
+log_info "set up filebeat"
+yes | cp -f -r "${workspace_folder}/filebeat-1.3.1" "${agent_install_folder}"
+yes | cp -f "${basedir}/filebeat.yml" "${agent_install_folder}/filebeat-1.3.1"
+abort_if_failed "failed to copy ${workspace_folder}/filebeat-1.3.1 ${agent_install_folder}"
+log_info "finish setting up filebeat"
 
 tar -zcf ${basedir}/agent.tar.gz "$agent_install_folder"
 abort_if_failed 'failed to add agent to tar file'
