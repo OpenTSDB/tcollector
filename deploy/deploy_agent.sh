@@ -37,16 +37,27 @@ function log_info() {
 }
 
 function usage() {
-  printf "sudo ORG_TOKEN=<token> CLIENT_ID=<id> [METRIC_SERVER_HOST=<server>] deploy_agent.sh [-h|--log]\n"
+  printf "sudo ORG_TOKEN=<token> CLIENT_ID=<id> [METRIC_SERVER_HOST=<server>] deploy_agent.sh [-h | --log-collector <log_server_host:port>]\n"
 }
 
-if [ "$1" == "-h" ]; then
-  usage
-  exit 0
-fi
-
-if [ "$1" == "--log" ]; then
-  enable_log_collection=true
+if [ "$#" -gt 0 ]; then
+  if [ "$1" == "-h" ]; then
+    usage
+    exit 0
+  elif [ "$1" == "--log-collector" ]; then
+    enable_log_collection=true
+    if [ "$#" -ge 2 ]; then
+      log_server_hostport=$2
+    else
+      printf "invalid argument\n"
+      usage
+      exit 1
+    fi
+  else
+    printf "unrecognized option\n"
+    usage
+    exit 1
+  fi
 fi
 
 OS=$(get_os)
@@ -95,6 +106,8 @@ if [ "$enable_log_collection" = true ]; then
   log_info "config filebeat in ${altenv_etc_folder}/supervisord.conf"
   sed -i "/\[group:cloudwiz-agent\]/i\\[program:filebeat\]\ncommand=${agent_install_folder}/filebeat-1.3.1/filebeat -c ${agent_install_folder}/filebeat-1.3.1/filebeat.yml\nstartsecs=5\nstartretries=3\nstopasgroup=true\n" ${altenv_etc_folder}/supervisord.conf
   sed -i '/^programs=/ s/$/,filebeat/' ${altenv_etc_folder}/supervisord.conf
+  log_info "set log-server-host-port to ${log_server_hostport}"
+  sed -i "s/<log-server-host-port>/\"${log_server_hostport}\"/" ${agent_install_folder}/filebeat-1.3.1/filebeat.yml
 fi
 
 if [ -z "${METRIC_SERVER_HOST// }" ]; then
