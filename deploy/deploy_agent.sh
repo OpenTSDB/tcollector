@@ -37,7 +37,7 @@ function log_info() {
 }
 
 function usage() {
-  printf "sudo ORG_TOKEN=<token> CLIENT_ID=<id> [METRIC_SERVER_HOST=<server>] deploy_agent.sh [-h | --log-collector <log_server_host:port>]\n"
+  printf "sudo ORG_TOKEN=<token> CLIENT_ID=<id> [AGENT_URL=<agent-tarball_url> METRIC_SERVER_HOST=<server>] deploy_agent.sh [-h | --log-collector <log_server_host:port>]\n"
 }
 
 if [ "$#" -gt 0 ]; then
