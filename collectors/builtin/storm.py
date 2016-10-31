@@ -87,14 +87,12 @@ class Storm(CollectorBase):
 
     def _cluster_loader(self):
         summary = self.request(REST_API["cluster"])
-        self.log_exception(summary)
         ts = time.time()
         for metric in CLUSTER:
             self._readq.nput('storm.cluster.%s %d %d host=%s' % (metric, ts, summary[metric], self.host))
 
     def _supervisor_loader(self):
         jdata = self.request(REST_API["supervisor"])
-        self.log_exception(jdata)
         ts = time.time()
         for supervisor in jdata['supervisors']:
             for metric in SUPERVISOR:
@@ -103,7 +101,6 @@ class Storm(CollectorBase):
 
     def _topology_loader(self):
         jdata = self.request(REST_API["topology"])
-        self.log_exception(jdata)
         ts = time.time()
         for topology in jdata['topologies']:
             for metric in TOPOLOGY:
