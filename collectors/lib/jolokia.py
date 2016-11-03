@@ -44,6 +44,57 @@ class JolokiaParserBase(object):
         return self._counter_processors[name]
 
 
+class SingleValueParser(JolokiaParserBase):
+    def __init__(self, logger):
+        super(SingleValueParser, self).__init__(logger)
+
+    def valid_metrics(self):
+        return ["Value"]
+
+
+class JolokiaG1GCParser(JolokiaParserBase):
+    def __init__(self, logger, service, gc_type):
+        super(JolokiaG1GCParser, self).__init__(logger)
+        self.service = service
+        self.gc_type = gc_type
+
+    def metric_dict(self, json_dict):
+        metrics_dict = {}
+        lastgcinfo = json_dict["value"]["LastGcInfo"]
+        if lastgcinfo is not None:
+            survivorspace_dict = lastgcinfo["memoryUsageAfterGc"]["G1 Survivor Space"]
+            metrics_dict.update({"survivorspace." + key: survivorspace_dict[key] for key in survivorspace_dict.keys()})
+
+            edenspace_dict =lastgcinfo["memoryUsageAfterGc"]["G1 Eden Space"]
+            metrics_dict.update({"edenspace." + key: edenspace_dict[key] for key in edenspace_dict.keys()})
+
+            oldgen_dict =lastgcinfo["memoryUsageAfterGc"]["G1 Old Gen"]
+            metrics_dict.update({"oldgen." + key: oldgen_dict[key] for key in oldgen_dict.keys()})
+
+            codecache_dict =lastgcinfo["memoryUsageAfterGc"]["Code Cache"]
+            metrics_dict.update({"codecache." + key: codecache_dict[key] for key in codecache_dict.keys()})
+
+            permgen_dict =lastgcinfo["memoryUsageAfterGc"]["G1 Perm Gen"]
+            metrics_dict.update({"permgen." + key: permgen_dict[key] for key in permgen_dict.keys()})
+
+            metrics_dict.update({"GcThreadCount":lastgcinfo["GcThreadCount"]})
+            metrics_dict.update({"CollectionCount": json_dict["value"]["CollectionCount"]})
+            metrics_dict.update({"CollectionTime": json_dict["value"]["CollectionTime"]})
+
+        return metrics_dict
+
+    def valid_metrics(self):
+        return ["GcThreadCount", "CollectionCount", "CollectionTime",
+                "survivorspace.max", "survivorspace.committed", "survivorspace.init", "survivorspace.used",
+                "edenspace.max", "edenspace.committed", "edenspace.init", "edenspace.used",
+                "oldgen.max", "oldgen.committed", "oldgen.init", "oldgen.used",
+                "codecache.max", "codecache.committed", "codecache.init", "codecache.used",
+                "permgen.max", "permgen.committed", "permgen.init", "permgen.used"]
+
+    def metric_name(self, name):
+        return "%s.gc.%s.%s" % (self.service, self.gc_type, name)
+
+
 class JolokiaCollector(CollectorBase):
     def __init__(self, config, logger, readq, request_str, parser_map):
         super(JolokiaCollector, self).__init__(config, logger, readq)
@@ -53,7 +104,7 @@ class JolokiaCollector(CollectorBase):
     def __call__(self, protocol, port):
         conn = None
         try:
-            url = "%(protocol)s://localhost:%(port)s/jolokia" % dict(protocol=protocol, port=port)
+            url = "%(protocol)s://localhost:%(port)s/jolokia/" % dict(protocol=protocol, port=port)
             req = urllib2.Request(url, self.request_str, {'Content-Type': 'application/json'})
             conn = urllib2.urlopen(req)
             status_code = conn.getcode()
@@ -77,8 +128,9 @@ class JolokiaCollector(CollectorBase):
                         self.log_error("failed to instantiate parser %s, skip.", mbean_key)
                 except Exception:
                     self.log_exception("exception when parsing %s. skip", mbean_key)
-        except Exception:
-            self.log_exception("unexpected error")
+        except Exception as e:
+            self.log_exception("unexpected error when requesting %s", url)
+            raise e
         finally:
             if conn is not None:
                 conn.close()

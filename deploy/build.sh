@@ -16,6 +16,7 @@ altenv_run_folder="${altenv_var_folder}/run"
 altenv_log_folder="${altenv_var_folder}/log"
 altenv_ssl_folder="${altenv_usr_folder}/local/ssl"
 agent_collector_folder="${agent_install_folder}/$agent_folder_name"
+lib_folder="${agent_collector_folder}/lib"
 publish_location="./releases"
 
 function display_usage() {
@@ -243,6 +244,12 @@ if [[ ! "$skip" = true ]]; then
   rm -rf ${workspace_folder}/filebeat-1.3.1
   mv ${workspace_folder}/filebeat-1.3.1-${bitness} ${workspace_folder}/filebeat-1.3.1
   abort_if_failed "failed to mv ${workspace_folder}/filebeat-1.3.1-${bitness} ${workspace_folder}/filebeat-1.3.1"
+
+  log_info 'set up jolokia'
+  if [[ ! -f ${workspace_folder}/jolokia-jvm-1.3.5-agent.jar ]]; then
+    log_info "download jolokia-jvm-1.3.5-agent.jar"
+    wget -O ${workspace_folder}/jolokia-jvm-1.3.5-agent.jar https://repo1.maven.org/maven2/org/jolokia/jolokia-jvm/1.3.5/jolokia-jvm-1.3.5-agent.jar
+  fi
 fi
 
 log_info "setup agent/runner ${collector_source_path} => ${agent_collector_folder}"
@@ -309,6 +316,12 @@ yes | cp -f -r "${workspace_folder}/filebeat-1.3.1" "${agent_install_folder}"
 yes | cp -f "${basedir}/filebeat.yml" "${agent_install_folder}/filebeat-1.3.1"
 abort_if_failed "failed to copy ${workspace_folder}/filebeat-1.3.1 ${agent_install_folder}"
 log_info "finish setting up filebeat"
+
+mkdir -p "${lib_folder}"
+abort_if_failed "failed to create ${lib_folder}"
+log_info "cp -f ${workspace_folder}/jolokia-jvm-1.3.5-agent.jar ${lib_folder}/jolokia-jvm-1.3.5-agent.jar"
+yes | cp -f ${workspace_folder}/jolokia-jvm-1.3.5-agent.jar ${lib_folder}/jolokia-jvm-1.3.5-agent.jar
+abort_if_failed "failed to copy jolokia agent"
 
 tar -zcf ${basedir}/agent.tar.gz "$agent_install_folder"
 abort_if_failed 'failed to add agent to tar file'

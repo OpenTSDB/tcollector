@@ -19,6 +19,7 @@ import stat
 import pwd
 import errno
 import sys
+from Queue import Queue
 
 # If we're running as root and this user exists, we'll drop privileges.
 USER = "nobody"
@@ -56,3 +57,8 @@ def err(msg):
 
 def is_numeric(value):
     return isinstance(value, (int, long, float))
+
+
+class TestQueue(Queue):
+    def nput(self, value):
+        print value
