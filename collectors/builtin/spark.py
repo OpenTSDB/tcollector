@@ -6,7 +6,6 @@ from collectors.lib.collectorbase import CollectorBase
 SPARK_STANDALONE_MODE = 'spark_standalone_mode'
 SPARK_YARN_MODE = 'spark_yarn_mode'
 SPARK_MESOS_MODE = 'spark_mesos_mode'
-SPARK_STANDALONE_APP_DEFAULT_PORT = '4040'
 
 REST_API = {
     "YARN_APPS_PATH": "ws/v1/cluster/apps",
@@ -159,15 +158,19 @@ class Spark(CollectorBase):
         self.spark_url = 'http://%s:%s' % (self.host, self.port)
 
     def __call__(self):
-        spark_apps = self._get_running_apps()
-        self._spark_job_metrics(spark_apps)
-        self._spark_stage_metrics(spark_apps)
-        self._spark_executor_metrics(spark_apps)
+        try:
+            spark_apps = self._get_running_apps()
+            self._spark_job_metrics(spark_apps)
+            self._spark_stage_metrics(spark_apps)
+            self._spark_executor_metrics(spark_apps)
+        except Exception as e:
+            self.log_exception('exception collecting spark metrics %s' % e)
+
 
     def _get_running_apps(self):
+        self.log_info("Choose Spark Cluster Mode : %s" % self.spark_cluster_mode)
         if self.spark_cluster_mode is None:
-            self.log_exception('spark_cluster_node must not be null')
-            return None
+            raise Exception('spark_cluster_node must not be none')
 
         if self.spark_cluster_mode == SPARK_STANDALONE_MODE:
             return self._standalone_init()
@@ -184,56 +187,69 @@ class Spark(CollectorBase):
             raise Exception('Invalid setting for spark_cluster_mode. Received %s.' % (self.spark_cluster_mode))
 
     def _spark_job_metrics(self, running_apps):
-        for app_id, (app_name, tracking_url) in running_apps.iteritems():
-            i = 0
-            ts = time.time()
+        try:
+            for app_id, (app_name, tracking_url) in running_apps.iteritems():
+                i = 0
+                ts = time.time()
 
-            for job in request(url_join_4(tracking_url, REST_API["SPARK_APPS_PATH"], app_id, 'jobs')):
-                i = i + 1
-                for metric in JOB_METRICS:
-                    self._readq.nput('spark.job.%s %d %d host=%s jobId=%s' % (metric, ts, job[metric], self.host, job['jobId']))
+                for job in self.request(url_join_4(tracking_url, REST_API["SPARK_APPS_PATH"], app_id, 'jobs')):
+                    i = i + 1
+                    for metric in JOB_METRICS:
+                        self._readq.nput('spark.job.%s %d %d host=%s jobId=%s' % (metric, ts, job[metric], self.host, job['jobId']))
 
-            self._readq.nput('spark.job.count %d %d host=%s' % (ts, i, self.host))
+                self._readq.nput('spark.job.count %d %d host=%s' % (ts, i, self.host))
+        except Exception as e:
+            self.log_exception('exception collecting spark job metrics %s' % e)
+
 
     def _spark_stage_metrics(self, running_apps):
-        for app_id, (app_name, tracking_url) in running_apps.iteritems():
-            i = 0
-            ts = time.time()
+        try:
+            for app_id, (app_name, tracking_url) in running_apps.iteritems():
+                i = 0
+                ts = time.time()
 
-            for stage in request(url_join_4(tracking_url, REST_API["SPARK_APPS_PATH"], app_id, 'stages')):
-                i = i + 1
-                for metric in STAGE_METRICS:
-                    self._readq.nput('spark.stage.%s %d %d host=%s stageId=%s' % (metric, ts, stage[metric], self.host, stage['stageId']))
+                for stage in self.request(url_join_4(tracking_url, REST_API["SPARK_APPS_PATH"], app_id, 'stages')):
+                    i = i + 1
+                    for metric in STAGE_METRICS:
+                        self._readq.nput('spark.stage.%s %d %d host=%s stageId=%s' % (metric, ts, stage[metric], self.host, stage['stageId']))
 
-            self._readq.nput('spark.stage.count %d %d host=%s' % (ts, i, self.host))
+                self._readq.nput('spark.stage.count %d %d host=%s' % (ts, i, self.host))
+        except Exception as e:
+            self.log_exception('exception collecting spark stage metrics %s' % e)
 
     def _spark_executor_metrics(self, running_apps):
-        for app_id, (app_name, tracking_url) in running_apps.iteritems():
-            i = 0
-            ts = time.time()
+        try:
+            for app_id, (app_name, tracking_url) in running_apps.iteritems():
+                i = 0
+                ts = time.time()
 
-            for executor in request(url_join_4(tracking_url, REST_API["SPARK_APPS_PATH"], app_id, 'executors')):
-                i = i + 1
-                for metric in EXECUTOR_METRICS:
-                    self._readq.nput('spark.executor.%s %d %d host=%s id=%s' % (metric, ts, executor[metric], self.host, executor['id']))
+                for executor in self.request(url_join_4(tracking_url, REST_API["SPARK_APPS_PATH"], app_id, 'executors')):
+                    i = i + 1
+                    for metric in EXECUTOR_METRICS:
+                        self._readq.nput('spark.executor.%s %d %d host=%s id=%s' % (metric, ts, executor[metric], self.host, executor['id']))
 
-            self._readq.nput('spark.executor.count %d %d host=%s' % (ts, i, self.host))
+                self._readq.nput('spark.executor.count %d %d host=%s' % (ts, i, self.host))
+        except Exception as e:
+            self.log_exception('exception collecting spark stage metrics %s' % e)
 
     def _spark_rdd_metrics(self, running_apps):
-        for app_id, (app_name, tracking_url) in running_apps.iteritems():
-            i = 0
-            ts = time.time()
+        try:
+            for app_id, (app_name, tracking_url) in running_apps.iteritems():
+                i = 0
+                ts = time.time()
 
-            for rdd in request(url_join_4(tracking_url, REST_API["SPARK_APPS_PATH"], app_id, 'storage/rdd')):
-                i = i + 1
-                for metric in RDD_METRCIS:
-                    self._readq.nput('spark.rdd.%s %d %d host=%s id=%s' % (metric, ts, rdd[metric], self.host, rdd['id']))
+                for rdd in self.request(url_join_4(tracking_url, REST_API["SPARK_APPS_PATH"], app_id, 'storage/rdd')):
+                    i = i + 1
+                    for metric in RDD_METRCIS:
+                        self._readq.nput('spark.rdd.%s %d %d host=%s id=%s' % (metric, ts, rdd[metric], self.host, rdd['id']))
 
-            self._readq.nput('spark.rdd.count %d %d host=%s' % (ts, i, self.host))
+                self._readq.nput('spark.rdd.count %d %d host=%s' % (ts, i, self.host))
+        except Exception as e:
+            self.log_exception('exception collecting spark stage metrics %s' % e)
 
     def _standalone_init(self):
         # Return a dictionary of {app_id: (app_name, tracking_url)} for the running Spark applications
-        jdata = request(url_join_2(self.spark_url, REST_API['SPARK_MASTER_STATE_PATH']))
+        jdata = self.request(url_join_2(self.spark_url, REST_API['SPARK_MASTER_STATE_PATH']))
         running_apps = {}
 
         if jdata.get('activeapps'):
@@ -252,7 +268,7 @@ class Spark(CollectorBase):
     def _yarn_init(self):
         running_apps = {}
 
-        metrics_json = request(url_join_3(self.spark_url, REST_API['YARN_APPS_PATH'], "states=RUNNING&applicationTypes=SPARK"))
+        metrics_json = self.request(url_join_3(self.spark_url, REST_API['YARN_APPS_PATH'], "states=RUNNING&applicationTypes=SPARK"))
         if metrics_json.get('apps'):
             if metrics_json['apps'].get('app') is not None:
 
@@ -269,7 +285,7 @@ class Spark(CollectorBase):
     def _mesos_init(self):
         running_apps = {}
 
-        metrics_json = request(url_join_2(self.spark_url, REST_API['MESOS_MASTER_APP_PATH']))
+        metrics_json = self.request(url_join_2(self.spark_url, REST_API['MESOS_MASTER_APP_PATH']))
         if metrics_json.get('frameworks'):
             for app_json in metrics_json.get('frameworks'):
                 app_id = app_json.get('id')
@@ -290,26 +306,22 @@ class Spark(CollectorBase):
 
         headers = {'Accept-Encoding': 'UTF-8'}
         try:
-            app_page = requests.get(url_join_3(self.spark_url, REST_API['SPARK_MASTER_APP_PATH'], "appId=" + app_id), headers)
+            url = url_join_3(self.spark_url, REST_API['SPARK_MASTER_APP_PATH'], "appId=" + app_id)
+            app_page = requests.get(url , headers)
+            # parser html and get app_detail_direct_link
+            parser = SparkParser()
+            parser.feed(app_page.text)
+            parser.close()
+            app_detail_ui_links = parser.href
+
+            if app_detail_ui_links and len(app_detail_ui_links) == 1:
+                return parser.href
+            else :
+                self.log_info ("Can not get any director link form spark standalone apps pages. Maybe parser would have problem: %s" % url)
+
         except Exception :
-            self.log_exception("Can not get anything form SPARK_MASTER_APP_PATH %s" %
-                               url_join_3(self.spark_url,
-                                          REST_API['SPARK_MASTER_APP_PATH'],
-                                          "appId=" + app_id))
+            self.log_exception("Can not access SPARK_MASTER_APP_PATH %s" % url)
             raise HTTPError(app_page)
-
-        # parser html and get app_detail_direct_link
-        parser = SparkParser()
-        parser.feed(app_page.text)
-        parser.close()
-
-        app_detail_ui_links = parser.href
-
-        if app_detail_ui_links and len(app_detail_ui_links) == 1:
-            return parser.href
-
-        else:
-            return 'http://%s:%s' % (self.host, SPARK_STANDALONE_APP_DEFAULT_PORT)
 
     def _get_spark_app_ids(self, running_apps):
         '''
@@ -318,7 +330,7 @@ class Spark(CollectorBase):
         '''
         spark_apps = {}
         for app_id, (app_name, tracking_url) in running_apps.iteritems():
-            response = request(url_join_2(tracking_url,REST_API["SPARK_APPS_PATH"]))
+            response = self.request(url_join_2(tracking_url,REST_API["SPARK_APPS_PATH"]))
 
             for app in response:
                 app_id = app.get('id')
@@ -329,7 +341,20 @@ class Spark(CollectorBase):
 
         return spark_apps
 
+    def request(self, url):
+        resp = requests.get(url)
+        if resp.status_code != 200:
+            if resp.status_code > 500:
+                self.log_exception("spark collector can not access url : %s" % url)
+            raise HTTPError(resp)
 
+        return resp.json()
+
+
+# Get Url and Parse form Spark standalone page
+# <ul class="unstyled">
+#   <li><strong><a href="http://localhost:4040">Application Detail UI</a></strong></li>
+# </ul>
 class SparkParser(HTMLParser):
     def __init__(self):
         HTMLParser.__init__(self)

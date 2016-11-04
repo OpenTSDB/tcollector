@@ -86,25 +86,36 @@ class Storm(CollectorBase):
             self.log_exception('exception collecting storm metrics %s' % e)
 
     def _cluster_loader(self):
-        summary = self.request(REST_API["cluster"])
-        ts = time.time()
-        for metric in CLUSTER:
-            self._readq.nput('storm.cluster.%s %d %d host=%s' % (metric, ts, summary[metric], self.host))
+        try:
+            summary = self.request(REST_API["cluster"])
+            ts = time.time()
+            for metric in CLUSTER:
+                self._readq.nput('storm.cluster.%s %d %d host=%s' % (metric, ts, summary[metric], self.host))
+        except Exception as e:
+            self.log_exception('exception collecting storm cluster metric form : %s \n %s' % ('%s%s' % (self.http_prefix, REST_API["cluster"]), e))
 
     def _supervisor_loader(self):
-        jdata = self.request(REST_API["supervisor"])
-        ts = time.time()
-        for supervisor in jdata['supervisors']:
-            for metric in SUPERVISOR:
-                self._readq.nput(
-                    'storm.supervisor.%s %d %d host=%s' % (metric, ts, supervisor[metric], supervisor['host']))
+        try:
+            jdata = self.request(REST_API["supervisor"])
+            ts = time.time()
+            for supervisor in jdata['supervisors']:
+                for metric in SUPERVISOR:
+                    self._readq.nput(
+                        'storm.supervisor.%s %d %d host=%s' % (metric, ts, supervisor[metric], supervisor['host']))
+        except Exception as e:
+            self.log_exception('exception collecting storm supervisor metric form : %s \n %s' % ('%s%s' % (self.http_prefix, REST_API["supervisor"]), e))
+
 
     def _topology_loader(self):
-        jdata = self.request(REST_API["topology"])
-        ts = time.time()
-        for topology in jdata['topologies']:
-            for metric in TOPOLOGY:
-                self._readq.nput('storm.topology.%s %d %d host=%s name=%s' % (metric, ts, topology[metric], self.host, topology['name']))
+        try:
+            jdata = self.request(REST_API["topology"])
+            ts = time.time()
+            for topology in jdata['topologies']:
+                for metric in TOPOLOGY:
+                    self._readq.nput('storm.topology.%s %d %d host=%s name=%s' % (metric, ts, topology[metric], self.host, topology['name']))
+        except Exception as e:
+            self.log_exception('exception collecting storm supervisor metric form : %s \n %s' % ('%s%s' % (self.http_prefix, REST_API["supervisor"]), e))
+
 
     def request(self,uri):
         resp = requests.get('%s%s' % (self.http_prefix, uri))
