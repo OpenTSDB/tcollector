@@ -43,20 +43,26 @@ class Cloudmon(CollectorBase):
                     self._readq.nput("%s %d %d" % (metric_name, ts, val))
                 elif stype == 'metrics':
                     vals = [sss.strip(" ()") for sss in re.split(',|=', comps[1])]
-                    val_avg = self.get_metric_value("average", vals)
-                    self._readq.nput("%s %d %d" % (metric_name, ts, val_avg))
 
-                    val_max = self.get_metric_value("maximum", vals)
-                    self._readq.nput("%s.%s %d %d" % (metric_name, "max", ts, val_max))
+                    if "average" in vals:
+                        val_avg = self.get_metric_value("average", vals)
+                        self._readq.nput("%s %d %d" % (metric_name, ts, val_avg))
 
-                    val_min = self.get_metric_value("minimum", vals)
-                    self._readq.nput("%s.%s %d %d" % (metric_name, "min", ts, val_min))
+                    if "maximum" in vals:
+                        val_max = self.get_metric_value("maximum", vals)
+                        self._readq.nput("%s.%s %d %d" % (metric_name, "max", ts, val_max))
 
-                    val_p99 = self.get_metric_value("p99", vals)
-                    self._readq.nput("%s.%s %d %d" % (metric_name, "p99", ts, val_p99))
+                    if "minimum" in vals:
+                        val_min = self.get_metric_value("minimum", vals)
+                        self._readq.nput("%s.%s %d %d" % (metric_name, "min", ts, val_min))
 
-                    val_p999 = self.get_metric_value("p999", vals)
-                    self._readq.nput("%s.%s %d %d" % (metric_name, "p999", ts, val_p999))
+                    if "p99" in vals:
+                        val_p99 = self.get_metric_value("p99", vals)
+                        self._readq.nput("%s.%s %d %d" % (metric_name, "p99", ts, val_p99))
+
+                    if "p999" in vals:
+                        val_p999 = self.get_metric_value("p999", vals)
+                        self._readq.nput("%s.%s %d %d" % (metric_name, "p999", ts, val_p999))
                 else:
                     self.log_warn('unexpected metric type %s', stype)
                     pass
