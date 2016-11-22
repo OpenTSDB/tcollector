@@ -215,7 +215,7 @@ def close_collecotors(configs, collectors):
 
 def close_single_collector(collectors, name):
     try:
-        LOG.info('shutting down collector % that has been removed in config file', name)
+        LOG.info('shutting down collector %s that has been removed in config file', name)
         collectors[name].shutdown()
         del collectors[name]
     except:
@@ -656,7 +656,7 @@ class Sender(threading.Thread):
         metric_entry = {}
         metric_entry["metric"] = metric
         metric_entry["timestamp"] = long(timestamp)
-        metric_entry["value"] = float(value)
+        metric_entry["value"] = long(value)
         metric_entry["tags"] = dict(self.tags).copy()
         if len(metric_tags) + len(metric_entry["tags"]) > self.maxtags:
             metric_tags_orig = set(metric_tags)
