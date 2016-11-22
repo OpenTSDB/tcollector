@@ -2,6 +2,7 @@
 
 from collectors.lib.jolokia import JolokiaCollector
 from collectors.lib.jolokia import JolokiaParserBase
+from collectors.lib.collectorbase import MetricType
 
 
 class Tomcat(JolokiaCollector):
@@ -58,7 +59,7 @@ class JolokiaGlobalRequestProcessorParser(JolokiaParserBase):
     def __init__(self, logger):
         super(JolokiaGlobalRequestProcessorParser, self).__init__(logger)
         self.metrics = ["bytesSent", "bytesReceived", "processingTime", "errorCount", "maxTime", "requestCount"]
-        self.isCounter = [True, True, False, True, False, True]
+        self.type = [MetricType.COUNTER, MetricType.COUNTER, MetricType.INC, MetricType.COUNTER, MetricType.REGULAR, MetricType.COUNTER]
 
     def valid_metrics(self):
         return self.metrics
@@ -66,8 +67,8 @@ class JolokiaGlobalRequestProcessorParser(JolokiaParserBase):
     def metric_name(self, name):
         return JolokiaParserBase.metric_name(self, "%s.%s" % ("requests", name))
 
-    def iscounter(self, name):
-        return self.isCounter[self.metrics.index(name)]
+    def get_metric_type(self, name):
+        return self.type[self.metrics.index(name)]
 
 
 class JolokiaMemoryParser(JolokiaParserBase):

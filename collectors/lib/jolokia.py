@@ -2,14 +2,15 @@
 
 import urllib2
 import json
-from counter_processor import CounterPorcessor
+from inc_processor import IncPorcessor
 from collectorbase import CollectorBase
+from collectorbase import MetricType
 
 
 class JolokiaParserBase(object):
     def __init__(self, logger):
         self.logger = logger
-        self._counter_processors = {}
+        self._inc_processors = {}
 
     def parse(self, json_dict, readq):
         status = json_dict["status"]
@@ -20,11 +21,14 @@ class JolokiaParserBase(object):
         for name in self.valid_metrics():
             if name in value_dict:
                 val = value_dict[name]
-                if self.iscounter(name):
-                    # origval = val
-                    val = self._get_counter_processor(name).process_counter(ts, val)
-                    # print '%s %s orig=%d, processed=%d' % (datetime.now(), name, origval, val)
-                readq.nput("%s %d %d" % (self.metric_name(name), ts, val))
+                mtype = self.get_metric_type(name)
+                if mtype == MetricType.COUNTER:
+                    # for counter we should evaluate or display using rate
+                    readq.nput("%s %d %d metric_type=%s" % (self.metric_name(name), ts, val, MetricType.COUNTER))
+                elif mtype == MetricType.INC:
+                    readq.nput(self._process_inc(self.metric_name(name), ts, val))
+                else:
+                    readq.nput("%s %d %d" % (self.metric_name(name), ts, val))
 
     def metric_dict(self, json_dict):
         return json_dict["value"]
@@ -35,13 +39,13 @@ class JolokiaParserBase(object):
     def metric_name(self, name):
         return "%s.%s" % ("tomcat", name)
 
-    def iscounter(self, name):
-        return False
+    def get_metric_type(self, name):
+        return MetricType.REGULAR
 
-    def _get_counter_processor(self, name):
-        if name not in self._counter_processors:
-            self._counter_processors[name] = CounterPorcessor()
-        return self._counter_processors[name]
+    def _process_inc(self, name, ts, val):
+        if name not in self._inc_processors:
+            self._inc_processors[name] = IncPorcessor(self.logger)
+        return self._inc_processors[name].process(name, ts, val)
 
 
 class SingleValueParser(JolokiaParserBase):
@@ -103,6 +107,7 @@ class JolokiaCollector(CollectorBase):
 
     def __call__(self, protocol, port):
         conn = None
+        url = None
         try:
             url = "%(protocol)s://localhost:%(port)s/jolokia/" % dict(protocol=protocol, port=port)
             req = urllib2.Request(url, self.request_str, {'Content-Type': 'application/json'})

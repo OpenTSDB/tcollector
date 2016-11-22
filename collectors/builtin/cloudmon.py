@@ -5,6 +5,7 @@ import time
 import re
 from collectors.lib import utils
 from collectors.lib.collectorbase import CollectorBase
+from collectors.lib.collectorbase import MetricType
 
 
 class Cloudmon(CollectorBase):
@@ -17,7 +18,7 @@ class Cloudmon(CollectorBase):
             utils.drop_privileges()
             # collect period 60 secs
             url = self.get_config('stats_url', 'http://localhost:9999/stats.txt')
-            response = urllib2.urlopen(url + '?period=60')
+            response = urllib2.urlopen(url)
             content = response.read()
             return self.process(content)
         except:
@@ -40,7 +41,10 @@ class Cloudmon(CollectorBase):
                 metric_name = comps[0]
                 if stype == 'counters' or stype == 'gauges':
                     val = int(comps[1])
-                    self._readq.nput("%s %d %d" % (metric_name, ts, val))
+                    if stype == 'counters':
+                        self._readq.nput("%s %d %d metric_type=%s" % (metric_name, ts, val, MetricType.COUNTER))
+                    else:
+                        self._readq.nput("%s %d %d" % (metric_name, ts, val))
                 elif stype == 'metrics':
                     vals = [sss.strip(" ()") for sss in re.split(',|=', comps[1])]
 

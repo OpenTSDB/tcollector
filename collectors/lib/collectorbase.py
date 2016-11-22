@@ -102,5 +102,11 @@ class CollectorBase(object):
             self.log_exception('ignoring uncaught exception while close subprocess %d', proc.pid)
 
 
+class MetricType(object):
+    COUNTER = 'counter'
+    INC = 'increment'
+    REGULAR = 'regular'
+
+
 def _kill(pid, signum=signal.SIGTERM):
         os.kill(pid, signum)
