@@ -10,7 +10,7 @@ class TestCollector(CollectorBase):
         self.currval1 = 8
         self.currval2 = 10
         self.sampling_count = 0
-        self.inc_proc = IncPorcessor(None)
+        self.inc_proc = IncPorcessor(logger)
 
     def __call__(self):
         ts = time.time()
@@ -19,4 +19,4 @@ class TestCollector(CollectorBase):
         self.sampling_count = self.sampling_count + 1
         self._readq.nput('metric1 %d %d t1=10 t2=a metric_type=counter' % (ts, self.currval1))
         self._readq.nput('metric2 %d %d t1=20 t2=b metric_type=counter' % (ts, self.currval2))
-        self._readq.nput(self.inc_proc.process('metric3', ts, self.currval2))
+        self._readq.nput('metric3 %d %d t1=30 t2=c metric_type=increment' % (ts, self.inc_proc.process('metric3', self.currval2)))

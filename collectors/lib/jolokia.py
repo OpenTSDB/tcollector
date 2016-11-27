@@ -12,7 +12,7 @@ class JolokiaParserBase(object):
         self.logger = logger
         self._inc_processors = {}
 
-    def parse(self, json_dict, readq):
+    def parse(self, json_dict, readq, port):
         status = json_dict["status"]
         if status != 200:
             raise IOError("status code %d" % status)
@@ -24,11 +24,13 @@ class JolokiaParserBase(object):
                 mtype = self.get_metric_type(name)
                 if mtype == MetricType.COUNTER:
                     # for counter we should evaluate or display using rate
-                    readq.nput("%s %d %d metric_type=%s" % (self.metric_name(name), ts, val, MetricType.COUNTER))
+                    readq.nput("%s %d %d port=%s metric_type=%s" % (self.metric_name(name), ts, val, port,
+                                                                    MetricType.COUNTER))
                 elif mtype == MetricType.INC:
-                    readq.nput(self._process_inc(self.metric_name(name), ts, val))
+                    readq.nput("%s %d %d port=%s metric_type=%s" % (self.metric_name(name), ts,
+                                                                    self._process_inc(name, val), port, MetricType.INC))
                 else:
-                    readq.nput("%s %d %d" % (self.metric_name(name), ts, val))
+                    readq.nput("%s %d %d port=%s" % (self.metric_name(name), ts, val, port))
 
     def metric_dict(self, json_dict):
         return json_dict["value"]
@@ -42,10 +44,11 @@ class JolokiaParserBase(object):
     def get_metric_type(self, name):
         return MetricType.REGULAR
 
-    def _process_inc(self, name, ts, val):
+    def _process_inc(self, name, val):
         if name not in self._inc_processors:
             self._inc_processors[name] = IncPorcessor(self.logger)
-        return self._inc_processors[name].process(name, ts, val)
+            self.logger.info("added IncProcessor for %s", name)
+        return self._inc_processors[name].process(name, val)
 
 
 class SingleValueParser(JolokiaParserBase):
@@ -69,16 +72,16 @@ class JolokiaG1GCParser(JolokiaParserBase):
             survivorspace_dict = lastgcinfo["memoryUsageAfterGc"]["G1 Survivor Space"]
             metrics_dict.update({"survivorspace." + key: survivorspace_dict[key] for key in survivorspace_dict.keys()})
 
-            edenspace_dict =lastgcinfo["memoryUsageAfterGc"]["G1 Eden Space"]
+            edenspace_dict = lastgcinfo["memoryUsageAfterGc"]["G1 Eden Space"]
             metrics_dict.update({"edenspace." + key: edenspace_dict[key] for key in edenspace_dict.keys()})
 
-            oldgen_dict =lastgcinfo["memoryUsageAfterGc"]["G1 Old Gen"]
+            oldgen_dict = lastgcinfo["memoryUsageAfterGc"]["G1 Old Gen"]
             metrics_dict.update({"oldgen." + key: oldgen_dict[key] for key in oldgen_dict.keys()})
 
-            codecache_dict =lastgcinfo["memoryUsageAfterGc"]["Code Cache"]
+            codecache_dict = lastgcinfo["memoryUsageAfterGc"]["Code Cache"]
             metrics_dict.update({"codecache." + key: codecache_dict[key] for key in codecache_dict.keys()})
 
-            permgen_dict =lastgcinfo["memoryUsageAfterGc"]["G1 Perm Gen"]
+            permgen_dict = lastgcinfo["memoryUsageAfterGc"]["G1 Perm Gen"]
             metrics_dict.update({"permgen." + key: permgen_dict[key] for key in permgen_dict.keys()})
 
             metrics_dict.update({"GcThreadCount":lastgcinfo["GcThreadCount"]})
@@ -100,17 +103,17 @@ class JolokiaG1GCParser(JolokiaParserBase):
 
 
 class JolokiaCollector(CollectorBase):
-    def __init__(self, config, logger, readq, request_str, parser_map):
+    def __init__(self, config, logger, readq, protocol, port, request_str, parser_map):
         super(JolokiaCollector, self).__init__(config, logger, readq)
+        self.url = "%(protocol)s://localhost:%(port)s/jolokia/" % dict(protocol=protocol, port=port)
+        self.port = port
         self.request_str = request_str
         self.parser_map = parser_map
 
-    def __call__(self, protocol, port):
+    def __call__(self):
         conn = None
-        url = None
         try:
-            url = "%(protocol)s://localhost:%(port)s/jolokia/" % dict(protocol=protocol, port=port)
-            req = urllib2.Request(url, self.request_str, {'Content-Type': 'application/json'})
+            req = urllib2.Request(self.url, self.request_str, {'Content-Type': 'application/json'})
             conn = urllib2.urlopen(req)
             status_code = conn.getcode()
             if status_code != 200:
@@ -128,13 +131,13 @@ class JolokiaCollector(CollectorBase):
                 try:
                     parser = self.parser_map[mbean_key]
                     if parser:
-                        parser.parse(json_dict, self._readq)
+                        parser.parse(json_dict, self._readq, self.port)
                     else:
                         self.log_error("failed to instantiate parser %s, skip.", mbean_key)
                 except Exception:
                     self.log_exception("exception when parsing %s. skip", mbean_key)
         except Exception as e:
-            self.log_exception("unexpected error when requesting %s", url)
+            self.log_exception("unexpected error when requesting %s", self.url)
             raise e
         finally:
             if conn is not None:

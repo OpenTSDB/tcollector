@@ -1,5 +1,6 @@
 #!/usr/bin/python
 
+import sys
 from collectors.lib.jolokia import JolokiaCollector
 from collectors.lib.jolokia import JolokiaParserBase
 from collectors.lib.collectorbase import MetricType
@@ -9,11 +10,11 @@ class Tomcat(JolokiaCollector):
     JMX_REQUEST_JSON = r'''[
     {
         "type" : "read",
-        "mbean" : "Catalina:name=\"http-bio-8080\",type=GlobalRequestProcessor"
+        "mbean" : "Catalina:name=\"http-bio-%(port)s\",type=GlobalRequestProcessor"
     },
     {
         "type" : "read",
-        "mbean" : "Catalina:name=\"http-bio-8080\",type=ThreadPool",
+        "mbean" : "Catalina:name=\"http-bio-%(port)s\",type=ThreadPool",
         "attribute": ["connectionCount", "currentThreadCount"]
     },
     {
@@ -33,26 +34,45 @@ class Tomcat(JolokiaCollector):
     {
         "type" : "read",
         "mbean" : "java.lang:type=OperatingSystem",
-        "attribute" : ["FreePhysicalMemorySize","FreeSwapSpaceSize","AvailableProcessors","ProcessCpuLoad","TotalSwapSpaceSize","ProcessCpuTime","SystemLoadAverage","OpenFileDescriptorCount","MaxFileDescriptorCount","TotalPhysicalMemorySize","CommittedVirtualMemorySize","SystemCpuLoad"]
+        "attribute" : ["FreePhysicalMemorySize","FreeSwapSpaceSize","AvailableProcessors","ProcessCpuLoad",
+        "TotalSwapSpaceSize", "ProcessCpuTime", "SystemLoadAverage", "OpenFileDescriptorCount",
+        "MaxFileDescriptorCount", "TotalPhysicalMemorySize", "CommittedVirtualMemorySize", "SystemCpuLoad"]
     }
   ]'''
 
     def __init__(self, config, logger, readq):
-        parsers = {        # key is the mbean name
-            "Catalina:name=\"http-bio-8080\",type=GlobalRequestProcessor": JolokiaGlobalRequestProcessorParser(
-                logger),
-            "java.lang:type=Memory": JolokiaMemoryParser(logger),
-            "Catalina:name=\"http-bio-8080\",type=ThreadPool": JolokiaThreadPoolParser(logger),
-            "java.lang:type=Threading": JolokiaThreadingParser(logger),
-            "java.lang:name=PS Scavenge,type=GarbageCollector": JolokiaGCParser(logger),
-            "java.lang:type=OperatingSystem": JolokiaOSParser(logger)
+        m = sys.modules[__name__]
+        parsers_template = {        # key is the mbean name
+            "Catalina:name=\"http-bio-%(port)s\",type=GlobalRequestProcessor": "JolokiaGlobalRequestProcessorParser",
+            "java.lang:type=Memory": "JolokiaMemoryParser",
+            "Catalina:name=\"http-bio-%(port)s\",type=ThreadPool": "JolokiaThreadPoolParser",
+            "java.lang:type=Threading": "JolokiaThreadingParser",
+            "java.lang:name=PS Scavenge,type=GarbageCollector": "JolokiaGCParser",
+            "java.lang:type=OperatingSystem": "JolokiaOSParser"
         }
-        super(Tomcat, self).__init__(config, logger, readq, Tomcat.JMX_REQUEST_JSON, parsers)
+        protocol = Tomcat.get_config(config, "protocol", "http")
+        portsStr = Tomcat.get_config(config, "ports", "8080")
+        ports = portsStr.split(",")
 
-    def __call__(self, *arg):
-        protocol = self.get_config("protocol", "http")
-        port = self.get_config("port", "8080")
-        super(Tomcat, self).__call__(protocol, port)
+        self.collectors = {}
+        for port in ports:
+            jmx_request_json = Tomcat.JMX_REQUEST_JSON % dict(port=port)
+            parsers = {}
+            for key in parsers_template:
+                key_instanace = key % dict(port=port)
+                parsers[key_instanace] = getattr(m, parsers_template[key])(logger)
+            self.collectors[port] = JolokiaCollector(config, logger, readq, protocol, port, jmx_request_json, parsers)
+
+    def __call__(self):
+        for port in self.collectors:
+            self.collectors[port].__call__()
+
+    @staticmethod
+    def get_config(config, key, default=None, section='base'):
+        if config.has_option(section, key):
+            return config.get(section, key)
+        else:
+            return default
 
 
 class JolokiaGlobalRequestProcessorParser(JolokiaParserBase):
@@ -166,6 +186,16 @@ class JolokiaOSParser(JolokiaParserBase):
 
 if __name__ == "__main__":
     from Queue import Queue
+    import ConfigParser
+    import os
 
-    tomcat_inst = Tomcat(None, None, Queue())
-    tomcat_inst()
+    try:
+        collector_name = os.path.splitext(os.path.basename(__file__))[0]
+        parent_dir = os.path.dirname(os.path.dirname(__file__))
+        conf_file = os.path.join(parent_dir, "conf", collector_name + ".conf")
+        config = ConfigParser.SafeConfigParser()
+        config.read(conf_file)
+        tomcat_inst = Tomcat(config, None, Queue())
+        tomcat_inst()
+    except Exception as e:
+        print e

@@ -102,7 +102,9 @@ class Kafka(JolokiaCollector):
             "java.lang:name=G1 Young Generation,type=GarbageCollector": JolokiaG1GCParser(logger, "kafka", "g1_yong_gen"),
             "java.lang:name=G1 Old Generation,type=GarbageCollector": JolokiaG1GCParser(logger, "kafka", "g1_old_gen")
         }
-        super(Kafka, self).__init__(config, logger, readq, Kafka.JMX_REQUEST_JSON, parsers)
+        protocol = "http"
+        self.port = self.get_config("port", "8778")
+        super(Kafka, self).__init__(config, logger, readq, protocol, self.port, Kafka.JMX_REQUEST_JSON, parsers)
         workingdir = os.path.dirname(os.path.abspath(__file__))
         self.log_info("working dir is %s", workingdir)
         self.jolokia_file_path = os.path.join(workingdir, '../../lib', Kafka.JOLOKIA_JAR)
@@ -113,9 +115,7 @@ class Kafka(JolokiaCollector):
         self.kafka_pid = -1
         self.jolokia_process = None
 
-    def __call__(self, *args):
-        protocol = "http"
-        port = self.get_config("port", "8778")
+    def __call__(self):
         curr_time = time.time()
         if curr_time - self.checkpid_time >= Kafka.CHECK_KAFKA_PID_INTERVAL:
             self.checkpid_time = curr_time
@@ -129,8 +129,8 @@ class Kafka(JolokiaCollector):
                     self.stop_subprocess(self.jolokia_process, "jolokia JVM Agent")
                 self.kafka_pid = pid
                 self.log_info("joloia agent binds to %d", pid)
-                self.jolokia_process = subprocess.Popen(["java", "-jar", self.jolokia_file_path, "--port", port, "start", str(pid)], stdout=subprocess.PIPE)
-        super(Kafka, self).__call__(protocol, port)
+                self.jolokia_process = subprocess.Popen(["java", "-jar", self.jolokia_file_path, "--port", self.port, "start", str(pid)], stdout=subprocess.PIPE)
+        super(Kafka, self).__call__()
 
     def cleanup(self):
         self.log_info('stop subprocess %d', self.jolokia_process.pid)
