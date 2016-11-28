@@ -168,8 +168,8 @@ class Mysql(CollectorBase):
             raise IOError("unable to find mysql socket file")
         if MySQLdb is None:
             raise ImportError("unable to load Python module `MySQLdb'")
-        self.connection_user = self.get_config("user")
-        self.connection_pass = self.get_config("pass")
+        self.connection_user = self.get_config("user", "cloudwiz_user")
+        self.connection_pass = self.get_config("pass", "cloudwiz_pass")
         self.last_db_refresh = now()
         self.dbs = self.find_databases()
 

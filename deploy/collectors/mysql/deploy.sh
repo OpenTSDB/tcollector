@@ -28,7 +28,7 @@ function log_info() {
   printf "${color_green}$1${color_normal}\n"
 }
 
-read -p "the mysql collector will create a mysql user called $agent_user. If you have a user in use with the same name, abort now and contact cloudwiz support person. Otherwise, press any key to continue."
+read -p "the mysql collector will create a mysql user called ${mysql_stats_user}. If you have a user in use with the same name, abort now and contact cloudwiz support person. Otherwise, press any key to continue."
 
 check_root
 
@@ -47,9 +47,10 @@ if [ ! -f "$mysql_conf_file" ]; then
 fi
 
 command -v mysql > /dev/null 2>&1 || { echo >&2 "mysql command does not exist.  Aborting."; exit 1; }
+command -v mysql_config > /dev/null 2>&1 || { echo >&2 "mysql_config command does not exist. Make sure it is in the path. Usually it is under <mysql_root>/bin. Easy fix is to create a symlink like ln -s <mysql_install_root>/bin/mysql_config /usr/bin/mysql_config. Aborting."; exit 1; }
 log_info "CREATE USER '${mysql_stats_user}'@'localhost' IDENTIFIED BY '${mysql_stats_pass}'"
 log_info "type in password for mysql user $mysql_priv_user"
-mysql -u "$mysql_priv_user" -p -e "DROP USER IF EXISTS '${mysql_stats_user}'@'localhost'; GRANT PROCESS, REPLICATION CLIENT ON *.* TO '${mysql_stats_user}'@'localhost' IDENTIFIED BY '${mysql_stats_pass}'"
+mysql -u "$mysql_priv_user" -p -e "GRANT USAGE ON *.* TO '${mysql_stats_user}'@'localhost'; DROP USER '${mysql_stats_user}'@'localhost'; GRANT PROCESS, REPLICATION CLIENT ON *.* TO '${mysql_stats_user}'@'localhost' IDENTIFIED BY '${mysql_stats_pass}'"
 abort_if_failed "failed to create stats user '${mysql_stats_user}'@'localhost'"
 
 log_info "config mysql stats user/pass in ${mysql_conf_file} s/user:.*/user: ${mysql_stats_user}/g"
