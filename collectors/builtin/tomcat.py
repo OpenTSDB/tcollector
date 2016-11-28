@@ -4,9 +4,10 @@ import sys
 from collectors.lib.jolokia import JolokiaCollector
 from collectors.lib.jolokia import JolokiaParserBase
 from collectors.lib.collectorbase import MetricType
+from collectors.lib.collectorbase import CollectorBase
 
 
-class Tomcat(JolokiaCollector):
+class Tomcat(CollectorBase):
     JMX_REQUEST_JSON = r'''[
     {
         "type" : "read",
@@ -15,7 +16,7 @@ class Tomcat(JolokiaCollector):
     {
         "type" : "read",
         "mbean" : "Catalina:name=\"http-bio-%(port)s\",type=ThreadPool",
-        "attribute": ["connectionCount", "currentThreadCount"]
+        "attribute": ["connectionCount", "currentThreadCount", "currentThreadsBusy", "maxThreads"]
     },
     {
         "type" : "read",
@@ -37,10 +38,26 @@ class Tomcat(JolokiaCollector):
         "attribute" : ["FreePhysicalMemorySize","FreeSwapSpaceSize","AvailableProcessors","ProcessCpuLoad",
         "TotalSwapSpaceSize", "ProcessCpuTime", "SystemLoadAverage", "OpenFileDescriptorCount",
         "MaxFileDescriptorCount", "TotalPhysicalMemorySize", "CommittedVirtualMemorySize", "SystemCpuLoad"]
+    },
+    {
+        "type" : "read",
+        "mbean" : "Catalina:J2EEApplication=none,J2EEServer=none,WebModule=//localhost/,j2eeType=Servlet,name=default",
+        "attribute": ["requestCount", "processingTime", "errorCount"]
+    },
+    {
+        "type" : "read",
+        "mbean" : "Catalina:context=/,host=localhost,type=Cache",
+        "attribute": ["accessCount", "hitsCount"]
+    },
+    {
+        "type": "read",
+        "mbean" : "Catalina:J2EEApplication=none,J2EEServer=none,WebModule=//localhost/,name=jsp,type=JspMonitor",
+        "attribute": ["jspUnloadCount", "jspCount", "jspReloadCount", "jspQueueLength"]
     }
   ]'''
 
     def __init__(self, config, logger, readq):
+        super(Tomcat, self).__init__(config, logger, readq)
         m = sys.modules[__name__]
         parsers_template = {        # key is the mbean name
             "Catalina:name=\"http-bio-%(port)s\",type=GlobalRequestProcessor": "JolokiaGlobalRequestProcessorParser",
@@ -48,10 +65,13 @@ class Tomcat(JolokiaCollector):
             "Catalina:name=\"http-bio-%(port)s\",type=ThreadPool": "JolokiaThreadPoolParser",
             "java.lang:type=Threading": "JolokiaThreadingParser",
             "java.lang:name=PS Scavenge,type=GarbageCollector": "JolokiaGCParser",
-            "java.lang:type=OperatingSystem": "JolokiaOSParser"
+            "java.lang:type=OperatingSystem": "JolokiaOSParser",
+            "Catalina:J2EEApplication=none,J2EEServer=none,WebModule=//localhost/,j2eeType=Servlet,name=default": "JolokiaServletParser",
+            "Catalina:context=/,host=localhost,type=Cache": "JolokiaCacheParser",
+            "Catalina:J2EEApplication=none,J2EEServer=none,WebModule=//localhost/,name=jsp,type=JspMonitor": "JolokiaJspMonitorParser"
         }
-        protocol = Tomcat.get_config(config, "protocol", "http")
-        portsStr = Tomcat.get_config(config, "ports", "8080")
+        protocol = self.get_config("protocol", "http")
+        portsStr = self.get_config("ports", "8080")
         ports = portsStr.split(",")
 
         self.collectors = {}
@@ -66,13 +86,6 @@ class Tomcat(JolokiaCollector):
     def __call__(self):
         for port in self.collectors:
             self.collectors[port].__call__()
-
-    @staticmethod
-    def get_config(config, key, default=None, section='base'):
-        if config.has_option(section, key):
-            return config.get(section, key)
-        else:
-            return default
 
 
 class JolokiaGlobalRequestProcessorParser(JolokiaParserBase):
@@ -115,7 +128,7 @@ class JolokiaThreadPoolParser(JolokiaParserBase):
         super(JolokiaThreadPoolParser, self).__init__(logger)
 
     def valid_metrics(self):
-        return ["connectionCount", "currentThreadCount"]
+        return ["connectionCount", "currentThreadCount", "currentThreadsBusy", "maxThreads"]
 
     def metric_name(self, name):
         return JolokiaParserBase.metric_name(self, "%s.%s" % ("threadpool", name))
@@ -183,6 +196,54 @@ class JolokiaOSParser(JolokiaParserBase):
 
     def metric_name(self, name):
         return JolokiaParserBase.metric_name(self, "%s.%s" % ("os", name))
+
+
+class JolokiaServletParser(JolokiaParserBase):
+    def __init__(self, logger):
+        super(JolokiaServletParser, self).__init__(logger)
+        self.metrics = ["requestCount", "processingTime", "errorCount"]
+        self.types = [MetricType.COUNTER, MetricType.REGULAR, MetricType.COUNTER]
+
+    def valid_metrics(self):
+        return self.metrics
+
+    def metric_name(self, name):
+        return JolokiaParserBase.metric_name(self, "%s.%s" % ("servlet", name))
+
+    def get_metric_type(self, name):
+        return self.types[self.metrics.index(name)]
+
+
+class JolokiaCacheParser(JolokiaParserBase):
+    def __init__(self, logger):
+        super(JolokiaCacheParser, self).__init__(logger)
+        self.metrics = ["accessCount", "hitsCount"]
+
+    def valid_metrics(self):
+        return self.metrics
+
+    def metric_name(self, name):
+        return JolokiaParserBase.metric_name(self, "%s.%s" % ("cache", name))
+
+    def get_metric_type(self, name):
+        return MetricType.COUNTER
+
+
+class JolokiaJspMonitorParser(JolokiaParserBase):
+    def __init__(self, logger):
+        super(JolokiaJspMonitorParser, self).__init__(logger)
+        self.metrics = ["jspUnloadCount", "jspCount", "jspReloadCount", "jspQueueLength"]
+        self.type = [MetricType.COUNTER, MetricType.COUNTER, MetricType.COUNTER, MetricType.REGULAR]
+
+    def valid_metrics(self):
+        return self.metrics
+
+    def metric_name(self, name):
+        return JolokiaParserBase.metric_name(self, "%s.%s" % ("jsp", name))
+
+    def get_metric_type(self, name):
+        return self.type[self.metrics.index(name)]
+
 
 if __name__ == "__main__":
     from Queue import Queue
