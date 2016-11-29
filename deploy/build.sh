@@ -17,6 +17,7 @@ altenv_log_folder="${altenv_var_folder}/log"
 altenv_ssl_folder="${altenv_usr_folder}/local/ssl"
 agent_collector_folder="${agent_install_folder}/$agent_folder_name"
 lib_folder="${agent_collector_folder}/lib"
+local_config_folder="${agent_collector_folder}/local_config"
 publish_location="./releases"
 
 function display_usage() {
@@ -317,11 +318,18 @@ yes | cp -f "${basedir}/filebeat.yml" "${agent_install_folder}/filebeat-1.3.1"
 abort_if_failed "failed to copy ${workspace_folder}/filebeat-1.3.1 ${agent_install_folder}"
 log_info "finish setting up filebeat"
 
+log_info "set up lib folder"
 mkdir -p "${lib_folder}"
 abort_if_failed "failed to create ${lib_folder}"
 log_info "cp -f ${workspace_folder}/jolokia-jvm-1.3.5-agent.jar ${lib_folder}/jolokia-jvm-1.3.5-agent.jar"
 yes | cp -f ${workspace_folder}/jolokia-jvm-1.3.5-agent.jar ${lib_folder}/jolokia-jvm-1.3.5-agent.jar
 abort_if_failed "failed to copy jolokia agent"
+
+log_info "setup local config folder"
+mkdir -p "${local_config_folder}"
+abort_if_failed "failed to create ${local_config_folder}"
+yes | cp -rf "${basedir}/collectors/" "${local_config_folder}"
+abort_if_failed "failed to copy local config folder"
 
 tar -zcf ${basedir}/agent.tar.gz "$agent_install_folder"
 abort_if_failed 'failed to add agent to tar file'
