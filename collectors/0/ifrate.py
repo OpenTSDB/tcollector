@@ -113,10 +113,10 @@ def main():
                     timestamp = int(time.time())
                 print ("ifrate.byt.in %s %s int=%s" % (timestamp, int(fields[3])/collection_interval, interfaces[procnum]))
                 print ("ifrate.byt.out %s %s int=%s" % (timestamp, int(fields[6])/collection_interval, interfaces[procnum]))
-                if(report_packets != 0):
+                if(report_packets):
                     print ("ifrate.pkt.in %s %s int=%s" % (timestamp, int(fields[0])/collection_interval, interfaces[procnum]))
                     print ("ifrate.pkt.out %s %s int=%s" % (timestamp, int(fields[4])/collection_interval, interfaces[procnum]))
-                if(merge_err_in_out != 0):
+                if(merge_err_in_out):
                     print ("ifrate.err %s %s int=%s" % (timestamp, (int(fields[1])+int(fields[5]))/collection_interval, interfaces[procnum]))
                     print ("ifrate.drp %s %s int=%s" % (timestamp, (int(fields[2])+int(fields[8]))/collection_interval, interfaces[procnum]))
                 else:
