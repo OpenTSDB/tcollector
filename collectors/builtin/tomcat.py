@@ -76,6 +76,7 @@ class Tomcat(CollectorBase):
 
         self.collectors = {}
         for port in ports:
+            port = port.strip()
             jmx_request_json = Tomcat.JMX_REQUEST_JSON % dict(port=port)
             parsers = {}
             for key in parsers_template:
