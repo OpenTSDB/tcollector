@@ -22,7 +22,7 @@ import sys
 from Queue import Queue
 
 # If we're running as root and this user exists, we'll drop privileges.
-USER = "nobody"
+USER = "cwiz-user"
 
 
 def drop_privileges(user=USER):

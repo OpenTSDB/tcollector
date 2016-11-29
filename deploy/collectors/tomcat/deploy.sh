@@ -14,7 +14,6 @@ fi
 currdir=$(cd $(dirname $0); pwd)
 ports=''
 for webapp_path_and_root in "$@"; do
-    echo "path_port=$webapp_path_and_root"
     IFS=':'
     path_port=(${webapp_path_and_root})
     if [ -z "${path_port[0]}" ]; then
@@ -27,11 +26,9 @@ for webapp_path_and_root in "$@"; do
     fi
     echo "cp -f $currdir/jolokia.war ${path_port[0]}"
     yes | cp -f $currdir/jolokia.war ${path_port[0]} || exit 1
-    echo ${path_port[1]}
     ports="${ports},${path_port[1]}"
 done
 
-echo $ports
 ports=${ports:1}
 echo "set ports: $ports in $conf_file"
 if [[ -f $conf_file ]]; then

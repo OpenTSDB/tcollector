@@ -103,7 +103,7 @@ class Kafka(JolokiaCollector):
             "java.lang:name=G1 Old Generation,type=GarbageCollector": JolokiaG1GCParser(logger, "kafka", "g1_old_gen")
         }
         protocol = "http"
-        self.port = self.get_config("port", "8778")
+        self.port = Kafka.get_config(config, "port", "8778")
         super(Kafka, self).__init__(config, logger, readq, protocol, self.port, Kafka.JMX_REQUEST_JSON, parsers)
         workingdir = os.path.dirname(os.path.abspath(__file__))
         self.log_info("working dir is %s", workingdir)
@@ -119,17 +119,20 @@ class Kafka(JolokiaCollector):
         curr_time = time.time()
         if curr_time - self.checkpid_time >= Kafka.CHECK_KAFKA_PID_INTERVAL:
             self.checkpid_time = curr_time
-            pid = self._get_kafka_pid()
-            if pid is None:
-                raise Exception("failed to find kafka process")
+            pid, puser = self._get_kafka_pid()
+            if pid is None or puser is None:
+                raise Exception("failed to find kafka process, One of the (pid, puser) pair is None (%d, %s)" % (pid, puser))
             if self.kafka_pid != pid:
-                self.log_info("found kafka pid %d", pid)
+                self.log_info("found kafka pid %d, puser %s", pid, puser)
                 if self.jolokia_process is not None:
                     self.log_info("stop jolokia agent bound to old kafka pid %d", self.kafka_pid)
                     self.stop_subprocess(self.jolokia_process, "jolokia JVM Agent")
                 self.kafka_pid = pid
                 self.log_info("joloia agent binds to %d", pid)
-                self.jolokia_process = subprocess.Popen(["java", "-jar", self.jolokia_file_path, "--port", self.port, "start", str(pid)], stdout=subprocess.PIPE)
+                cmdstr = "su -c \"java -jar %s --port %s start %d\" %s" % (self.jolokia_file_path, self.port, pid, puser)
+                self.log_info("start jolokia agent %s", cmdstr)
+                self.jolokia_process = subprocess.Popen(cmdstr, stdout=subprocess.PIPE, shell=True)
+                self.log_info("jolokia process %s", self.jolokia_process.pid)
         super(Kafka, self).__call__()
 
     def cleanup(self):
@@ -142,9 +145,23 @@ class Kafka(JolokiaCollector):
         for pid_space_name in all_java_processes:
             m = re.search(self.kafka_pattern, pid_space_name)
             if m is not None:
-                return long(m.group("pid"))
-        return None
+                pid = m.group("pid")
+                user_qstr_lines = "ps -p %s -o ruser | wc -l" % pid
+                lines = int(subprocess.check_output(user_qstr_lines, shell=True).split("\n")[0])
+                if lines >= 2:
+                    user_qstr = "ps -p %s -o ruser | tail -n 1" % pid
+                    puser = subprocess.check_output(user_qstr, shell=True).split("\n")[0]
+                    return long(m.group("pid")), puser
+                else:
+                    return long(m.group("pid")), None
+        return None, None
 
+    @staticmethod
+    def get_config(config, key, default=None, section='base'):
+        if config.has_option(section, key):
+            return config.get(section, key)
+        else:
+            return default
 
 class URPParser(SingleValueParser):
     def __init__(self, logger):

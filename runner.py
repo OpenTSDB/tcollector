@@ -656,7 +656,10 @@ class Sender(threading.Thread):
         metric_entry = {}
         metric_entry["metric"] = metric
         metric_entry["timestamp"] = long(timestamp)
-        metric_entry["value"] = long(value)
+        try:
+            metric_entry["value"] = long(value)
+        except:
+            metric_entry["value"] = float(value)
         metric_entry["tags"] = dict(self.tags).copy()
         if len(metric_tags) + len(metric_entry["tags"]) > self.maxtags:
             metric_tags_orig = set(metric_tags)
