@@ -18,19 +18,7 @@ class JolokiaParserBase(object):
             raise IOError("status code %d" % status)
         ts = json_dict["timestamp"]
         value_dict = self.metric_dict(json_dict)
-        for name in self.valid_metrics():
-            if name in value_dict:
-                val = value_dict[name]
-                mtype = self.get_metric_type(name)
-                if mtype == MetricType.COUNTER:
-                    # for counter we should evaluate or display using rate
-                    readq.nput("%s %d %d port=%s metric_type=%s" % (self.metric_name(name), ts, val, port,
-                                                                    MetricType.COUNTER))
-                elif mtype == MetricType.INC:
-                    readq.nput("%s %d %d port=%s metric_type=%s" % (self.metric_name(name), ts,
-                                                                    self._process_inc(name, val), port, MetricType.INC))
-                else:
-                    readq.nput("%s %d %d port=%s" % (self.metric_name(name), ts, val, port))
+        self._process(readq, port, ts, value_dict)
 
     def metric_dict(self, json_dict):
         return json_dict["value"]
@@ -43,6 +31,26 @@ class JolokiaParserBase(object):
 
     def get_metric_type(self, name):
         return MetricType.REGULAR
+
+    def _process(self, readq, port, ts, value_dict, additional_tags = None):
+        for name in self.valid_metrics():
+            if name in value_dict:
+                val = value_dict[name]
+                mtype = self.get_metric_type(name)
+                if mtype == MetricType.COUNTER:
+                    # for counter we should evaluate or display using rate
+                    nput_str = "%s %d %d port=%s metric_type=%s" % (self.metric_name(name), ts, val, port,
+                                                                    MetricType.COUNTER)
+                elif mtype == MetricType.INC:
+                    nput_str = "%s %d %d port=%s metric_type=%s" % (self.metric_name(name), ts,
+                                                                    self._process_inc(name, val), port, MetricType.INC)
+                else:
+                    nput_str = "%s %d %d port=%s" % (self.metric_name(name), ts, val, port)
+
+                if additional_tags is None:
+                    readq.nput(nput_str)
+                else:
+                    readq.nput("%s %s" % (nput_str, additional_tags))
 
     def _process_inc(self, name, val):
         if name not in self._inc_processors:

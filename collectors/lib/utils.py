@@ -59,6 +59,21 @@ def is_numeric(value):
     return isinstance(value, (int, long, float))
 
 
+def remove_invalid_characters(str):
+    """removes characters unacceptable by opentsdb"""
+    replaced = False
+    lstr = list(str)
+    for i, c in enumerate(lstr):
+        if not (('a' <= c <= 'z') or ('A' <= c <= 'Z') or ('0' <= c <= '9') or c == '-' or c == '_' or
+                c == '.' or c == '/' or c.isalpha()):
+            lstr[i] = '_'
+            replaced = True
+    if replaced:
+        return "".join(lstr)
+    else:
+        return str
+
+
 class TestQueue(Queue):
     def nput(self, value):
         print value
