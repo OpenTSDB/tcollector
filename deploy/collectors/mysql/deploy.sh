@@ -5,6 +5,7 @@ color_normal=$(tput sgr0)
 color_green=$(tput setaf 2)
 
 agent_install_folder="/opt/cloudwiz-agent"
+supervisor_conf_file="${agent_install_folder}/altenv/etc/supervisord.conf"
 mysql_conf_file=${agent_install_folder}/agent/collectors/conf/mysql.conf
 mysql_stats_user="cloudwiz_user"
 mysql_stats_pass="cloudwiz_pass"
@@ -100,5 +101,15 @@ if ! $("$agent_install_folder/altenv/bin/python" -c 'import MySQLdb' &> /dev/nul
     "$agent_install_folder/altenv/bin/python" setup.py install --prefix="$agent_install_folder/altenv" --record ../mysql-python-filelist.txt
     abort_if_failed 'failed to install MySQL-python-1.2.5'
     popd
+
+    if [ -z "${LD_LIBRARY_PATH// }" ]; then
+        read -p "LD_LIBRARY_PATH environment variable is not set, please type in. This should be your mysql/lib folder: " lib_so_path
+    else
+        log_info "LD_LIBRARY_PATH environment is set to be $LD_LIBRARY_PATH, use it"
+        lib_so_path=$LD_LIBRARY_PATH
+    fi
+    log_info "configure LD_LIBRARY_PATH in supervisor_conf_file, set it to be $lib_so_path"
+    sed -i -r "s|^environment=LD_LIBRARY_PATH *= *(,.*)*|environment=LD_LIBRARY_PATH=$lib_so_path\1|g" ${supervisor_conf_file}
+    abort_if_failed "failed to set LD_LIBRARY_PATH in supervisor_conf_file"
 fi
 log_info "Complete!"
