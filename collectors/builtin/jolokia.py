@@ -173,45 +173,45 @@ def main():
     if not (jolokia_conf and jolokia_conf.enabled()):
         utils.err("Jolokia collector disable by config")
         sys.exit(13)
-    utils.drop_privileges()
+    with utils.lower_privileges(self._logger):
 
-    CONFIG = jolokia_conf.get_config()
-    instances = []
+        CONFIG = jolokia_conf.get_config()
+        instances = []
 
-    for instance in CONFIG['instances']:
-        if 'common_tags' in CONFIG:
-            if 'tags' in instance:
-                instance['tags'].update(CONFIG['common_tags'])
-            else:
-                instance['tags'] = CONFIG['common_tags']
-        if 'common_monitors' in CONFIG:
-            if 'monitors' in instance:
-                instance['monitors'] += CONFIG['common_monitors']
-            else:
-                instance['monitors'] = CONFIG['common_monitors']
+        for instance in CONFIG['instances']:
+            if 'common_tags' in CONFIG:
+                if 'tags' in instance:
+                    instance['tags'].update(CONFIG['common_tags'])
+                else:
+                    instance['tags'] = CONFIG['common_tags']
+            if 'common_monitors' in CONFIG:
+                if 'monitors' in instance:
+                    instance['monitors'] += CONFIG['common_monitors']
+                else:
+                    instance['monitors'] = CONFIG['common_monitors']
 
-        if not 'monitors' in instance:
-            utils.err("error: no monitors configured")
-            sys.exit(13)
-        if not 'tags' in instance:
-            instance['tags'] = []
+            if not 'monitors' in instance:
+                utils.err("error: no monitors configured")
+                sys.exit(13)
+            if not 'tags' in instance:
+                instance['tags'] = []
 
-        if not 'auth' in instance:
-            instance['auth'] = {'username': '', 'password': ''}
+            if not 'auth' in instance:
+                instance['auth'] = {'username': '', 'password': ''}
 
-        jc = JolokiaCollector(instance['url'], instance['auth'], instance['tags'], instance['monitors'])
-        instances.append(jc)
+            jc = JolokiaCollector(instance['url'], instance['auth'], instance['tags'], instance['monitors'])
+            instances.append(jc)
 
-    # LOOP!!
-    while True:
-        for i in instances:
-            i.process_data()
+        # LOOP!!
+        while True:
+            for i in instances:
+                i.process_data()
 
-        try:
-            time.sleep(CONFIG['interval'])
-        except KeyboardInterrupt:
-            break
-    # End while True
+            try:
+                time.sleep(CONFIG['interval'])
+            except KeyboardInterrupt:
+                break
+        # End while True
 
 if __name__ == "__main__":
     main()

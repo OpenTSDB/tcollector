@@ -80,7 +80,7 @@ class Kafka(JolokiaCollector):
     ]'''
 
     JOLOKIA_JAR = "jolokia-jvm-1.3.5-agent.jar"
-    CHECK_KAFKA_PID_INTERVAL = 600  # seconds, this is in case kafka restart
+    CHECK_KAFKA_PID_INTERVAL = 300  # seconds, this is in case kafka restart
 
     def __init__(self, config, logger, readq):
         parsers = {

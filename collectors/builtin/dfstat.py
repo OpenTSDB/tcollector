@@ -54,94 +54,93 @@ class Dfstat(CollectorBase):
         self.f_mounts = open("/proc/mounts", "r")
 
     def __call__(self):
-        utils.drop_privileges()
+        with utils.lower_privileges(self._logger):
+            ret_metrics = []
+            devices = []
+            self.f_mounts.seek(0)
+            ts = int(time.time())
 
-        ret_metrics = []
-        devices = []
-        self.f_mounts.seek(0)
-        ts = int(time.time())
+            for line in self.f_mounts:
+                # Docs come from the fstab(5)
+                # fs_spec     # Mounted block special device or remote filesystem
+                # fs_file     # Mount point
+                # fs_vfstype  # File system type
+                # fs_mntops   # Mount options
+                # fs_freq     # Dump(8) utility flags
+                # fs_passno   # Order in which filesystem checks are done at reboot time
+                try:
+                    fs_spec, fs_file, fs_vfstype, fs_mntops, fs_freq, fs_passno = line.split(None)
+                except ValueError, e:
+                    self.log_exception("can't parse line at /proc/mounts.")
+                    continue
 
-        for line in self.f_mounts:
-            # Docs come from the fstab(5)
-            # fs_spec     # Mounted block special device or remote filesystem
-            # fs_file     # Mount point
-            # fs_vfstype  # File system type
-            # fs_mntops   # Mount options
-            # fs_freq     # Dump(8) utility flags
-            # fs_passno   # Order in which filesystem checks are done at reboot time
-            try:
-                fs_spec, fs_file, fs_vfstype, fs_mntops, fs_freq, fs_passno = line.split(None)
-            except ValueError, e:
-                self.log_exception("can't parse line at /proc/mounts.")
-                continue
+                if fs_spec == "none":
+                    continue
+                elif fs_vfstype in FSTYPE_IGNORE or fs_vfstype.startswith("fuse."):
+                    continue
+                # startswith(tuple) avoided to preserve support of Python 2.4
+                elif fs_file.startswith("/dev") or fs_file.startswith("/sys") or \
+                      fs_file.startswith("/proc") or fs_file.startswith("/lib") or \
+                      fs_file.startswith("net:"):
+                      continue
 
-            if fs_spec == "none":
-                continue
-            elif fs_vfstype in FSTYPE_IGNORE or fs_vfstype.startswith("fuse."):
-                continue
-            # startswith(tuple) avoided to preserve support of Python 2.4
-            elif fs_file.startswith("/dev") or fs_file.startswith("/sys") or \
-                  fs_file.startswith("/proc") or fs_file.startswith("/lib") or \
-                  fs_file.startswith("net:"):
-                  continue
-
-            # keep /dev/xxx device with shorter fs_file (remove mount binds)
-            device_found = False
-            if fs_spec.startswith("/dev"):
-                for device in devices:
-                    if fs_spec == device[0]:
-                        device_found = True
-                        if len(fs_file) < len(device[1]):
-                            device[1] = fs_file
-                        break
-                if not device_found:
+                # keep /dev/xxx device with shorter fs_file (remove mount binds)
+                device_found = False
+                if fs_spec.startswith("/dev"):
+                    for device in devices:
+                        if fs_spec == device[0]:
+                            device_found = True
+                            if len(fs_file) < len(device[1]):
+                                device[1] = fs_file
+                            break
+                    if not device_found:
+                        devices.append([fs_spec, fs_file, fs_vfstype])
+                else:
                     devices.append([fs_spec, fs_file, fs_vfstype])
-            else:
-                devices.append([fs_spec, fs_file, fs_vfstype])
 
-        for device in devices:
-            fs_spec, fs_file, fs_vfstype = device
-            try:
-                r = os.statvfs(fs_file)
-            except OSError, e:
-                self.log_exception("can't get info for mount point: %s: %s" % (fs_file, e))
-                continue
+            for device in devices:
+                fs_spec, fs_file, fs_vfstype = device
+                try:
+                    r = os.statvfs(fs_file)
+                except OSError, e:
+                    self.log_exception("can't get info for mount point: %s: %s" % (fs_file, e))
+                    continue
 
-            used = r.f_blocks - r.f_bfree
+                used = r.f_blocks - r.f_bfree
 
-            # conditional expression avoided to preserve support of Python 2.4
-            # percent_used = 100 if r.f_blocks == 0 else used * 100.0 / r.f_blocks
-            if r.f_blocks == 0:
-                percent_used = 100
-            else:
-                percent_used = used * 100.0 / r.f_blocks
+                # conditional expression avoided to preserve support of Python 2.4
+                # percent_used = 100 if r.f_blocks == 0 else used * 100.0 / r.f_blocks
+                if r.f_blocks == 0:
+                    percent_used = 100
+                else:
+                    percent_used = used * 100.0 / r.f_blocks
 
-            self._readq.nput("df.bytes.total %d %s mount=%s fstype=%s"
-                  % (ts, r.f_frsize * r.f_blocks, fs_file, fs_vfstype))
-            self._readq.nput("df.bytes.used %d %s mount=%s fstype=%s"
-                  % (ts, r.f_frsize * used, fs_file, fs_vfstype))
-            self._readq.nput("df.bytes.percentused %d %s mount=%s fstype=%s"
-                  % (ts, percent_used, fs_file, fs_vfstype))
-            self._readq.nput("df.bytes.free %d %s mount=%s fstype=%s"
-                  % (ts, r.f_frsize * r.f_bfree, fs_file, fs_vfstype))
+                self._readq.nput("df.bytes.total %d %s mount=%s fstype=%s"
+                      % (ts, r.f_frsize * r.f_blocks, fs_file, fs_vfstype))
+                self._readq.nput("df.bytes.used %d %s mount=%s fstype=%s"
+                      % (ts, r.f_frsize * used, fs_file, fs_vfstype))
+                self._readq.nput("df.bytes.percentused %d %s mount=%s fstype=%s"
+                      % (ts, percent_used, fs_file, fs_vfstype))
+                self._readq.nput("df.bytes.free %d %s mount=%s fstype=%s"
+                      % (ts, r.f_frsize * r.f_bfree, fs_file, fs_vfstype))
 
-            used = r.f_files - r.f_ffree
+                used = r.f_files - r.f_ffree
 
-            # percent_used = 100 if r.f_files == 0 else used * 100.0 / r.f_files
-            if r.f_files == 0:
-                percent_used = 100
-            else:
-                percent_used = used * 100.0 / r.f_files
+                # percent_used = 100 if r.f_files == 0 else used * 100.0 / r.f_files
+                if r.f_files == 0:
+                    percent_used = 100
+                else:
+                    percent_used = used * 100.0 / r.f_files
 
-            self._readq.nput("df.inodes.total %d %s mount=%s fstype=%s"
-                  % (ts, r.f_files, fs_file, fs_vfstype))
-            self._readq.nput("df.inodes.used %d %s mount=%s fstype=%s"
-                  % (ts, used, fs_file, fs_vfstype))
-            self._readq.nput("df.inodes.percentused %d %s mount=%s fstype=%s"
-                  % (ts, percent_used, fs_file, fs_vfstype))
-            self._readq.nput("df.inodes.free %d %s mount=%s fstype=%s"
-                  % (ts, r.f_ffree, fs_file, fs_vfstype))
-        return ret_metrics
+                self._readq.nput("df.inodes.total %d %s mount=%s fstype=%s"
+                      % (ts, r.f_files, fs_file, fs_vfstype))
+                self._readq.nput("df.inodes.used %d %s mount=%s fstype=%s"
+                      % (ts, used, fs_file, fs_vfstype))
+                self._readq.nput("df.inodes.percentused %d %s mount=%s fstype=%s"
+                      % (ts, percent_used, fs_file, fs_vfstype))
+                self._readq.nput("df.inodes.free %d %s mount=%s fstype=%s"
+                      % (ts, r.f_ffree, fs_file, fs_vfstype))
+            return ret_metrics
 
     def cleanup(self):
         self.safe_close(self.f_mounts)

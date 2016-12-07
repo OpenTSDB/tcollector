@@ -175,63 +175,62 @@ class Procnettcp(CollectorBase):
             self.cleanup()
             raise
 
-        utils.drop_privileges()
-
     def cleanup(self):
         self.safe_close(self.tcp)
         self.safe_close(self.tcp6)
 
     def __call__(self):
-        counter = {}
+        with utils.lower_privileges(self._logger):
+            counter = {}
 
-        for procfile in (self.tcp, self.tcp6):
-            if procfile is None:
-                continue
-            procfile.seek(0)
-            ts = int(time.time())
-            for line in procfile:
-                try:
-                    # pylint: disable=W0612
-                    (num, src, dst, state, queue, when, retrans,
-                     uid, timeout, inode) = line.split(None, 9)
-                except ValueError:  # Malformed line
+            for procfile in (self.tcp, self.tcp6):
+                if procfile is None:
                     continue
+                procfile.seek(0)
+                ts = int(time.time())
+                for line in procfile:
+                    try:
+                        # pylint: disable=W0612
+                        (num, src, dst, state, queue, when, retrans,
+                         uid, timeout, inode) = line.split(None, 9)
+                    except ValueError:  # Malformed line
+                        continue
 
-                if num == "sl":  # header
-                    continue
+                    if num == "sl":  # header
+                        continue
 
-                srcport = src.split(":")[1]
-                dstport = dst.split(":")[1]
-                srcport = int(srcport, 16)
-                dstport = int(dstport, 16)
-                service = PORTS.get(srcport, "other")
-                service = PORTS.get(dstport, service)
+                    srcport = src.split(":")[1]
+                    dstport = dst.split(":")[1]
+                    srcport = int(srcport, 16)
+                    dstport = int(dstport, 16)
+                    service = PORTS.get(srcport, "other")
+                    service = PORTS.get(dstport, service)
 
-                if is_public_ip(dst) or is_public_ip(src):
-                    endpoint = "external"
-                else:
-                    endpoint = "internal"
+                    if is_public_ip(dst) or is_public_ip(src):
+                        endpoint = "external"
+                    else:
+                        endpoint = "internal"
 
-                user = self.uids.get(uid, "other")
+                    user = self.uids.get(uid, "other")
 
-                key = "state=" + TCPSTATES[state] + " endpoint=" + endpoint + \
-                      " service=" + service + " user=" + user
-                if key in counter:
-                    counter[key] += 1
-                else:
-                    counter[key] = 1
+                    key = "state=" + TCPSTATES[state] + " endpoint=" + endpoint + \
+                          " service=" + service + " user=" + user
+                    if key in counter:
+                        counter[key] += 1
+                    else:
+                        counter[key] = 1
 
-        # output the counters
-        for state in TCPSTATES:
-            for service in SERVICES + ("other",):
-                for user in USERS + ("other",):
-                    for endpoint in ("internal", "external"):
-                        key = ("state=%s endpoint=%s service=%s user=%s"
-                               % (TCPSTATES[state], endpoint, service, user))
-                        if key in counter:
-                            self._readq.nput("proc.net.tcp {0} {1} {2}".format(ts, counter[key], key))
-                        else:
-                            self._readq.nput("proc.net.tcp {0} {1} {2}".format(ts, "0", key))
+            # output the counters
+            for state in TCPSTATES:
+                for service in SERVICES + ("other",):
+                    for user in USERS + ("other",):
+                        for endpoint in ("internal", "external"):
+                            key = ("state=%s endpoint=%s service=%s user=%s"
+                                   % (TCPSTATES[state], endpoint, service, user))
+                            if key in counter:
+                                self._readq.nput("proc.net.tcp {0} {1} {2}".format(ts, counter[key], key))
+                            else:
+                                self._readq.nput("proc.net.tcp {0} {1} {2}".format(ts, "0", key))
 
 
 if __name__ == "__main__":

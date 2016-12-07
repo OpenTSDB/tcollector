@@ -83,7 +83,6 @@ def collect_stats(bin_dir, bucket, readq):
 class Couchbase(CollectorBase):
     def __init__(self, config, logger, readq):
         super(Couchbase, self).__init__(config, logger, readq)
-        utils.drop_privileges()
 
         couchbase_initfile = self.get_config('couchbase_initfile', '/etc/init.d/couchbase-server')
         pid = self.find_couchbase_pid(couchbase_initfile)
@@ -103,11 +102,12 @@ class Couchbase(CollectorBase):
             raise
 
     def __call__(self):
-        # Listing bucket everytime so as to start collecting datapoints
-        # of any new bucket.
-        buckets = list_bucket(self.bin_dir)
-        for b in buckets:
-            collect_stats(self.bin_dir, b, self._readq)
+        with utils.lower_privileges(self._logger):
+            # Listing bucket everytime so as to start collecting datapoints
+            # of any new bucket.
+            buckets = list_bucket(self.bin_dir)
+            for b in buckets:
+                collect_stats(self.bin_dir, b, self._readq)
 
     def find_couchbase_pid(self, couchbase_initfile):
         if not os.path.isfile(couchbase_initfile):

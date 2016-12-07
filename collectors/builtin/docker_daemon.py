@@ -26,10 +26,10 @@ class DockerDaemon(CollectorBase):
         self.safe_close(self.client)
 
     def __call__(self):
-        utils.drop_privileges()
-        containers = self.get_container_list()
-        for containername in containers:
-            self.get_container_stats(containername)
+        with utils.lower_privileges(self._logger):
+            containers = self.get_container_list()
+            for containername in containers:
+                self.get_container_stats(containername)
 
     def get_container_list(self):
         request = "GET /containers/json?all=1 HTTP/1.1\r\n"

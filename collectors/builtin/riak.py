@@ -81,35 +81,35 @@ def main():
     if not os.path.exists("/usr/lib/riak"):
         sys.exit(13)
 
-    utils.drop_privileges()
-    sys.stdin.close()
+    with utils.lower_privileges(self._logger):
+        sys.stdin.close()
 
-    interval = 15
+        interval = 15
 
-    def print_stat(metric, value, tags=""):
-        if value is not None:
-            print "riak.%s %d %s %s" % (metric, ts, value, tags)
+        def print_stat(metric, value, tags=""):
+            if value is not None:
+                print "riak.%s %d %s %s" % (metric, ts, value, tags)
 
-    while True:
-        ts = int(time.time())
+        while True:
+            ts = int(time.time())
 
-        req = urllib2.urlopen("http://localhost:8098/stats")
-        if req is not None:
-            obj = json.loads(req.read())
-            for key in obj:
-                if key not in MAP:
-                    continue
-                # this is a hack, but Riak reports latencies in microseconds.  they're fairly useless
-                # to our human operators, so we're going to convert them to seconds.
-                if 'latency' in MAP[key][0]:
-                    obj[key] = obj[key] / 1000000.0
-                print_stat(MAP[key][0], obj[key], MAP[key][1])
-            if 'connected_nodes' in obj:
-                print_stat('connected_nodes', len(obj['connected_nodes']), '')
-        req.close()
+            req = urllib2.urlopen("http://localhost:8098/stats")
+            if req is not None:
+                obj = json.loads(req.read())
+                for key in obj:
+                    if key not in MAP:
+                        continue
+                    # this is a hack, but Riak reports latencies in microseconds.  they're fairly useless
+                    # to our human operators, so we're going to convert them to seconds.
+                    if 'latency' in MAP[key][0]:
+                        obj[key] = obj[key] / 1000000.0
+                    print_stat(MAP[key][0], obj[key], MAP[key][1])
+                if 'connected_nodes' in obj:
+                    print_stat('connected_nodes', len(obj['connected_nodes']), '')
+            req.close()
 
-        sys.stdout.flush()
-        time.sleep(interval)
+            sys.stdout.flush()
+            time.sleep(interval)
 
 
 if __name__ == "__main__":

@@ -46,29 +46,29 @@ class Ifstat(CollectorBase):
         self.f_netdev = open("/proc/net/dev")
 
     def __call__(self):
-        utils.drop_privileges()
+        with utils.lower_privileges(self._logger):
 
-        # We just care about ethN and emN interfaces.  We specifically
-        # want to avoid bond interfaces, because interface
-        # stats are still kept on the child interfaces when
-        # you bond.  By skipping bond we avoid double counting.
+            # We just care about ethN and emN interfaces.  We specifically
+            # want to avoid bond interfaces, because interface
+            # stats are still kept on the child interfaces when
+            # you bond.  By skipping bond we avoid double counting.
 
-        self.f_netdev.seek(0)
-        ts = int(time.time())
-        for line in self.f_netdev:
-            m = re.match("\s+(eth?\d+|em\d+_\d+/\d+|em\d+_\d+|em\d+|"
-                         "p\d+p\d+_\d+/\d+|p\d+p\d+_\d+|p\d+p\d+):(.*)", line)
-            if not m:
-                continue
-            intf = m.group(1)
-            stats = m.group(2).split(None)
+            self.f_netdev.seek(0)
+            ts = int(time.time())
+            for line in self.f_netdev:
+                m = re.match("\s+(eth?\d+|em\d+_\d+/\d+|em\d+_\d+|em\d+|"
+                             "p\d+p\d+_\d+/\d+|p\d+p\d+_\d+|p\d+p\d+):(.*)", line)
+                if not m:
+                    continue
+                intf = m.group(1)
+                stats = m.group(2).split(None)
 
-            def direction(idx):
-                if idx >= 8:
-                    return "out"
-                return "in"
-            for i in xrange(16):
-                self._readq.nput("proc.net.%s %d %s iface=%s direction=%s" % (FIELDS[i], ts, stats[i], intf, direction(i)))
+                def direction(idx):
+                    if idx >= 8:
+                        return "out"
+                    return "in"
+                for i in xrange(16):
+                    self._readq.nput("proc.net.%s %d %s iface=%s direction=%s" % (FIELDS[i], ts, stats[i], intf, direction(i)))
 
     def cleanup(self):
         self.safe_close(self.f_netdev)

@@ -45,9 +45,6 @@ class Zookeeper(CollectorBase):
             "zk_watch_count",
             "zk_ephemerals_count"
         ])
-        user = self.get_config("USER", "root")
-        if user != "root":
-            utils.drop_privileges(user=user)
         self.scan_interval = int(self.get_config("SCAN_INTERVAL", 600))
         self.last_scan = time.time() - self.scan_interval
         self.instances = []

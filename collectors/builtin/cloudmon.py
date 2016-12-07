@@ -14,15 +14,15 @@ class Cloudmon(CollectorBase):
         super(Cloudmon, self).__init__(config, logger, readq)
 
     def __call__(self):
-        try:
-            utils.drop_privileges()
-            # collect period 60 secs
-            url = self.get_config('stats_url', 'http://localhost:9999/stats.txt')
-            response = urllib2.urlopen(url)
-            content = response.read()
-            return self.process(content)
-        except:
-            self.log_exception('unexpected error.')
+        with utils.lower_privileges(self._logger):
+            try:
+                # collect period 60 secs
+                url = self.get_config('stats_url', 'http://localhost:9999/stats.txt')
+                response = urllib2.urlopen(url)
+                content = response.read()
+                return self.process(content)
+            except:
+                self.log_exception('unexpected error.')
 
     def process(self, content):
         ts = time.time()

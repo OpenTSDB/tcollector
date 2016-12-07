@@ -93,40 +93,40 @@ def main(argv):
   if (settings['flume_port']):
     FLUME_PORT = settings['flume_port']
 
-  utils.drop_privileges()
-  socket.setdefaulttimeout(DEFAULT_TIMEOUT)
-  server = httplib.HTTPConnection(FLUME_HOST, FLUME_PORT)
-  try:
-    server.connect()
-  except socket.error, (erno, e):
-    if erno == errno.ECONNREFUSED:
-      return 13  # No Flume server available, ask tcollector to not respawn us.
-    raise
-  if json is None:
-    err("This collector requires the `json' Python module.")
-    return 1
+  with utils.lower_privileges(self._logger):
+    socket.setdefaulttimeout(DEFAULT_TIMEOUT)
+    server = httplib.HTTPConnection(FLUME_HOST, FLUME_PORT)
+    try:
+      server.connect()
+    except socket.error, (erno, e):
+      if erno == errno.ECONNREFUSED:
+        return 13  # No Flume server available, ask tcollector to not respawn us.
+      raise
+    if json is None:
+      err("This collector requires the `json' Python module.")
+      return 1
 
-  def printmetric(metric, value, **tags):
-    if tags:
-      tags = " " + " ".join("%s=%s" % (name, value)
-                            for name, value in tags.iteritems())
-    else:
-      tags = ""
-    print ("flume.%s %d %s %s" % (metric, ts, value, tags))
+    def printmetric(metric, value, **tags):
+      if tags:
+        tags = " " + " ".join("%s=%s" % (name, value)
+                              for name, value in tags.iteritems())
+      else:
+        tags = ""
+      print ("flume.%s %d %s %s" % (metric, ts, value, tags))
 
-  while True:
-    # Get the metrics
-    ts = int(time.time())  # In case last call took a while.
-    stats = flume_metrics(server)
+    while True:
+      # Get the metrics
+      ts = int(time.time())  # In case last call took a while.
+      stats = flume_metrics(server)
 
-    for metric in stats:
-	(component, name) = metric.split(".")
-	tags = {component.lower(): name}
-	for key,value in stats[metric].items():
-	   if key not in EXCLUDE:
-	       printmetric(key.lower(), value, **tags)
+      for metric in stats:
+      (component, name) = metric.split(".")
+      tags = {component.lower(): name}
+      for key,value in stats[metric].items():
+         if key not in EXCLUDE:
+             printmetric(key.lower(), value, **tags)
 
-    time.sleep(COLLECTION_INTERVAL)
+      time.sleep(COLLECTION_INTERVAL)
 
 
 if __name__ == "__main__":
