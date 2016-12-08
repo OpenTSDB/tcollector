@@ -69,15 +69,9 @@ class Stats(object):
         for i, cur_percpu in list(enumerate(cur["cpu_usage"]["percpu_usage"])):
             dims = [item for item in self.dims]
             dims.append("cpu=%d" % i)
-            cnt_user_ms = cur_percpu - pre["cpu_usage"]["percpu_usage"][i]
-            cnt_kernel_ms = cur_percpu - pre["cpu_usage"]["percpu_usage"][i]
-            percpu_user_percent = cnt_user_ms*100/system_usage_ms
-            m = Metric("cpu.cpu%d.user" % i, self.event_time, percpu_user_percent, dims)
-            ret.append(m)
-            percpu_kernel_percent = cnt_kernel_ms*100/system_usage_ms
-            m = Metric("cpu.cpu%d.kernel" % i, self.event_time, percpu_kernel_percent, dims)
-            ret.append(m)
-            m = Metric("cpu.cpu%d.all" % i, self.event_time, percpu_kernel_percent+percpu_user_percent, dims)
+            cnt_ms = cur_percpu - pre["cpu_usage"]["percpu_usage"][i]
+            percpu_percent = cnt_ms*100/system_usage_ms
+            m = Metric("cpu.cpu%d" % i, self.event_time, percpu_percent, dims)
             ret.append(m)
         return ret
 
