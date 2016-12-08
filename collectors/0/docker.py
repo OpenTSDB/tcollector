@@ -203,6 +203,7 @@ def main():
             for level1 in os.listdir(CGROUP_PATH + "/lxc"):
                 if os.path.isdir(CGROUP_PATH + "/lxc/"+level1):
                     readdockerstats(CGROUP_PATH + "/lxc/"+level1, level1)
+        print("sleeping")
         time.sleep(COLLECTION_INTERVAL)
 
 if __name__ == "__main__":

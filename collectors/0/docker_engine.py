@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # This file is part of tcollector.
-# Copyright (C) 2015  The tcollector Authors.
+# Copyright (C) 2010-2013  The tcollector Authors.
 #
 # This program is free software: you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published by
@@ -11,30 +11,29 @@
 # General Public License for more details.  You should have received a copy
 # of the GNU Lesser General Public License along with this program.  If not,
 # see <http://www.gnu.org/licenses/>.
+"""Imports Docker stats from the docker-api"""
 
-def enabled():
-  return True
+import sys
 
-def get_config():
-  """Configuration for the Docker collector
+from collectors.etc import docker_engine_conf
+from collectors.lib.docker_engine.docker_metrics import DockerMetrics
 
-    On EL6 distros (CentOS/RHEL/Scientific/OL) the cgroup path should be:
-      "/cgroup"
-  """
-  import platform
-  # Scientific Linux says 'redhat' here
-  # CentOS 5 says 'redhat'
-  # CentOS >=6 says 'centos'
-  # CentOS >=7 cgroup is located on /sys/fs/cgroup
-  if platform.dist()[0] in ['centos', 'redhat'] and not platform.dist()[1].startswith("7."):
-    cgroup_path = '/cgroup'
-  else:
-    cgroup_path = '/sys/fs/cgroup'
+CONFIG = docker_engine_conf.get_config()
+ENABLED = docker_engine_conf.enabled()
+METRICS_PATH = CONFIG['metrics_path']
 
-  config = {
-    'interval': 15,
-    'socket_path': '/var/run/docker.sock',
-    'cgroup_path': cgroup_path
-  }
 
-  return config
+def main():
+    if not ENABLED:
+        sys.stderr.write("Docker-engine collector is not enabled")
+        sys.exit(13)
+
+    """docker_cpu main loop"""
+    cli = DockerMetrics(METRICS_PATH)
+
+    for m in cli.get_endpoint():
+        print m.get_metric_lines()
+
+
+if __name__ == "__main__":
+    sys.exit(main())

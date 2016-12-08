@@ -42,7 +42,7 @@ class CollectorsTests(unittest.TestCase):
                     pass
 
         collectors_path = os.path.dirname(os.path.abspath(__file__)) + \
-            "/collectors/0"
+                          "/collectors/0"
         check_access_rights(collectors_path)
 
 
@@ -103,6 +103,7 @@ class TSDBlacklistingTests(unittest.TestCase):
         self.assertEqual(tsd2, (sender.host, sender.port))
         sender.pick_connection()
         self.assertEqual(tsd1, (sender.host, sender.port))
+
 
 class UDPCollectorTests(unittest.TestCase):
 
@@ -305,6 +306,7 @@ class UDPCollectorTests(unittest.TestCase):
         self.run_bridge_test(inputLines, stdout, stderr)
         self.assertEquals(''.join(stdout), expected)
         self.assertListEqual(stderr, [])
+
 
 if __name__ == '__main__':
     cdir = os.path.join(os.path.dirname(os.path.realpath(sys.argv[0])),

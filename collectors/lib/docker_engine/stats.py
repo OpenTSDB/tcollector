@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # This file is part of tcollector.
-# Copyright (C) 2015  The tcollector Authors.
+# Copyright (C) 2010-2013  The tcollector Authors.
 #
 # This program is free software: you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published by
@@ -12,29 +12,16 @@
 # of the GNU Lesser General Public License along with this program.  If not,
 # see <http://www.gnu.org/licenses/>.
 
-def enabled():
-  return True
+class Stats(object):
+    def __init__(self, container, mtime):
+        self.dims = [
+            "container_name=%s" % self.trim_container_name(container),
+            "container_id=%s" % container['Id'],
+            "image_name=%s" % container['Image'],
+            "image_id=%s" % container['ImageID']
+        ]
+        self.event_time = mtime
 
-def get_config():
-  """Configuration for the Docker collector
-
-    On EL6 distros (CentOS/RHEL/Scientific/OL) the cgroup path should be:
-      "/cgroup"
-  """
-  import platform
-  # Scientific Linux says 'redhat' here
-  # CentOS 5 says 'redhat'
-  # CentOS >=6 says 'centos'
-  # CentOS >=7 cgroup is located on /sys/fs/cgroup
-  if platform.dist()[0] in ['centos', 'redhat'] and not platform.dist()[1].startswith("7."):
-    cgroup_path = '/cgroup'
-  else:
-    cgroup_path = '/sys/fs/cgroup'
-
-  config = {
-    'interval': 15,
-    'socket_path': '/var/run/docker.sock',
-    'cgroup_path': cgroup_path
-  }
-
-  return config
+    @staticmethod
+    def trim_container_name(container):
+        return container["Names"][0].strip("/")
