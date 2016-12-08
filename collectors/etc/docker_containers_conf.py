@@ -21,8 +21,7 @@ def get_config():
   config = {
     'interval': 15,
     'default_dims': [],
-    'socket_path': 'tcp://192.168.100.10:2376',
-    #'socket_path': 'unix:///var/run/docker.sock',
+    'socket_path': 'unix:///var/run/docker.sock',
   }
 
   return config
