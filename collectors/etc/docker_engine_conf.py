@@ -20,6 +20,6 @@ def get_config():
   config = {
     'interval': 15,
     'default_dims': '',
-    'metrics_path': 'http://192.168.100.10:3376/metrics'
+    'metrics_path': 'http://localhost:3376/metrics'
   }
   return config
