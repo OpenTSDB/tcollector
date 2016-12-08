@@ -13,28 +13,15 @@
 # see <http://www.gnu.org/licenses/>.
 
 def enabled():
-  return False
+  return True
 
 def get_config():
-  """Configuration for the Docker collector
-
-    On EL6 distros (CentOS/RHEL/Scientific/OL) the cgroup path should be:
-      "/cgroup"
-  """
-  import platform
-  # Scientific Linux says 'redhat' here
-  # CentOS 5 says 'redhat'
-  # CentOS >=6 says 'centos'
-  # CentOS >=7 cgroup is located on /sys/fs/cgroup
-  if platform.dist()[0] in ['centos', 'redhat'] and not platform.dist()[1].startswith("7."):
-    cgroup_path = '/cgroup'
-  else:
-    cgroup_path = '/sys/fs/cgroup'
+  """Configuration for the Docker collector"""
 
   config = {
     'interval': 15,
-    'socket_path': '/var/run/docker.sock',
-    'cgroup_path': cgroup_path
+    'default_dims': [],
+    'socket_path': 'unix:///var/run/docker.sock',
   }
 
   return config
