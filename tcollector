@@ -3,8 +3,13 @@
 # Semi Universal start-stop script
 # Keep it sh compatible, test with bash, dash, ksh, and zsh.
 
-SCRIPT_DIR="$(cd $(dirname $0) && pwd)"
-TCOLLECTOR_PATH=${TCOLLECTOR_PATH-"${SCRIPT_DIR}"}
+if uname | grep -qw FreeBSD
+then
+    TCOLLECTOR_PATH=/usr/local/share/tcollector
+else
+    SCRIPT_DIR="$(cd $(dirname $0) && pwd)"
+    TCOLLECTOR_PATH=${TCOLLECTOR_PATH-"${SCRIPT_DIR}"}
+fi
 
 PROG=$TCOLLECTOR_PATH/tcollector.py
 COMMAND=$1
@@ -40,7 +45,7 @@ which_python () {
 
 PYTHON=$(which_python)
 
-start () {
+tcollector_start () {
     echo "Starting $PROG"
     # eval is neccesary for zsh support as multiple-word variables are not 
     # split into words by default, see zsh help for SH_WORD_SPLIT.
@@ -53,7 +58,7 @@ stop_program () {
     pkill $1 -f "$PYTHON $PROG"
 }
 
-status () {
+tcollector_status () {
     if pgrep -f "$PYTHON $PROG" >/dev/null; then
         echo "$PROG" running
         return 0
@@ -61,9 +66,9 @@ status () {
     return 1
 }
 
-forcestop () {
+tcollector_stop () {
     try=0
-    while status; do
+    while tcollector_status; do
         try=$((try + 1))
         if [ $try -gt 3 ]; then
             stop_program -9
@@ -75,24 +80,41 @@ forcestop () {
     done
 }
 
-forcerestart () {
-    forcestop
-    start
+tcollector_restart () {
+    tcollector_stop
+    tcollector_start
 }
+
+# Make script FreeBSD happy
+# https://www.freebsd.org/doc/en_US.ISO8859-1/articles/rc-scripting/rcng-confdummy.html
+# Copy / link this script to /etc/rc.d/ and
+# add tcollector_enable="YES" to /etc/rc.conf to start TCollector at boot time.
+if uname | grep -qw FreeBSD
+then
+    export PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin
+    . /etc/rc.subr
+    name=tcollector
+    start_cmd="${name}_start"
+    stop_cmd="${name}_stop"
+    restart_cmd="${name}_restart"
+    extra_commands="status"
+    load_rc_config $name
+    run_rc_command "$COMMAND"
+    exit
+fi
 
 case $COMMAND in
     start)
-        status || start
+        tcollector_status || tcollector_start
         ;;
     restart)
-        forcerestart
+        tcollector_restart
         ;;
-    'stop') 
-        # stop is an alias in ksh93 for 'kill -s STOP'
-        forcestop
+    stop) 
+        tcollector_stop
         ;;
     status)
-        status
+        tcollector_status
         exit $?
         ;;
     *)
