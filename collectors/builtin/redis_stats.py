@@ -94,7 +94,7 @@ def main():
     """Main loop"""
 
     if USER != "root":
-        utils.drop_privileges(user=USER)
+        raise "should be running as root"
     sys.stdin.close()
 
     config = redis_stats_conf.get_config()

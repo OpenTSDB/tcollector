@@ -98,102 +98,120 @@ class Procstats(CollectorBase):
             self.safe_close(val)
 
     def __call__(self):
-        utils.drop_privileges()
+        with utils.lower_privileges(self._logger):
+            # proc.uptime
+            self.f_uptime.seek(0)
+            ts = int(time.time())
+            for line in self.f_uptime:
+                m = re.match("(\S+)\s+(\S+)", line)
+                if m:
+                    self._readq.nput("proc.uptime.total %d %s" % (ts, m.group(1)))
+                    self._readq.nput("proc.uptime.now %d %s" % (ts, m.group(2)))
 
-        # proc.uptime
-        self.f_uptime.seek(0)
-        ts = int(time.time())
-        for line in self.f_uptime:
-            m = re.match("(\S+)\s+(\S+)", line)
-            if m:
-                self._readq.nput("proc.uptime.total %d %s" % (ts, m.group(1)))
-                self._readq.nput("proc.uptime.now %d %s" % (ts, m.group(2)))
-
-        # proc.meminfo
-        self.f_meminfo.seek(0)
-        ts = int(time.time())
-        for line in self.f_meminfo:
-            m = re.match("(\w+):\s+(\d+)\s+(\w+)", line)
-            if m:
-                if m.group(3).lower() == 'kb':
-                    # convert from kB to B for easier graphing
-                    value = str(int(m.group(2)) * 1024)
-                else:
-                    value = m.group(2)
-                self._readq.nput("proc.meminfo.%s %d %s" % (m.group(1).lower(), ts, value))
-
-        # proc.vmstat
-        self.f_vmstat.seek(0)
-        ts = int(time.time())
-        for line in self.f_vmstat:
-            m = re.match("(\w+)\s+(\d+)", line)
-            if not m:
-                continue
-            if m.group(1) in ("pgpgin", "pgpgout", "pswpin",
-                              "pswpout", "pgfault", "pgmajfault"):
-                self._readq.nput("proc.vmstat.%s %d %s" % (m.group(1), ts, m.group(2)))
-
-        # proc.stat
-        self.f_stat.seek(0)
-        ts = int(time.time())
-        for line in self.f_stat:
-            m = re.match("(\w+)\s+(.*)", line)
-            if not m:
-                continue
-            if m.group(1).startswith("cpu"):
-                cpu_m = re.match("cpu(\d+)", m.group(1))
-                if cpu_m:
-                    metric_percpu = '.percpu'
-                    tags = ' cpu=%s' % cpu_m.group(1)
-                else:
-                    metric_percpu = ''
-                    tags = ''
-                fields = m.group(2).split()
-                cpu_types = ['user', 'nice', 'system', 'idle', 'iowait', 'irq', 'softirq', 'guest', 'guest_nice']
-
-                # We use zip to ignore fields that don't exist.
-                for value, field_name in zip(fields, cpu_types):
-                    self._readq.nput("proc.stat.cpu%s %d %s type=%s%s" % (metric_percpu, ts, value, field_name, tags))
-            elif m.group(1) == "intr":
-                self._readq.nput("proc.stat.intr %d %s" % (ts, m.group(2).split()[0]))
-            elif m.group(1) == "ctxt":
-                self._readq.nput("proc.stat.ctxt %d %s" % (ts, m.group(2)))
-            elif m.group(1) == "processes":
-                self._readq.nput("proc.stat.processes %d %s" % (ts, m.group(2)))
-            elif m.group(1) == "procs_blocked":
-                self._readq.nput("proc.stat.procs_blocked %d %s" % (ts, m.group(2)))
-
-        self.f_loadavg.seek(0)
-        ts = int(time.time())
-        for line in self.f_loadavg:
-            m = re.match("(\S+)\s+(\S+)\s+(\S+)\s+(\d+)/(\d+)\s+", line)
-            if not m:
-                continue
-            self._readq.nput("proc.loadavg.1min %d %s" % (ts, m.group(1)))
-            self._readq.nput("proc.loadavg.5min %d %s" % (ts, m.group(2)))
-            self._readq.nput("proc.loadavg.15min %d %s" % (ts, m.group(3)))
-            self._readq.nput("proc.loadavg.runnable %d %s" % (ts, m.group(4)))
-            self._readq.nput("proc.loadavg.total_threads %d %s" % (ts, m.group(5)))
-
-        self.f_entropy_avail.seek(0)
-        ts = int(time.time())
-        for line in self.f_entropy_avail:
-            self._readq.nput("proc.kernel.entropy_avail %d %s" % (ts, line.strip()))
-
-        self.f_interrupts.seek(0)
-        ts = int(time.time())
-        # Get number of CPUs from description line.
-        num_cpus = len(self.f_interrupts.readline().split())
-        for line in self.f_interrupts:
-            cols = line.split()
-
-            irq_type = cols[0].rstrip(":")
-            if irq_type.isalnum():
-                if irq_type.isdigit():
-                    if cols[-2] == "PCI-MSI-edge" and "eth" in cols[-1]:
-                        irq_type = cols[-1]
+            # proc.meminfo
+            self.f_meminfo.seek(0)
+            ts = int(time.time())
+            for line in self.f_meminfo:
+                m = re.match("(\w+):\s+(\d+)\s+(\w+)", line)
+                if m:
+                    if m.group(3).lower() == 'kb':
+                        # convert from kB to B for easier graphing
+                        value = str(int(m.group(2)) * 1024)
                     else:
-                        continue  # Interrupt type is just a number, ignore.
+                        value = m.group(2)
+                    self._readq.nput("proc.meminfo.%s %d %s" % (m.group(1).lower(), ts, value))
+
+            # proc.vmstat
+            self.f_vmstat.seek(0)
+            ts = int(time.time())
+            for line in self.f_vmstat:
+                m = re.match("(\w+)\s+(\d+)", line)
+                if not m:
+                    continue
+                if m.group(1) in ("pgpgin", "pgpgout", "pswpin",
+                                  "pswpout", "pgfault", "pgmajfault"):
+                    self._readq.nput("proc.vmstat.%s %d %s" % (m.group(1), ts, m.group(2)))
+
+            # proc.stat
+            self.f_stat.seek(0)
+            ts = int(time.time())
+            for line in self.f_stat:
+                m = re.match("(\w+)\s+(.*)", line)
+                if not m:
+                    continue
+                if m.group(1).startswith("cpu"):
+                    cpu_m = re.match("cpu(\d+)", m.group(1))
+                    if cpu_m:
+                        metric_percpu = '.percpu'
+                        tags = ' cpu=%s' % cpu_m.group(1)
+                    else:
+                        metric_percpu = ''
+                        tags = ''
+                    fields = m.group(2).split()
+                    cpu_types = ['user', 'nice', 'system', 'idle', 'iowait', 'irq', 'softirq', 'guest', 'guest_nice']
+
+                    # We use zip to ignore fields that don't exist.
+                    for value, field_name in zip(fields, cpu_types):
+                        self._readq.nput("proc.stat.cpu%s %d %s type=%s%s" % (metric_percpu, ts, value, field_name, tags))
+                elif m.group(1) == "intr":
+                    self._readq.nput("proc.stat.intr %d %s" % (ts, m.group(2).split()[0]))
+                elif m.group(1) == "ctxt":
+                    self._readq.nput("proc.stat.ctxt %d %s" % (ts, m.group(2)))
+                elif m.group(1) == "processes":
+                    self._readq.nput("proc.stat.processes %d %s" % (ts, m.group(2)))
+                elif m.group(1) == "procs_blocked":
+                    self._readq.nput("proc.stat.procs_blocked %d %s" % (ts, m.group(2)))
+
+            self.f_loadavg.seek(0)
+            ts = int(time.time())
+            for line in self.f_loadavg:
+                m = re.match("(\S+)\s+(\S+)\s+(\S+)\s+(\d+)/(\d+)\s+", line)
+                if not m:
+                    continue
+                self._readq.nput("proc.loadavg.1min %d %s" % (ts, m.group(1)))
+                self._readq.nput("proc.loadavg.5min %d %s" % (ts, m.group(2)))
+                self._readq.nput("proc.loadavg.15min %d %s" % (ts, m.group(3)))
+                self._readq.nput("proc.loadavg.runnable %d %s" % (ts, m.group(4)))
+                self._readq.nput("proc.loadavg.total_threads %d %s" % (ts, m.group(5)))
+
+            self.f_entropy_avail.seek(0)
+            ts = int(time.time())
+            for line in self.f_entropy_avail:
+                self._readq.nput("proc.kernel.entropy_avail %d %s" % (ts, line.strip()))
+
+            self.f_interrupts.seek(0)
+            ts = int(time.time())
+            # Get number of CPUs from description line.
+            num_cpus = len(self.f_interrupts.readline().split())
+            for line in self.f_interrupts:
+                cols = line.split()
+
+                irq_type = cols[0].rstrip(":")
+                if irq_type.isalnum():
+                    if irq_type.isdigit():
+                        if cols[-2] == "PCI-MSI-edge" and "eth" in cols[-1]:
+                            irq_type = cols[-1]
+                        else:
+                            continue  # Interrupt type is just a number, ignore.
+                    for i, val in enumerate(cols[1:]):
+                        if i >= num_cpus:
+                            # All values read, remaining cols contain textual
+                            # description
+                            break
+                        if not val.isdigit():
+                            # something is weird, there should only be digit values
+                            self.log_error("Unexpected interrupts value %r in %r: ", val, cols)
+                            break
+                        self._readq.nput("proc.interrupts %s %s type=%s cpu=%s" % (ts, val, irq_type, i))
+
+            self.f_softirqs.seek(0)
+            ts = int(time.time())
+            # Get number of CPUs from description line.
+            num_cpus = len(self.f_softirqs.readline().split())
+            for line in self.f_softirqs:
+                cols = line.split()
+
+                irq_type = cols[0].rstrip(":")
                 for i, val in enumerate(cols[1:]):
                     if i >= num_cpus:
                         # All values read, remaining cols contain textual
@@ -201,50 +219,31 @@ class Procstats(CollectorBase):
                         break
                     if not val.isdigit():
                         # something is weird, there should only be digit values
-                        self.log_error("Unexpected interrupts value %r in %r: ", val, cols)
+                        self.log_error("Unexpected softirq value %r in %r: ", val, cols)
                         break
-                    self._readq.nput("proc.interrupts %s %s type=%s cpu=%s" % (ts, val, irq_type, i))
+                    self._readq.nput("proc.softirqs %s %s type=%s cpu=%s" % (ts, val, irq_type, i))
 
-        self.f_softirqs.seek(0)
-        ts = int(time.time())
-        # Get number of CPUs from description line.
-        num_cpus = len(self.f_softirqs.readline().split())
-        for line in self.f_softirqs:
-            cols = line.split()
+            self._print_numa_stats(self.numastats)
 
-            irq_type = cols[0].rstrip(":")
-            for i, val in enumerate(cols[1:]):
-                if i >= num_cpus:
-                    # All values read, remaining cols contain textual
-                    # description
-                    break
-                if not val.isdigit():
-                    # something is weird, there should only be digit values
-                    self.log_error("Unexpected softirq value %r in %r: ", val, cols)
-                    break
-                self._readq.nput("proc.softirqs %s %s type=%s cpu=%s" % (ts, val, irq_type, i))
-
-        self._print_numa_stats(self.numastats)
-
-        # Print scaling stats
-        ts = int(time.time())
-        for cpu_no in self.f_scaling_min.keys():
-            f = self.f_scaling_min[cpu_no]
-            f.seek(0)
-            for line in f:
-                self._readq.nput("proc.scaling.min %d %s cpu=%s" % (ts, line.rstrip('\n'), cpu_no))
-        ts = int(time.time())
-        for cpu_no in self.f_scaling_max.keys():
-            f = self.f_scaling_max[cpu_no]
-            f.seek(0)
-            for line in f:
-                self._readq.nput("proc.scaling.max %d %s cpu=%s" % (ts, line.rstrip('\n'), cpu_no))
-        ts = int(time.time())
-        for cpu_no in self.f_scaling_cur.keys():
-            f = self.f_scaling_cur[cpu_no]
-            f.seek(0)
-            for line in f:
-                self._readq.nput("proc.scaling.cur %d %s cpu=%s" % (ts, line.rstrip('\n'), cpu_no))
+            # Print scaling stats
+            ts = int(time.time())
+            for cpu_no in self.f_scaling_min.keys():
+                f = self.f_scaling_min[cpu_no]
+                f.seek(0)
+                for line in f:
+                    self._readq.nput("proc.scaling.min %d %s cpu=%s" % (ts, line.rstrip('\n'), cpu_no))
+            ts = int(time.time())
+            for cpu_no in self.f_scaling_max.keys():
+                f = self.f_scaling_max[cpu_no]
+                f.seek(0)
+                for line in f:
+                    self._readq.nput("proc.scaling.max %d %s cpu=%s" % (ts, line.rstrip('\n'), cpu_no))
+            ts = int(time.time())
+            for cpu_no in self.f_scaling_cur.keys():
+                f = self.f_scaling_cur[cpu_no]
+                f.seek(0)
+                for line in f:
+                    self._readq.nput("proc.scaling.cur %d %s cpu=%s" % (ts, line.rstrip('\n'), cpu_no))
 
     def _print_numa_stats(self, numafiles):
         """From a list of files names, opens file, extracts and prints NUMA stats."""

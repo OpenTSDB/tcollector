@@ -39,13 +39,12 @@ class HadoopNameNode(CollectorBase):
         self.port = self.get_config('port', 50070)
         self.readq = readq
 
-        utils.drop_privileges()
-
     def __call__(self):
-        if json:
-            HadoopNode(self.service, self.daemon, self.host, self.port, REPLACEMENTS, self.readq, self._logger).emit()
-        else:
-            self.logger.error("This collector requires the `json' Python module.")
+        with utils.lower_privileges(self._logger):
+            if json:
+                HadoopNode(self.service, self.daemon, self.host, self.port, REPLACEMENTS, self.readq, self._logger).emit()
+            else:
+                self.logger.error("This collector requires the `json' Python module.")
 
 
 if __name__ == "__main__":

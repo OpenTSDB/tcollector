@@ -49,52 +49,53 @@ class Docker(CollectorBase):
         super(Docker, self).__init__(config, logger, readq)
         self.containernames = {}
         self.containerimages = {}
-        utils.drop_privileges()
-        self.cache = 0
-        if platform.dist()[0] in ['centos', 'redhat'] and not platform.dist()[1].startswith("7."):
-            self.cgroup_path = '/cgroup'
-        else:
-            self.cgroup_path = '/sys/fs/cgroup'
-        self.socket_path = '/var/run/docker.sock'
+        with utils.lower_privileges(self._logger):
+            self.cache = 0
+            if platform.dist()[0] in ['centos', 'redhat'] and not platform.dist()[1].startswith("7."):
+                self.cgroup_path = '/cgroup'
+            else:
+                self.cgroup_path = '/sys/fs/cgroup'
+            self.socket_path = '/var/run/docker.sock'
 
     def __call__(self):
-        # Connect to Docker socket to get informations about containers every 4 times
-        if self.cache == 0:
-            self.containernames = {}
-            self.containerimages = {}
-        self.cache += 1
-        if self.cache == 4:
-            self.cache = 0
+        with utils.lower_privileges(self._logger):
+            # Connect to Docker socket to get informations about containers every 4 times
+            if self.cache == 0:
+                self.containernames = {}
+                self.containerimages = {}
+            self.cache += 1
+            if self.cache == 4:
+                self.cache = 0
 
-        if os.path.isdir(self.cgroup_path):
-            for level1 in os.listdir(self.cgroup_path):
-                if (os.path.isdir(self.cgroup_path + "/" + level1 + "/docker") and
-                        # /cgroup/cpu and /cgroup/cpuacct are often links to /cgroup/cpu,cpuacct
-                        not (((level1 == "cpu,cpuacct") or (level1 == "cpuacct")) and (
-                                os.path.isdir(self.cgroup_path + "/cpu/docker")))):
-                    for level2 in os.listdir(self.cgroup_path + "/" + level1 + "/docker"):
-                        if os.path.isdir(self.cgroup_path + "/" + level1 + "/docker/" + level2):
-                            self.readdockerstats(self.cgroup_path + "/" + level1 + "/docker/" + level2, level2)
-                else:
-                    # If Docker cgroup is handled by slice
-                    # http://www.freedesktop.org/software/systemd/man/systemd.slice.html
-                    for slicename in ("system.slice", "machine.slice", "user.slice"):
-                        if (os.path.isdir(self.cgroup_path + "/" + level1 + "/" + slicename) and
-                                # /cgroup/cpu and /cgroup/cpuacct are often links to /cgroup/cpu,cpuacct
-                                not (((level1 == "cpu,cpuacct") or (level1 == "cpuacct")) and (
-                                        os.path.isdir(self.cgroup_path + "/cpu/" + slicename)))):
-                            for level2 in os.listdir(self.cgroup_path + "/" + level1 + "/" + slicename):
-                                if os.path.isdir(self.cgroup_path + "/" + level1 + "/" + slicename + "/" + level2):
-                                    m = re.search("^docker-(\w+)\.scope$", level2)
-                                    if m:
-                                        self.readdockerstats(
-                                                self.cgroup_path + "/" + level1 + "/" + slicename + "/" + level2,
-                                                m.group(1))
-                                        break
-        if os.path.isdir(self.cgroup_path + "/lxc"):
-            for level1 in os.listdir(self.cgroup_path + "/lxc"):
-                if os.path.isdir(self.cgroup_path + "/lxc/" + level1):
-                    self.readdockerstats(self.cgroup_path + "/lxc/" + level1, level1)
+            if os.path.isdir(self.cgroup_path):
+                for level1 in os.listdir(self.cgroup_path):
+                    if (os.path.isdir(self.cgroup_path + "/" + level1 + "/docker") and
+                            # /cgroup/cpu and /cgroup/cpuacct are often links to /cgroup/cpu,cpuacct
+                            not (((level1 == "cpu,cpuacct") or (level1 == "cpuacct")) and (
+                                    os.path.isdir(self.cgroup_path + "/cpu/docker")))):
+                        for level2 in os.listdir(self.cgroup_path + "/" + level1 + "/docker"):
+                            if os.path.isdir(self.cgroup_path + "/" + level1 + "/docker/" + level2):
+                                self.readdockerstats(self.cgroup_path + "/" + level1 + "/docker/" + level2, level2)
+                    else:
+                        # If Docker cgroup is handled by slice
+                        # http://www.freedesktop.org/software/systemd/man/systemd.slice.html
+                        for slicename in ("system.slice", "machine.slice", "user.slice"):
+                            if (os.path.isdir(self.cgroup_path + "/" + level1 + "/" + slicename) and
+                                    # /cgroup/cpu and /cgroup/cpuacct are often links to /cgroup/cpu,cpuacct
+                                    not (((level1 == "cpu,cpuacct") or (level1 == "cpuacct")) and (
+                                            os.path.isdir(self.cgroup_path + "/cpu/" + slicename)))):
+                                for level2 in os.listdir(self.cgroup_path + "/" + level1 + "/" + slicename):
+                                    if os.path.isdir(self.cgroup_path + "/" + level1 + "/" + slicename + "/" + level2):
+                                        m = re.search("^docker-(\w+)\.scope$", level2)
+                                        if m:
+                                            self.readdockerstats(
+                                                    self.cgroup_path + "/" + level1 + "/" + slicename + "/" + level2,
+                                                    m.group(1))
+                                            break
+            if os.path.isdir(self.cgroup_path + "/lxc"):
+                for level1 in os.listdir(self.cgroup_path + "/lxc"):
+                    if os.path.isdir(self.cgroup_path + "/lxc/" + level1):
+                        self.readdockerstats(self.cgroup_path + "/lxc/" + level1, level1)
 
     def readdockerstats(self, path, containerid):
         # update containername and containerimage if needed

@@ -225,25 +225,24 @@ class Netstat(CollectorBase):
             self.log_exception('open failed')
             self.cleanup()
             raise
-        utils.drop_privileges()
-
-        # Note: up until v2.6.37-rc2 most of the values were 32 bits.
-        # The first value is pretty useless since it accounts for some
-        # socket types but not others.  So we don't report it because it's
-        # more confusing than anything else and it's not well documented
-        # what type of sockets are or aren't included in this count.
-        self.regexp = re.compile("sockets: used \d+\n"
-                                 "TCP: inuse (?P<tcp_inuse>\d+) orphan (?P<orphans>\d+)"
-                                 " tw (?P<tw_count>\d+) alloc (?P<tcp_sockets>\d+)"
-                                 " mem (?P<tcp_pages>\d+)\n"
-                                 "UDP: inuse (?P<udp_inuse>\d+)"
-                                 # UDP memory accounting was added in v2.6.25-rc1
-                                 "(?: mem (?P<udp_pages>\d+))?\n"
-                                 # UDP-Lite (RFC 3828) was added in v2.6.20-rc2
-                                 "(?:UDPLITE: inuse (?P<udplite_inuse>\d+)\n)?"
-                                 "RAW: inuse (?P<raw_inuse>\d+)\n"
-                                 "FRAG: inuse (?P<ip_frag_nqueues>\d+)"
-                                 " memory (?P<ip_frag_mem>\d+)\n")
+        with utils.lower_privileges(self._logger):
+            # Note: up until v2.6.37-rc2 most of the values were 32 bits.
+            # The first value is pretty useless since it accounts for some
+            # socket types but not others.  So we don't report it because it's
+            # more confusing than anything else and it's not well documented
+            # what type of sockets are or aren't included in this count.
+            self.regexp = re.compile("sockets: used \d+\n"
+                                     "TCP: inuse (?P<tcp_inuse>\d+) orphan (?P<orphans>\d+)"
+                                     " tw (?P<tw_count>\d+) alloc (?P<tcp_sockets>\d+)"
+                                     " mem (?P<tcp_pages>\d+)\n"
+                                     "UDP: inuse (?P<udp_inuse>\d+)"
+                                     # UDP memory accounting was added in v2.6.25-rc1
+                                     "(?: mem (?P<udp_pages>\d+))?\n"
+                                     # UDP-Lite (RFC 3828) was added in v2.6.20-rc2
+                                     "(?:UDPLITE: inuse (?P<udplite_inuse>\d+)\n)?"
+                                     "RAW: inuse (?P<raw_inuse>\d+)\n"
+                                     "FRAG: inuse (?P<ip_frag_nqueues>\d+)"
+                                     " memory (?P<ip_frag_mem>\d+)\n")
 
     def print_sockstat(self, metric, ts, value, tags=""):  # Note: tags must start with ' '
         if value is not None:

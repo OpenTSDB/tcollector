@@ -93,23 +93,23 @@ class AwsCloudWatchStats(CollectorBase):
             raise
 
     def __call__(self):
-        try:
-            utils.drop_privileges()
-            self.validate_config()
-            regions = ec2_list_regions()
-            for reg in regions:
-                for statistic in STATISTICS:
-                    t = threading.Thread(target=self.handle_region, kwargs={"region": reg, "statistic": statistic})
-                    t.start()
-            while threading.activeCount() > 1:
-                time.sleep(1)
-        except exceptions.KeyboardInterrupt:
-            return 0
-        except:
-            raise
+        with utils.lower_privileges(self._logger):
+            try:
+                self.validate_config()
+                regions = ec2_list_regions()
+                for reg in regions:
+                    for statistic in STATISTICS:
+                        t = threading.Thread(target=self.handle_region, kwargs={"region": reg, "statistic": statistic})
+                        t.start()
+                while threading.activeCount() > 1:
+                    time.sleep(1)
+            except exceptions.KeyboardInterrupt:
+                return 0
+            except:
+                raise
 
-        if not sendQueue.empty():
-            self.send_metrics()
+            if not sendQueue.empty():
+                self.send_metrics()
 
     def handle_region(self, region, statistic):
         try:

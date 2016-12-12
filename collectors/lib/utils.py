@@ -25,6 +25,33 @@ from Queue import Queue
 USER = "cwiz-user"
 
 
+class RevertibleLowPrivilegeUser(object):
+    def __init__(self, low_privelege_user, logger):
+        self.low_privilege_user = low_privelege_user
+        self.logger = logger
+
+    def __enter__(self):
+        if os.geteuid() != 0:
+            return
+        try:
+            ent = pwd.getpwnam(self.low_privilege_user)
+        except KeyError:
+            return
+
+        self.logger.info("set to lower-privilege user %s", self.low_privilege_user)
+        os.setegid(ent.pw_gid)
+        os.seteuid(ent.pw_uid)
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.logger.info("revert. set current euser %s back to %s", os.geteuid(), os.getuid())
+        os.seteuid(os.getuid())
+
+
+def lower_privileges(logger, user=USER):
+    return RevertibleLowPrivilegeUser(user, logger)
+
+
+# deprecated. use "with lower_privileges()" instead
 def drop_privileges(user=USER):
     """Drops privileges if running as root."""
     try:
@@ -57,6 +84,21 @@ def err(msg):
 
 def is_numeric(value):
     return isinstance(value, (int, long, float))
+
+
+def remove_invalid_characters(str):
+    """removes characters unacceptable by opentsdb"""
+    replaced = False
+    lstr = list(str)
+    for i, c in enumerate(lstr):
+        if not (('a' <= c <= 'z') or ('A' <= c <= 'Z') or ('0' <= c <= '9') or c == '-' or c == '_' or
+                c == '.' or c == '/' or c.isalpha()):
+            lstr[i] = '_'
+            replaced = True
+    if replaced:
+        return "".join(lstr)
+    else:
+        return str
 
 
 class TestQueue(Queue):
