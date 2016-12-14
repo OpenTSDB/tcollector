@@ -54,22 +54,13 @@ function get_os() {
 }
 
 function usage() {
-  printf "sudo ORG_TOKEN=<token> CLIENT_ID=<id> [AGENT_URL=<agent-tarball_url> METRIC_SERVER_HOST=<server>] deploy_agent.sh [-h | --log-collector <log_server_host:port>]\n"
+  printf "sudo ORG_TOKEN=<token> CLIENT_ID=<id> [AGENT_URL=<agent-tarball_url> METRIC_SERVER_HOST=<server> LOG_COLLECTOR=<log_server_host:port>] deploy_agent.sh [-h]\n"
 }
 
 if [ "$#" -gt 0 ]; then
   if [ "$1" == "-h" ]; then
     usage
     exit 0
-  elif [ "$1" == "--log-collector" ]; then
-    enable_log_collection=true
-    if [ "$#" -ge 2 ]; then
-      log_server_hostport=$2
-    else
-      printf "invalid argument\n"
-      usage
-      exit 1
-    fi
   else
     printf "unrecognized option\n"
     usage
@@ -119,12 +110,12 @@ abort_if_failed "failed to set ORG_TOKEN value in runner.conf file"
 sed -i "/^client_id *= */c\client_id = $CLIENT_ID" ${agent_install_folder}/uagent/uagent.conf
 abort_if_failed "failed to set client_id value in ${agent_install_folder}/uagent/uagent.conf"
 
-if [ "$enable_log_collection" = true ]; then
+if [ ! -z "${LOG_COLLECTOR// }" ]; then
   log_info "config filebeat in ${altenv_etc_folder}/supervisord.conf"
   sed -i "/\[group:cloudwiz-agent\]/i\\[program:filebeat\]\ncommand=${agent_install_folder}/filebeat-1.3.1/filebeat -c ${agent_install_folder}/filebeat-1.3.1/filebeat.yml\nstartsecs=5\nstartretries=3\nstopasgroup=true\n" ${altenv_etc_folder}/supervisord.conf
   sed -i '/^programs=/ s/$/,filebeat/' ${altenv_etc_folder}/supervisord.conf
-  log_info "set log-server-host-port to ${log_server_hostport}"
-  sed -i "s/<log-server-host-port>/\"${log_server_hostport}\"/" ${agent_install_folder}/filebeat-1.3.1/filebeat.yml
+  log_info "set log-server-host-port to ${LOG_COLLECTOR}"
+  sed -i "s/<log-server-host-port>/\"${LOG_COLLECTOR}\"/" ${agent_install_folder}/filebeat-1.3.1/filebeat.yml
 fi
 
 if [ -z "${METRIC_SERVER_HOST// }" ]; then

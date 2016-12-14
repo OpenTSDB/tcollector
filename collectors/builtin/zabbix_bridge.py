@@ -37,44 +37,44 @@ from collectors.lib import utils
 
 
 def main():
-    utils.drop_privileges()
-    if BinLogStreamReader is None:
-        utils.err("error: Python module `pymysqlreplication' is missing")
-        return 1
-    if pymysql is None:
-        utils.err("error: Python module `pymysql' is missing")
-        return 1
-    settings = zabbix_bridge_conf.get_settings()
+    with utils.lower_privileges(self._logger):
+        if BinLogStreamReader is None:
+            utils.err("error: Python module `pymysqlreplication' is missing")
+            return 1
+        if pymysql is None:
+            utils.err("error: Python module `pymysql' is missing")
+            return 1
+        settings = zabbix_bridge_conf.get_settings()
 
-    # Set blocking to True if you want to block and wait for the next event at
-    # the end of the stream
-    stream = BinLogStreamReader(connection_settings=settings['mysql'],
-                                server_id=settings['slaveid'],
-                                only_events=[WriteRowsEvent],
-                                resume_stream=True,
-                                blocking=True)
+        # Set blocking to True if you want to block and wait for the next event at
+        # the end of the stream
+        stream = BinLogStreamReader(connection_settings=settings['mysql'],
+                                    server_id=settings['slaveid'],
+                                    only_events=[WriteRowsEvent],
+                                    resume_stream=True,
+                                    blocking=True)
 
-    hostmap = gethostmap(settings) # Prime initial hostmap
-    for binlogevent in stream:
-        if binlogevent.schema == settings['mysql']['db']:
-            table = binlogevent.table
-            log_pos = binlogevent.packet.log_pos
-            if table == 'history' or table == 'history_uint':
-                for row in binlogevent.rows:
-                    r = row['values']
-                    itemid = r['itemid']
-                    try:
-                        hm = hostmap[itemid]
-                        print "zbx.%s %d %s host=%s proxy=%s" % (hm['key'], r['clock'], r['value'], hm['host'], hm['proxy'])
-                    except KeyError:
-                        # TODO: Consider https://wiki.python.org/moin/PythonDecoratorLibrary#Retry
-                        hostmap = gethostmap(settings)
-                        utils.err("error: Key lookup miss for %s" % (itemid))
-                sys.stdout.flush()
-                # if n seconds old, reload
-                # settings['gethostmap_interval']
+        hostmap = gethostmap(settings) # Prime initial hostmap
+        for binlogevent in stream:
+            if binlogevent.schema == settings['mysql']['db']:
+                table = binlogevent.table
+                log_pos = binlogevent.packet.log_pos
+                if table == 'history' or table == 'history_uint':
+                    for row in binlogevent.rows:
+                        r = row['values']
+                        itemid = r['itemid']
+                        try:
+                            hm = hostmap[itemid]
+                            print "zbx.%s %d %s host=%s proxy=%s" % (hm['key'], r['clock'], r['value'], hm['host'], hm['proxy'])
+                        except KeyError:
+                            # TODO: Consider https://wiki.python.org/moin/PythonDecoratorLibrary#Retry
+                            hostmap = gethostmap(settings)
+                            utils.err("error: Key lookup miss for %s" % (itemid))
+                    sys.stdout.flush()
+                    # if n seconds old, reload
+                    # settings['gethostmap_interval']
 
-    stream.close()
+        stream.close()
 
 
 def gethostmap(settings):

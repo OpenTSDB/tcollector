@@ -222,35 +222,36 @@ def _collect_server(server, version):
       printmetric("http." + stat, ts, value, node=node_name, cluster=cluster_name)
   del nstats
 
+
 def main(argv):
-  utils.drop_privileges()
-  socket.setdefaulttimeout(DEFAULT_TIMEOUT)
-  servers = []
+  with utils.lower_privileges(self._logger):
+      socket.setdefaulttimeout(DEFAULT_TIMEOUT)
+      servers = []
 
-  if json is None:
-    utils.err("This collector requires the `json' Python module.")
-    return 1
+      if json is None:
+        utils.err("This collector requires the `json' Python module.")
+        return 1
 
-  for conf in elasticsearch_conf.get_servers():
-    server = httplib.HTTPConnection( *conf )
-    try:
-      server.connect()
-    except socket.error, (erno, e):
-      if erno == errno.ECONNREFUSED:
-        continue
-      raise
-    servers.append( server )
+      for conf in elasticsearch_conf.get_servers():
+        server = httplib.HTTPConnection( *conf )
+        try:
+          server.connect()
+        except socket.error, (erno, e):
+          if erno == errno.ECONNREFUSED:
+            continue
+          raise
+        servers.append( server )
 
-  if len( servers ) == 0:
-    return 13  # No ES running, ask tcollector to not respawn us.
+      if len( servers ) == 0:
+        return 13  # No ES running, ask tcollector to not respawn us.
 
-  status = node_status(server)
-  version = status["version"]["number"]
+      status = node_status(server)
+      version = status["version"]["number"]
 
-  while True:
-    for server in servers:
-      _collect_server(server, version)
-    time.sleep(COLLECTION_INTERVAL)
+      while True:
+        for server in servers:
+          _collect_server(server, version)
+        time.sleep(COLLECTION_INTERVAL)
 
 if __name__ == "__main__":
   sys.exit(main(sys.argv))

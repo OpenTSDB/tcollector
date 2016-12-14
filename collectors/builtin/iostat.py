@@ -155,80 +155,79 @@ class Iostat(CollectorBase):
             "msec_weighted_total": 0,
         }
         prev_stats = dict()
-        utils.drop_privileges()
+        with utils.lower_privileges(self._logger):
+            self.f_diskstats.seek(0)
+            ts = int(time.time())
+            itv = read_uptime()[0]
+            for line in self.f_diskstats:
+                # maj, min, devicename, [list of stats, see above]
+                values = line.split(None)
+                # shortcut the deduper and just skip disks that
+                # haven't done a single read.  This eliminates a bunch
+                # of loopback, ramdisk, and cdrom devices but still
+                # lets us report on the rare case that we actually use
+                # a ramdisk.
+                if values[3] == "0":
+                    continue
 
-        self.f_diskstats.seek(0)
-        ts = int(time.time())
-        itv = read_uptime()[0]
-        for line in self.f_diskstats:
-            # maj, min, devicename, [list of stats, see above]
-            values = line.split(None)
-            # shortcut the deduper and just skip disks that
-            # haven't done a single read.  This eliminates a bunch
-            # of loopback, ramdisk, and cdrom devices but still
-            # lets us report on the rare case that we actually use
-            # a ramdisk.
-            if values[3] == "0":
-                continue
+                if int(values[1]) % 16 == 0 and int(values[0]) > 1:
+                    metric = "iostat.disk."
+                else:
+                    metric = "iostat.part."
 
-            if int(values[1]) % 16 == 0 and int(values[0]) > 1:
-                metric = "iostat.disk."
-            else:
-                metric = "iostat.part."
+                device = values[2]
+                if len(values) == 14:
+                    # full stats line
+                    for i in range(11):
+                        self._readq.nput("%s%s %d %s dev=%s" % (metric, FIELDS_DISK[i], ts, values[i + 3], device))
 
-            device = values[2]
-            if len(values) == 14:
-                # full stats line
-                for i in range(11):
-                    self._readq.nput("%s%s %d %s dev=%s" % (metric, FIELDS_DISK[i], ts, values[i + 3], device))
+                    ret = is_device(device, 0)
+                    # if a device or a partition, calculate the svctm/await/util
+                    if ret:
+                        stats = dict(zip(FIELDS_DISK, values[3:]))
+                        if device not in prev_stats:
+                            prev_stats[device] = init_stats
+                        rd_ios = float(stats.get("read_requests"))
+                        wr_ios = float(stats.get("write_requests"))
+                        nr_ios = rd_ios + wr_ios
+                        prev_rd_ios = float(prev_stats[device].get("read_requests"))
+                        prev_wr_ios = float(prev_stats[device].get("write_requests"))
+                        prev_nr_ios = prev_rd_ios + prev_wr_ios
+                        tput = ((nr_ios - prev_nr_ios) * float(self.hz) / float(itv))
+                        util = ((float(stats.get("msec_total")) - float(prev_stats[device].get("msec_total"))) * float(self.hz) / float(itv))
+                        svctm = 0.0
+                        await = 0.0
+                        r_await = 0.0
+                        w_await = 0.0
 
-                ret = is_device(device, 0)
-                # if a device or a partition, calculate the svctm/await/util
-                if ret:
-                    stats = dict(zip(FIELDS_DISK, values[3:]))
-                    if device not in prev_stats:
-                        prev_stats[device] = init_stats
-                    rd_ios = float(stats.get("read_requests"))
-                    wr_ios = float(stats.get("write_requests"))
-                    nr_ios = rd_ios + wr_ios
-                    prev_rd_ios = float(prev_stats[device].get("read_requests"))
-                    prev_wr_ios = float(prev_stats[device].get("write_requests"))
-                    prev_nr_ios = prev_rd_ios + prev_wr_ios
-                    tput = ((nr_ios - prev_nr_ios) * float(self.hz) / float(itv))
-                    util = ((float(stats.get("msec_total")) - float(prev_stats[device].get("msec_total"))) * float(self.hz) / float(itv))
-                    svctm = 0.0
-                    await = 0.0
-                    r_await = 0.0
-                    w_await = 0.0
+                        if tput:
+                            svctm = util / tput
 
-                    if tput:
-                        svctm = util / tput
+                        rd_ticks = stats.get("msec_read")
+                        wr_ticks = stats.get("msec_write")
+                        prev_rd_ticks = prev_stats[device].get("msec_read")
+                        prev_wr_ticks = prev_stats[device].get("msec_write")
+                        if rd_ios != prev_rd_ios:
+                            r_await = (float(rd_ticks) - float(prev_rd_ticks)) / float(rd_ios - prev_rd_ios)
+                        if wr_ios != prev_wr_ios:
+                            w_await = (float(wr_ticks) - float(prev_wr_ticks)) / float(wr_ios - prev_wr_ios)
+                        if nr_ios != prev_nr_ios:
+                            await = (float(rd_ticks) + float(wr_ticks) - float(prev_rd_ticks) - float(prev_wr_ticks)) / float(nr_ios - prev_nr_ios)
+                        self._readq.nput("%s%s %d %.2f dev=%s" % (metric, "svctm", ts, svctm, device))
+                        self._readq.nput("%s%s %d %.2f dev=%s" % (metric, "r_await", ts, r_await, device))
+                        self._readq.nput("%s%s %d %.2f dev=%s" % (metric, "w_await", ts, w_await, device))
+                        self._readq.nput("%s%s %d %.2f dev=%s" % (metric, "await", ts, await, device))
+                        self._readq.nput("%s%s %d %.2f dev=%s" % (metric, "util", ts, float(util / 1000.0), device))
 
-                    rd_ticks = stats.get("msec_read")
-                    wr_ticks = stats.get("msec_write")
-                    prev_rd_ticks = prev_stats[device].get("msec_read")
-                    prev_wr_ticks = prev_stats[device].get("msec_write")
-                    if rd_ios != prev_rd_ios:
-                        r_await = (float(rd_ticks) - float(prev_rd_ticks)) / float(rd_ios - prev_rd_ios)
-                    if wr_ios != prev_wr_ios:
-                        w_await = (float(wr_ticks) - float(prev_wr_ticks)) / float(wr_ios - prev_wr_ios)
-                    if nr_ios != prev_nr_ios:
-                        await = (float(rd_ticks) + float(wr_ticks) - float(prev_rd_ticks) - float(prev_wr_ticks)) / float(nr_ios - prev_nr_ios)
-                    self._readq.nput("%s%s %d %.2f dev=%s" % (metric, "svctm", ts, svctm, device))
-                    self._readq.nput("%s%s %d %.2f dev=%s" % (metric, "r_await", ts, r_await, device))
-                    self._readq.nput("%s%s %d %.2f dev=%s" % (metric, "w_await", ts, w_await, device))
-                    self._readq.nput("%s%s %d %.2f dev=%s" % (metric, "await", ts, await, device))
-                    self._readq.nput("%s%s %d %.2f dev=%s" % (metric, "util", ts, float(util / 1000.0), device))
+                        prev_stats[device] = copy.deepcopy(stats)
 
-                    prev_stats[device] = copy.deepcopy(stats)
-
-            elif len(values) == 7:
-                # partial stats line
-                for i in range(4):
-                    self._readq.nput("%s%s %d %s dev=%s" % (metric, FIELDS_PART[i], ts, values[i + 3], device))
-            else:
-                self.log_error("Cannot parse /proc/diskstats line: %s", line)
-                continue
+                elif len(values) == 7:
+                    # partial stats line
+                    for i in range(4):
+                        self._readq.nput("%s%s %d %s dev=%s" % (metric, FIELDS_PART[i], ts, values[i + 3], device))
+                else:
+                    self.log_error("Cannot parse /proc/diskstats line: %s", line)
+                    continue
 
     def cleanup(self):
         self.safe_close(self.f_diskstats)

@@ -41,17 +41,17 @@ class Tomcat(CollectorBase):
     },
     {
         "type" : "read",
-        "mbean" : "Catalina:J2EEApplication=none,J2EEServer=none,WebModule=//localhost/,j2eeType=Servlet,name=default",
+        "mbean" : "Catalina:J2EEApplication=none,J2EEServer=none,WebModule=*,j2eeType=Servlet,name=*",
         "attribute": ["requestCount", "processingTime", "errorCount"]
     },
     {
         "type" : "read",
-        "mbean" : "Catalina:context=/,host=localhost,type=Cache",
+        "mbean" : "Catalina:context=*,host=*,type=Cache",
         "attribute": ["accessCount", "hitsCount"]
     },
     {
         "type": "read",
-        "mbean" : "Catalina:J2EEApplication=none,J2EEServer=none,WebModule=//localhost/,name=jsp,type=JspMonitor",
+        "mbean" : "Catalina:J2EEApplication=none,J2EEServer=none,WebModule=*,name=jsp,type=JspMonitor",
         "attribute": ["jspUnloadCount", "jspCount", "jspReloadCount", "jspQueueLength"]
     }
   ]'''
@@ -66,9 +66,9 @@ class Tomcat(CollectorBase):
             "java.lang:type=Threading": "JolokiaThreadingParser",
             "java.lang:name=PS Scavenge,type=GarbageCollector": "JolokiaGCParser",
             "java.lang:type=OperatingSystem": "JolokiaOSParser",
-            "Catalina:J2EEApplication=none,J2EEServer=none,WebModule=//localhost/,j2eeType=Servlet,name=default": "JolokiaServletParser",
-            "Catalina:context=/,host=localhost,type=Cache": "JolokiaCacheParser",
-            "Catalina:J2EEApplication=none,J2EEServer=none,WebModule=//localhost/,name=jsp,type=JspMonitor": "JolokiaJspMonitorParser"
+            "Catalina:J2EEApplication=none,J2EEServer=none,WebModule=*,j2eeType=Servlet,name=*": "JolokiaServletParser",
+            "Catalina:context=*,host=*,type=Cache": "JolokiaCacheParser",
+            "Catalina:J2EEApplication=none,J2EEServer=none,WebModule=*,name=jsp,type=JspMonitor": "JolokiaJspMonitorParser"
         }
         protocol = self.get_config("protocol", "http")
         portsStr = self.get_config("ports", "8080")
@@ -199,7 +199,42 @@ class JolokiaOSParser(JolokiaParserBase):
         return JolokiaParserBase.metric_name(self, "%s.%s" % ("os", name))
 
 
-class JolokiaServletParser(JolokiaParserBase):
+class JolokiaWebModuleParser(JolokiaParserBase):
+    def __init__(self, logger):
+        super(JolokiaWebModuleParser, self).__init__(logger)
+        self.reserved_modules = ["jolokia", "manager", "examples", "docs", "host-manager"]
+
+    def parse(self, json_dict, readq, port):
+        status = json_dict["status"]
+        if status != 200:
+            raise IOError("status code %d" % status)
+        ts = json_dict["timestamp"]
+        vals = json_dict["value"]
+        for mbean_name_str, val in vals.iteritems():   # iterate over all the values returned and apply filter
+            try:
+                mbean_name_str.index("Catalina:")
+                mbean_name_str = mbean_name_str[len("Catalina:"):]
+            except ValueError:
+                pass
+
+            additional_tag = ""
+            reserved = False
+            for mbean_part in mbean_name_str.split(","):    # iterate over mbean name like Catalina:J2EEApplication=none,J2EEServer=none,WebModule=*,name=jsp,type=JspMonitor
+                mbean_part_name_val_pair = mbean_part.split("=")
+                if mbean_part_name_val_pair[0] == "WebModule" or mbean_part_name_val_pair[0] == "context":
+                    additional_tag += (" %s=%s" % (mbean_part_name_val_pair[0], mbean_part_name_val_pair[1]))
+                    for reserved_module in self.reserved_modules:
+                        if mbean_part_name_val_pair[1].endswith(reserved_module):
+                            reserved = True
+                            break
+                elif mbean_part_name_val_pair[0] == "name":
+                    additional_tag += (" %s=%s" % (mbean_part_name_val_pair[0], mbean_part_name_val_pair[1]))
+
+            if not reserved:
+                self._process(readq, port, ts, val, additional_tag)
+
+
+class JolokiaServletParser(JolokiaWebModuleParser):
     def __init__(self, logger):
         super(JolokiaServletParser, self).__init__(logger)
         self.metrics = ["requestCount", "processingTime", "errorCount"]
@@ -215,7 +250,7 @@ class JolokiaServletParser(JolokiaParserBase):
         return self.types[self.metrics.index(name)]
 
 
-class JolokiaCacheParser(JolokiaParserBase):
+class JolokiaCacheParser(JolokiaWebModuleParser):
     def __init__(self, logger):
         super(JolokiaCacheParser, self).__init__(logger)
         self.metrics = ["accessCount", "hitsCount"]
@@ -230,7 +265,7 @@ class JolokiaCacheParser(JolokiaParserBase):
         return MetricType.COUNTER
 
 
-class JolokiaJspMonitorParser(JolokiaParserBase):
+class JolokiaJspMonitorParser(JolokiaWebModuleParser):
     def __init__(self, logger):
         super(JolokiaJspMonitorParser, self).__init__(logger)
         self.metrics = ["jspUnloadCount", "jspCount", "jspReloadCount", "jspQueueLength"]
