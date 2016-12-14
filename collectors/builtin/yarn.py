@@ -1,5 +1,6 @@
 import time
 import requests
+from collectors.lib import utils
 from collectors.lib.collectorbase import CollectorBase
 
 #reference by : https://github.com/DataDog/dd-agent/blob/master/checks.d/yarn.py
@@ -135,7 +136,7 @@ class Yarn(CollectorBase):
                     if metrics_json['apps']['app'] is not None:
                         for app_json in metrics_json['apps']['app']:
                             for metric in APPS:
-                                self._readq.nput('yarn.apps.%s %d %d name=%s' % (metric, ts, app_json[metric], app_json['name']))
+                                self._readq.nput('yarn.apps.%s %d %d name=%s' % (metric, ts, app_json[metric], utils.remove_invalid_characters(app_json['name'])))
 
         except Exception as e:
             self.log_exception('exception collecting yarn metric form : %s \n %s' % ('%s%s' % (self.http_prefix, REST_API["apps"]), e))
@@ -149,7 +150,7 @@ class Yarn(CollectorBase):
                     if metrics_json['nodes']['node'] is not None:
                         for node_json in metrics_json['nodes']['node']:
                             for metric in NODES:
-                                self._readq.nput('yarn.nodes.%s %d %d id=%s' % (metric, ts, node_json[metric], node_json['id']))
+                                self._readq.nput('yarn.nodes.%s %d %d id=%s' % (metric, ts, node_json[metric], utils.remove_invalid_characters(node_json['id'])))
         except Exception as e:
             self.log_exception('exception collecting yarn metric form : %s \n %s' % ('%s%s' % (self.http_prefix, REST_API["nodes"]), e))
 
