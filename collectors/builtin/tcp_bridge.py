@@ -41,89 +41,90 @@ m_ptime = 0
 # buffered stdout seems to break metrics
 out = os.fdopen(sys.stdout.fileno(), 'w', 0)
 
+
 def main():
     if not (tcp_bridge_conf and tcp_bridge_conf.enabled()):
         print >> sys.stderr, 'not enabled, or tcp_bridge_conf unavilable'
         sys.exit(13)
-    utils.drop_privileges()
+    with utils.lower_privileges(self._logger):
 
-    def printm(string, time, value):
-        out.write(m_namespace+string+' '+str(time)+' '+str(value)+'\n')
+        def printm(string, time, value):
+            out.write(m_namespace+string+' '+str(time)+' '+str(value)+'\n')
 
-    def printmetrics():
-        global m_delay
-        global m_last
+        def printmetrics():
+            global m_delay
+            global m_last
 
-        ts = int(time.time())
-        if ts > m_last+m_delay:
-            printm('lines_read', ts, m_lines)
-            printm('connections_processed', ts, m_connections)
-            printm('processing_time', ts, m_ptime)
-            printm('active', ts, 1)
-            m_last = ts
+            ts = int(time.time())
+            if ts > m_last+m_delay:
+                printm('lines_read', ts, m_lines)
+                printm('connections_processed', ts, m_connections)
+                printm('processing_time', ts, m_ptime)
+                printm('active', ts, 1)
+                m_last = ts
 
-    def clientthread(connection):
-        global m_lines
-        global m_connections
-        global m_ptime
+        def clientthread(connection):
+            global m_lines
+            global m_connections
+            global m_ptime
 
-        start = time.time()
-        f = connection.makefile()
-        while True:
-            data = f.readline()
+            start = time.time()
+            f = connection.makefile()
+            while True:
+                data = f.readline()
 
-            if not data:
-                break
+                if not data:
+                    break
 
-            data = removePut(data)
-            out.write(data)
-            m_lines += 1
+                data = removePut(data)
+                out.write(data)
+                m_lines += 1
 
-        f.close()
-        connection.close()
+            f.close()
+            connection.close()
 
-        end = time.time()
-        m_ptime += (end - start)
-        m_connections += 1
-        printmetrics()
+            end = time.time()
+            m_ptime += (end - start)
+            m_connections += 1
+            printmetrics()
 
-    def removePut(line):
-        if line.startswith('put '):
-            return line[4:]
-        else:
-            return line
+        def removePut(line):
+            if line.startswith('put '):
+                return line[4:]
+            else:
+                return line
 
-    try:
-        if tcp_bridge_conf.port():
-            PORT = tcp_bridge_conf.port()
-
-        if tcp_bridge_conf.host():
-            HOST = tcp_bridge_conf.host()
-
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.bind((HOST, PORT))
-        sock.listen(1)
-
-    except socket.error, msg:
-        utils.err('could not open socket: %s' % msg)
-        sys.exit(1)
-
-    try:
-        flush_delay = tcp_bridge_conf.flush_delay()
-    except AttributeError:
-        flush_delay = 60
-
-    try:
         try:
-            while 1:
-                connection, address = sock.accept()
-                start_new_thread(clientthread, (connection,))
+            if tcp_bridge_conf.port():
+                PORT = tcp_bridge_conf.port()
 
-        except KeyboardInterrupt:
-            utils.err("keyboard interrupt, exiting")
+            if tcp_bridge_conf.host():
+                HOST = tcp_bridge_conf.host()
 
-    finally:
-        sock.close()
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.bind((HOST, PORT))
+            sock.listen(1)
+
+        except socket.error, msg:
+            utils.err('could not open socket: %s' % msg)
+            sys.exit(1)
+
+        try:
+            flush_delay = tcp_bridge_conf.flush_delay()
+        except AttributeError:
+            flush_delay = 60
+
+        try:
+            try:
+                while 1:
+                    connection, address = sock.accept()
+                    start_new_thread(clientthread, (connection,))
+
+            except KeyboardInterrupt:
+                utils.err("keyboard interrupt, exiting")
+
+        finally:
+            sock.close()
 
 if __name__ == "__main__":
     main()

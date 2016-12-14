@@ -61,33 +61,34 @@ TAG_METRICS = (
     ('opcounters',  ('command', 'delete', 'getmore', 'insert', 'query', 'update')),
 )
 
+
 def main():
-    utils.drop_privileges()
-    if pymongo is None:
-       print >>sys.stderr, "error: Python module `pymongo' is missing"
-       return 13
+    with utils.lower_privileges(self._logger):
+        if pymongo is None:
+           print >>sys.stderr, "error: Python module `pymongo' is missing"
+           return 13
 
-    c = pymongo.Connection(host=HOST, port=PORT)
+        c = pymongo.Connection(host=HOST, port=PORT)
 
-    while True:
-        res = c.admin.command('serverStatus')
-        ts = int(time.time())
+        while True:
+            res = c.admin.command('serverStatus')
+            ts = int(time.time())
 
-        for base_metric, tags in TAG_METRICS:
-            for tag in tags:
-                print 'mongo.%s %d %s type=%s' % (base_metric, ts,
-                                                  res[base_metric][tag], tag)
-        for metric in METRICS:
-            cur = res
-            try:
-                for m in metric.split('.'):
-                    cur = cur[m]
-            except KeyError:
-                continue
-            print 'mongo.%s %d %s' % (metric, ts, cur)
+            for base_metric, tags in TAG_METRICS:
+                for tag in tags:
+                    print 'mongo.%s %d %s type=%s' % (base_metric, ts,
+                                                      res[base_metric][tag], tag)
+            for metric in METRICS:
+                cur = res
+                try:
+                    for m in metric.split('.'):
+                        cur = cur[m]
+                except KeyError:
+                    continue
+                print 'mongo.%s %d %s' % (metric, ts, cur)
 
-        sys.stdout.flush()
-        time.sleep(INTERVAL)
+            sys.stdout.flush()
+            time.sleep(INTERVAL)
 
 if __name__ == '__main__':
     sys.exit(main())

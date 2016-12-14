@@ -78,13 +78,12 @@ class HbaseRegionserver(CollectorBase):
         self.readq = readq
         self.port = self.get_config('port', 60030)
 
-        utils.drop_privileges()
-
     def __call__(self):
-        if json:
-            HBaseRegionserverHttp(self.port, self.logger, self.readq).emit()
-        else:
-            self.logger.error("This collector requires the `json' Python module.")
+        with utils.lower_privileges(self._logger):
+            if json:
+                HBaseRegionserverHttp(self.port, self.logger, self.readq).emit()
+            else:
+                self.logger.error("This collector requires the `json' Python module.")
 
 
 if __name__ == "__main__":

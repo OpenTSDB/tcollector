@@ -164,20 +164,21 @@ def isyes(s):
 class Mysql(CollectorBase):
     def __init__(self, config, logger, readq):
         super(Mysql, self).__init__(config, logger, readq)
-        if not find_sockfiles():  # Nothing to monitor.
-            raise IOError("unable to find mysql socket file")
         if MySQLdb is None:
             raise ImportError("unable to load Python module `MySQLdb'")
         self.connection_user = self.get_config("user", "cloudwiz_user")
         self.connection_pass = self.get_config("pass", "cloudwiz_pass")
-        self.last_db_refresh = now()
-        self.dbs = self.find_databases()
+        self.last_db_refresh = 0
+        self.dbs = {}
 
     def __call__(self):
         ts = now()
         if ts - self.last_db_refresh >= DB_REFRESH_INTERVAL:
             self.find_databases(self.dbs)
             self.last_db_refresh = ts
+        if self.dbs is None:
+            self.log_info("db is none. abort collection")
+            return
 
         errs = []
         for dbname, db in self.dbs.iteritems():
@@ -344,6 +345,8 @@ class Mysql(CollectorBase):
           This map will be modified in place if it's not None.
       """
         sockfiles = find_sockfiles()
+        if not sockfiles:
+            raise IOError("unable to find mysql socket file")
         if dbs is None:
             dbs = {}
         for sockfile in sockfiles:

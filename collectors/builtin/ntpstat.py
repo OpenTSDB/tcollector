@@ -40,35 +40,34 @@ def main():
         config = ntpstat_conf.get_config()
         collection_interval=config['collection_interval']
 
-    utils.drop_privileges()
+    with utils.lower_privileges(self._logger):
+        while True:
+            ts = int(time.time())
+            try:
+                ntp_proc = subprocess.Popen(["ntpq", "-p"], stdout=subprocess.PIPE)
+            except OSError, e:
+                if e.errno == errno.ENOENT:
+                    # looks like ntpdc is not available, stop using this collector
+                    sys.exit(13) # we signal tcollector to stop using this
+                raise
 
-    while True:
-        ts = int(time.time())
-        try:
-            ntp_proc = subprocess.Popen(["ntpq", "-p"], stdout=subprocess.PIPE)
-        except OSError, e:
-            if e.errno == errno.ENOENT:
-                # looks like ntpdc is not available, stop using this collector
-                sys.exit(13) # we signal tcollector to stop using this
-            raise
+            stdout, _ = ntp_proc.communicate()
+            if ntp_proc.returncode == 0:
+                for line in stdout.split("\n"):
+                    if not line:
+                        continue
+                    fields = line.split()
+                    if len(fields) <= 0:
+                        continue
+                    if fields[0].startswith("*"):
+                        offset=fields[8]
+                        continue
+                print ("ntp.offset %d %s" % (ts, offset))
+            else:
+                print >> sys.stderr, "ntpq -p, returned %r" % (ntp_proc.returncode)
 
-        stdout, _ = ntp_proc.communicate()
-        if ntp_proc.returncode == 0:
-            for line in stdout.split("\n"):
-                if not line:
-                    continue
-                fields = line.split()
-                if len(fields) <= 0:
-                    continue
-                if fields[0].startswith("*"):
-                    offset=fields[8]
-                    continue
-            print ("ntp.offset %d %s" % (ts, offset))
-        else:
-            print >> sys.stderr, "ntpq -p, returned %r" % (ntp_proc.returncode)
-
-        sys.stdout.flush()
-        time.sleep(collection_interval)
+            sys.stdout.flush()
+            time.sleep(collection_interval)
 
 if __name__ == "__main__":
     main()

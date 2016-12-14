@@ -70,7 +70,9 @@ case "$1" in
     fi
 
     log_info "starting $name (using supervisord $supervisord_path and conf $supervisor_file)"
-    PATH=$system_path daemon $supervisord_path -c $supervisor_file --pidfile $supervisor_pidfile &
+    # daemon function has problem on RH when there is another supervisord running
+    # PATH=$system_path daemon $supervisord_path -c $supervisor_file --pidfile $supervisor_pidfile &
+    $supervisord_path -c $supervisor_file --pidfile $supervisor_pidfile &
 
     #check if the agent is running once per second for 15 seconds
     retries=15

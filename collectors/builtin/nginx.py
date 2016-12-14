@@ -57,15 +57,15 @@ class Nginx(CollectorBase):
         super(Nginx, self).__init__(config, logger, readq)
         try:
             self.access_log = open(find_access_log())
-            utils.drop_privileges()
-            self.nginx_server = requests.Session()
-            self.num_req_per_resp_code_per_user = {}
+            with utils.lower_privileges(self._logger):
+                self.nginx_server = requests.Session()
+                self.num_req_per_resp_code_per_user = {}
 
-            # We just care about ethN and emN interfaces.  We specifically
-            # want to avoid bond interfaces, because interface
-            # stats are still kept on the child interfaces when
-            # you bond.  By skipping bond we avoid double counting.
-            self.access_log.seek(0)
+                # We just care about ethN and emN interfaces.  We specifically
+                # want to avoid bond interfaces, because interface
+                # stats are still kept on the child interfaces when
+                # you bond.  By skipping bond we avoid double counting.
+                self.access_log.seek(0)
         except:
             self.cleanup()
 

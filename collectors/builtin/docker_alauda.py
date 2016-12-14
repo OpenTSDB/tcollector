@@ -22,19 +22,20 @@ MAX_EXCEPTION_HIT = 5
 class DockerAlauda(CollectorBase):
     def __init__(self, config, logger, readq):
         super(DockerAlauda, self).__init__(config, logger, readq)
-        utils.drop_privileges()
-        self._init_alauda_session()
+        with utils.lower_privileges(self._logger):
+            self._init_alauda_session()
 
     def __call__(self):
-        try:
-            self.get_container_stats(self.alauda_session, DEFAULT_NAMESPACE, DEFAULT_TOKEN)
-            self.numExceptionHit = 0
-        except Exception:
-            self.log_exception('exception collecting Alauda docker metrics')
-            self.numExceptionHit += 1
-            if self.numExceptionHit > MAX_EXCEPTION_HIT:
-                self.cleanup()
-                self._init_alauda_session()
+        with utils.lower_privileges(self._logger):
+            try:
+                self.get_container_stats(self.alauda_session, DEFAULT_NAMESPACE, DEFAULT_TOKEN)
+                self.numExceptionHit = 0
+            except Exception:
+                self.log_exception('exception collecting Alauda docker metrics')
+                self.numExceptionHit += 1
+                if self.numExceptionHit > MAX_EXCEPTION_HIT:
+                    self.cleanup()
+                    self._init_alauda_session()
 
     def cleanup(self):
         self.alauda_session.close()

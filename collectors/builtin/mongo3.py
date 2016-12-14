@@ -283,41 +283,41 @@ def loadEnv():
 def main():
     loadEnv()
 
-    utils.drop_privileges()
-    if pymongo is None:
-        print >>sys.stderr, "error: Python module `pymongo' is missing"
-        return 13
+    with utils.lower_privileges(self._logger):
+        if pymongo is None:
+            print >>sys.stderr, "error: Python module `pymongo' is missing"
+            return 13
 
-    for index, item in enumerate(CONFIG_CONN, start=0):
-        conn = pymongo.MongoClient(host=item['host'], port=item['port'])
-        if USER:
-            conn.admin.authenticate(USER, PASS, mechanism='DEFAULT')
-        CONFIG_CONN[index]['link'] = conn
+        for index, item in enumerate(CONFIG_CONN, start=0):
+            conn = pymongo.MongoClient(host=item['host'], port=item['port'])
+            if USER:
+                conn.admin.authenticate(USER, PASS, mechanism='DEFAULT')
+            CONFIG_CONN[index]['link'] = conn
 
-    for index, item in enumerate(MONGOS_CONN, start=0):
-        conn = pymongo.MongoClient(host=item['host'], port=item['port'])
-        if USER:
-            conn.admin.authenticate(USER, PASS, mechanism='DEFAULT')
-        MONGOS_CONN[index]['link'] = conn
+        for index, item in enumerate(MONGOS_CONN, start=0):
+            conn = pymongo.MongoClient(host=item['host'], port=item['port'])
+            if USER:
+                conn.admin.authenticate(USER, PASS, mechanism='DEFAULT')
+            MONGOS_CONN[index]['link'] = conn
 
-    for index, item in enumerate(REPLICA_CONN, start=0):
-        conn = pymongo.MongoClient(host=item['host'], port=item['port'])
-        if USER:
-            conn.admin.authenticate(USER, PASS, mechanism='DEFAULT')
-        REPLICA_CONN[index]['link'] = conn
+        for index, item in enumerate(REPLICA_CONN, start=0):
+            conn = pymongo.MongoClient(host=item['host'], port=item['port'])
+            if USER:
+                conn.admin.authenticate(USER, PASS, mechanism='DEFAULT')
+            REPLICA_CONN[index]['link'] = conn
 
-    while True:
-        for conn in CONFIG_CONN:
-            runServerStatus(conn['link'])
+        while True:
+            for conn in CONFIG_CONN:
+                runServerStatus(conn['link'])
 
-        for conn in MONGOS_CONN:
-            runDbStats(conn['link'])
+            for conn in MONGOS_CONN:
+                runDbStats(conn['link'])
 
-        for conn in REPLICA_CONN:
-            runReplSetGetStatus(conn['link'])
+            for conn in REPLICA_CONN:
+                runReplSetGetStatus(conn['link'])
 
-        sys.stdout.flush()
-        time.sleep(INTERVAL)
+            sys.stdout.flush()
+            time.sleep(INTERVAL)
 
 if __name__ == '__main__':
     sys.exit(main())

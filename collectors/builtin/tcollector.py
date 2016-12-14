@@ -161,14 +161,14 @@ def collect_tcollect_stats(processes):
 
 
 def main():
-    utils.drop_privileges()
+    with utils.lower_privileges(self._logger):
 
-    while True:
-        processes = ProcessTable()
-        processes.update()
-        collect_tcollect_stats(processes)
+        while True:
+            processes = ProcessTable()
+            processes.update()
+            collect_tcollect_stats(processes)
 
-        time.sleep(COLLECTION_INTERVAL)
+            time.sleep(COLLECTION_INTERVAL)
 
 if __name__ == "__main__":
     main()

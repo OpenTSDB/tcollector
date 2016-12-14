@@ -67,15 +67,15 @@ class GraphiteHandler(SocketServer.BaseRequestHandler):
 def main():
     if not (graphite_bridge_conf and graphite_bridge_conf.enabled()):
       sys.exit(13)
-    utils.drop_privileges()
+    with utils.lower_privileges(self._logger):
 
-    server = GraphiteServer((HOST, PORT), GraphiteHandler)
-    server.daemon_threads = True
-    try:
-        server.serve_forever()
-    except KeyboardInterrupt:
-        server.shutdown()
-        server.server_close()
+        server = GraphiteServer((HOST, PORT), GraphiteHandler)
+        server.daemon_threads = True
+        try:
+            server.serve_forever()
+        except KeyboardInterrupt:
+            server.shutdown()
+            server.server_close()
 
 if __name__ == "__main__":
     main()

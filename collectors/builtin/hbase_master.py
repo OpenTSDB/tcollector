@@ -55,13 +55,12 @@ class HbaseMaster(CollectorBase):
         self.readq = readq
         self.port = self.get_config('port', 60010)
 
-        utils.drop_privileges()
-
     def __call__(self):
-        if json:
-            HBaseMasterHttp(self.port, self.logger, self.readq).emit()
-        else:
-            self.logger.error("This collector requires the `json' Python module.")
+        with utils.lower_privileges(self._logger):
+            if json:
+                HBaseMasterHttp(self.port, self.logger, self.readq).emit()
+            else:
+                self.logger.error("This collector requires the `json' Python module.")
 
 
 if __name__ == "__main__":
