@@ -32,10 +32,12 @@ class JolokiaParserBase(object):
     def get_metric_type(self, name):
         return MetricType.REGULAR
 
-    def _process(self, readq, port, ts, value_dict, additional_tags = None):
+    def _process(self, readq, port, ts, value_dict, additional_tags=None):
         for name in self.valid_metrics():
             if name in value_dict:
                 val = value_dict[name]
+                if val is None:
+                    val = 0
                 mtype = self.get_metric_type(name)
                 if mtype == MetricType.COUNTER:
                     # for counter we should evaluate or display using rate

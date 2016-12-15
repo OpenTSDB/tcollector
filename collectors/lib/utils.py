@@ -19,6 +19,8 @@ import stat
 import pwd
 import errno
 import sys
+import subprocess
+import re
 from Queue import Queue
 
 # If we're running as root and this user exists, we'll drop privileges.
@@ -99,6 +101,24 @@ def remove_invalid_characters(str):
         return "".join(lstr)
     else:
         return str
+
+
+def get_java_pid_and_user_by_pname(pname_pattern_compiled):
+    # verified for both front-running and daemon type process
+    all_java_processes = subprocess.check_output(['jps']).split("\n")
+    for pid_space_name in all_java_processes:
+        m = re.search(pname_pattern_compiled, pid_space_name)
+        if m is not None:
+            pid = m.group("pid")
+            user_qstr_lines = "ps -p %s -o ruser | wc -l" % pid
+            lines = int(subprocess.check_output(user_qstr_lines, shell=True).split("\n")[0])
+            if lines >= 2:
+                user_qstr = "ps -p %s -o ruser | tail -n 1" % pid
+                puser = subprocess.check_output(user_qstr, shell=True).split("\n")[0]
+                return long(m.group("pid")), puser
+            else:
+                return long(m.group("pid")), None
+    return None, None
 
 
 class TestQueue(Queue):
