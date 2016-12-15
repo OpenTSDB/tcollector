@@ -353,9 +353,8 @@ class Spark(CollectorBase):
         headers = {'Content-Type': 'application/json'}
         resp = requests.get(url, headers=headers)
         if resp.status_code != 200:
-            if resp.status_code > 500:
-                self.log_exception("spark collector can not access url : %s" % url)
-            raise HTTPError(resp)
+            self.log_exception("spark collector can not access url : %s" % url)
+            raise HTTPError(url)
 
         return resp.json()
 
@@ -379,15 +378,6 @@ class SparkParser(HTMLParser):
     def handle_data(self, data):
         if data == 'Application Detail UI':
             self.href = self.temp
-
-
-def request(url):
-    resp = requests.get(url)
-    if resp.status_code != 200:
-        raise HTTPError(resp)
-
-    return resp.json()
-
 
 class HTTPError(RuntimeError):
     def __init__(self, resp):
