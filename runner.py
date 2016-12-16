@@ -650,9 +650,12 @@ class Sender(threading.Thread):
             raw_tags = ""
         # process the tags
         metric_tags = {}
-        for tag in raw_tags.strip().split():
-            (tag_key, tag_value) = tag.split("=", 1)
-            metric_tags[tag_key] = tag_value
+        try:
+            for tag in raw_tags.strip().split():
+                (tag_key, tag_value) = tag.split("=", 1)
+                metric_tags[tag_key] = tag_value
+        except:
+            LOG.error("bad tag string: %s", raw_tags)
         metric_entry = {}
         metric_entry["metric"] = metric
         metric_entry["timestamp"] = long(timestamp)

@@ -1,6 +1,7 @@
 #!/usr/bin/python
 
 import sys
+from collectors.lib import utils
 from collectors.lib.jolokia import JolokiaCollector
 from collectors.lib.jolokia import JolokiaParserBase
 from collectors.lib.collectorbase import MetricType
@@ -86,7 +87,10 @@ class Tomcat(CollectorBase):
 
     def __call__(self):
         for port in self.collectors:
-            self.collectors[port].__call__()
+            try:
+                self.collectors[port].__call__()
+            except:
+                self.log_error("failed to collect for port %s", port)
 
 
 class JolokiaGlobalRequestProcessorParser(JolokiaParserBase):
@@ -222,13 +226,13 @@ class JolokiaWebModuleParser(JolokiaParserBase):
             for mbean_part in mbean_name_str.split(","):    # iterate over mbean name like Catalina:J2EEApplication=none,J2EEServer=none,WebModule=*,name=jsp,type=JspMonitor
                 mbean_part_name_val_pair = mbean_part.split("=")
                 if mbean_part_name_val_pair[0] == "WebModule" or mbean_part_name_val_pair[0] == "context":
-                    additional_tag += (" %s=%s" % (mbean_part_name_val_pair[0], mbean_part_name_val_pair[1]))
+                    additional_tag += (" %s=%s" % (mbean_part_name_val_pair[0], utils.remove_invalid_characters(mbean_part_name_val_pair[1])))
                     for reserved_module in self.reserved_modules:
                         if mbean_part_name_val_pair[1].endswith(reserved_module):
                             reserved = True
                             break
                 elif mbean_part_name_val_pair[0] == "name":
-                    additional_tag += (" %s=%s" % (mbean_part_name_val_pair[0], mbean_part_name_val_pair[1]))
+                    additional_tag += (" %s=%s" % (mbean_part_name_val_pair[0], utils.remove_invalid_characters(mbean_part_name_val_pair[1])))
 
             if not reserved:
                 self._process(readq, port, ts, val, additional_tag)
