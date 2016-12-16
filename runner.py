@@ -28,7 +28,7 @@ LOG = logging.getLogger('runner')
 # TODO consider put into config file
 DEFAULT_PORT = 4242
 ALLOWED_INACTIVITY_TIME = 600  # seconds
-MAX_UNCAUGHT_EXCEPTIONS = 100
+MAX_UNCAUGHT_EXCEPTIONS = 10000000
 MAX_SENDQ_SIZE = 20000      # this should match tsd.http.request.max_chunk, usually 1/3. json adds considerable overhead
 MAX_READQ_SIZE = 100000
 
@@ -632,7 +632,7 @@ class Sender(threading.Thread):
                     shutdown()
                     raise
                 LOG.exception('exception in Sender, ignoring')
-                time.sleep(1)
+                time.sleep(50)
                 continue
             except:
                 LOG.exception('Uncaught exception in Sender, going to exit')
