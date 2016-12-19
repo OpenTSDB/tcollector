@@ -63,6 +63,8 @@ def main():
         config = ifrate_conf.get_config()
         collection_interval=config['collection_interval']
         interfaces=config['interfaces']
+        report_packets=config['report_packets']
+        merge_err_in_out=config['merge_err_in_out']
 
     global signal_received
 
@@ -109,15 +111,20 @@ def main():
             if len(fields) == 9:
                 if(procnum == 0):
                     timestamp = int(time.time())
-                print ("ifrate.pkt.in %s %s int=%s" % (timestamp, int(fields[0])/collection_interval, interfaces[procnum]))
-                print ("ifrate.err.in %s %s int=%s" % (timestamp, int(fields[1])/collection_interval, interfaces[procnum]))
-                print ("ifrate.drp.in %s %s int=%s" % (timestamp, int(fields[2])/collection_interval, interfaces[procnum]))
                 print ("ifrate.byt.in %s %s int=%s" % (timestamp, int(fields[3])/collection_interval, interfaces[procnum]))
-                print ("ifrate.pkt.out %s %s int=%s" % (timestamp, int(fields[4])/collection_interval, interfaces[procnum]))
-                print ("ifrate.err.out %s %s int=%s" % (timestamp, int(fields[5])/collection_interval, interfaces[procnum]))
                 print ("ifrate.byt.out %s %s int=%s" % (timestamp, int(fields[6])/collection_interval, interfaces[procnum]))
+                if(report_packets):
+                    print ("ifrate.pkt.in %s %s int=%s" % (timestamp, int(fields[0])/collection_interval, interfaces[procnum]))
+                    print ("ifrate.pkt.out %s %s int=%s" % (timestamp, int(fields[4])/collection_interval, interfaces[procnum]))
+                if(merge_err_in_out):
+                    print ("ifrate.err %s %s int=%s" % (timestamp, (int(fields[1])+int(fields[5]))/collection_interval, interfaces[procnum]))
+                    print ("ifrate.drp %s %s int=%s" % (timestamp, (int(fields[2])+int(fields[8]))/collection_interval, interfaces[procnum]))
+                else:
+                    print ("ifrate.err.in %s %s int=%s" % (timestamp, int(fields[1])/collection_interval, interfaces[procnum]))
+                    print ("ifrate.drp.in %s %s int=%s" % (timestamp, int(fields[2])/collection_interval, interfaces[procnum]))
+                    print ("ifrate.err.out %s %s int=%s" % (timestamp, int(fields[5])/collection_interval, interfaces[procnum]))
+                    print ("ifrate.drp.out %s %s int=%s" % (timestamp, int(fields[8])/collection_interval, interfaces[procnum]))
                 print ("ifrate.col %s %s int=%s" % (timestamp, int(fields[7])/collection_interval, interfaces[procnum]))
-                print ("ifrate.drp.out %s %s int=%s" % (timestamp, int(fields[8])/collection_interval, interfaces[procnum]))
 
         # analyze next process
         procnum+=1
