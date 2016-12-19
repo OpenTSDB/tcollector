@@ -3,8 +3,18 @@
 # Semi Universal start-stop script
 # Keep it sh compatible, test with bash, dash, ksh, and zsh.
 
-SCRIPT_DIR="$(cd $(dirname $0) && pwd)"
-TCOLLECTOR_PATH=${TCOLLECTOR_PATH-"${SCRIPT_DIR}"}
+# FreeBSD insctructions :
+# Put TCollector files into /usr/local/share/tcollector/
+# ln -s /usr/local/share/tcollector/tcollector /etc/rc.d/
+# echo 'tcollector_enable="YES"' >> /etc/rc.conf
+if uname | grep -qw FreeBSD
+then
+    TCOLLECTOR_PATH=/usr/local/share/tcollector
+    export PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin
+else
+    SCRIPT_DIR="$(cd $(dirname $0) && pwd)"
+    TCOLLECTOR_PATH=${TCOLLECTOR_PATH-"${SCRIPT_DIR}"}
+fi
 
 PROG=$TCOLLECTOR_PATH/tcollector.py
 COMMAND=$1
@@ -83,6 +93,10 @@ forcerestart () {
 case $COMMAND in
     start)
         status || start
+        ;;
+    faststart)
+        # FreeBSD option to start at boot time
+        start
         ;;
     restart)
         forcerestart
