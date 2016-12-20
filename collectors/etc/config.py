@@ -62,6 +62,7 @@ def get_defaults():
         'port': 4242,
         'pidfile': '/var/run/tcollector.pid',
         'http': False,
+        'http_api_path': "api/put",
         'tags': [],
         'remove_inactive_collectors': False,
         'host': 'localhost',
