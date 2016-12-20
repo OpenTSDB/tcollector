@@ -761,20 +761,16 @@ class SenderThread(threading.Thread):
 
         if((self.current_tsd == -1) or (len(self.hosts) > 1)):
             self.pick_connection()
-        # print "Using server: %s:%s" % (self.host, self.port)
-        # url = "http://%s:%s/api/put?details" % (self.host, self.port)
-        # print "Url is %s" % url
         if self.ssl:
             protocol = "https"
         else:
             protocol = "http"
-        LOG.debug("Sending metrics to %s://%s:%s/api/put?details",
-                  protocol, self.host, self.port)
         details=""
         if LOG.level == logging.DEBUG:
             details="?details"
-        req = urllib2.Request("%s://%s:%s/api/put%s" % (
-            protocol, self.host, self.port, details))
+        url = "%s://%s:%s/api/put%s" % (protocol, self.host, self.port, details)
+        LOG.debug("Sending metrics to url", url)
+        req = urllib2.Request(url)
         if self.http_username and self.http_password:
           req.add_header("Authorization", "Basic %s"
                          % base64.b64encode("%s:%s" % (self.http_username, self.http_password)))
