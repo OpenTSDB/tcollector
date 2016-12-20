@@ -33,7 +33,7 @@ import time
 import subprocess
 import re
 import platform
-
+import os
 from collectors.lib.collectorbase import CollectorBase
 
 
@@ -41,6 +41,7 @@ class CpusPctusage(CollectorBase):
     def __init__(self, config, logger, readq):
         super(CpusPctusage, self).__init__(config, logger, readq)
         collection_interval = self.get_config('interval')
+        os.environ['LANG'] = "en_US.UTF-8"
         if platform.system() == "FreeBSD":
             self.p_top = subprocess.Popen(
                 ["top", "-t", "-I", "-P", "-n", "-s" + str(collection_interval), "-d" + str((365*24*3600) / collection_interval)],
