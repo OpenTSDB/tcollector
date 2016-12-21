@@ -16,6 +16,14 @@ altenv_etc_folder="${altenv_folder}/etc"
 altenv_var_folder="${altenv_folder}/var"
 altenv_cache_folder="${altenv_var_folder}/cache"
 
+function md5() {
+  if which md5 >/dev/null 2>&1; then
+    md5 -q "$1"
+  else
+    md5sum "$1" | awk '{ print $1 }'
+  fi
+}
+
 function check_root() {
   if [[ "$USER" != "root" ]]; then
     echo "please run as: sudo $0"
@@ -100,7 +108,21 @@ abort_if_failed "failed to create user $agent_user"
 
 log_info "downloading agent tarball ${download_source}/${OS}/agent.tar.gz ${working_folder} and extract it"
 curl -Lo ${working_folder}/agent.tar.gz "${download_source}/${OS}/agent.tar.gz"
-abort_if_failed "failed to download tarball"
+abort_if_failed "failed to download tarball or source tarball isn't exit "
+
+## should check sum by md5
+log_info "downloading agent md5 hash file"
+curl -Lo ${working_folder}/agent.tar.gz.md5 "${download_source}/${OS}/agent.tar.gz.md5"
+abort_if_failed "failed to download md5 file or source file isn't exit"
+
+MD5=$(md5 "${working_folder}/agent.tar.gz")
+MD5_check=$(cat "${working_folder}/agent.tar.gz.md5")
+
+if [ $MD5 != $MD5_check ] ; then
+   printf "${color_red} MD5 value isn't same as tarball. abort!${color_normal}\n"
+   exit 1
+fi
+
 tar -xzf "${working_folder}/agent.tar.gz" -C /
 abort_if_failed "failed to extract agent tarball"
 

@@ -34,6 +34,14 @@ function fix_python_recursively() {
   done
 }
 
+function md5() {
+  if which md5 >/dev/null 2>&1; then
+    md5 -q "$1"
+  else
+    md5sum "$1" | awk '{ print $1 }'
+  fi
+}
+
 os_type=$(get_os)
 bitness=$(uname -m)
 
@@ -333,6 +341,9 @@ abort_if_failed "failed to copy local config folder"
 
 tar -zcf ${basedir}/agent.tar.gz "$agent_install_folder"
 abort_if_failed 'failed to add agent to tar file'
+
+log_info "publish agent md5 to ${basedir}"
+(md5 "${basedir}/agent.tar.gz")  > ${publish_location}/$os_type//agent.tar.gz.md5
 
 log_info "publish agent tarball to $publish_location/$os_type"
 mkdir -p "$publish_location/$os_type"
