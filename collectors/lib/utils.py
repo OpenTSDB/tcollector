@@ -85,7 +85,7 @@ def err(msg):
 
 
 def is_numeric(value):
-    return isinstance(value, (int, long, float))
+    return isinstance(value, (int, long, float)) and (not isinstance(value, bool))
 
 
 def remove_invalid_characters(str):
@@ -124,3 +124,18 @@ def get_java_pid_and_user_by_pname(pname_pattern_compiled):
 class TestQueue(Queue):
     def nput(self, value):
         print value
+
+
+class TestLogger(object):
+        # below are convenient methods available to all collectors
+    def info(self, msg, *args, **kwargs):
+        sys.stdout.write("INFO: " + msg % args)
+
+    def error(self, msg, *args, **kwargs):
+        sys.stderr.write("ERROR: " + msg % args)
+
+    def warn(self, msg, *args, **kwargs):
+        sys.stdout.write("WARN: " + msg % args)
+
+    def exception(self, msg, *args, **kwargs):
+        sys.stderr.write("ERROR: " + msg % args)

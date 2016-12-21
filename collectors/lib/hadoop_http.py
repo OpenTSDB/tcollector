@@ -63,23 +63,29 @@ class HadoopHttp(object):
         json_arr = self.request().get('beans', [])
         kept = []
         for bean in json_arr:
-            if (not bean['name']) or (not "name=" in bean['name']):
-                continue
-            #split the name string
-            context = bean['name'].split("name=")[1].split(",sub=")
-            # Create a set that keeps the first occurrence
-            context = OrderedDict.fromkeys(context).keys()
-            # lower case and replace spaces.
-            context = [c.lower().replace(" ", "_") for c in context]
-            # don't want to include the service or daemon twice
-            context = [c for c in context if c != self.service and c != self.daemon]
+            try:
+                if (bean['name']) and (bean['name'].startswith('java.lang:type=GarbageCollector')):
+                    self.process_gc_collector(bean, kept)
+                elif (bean['name']) and (bean['name'].startswith('java.lang:type=')):
+                    self.process_java_lang_metrics(bean, kept)
+                elif (bean['name']) and ("name=" in bean['name']):
+                    # split the name string
+                    context = bean['name'].split("name=")[1].split(",sub=")
+                    # Create a set that keeps the first occurrence
+                    context = OrderedDict.fromkeys(context).keys()
+                    # lower case and replace spaces.
+                    context = [c.lower().replace(" ", "_") for c in context]
+                    # don't want to include the service or daemon twice
+                    context = [c for c in context if c != self.service and c != self.daemon]
+                    for key, value in bean.iteritems():
+                        if key in EXCLUDED_KEYS:
+                            continue
+                        if not is_numeric(value):
+                            continue
+                        kept.append((context, key, value))
+            except Exception as e:
+                self.logger.exception("exception in HadoopHttp when collecting %s", bean['name'])
 
-            for key, value in bean.iteritems():
-                if key in EXCLUDED_KEYS:
-                    continue
-                if not is_numeric(value):
-                    continue
-                kept.append((context, key, value))
         return kept
 
     def emit_metric(self, context, current_time, metric_name, value, tag_dict=None):
@@ -87,11 +93,58 @@ class HadoopHttp(object):
             self._readq.nput("%s.%s.%s.%s %d %d" % (self.service, self.daemon, ".".join(context), metric_name, current_time, value))
         else:
             tag_string = " ".join([k + "=" + v for k, v in tag_dict.iteritems()])
-            self._readq.nput("%s.%s.%s.%s %d %d %s" % \
-                  (self.service, self.daemon, ".".join(context), metric_name, current_time, value, tag_string))
+            self._readq.nput("%s.%s.%s.%s %d %d %s" % (self.service, self.daemon, ".".join(context), metric_name, current_time, value, tag_string))
 
     def emit(self):
         pass
+
+    def process_gc_collector(self, bean, kept):
+        context = bean['name'].split("java.lang:type=")[1].split(",name=")
+        for key, value in bean.iteritems():
+            if key in EXCLUDED_KEYS:
+                continue
+            if value is None:
+                continue
+            if key == 'LastGcInfo':
+                context.append(key)
+                for lastgc_key, lastgc_val in bean[key].iteritems():
+                    if lastgc_key == 'memoryUsageAfterGc' or lastgc_key == 'memoryUsageBeforeGc':
+                        context.append(lastgc_key)
+                        for memusage in lastgc_val:      # lastgc_val is a list
+                            context.append(memusage["key"])
+                            for final_key, final_val in memusage["value"].iteritems():
+                                safe_context, safe_final_key = self.safe_replace(context, final_key)
+                                kept.append((safe_context, safe_final_key, final_val))
+                            context.pop()
+                        context.pop()
+                    elif is_numeric(lastgc_val):
+                        safe_context, safe_lastgc_key = self.safe_replace(context, lastgc_key)
+                        kept.append((safe_context, safe_lastgc_key, lastgc_val))
+                context.pop()
+            elif is_numeric(value):
+                safe_context, safe_key = self.safe_replace(context, key)
+                kept.append((safe_context, safe_key, value))
+
+    def process_java_lang_metrics(self, bean, kept):
+        context = bean['name'].split("java.lang:type=")[1].split(",name=")
+        for key, value in bean.iteritems():
+            if key in EXCLUDED_KEYS:
+                continue
+            if value is None:
+                continue
+            if is_numeric(value):
+                safe_context, safe_key = self.safe_replace(context, key)
+                kept.append((safe_context, safe_key, value))
+            elif isinstance(value, dict):   # only go one level deep since there is no other level empirically
+                for subkey, subvalue in value.iteritems():
+                    if is_numeric(subvalue):
+                        safe_context, final_key = self.safe_replace(context, key + "." + subkey)
+                        kept.append((safe_context, final_key, subvalue))
+
+    def safe_replace(self, context, key):
+        context = [c.replace(" ", "_") for c in context]
+        key = key.replace(" ", "_")
+        return context, key
 
 
 class HadoopNode(HadoopHttp):

@@ -35,8 +35,8 @@ class HBaseMasterHttp(HadoopHttp):
     Require HBase 0.96.0+
     """
 
-    def __init__(self, port, logger, readq):
-        super(HBaseMasterHttp, self).__init__('hbase', 'master', 'localhost', port, readq, logger)
+    def __init__(self, host, port, logger, readq):
+        super(HBaseMasterHttp, self).__init__('hbase', 'master', host, port, readq, logger)
 
     def emit(self):
         current_time = int(time.time())
@@ -53,16 +53,20 @@ class HbaseMaster(CollectorBase):
 
         self.logger = logger
         self.readq = readq
-        self.port = self.get_config('port', 60010)
+        self.host = self.get_config('host', 'localhost')
+        self.port = self.get_config('port', 16010)
 
     def __call__(self):
         with utils.lower_privileges(self._logger):
             if json:
-                HBaseMasterHttp(self.port, self.logger, self.readq).emit()
+                HBaseMasterHttp(self.host, self.port, self.logger, self.readq).emit()
             else:
                 self.logger.error("This collector requires the `json' Python module.")
 
 
 if __name__ == "__main__":
-    hbasemaster_inst = HbaseMaster(None, None, Queue())
+    from collectors.lib.utils import TestQueue
+    from collectors.lib.utils import TestLogger
+
+    hbasemaster_inst = HbaseMaster(None, TestLogger(), TestQueue())
     hbasemaster_inst()

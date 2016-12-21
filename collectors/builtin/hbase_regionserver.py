@@ -31,8 +31,8 @@ REGION_METRIC_PATTERN = re.compile(r"[N|n]amespace_(.*)_table_(.*)_region_(.*)_m
 
 
 class HBaseRegionserverHttp(HadoopHttp):
-    def __init__(self, port, logger, readq):
-        super(HBaseRegionserverHttp, self).__init__("hbase", "regionserver", "localhost", port, readq, logger)
+    def __init__(self, host, port, logger, readq):
+        super(HBaseRegionserverHttp, self).__init__("hbase", "regionserver", host, port, readq, logger)
 
     def emit_region_metric(self, context, current_time, full_metric_name, value):
         match = REGION_METRIC_PATTERN.match(full_metric_name)
@@ -76,16 +76,20 @@ class HbaseRegionserver(CollectorBase):
 
         self.logger = logger
         self.readq = readq
-        self.port = self.get_config('port', 60030)
+        self.host = self.get_config('host', 'localhost')
+        self.port = self.get_config('port', 16030)
 
     def __call__(self):
         with utils.lower_privileges(self._logger):
             if json:
-                HBaseRegionserverHttp(self.port, self.logger, self.readq).emit()
+                HBaseRegionserverHttp(self.host, self.port, self.logger, self.readq).emit()
             else:
                 self.logger.error("This collector requires the `json' Python module.")
 
 
 if __name__ == "__main__":
-    hbaseregionserver_inst = HbaseRegionserver(None, None, Queue())
+    from collectors.lib.utils import TestQueue
+    from collectors.lib.utils import TestLogger
+
+    hbaseregionserver_inst = HbaseRegionserver(None, TestLogger(), TestQueue())
     hbaseregionserver_inst()

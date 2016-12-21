@@ -51,5 +51,8 @@ class HadoopDataNode(CollectorBase):
 
 
 if __name__ == "__main__":
-    hadoopdatanode_inst = HadoopDataNode(None, None, Queue())
+    from collectors.lib.utils import TestQueue
+    from collectors.lib.utils import TestLogger
+
+    hadoopdatanode_inst = HadoopDataNode(None, TestLogger(), TestQueue())
     hadoopdatanode_inst()
