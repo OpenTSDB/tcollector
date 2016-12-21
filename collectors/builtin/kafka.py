@@ -98,7 +98,8 @@ class Kafka(JolokiaAgentCollectorBase):
             "java.lang:name=G1 Young Generation,type=GarbageCollector": JolokiaG1GCParser(logger, "kafka", "g1_yong_gen"),
             "java.lang:name=G1 Old Generation,type=GarbageCollector": JolokiaG1GCParser(logger, "kafka", "g1_old_gen")
         }
-        super(Kafka, self).__init__(config, logger, readq, Kafka.JMX_REQUEST_JSON, parsers, "kafka", Kafka.CHECK_KAFKA_PID_INTERVAL)
+        port = JolokiaAgentCollectorBase.get_config(config, "port", "8778")
+        super(Kafka, self).__init__(config, logger, readq, Kafka.JMX_REQUEST_JSON, parsers, "kafka", Kafka.CHECK_KAFKA_PID_INTERVAL, port)
 
     def __call__(self):
         super(Kafka, self).__call__()

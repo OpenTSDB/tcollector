@@ -11,9 +11,9 @@ from jolokia import JolokiaCollector
 class JolokiaAgentCollectorBase(JolokiaCollector):
     JOLOKIA_JAR = "jolokia-jvm-1.3.5-agent.jar"
 
-    def __init__(self, config, logger, readq, jmx_request_json, parsers, processname, check_pid_interval):
+    def __init__(self, config, logger, readq, jmx_request_json, parsers, processname, check_pid_interval, port):
         protocol = "http"
-        self.port = JolokiaAgentCollectorBase.get_config(config, "port", "8778")
+        self.port = port
         super(JolokiaAgentCollectorBase, self).__init__(config, logger, readq, protocol, self.port, jmx_request_json, parsers)
         workingdir = os.path.dirname(os.path.abspath(__file__))
         self.log_info("working dir is %s", workingdir)
@@ -21,7 +21,7 @@ class JolokiaAgentCollectorBase(JolokiaCollector):
         if not os.path.isfile(self.jolokia_file_path):
             raise IOError("failed to find jolokia jar at %s" % self.jolokia_file_path)
         self.process_name = processname
-        self.process_pattern = re.compile(r'(?P<pid>\d+) ' + processname, re.IGNORECASE)
+        self.process_pattern = re.compile(r'(?P<pid>\d+) ' + processname + '$', re.IGNORECASE)
         self.check_pid_interval = check_pid_interval
         self.checkpid_time = 0
         self.process_pid = -1
@@ -42,6 +42,7 @@ class JolokiaAgentCollectorBase(JolokiaCollector):
                 self.process_pid = pid
                 self.log_info("joloia agent binds to %d", pid)
                 cmdstr = "su -c \"java -jar %s --port %s start %d\" %s" % (self.jolokia_file_path, self.port, pid, puser)
+                # cmdstr = "java -jar %s --port %s start %d" % (self.jolokia_file_path, self.port, pid)
                 self.log_info("start jolokia agent %s", cmdstr)
                 self.jolokia_process = subprocess.Popen(cmdstr, stdout=subprocess.PIPE, shell=True)
                 self.log_info("jolokia process %s", self.jolokia_process.pid)
@@ -51,6 +52,9 @@ class JolokiaAgentCollectorBase(JolokiaCollector):
         if self.jolokia_process is not None:
             self.log_info('stop subprocess %d', self.jolokia_process.pid)
             self.stop_subprocess(self.jolokia_process, __name__)
+
+    def process_name(self):
+        return self.process_name
 
     @staticmethod
     def get_config(config, key, default=None, section='base'):
