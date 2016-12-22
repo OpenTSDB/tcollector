@@ -14,6 +14,8 @@ def main(argv):
         usage_and_exit(argv)
     if argv[1] == 'list':
         status()
+    elif argv[1] == 'version':
+        version()
     else:
         if argv[1] == 'enable':
             if len(argv) < 3:
@@ -61,6 +63,13 @@ def enable_or_disable(comma_demilitted_str, action):
             print 'error enable %s. %s' % (conf_file_name, e)
     print 'done'
     status()
+
+def version():
+    conf_file_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "runner.conf")
+    config = ConfigParser.SafeConfigParser({"commit": 'null', 'version': 'null'})
+    config.read(conf_file_path)
+    print "Cloudwiz Collector Version: " + config.get('base', 'version')
+    print "release commit code: " + config.get('base', 'commit')
 
 if __name__ == '__main__':
     sys.exit(main(sys.argv))

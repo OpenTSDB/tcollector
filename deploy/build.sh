@@ -260,6 +260,9 @@ cp ${collector_source_path}/runner.py ${agent_collector_folder}/runner.py
 abort_if_failed 'failed to copy runner.py'
 cp ${collector_source_path}/runner.conf ${agent_collector_folder}/runner.conf
 abort_if_failed 'failed to copy runner.conf'
+echo -e "version=$(git describe --abbrev=0 --tags)" >> ${agent_collector_folder}/runner.conf
+echo -e "commit=$(git log --format="%H" -n 1 | head -c 6)" >> ${agent_collector_folder}/runner.conf
+
 cp ${collector_source_path}/collector_mgr.py ${agent_collector_folder}/collector_mgr.py
 abort_if_failed 'failed to copy collector_mgr.py'
 cp ${collector_source_path}/common_utils.py ${agent_collector_folder}/common_utils.py
