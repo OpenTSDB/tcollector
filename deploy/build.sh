@@ -34,6 +34,16 @@ function fix_python_recursively() {
   done
 }
 
+function _md5() {
+  if which md5sum >/dev/null 2>&1; then
+    md5sum "$1" | awk '{ print $1 }'
+    echo >&2 "switch md5sum to publish md5 key"
+  else
+    md5 -q "$1"
+    echo >&2 "switch md5 to publish md5 key"
+  fi
+}
+
 os_type=$(get_os)
 bitness=$(uname -m)
 
@@ -260,6 +270,9 @@ cp ${collector_source_path}/runner.py ${agent_collector_folder}/runner.py
 abort_if_failed 'failed to copy runner.py'
 cp ${collector_source_path}/runner.conf ${agent_collector_folder}/runner.conf
 abort_if_failed 'failed to copy runner.conf'
+echo -e "version=$(git describe --abbrev=0 --tags)" >> ${agent_collector_folder}/runner.conf
+echo -e "commit=$(git log --format="%H" -n 1 | head -c 6)" >> ${agent_collector_folder}/runner.conf
+
 cp ${collector_source_path}/collector_mgr.py ${agent_collector_folder}/collector_mgr.py
 abort_if_failed 'failed to copy collector_mgr.py'
 cp ${collector_source_path}/common_utils.py ${agent_collector_folder}/common_utils.py
@@ -339,5 +352,9 @@ mkdir -p "$publish_location/$os_type"
 scp "${basedir}/agent.tar.gz" "${publish_location}/$os_type/"
 mkdir -p /tmp/publish/$os_type
 scp "${basedir}/agent.tar.gz" /tmp/publish/$os_type
+
+log_info "publish agent md5 to ${basedir}"
+(_md5 "${basedir}/agent.tar.gz")  > ${publish_location}/$os_type//agent.tar.gz.md5
+yes | cp -f ${publish_location}/$os_type/agent.tar.gz.md5 /tmp/publish/$os_type
 
 log_info "Done!"
