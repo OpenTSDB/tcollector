@@ -116,6 +116,7 @@ if [ ! -z "${LOG_COLLECTOR// }" ]; then
   sed -i '/^programs=/ s/$/,filebeat/' ${altenv_etc_folder}/supervisord.conf
   log_info "set log-server-host-port to ${LOG_COLLECTOR}"
   sed -i "s/<log-server-host-port>/\"${LOG_COLLECTOR}\"/" ${agent_install_folder}/filebeat-1.3.1/filebeat.yml
+  sed -i "s/<token>/\"${ORG_TOKEN}\"/" ${agent_install_folder}/filebeat-1.3.1/filebeat.yml
 fi
 
 if [ -z "${METRIC_SERVER_HOST// }" ]; then
