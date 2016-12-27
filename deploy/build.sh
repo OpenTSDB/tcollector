@@ -347,13 +347,14 @@ abort_if_failed "failed to copy local config folder"
 tar -zcf ${basedir}/agent.tar.gz "$agent_install_folder"
 abort_if_failed 'failed to add agent to tar file'
 
-log_info "publish agent md5 to ${basedir}"
-(_md5 "${basedir}/agent.tar.gz")  > ${publish_location}/$os_type//agent.tar.gz.md5
-
 log_info "publish agent tarball to $publish_location/$os_type"
 mkdir -p "$publish_location/$os_type"
 scp "${basedir}/agent.tar.gz" "${publish_location}/$os_type/"
 mkdir -p /tmp/publish/$os_type
 scp "${basedir}/agent.tar.gz" /tmp/publish/$os_type
+
+log_info "publish agent md5 to ${basedir}"
+(_md5 "${basedir}/agent.tar.gz")  > ${publish_location}/$os_type//agent.tar.gz.md5
+yes | cp -f ${publish_location}/$os_type/agent.tar.gz.md5 /tmp/publish/$os_type
 
 log_info "Done!"
