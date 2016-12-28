@@ -41,9 +41,14 @@ class Zookeeper(CollectorBase):
             "zk_outstanding_requests",
             "zk_approximate_data_size",
             "zk_open_file_descriptor_count",
+            "zk_max_open_file_descriptor_count",
             "zk_znode_count",
             "zk_watch_count",
-            "zk_ephemerals_count"
+            "zk_ephemerals_count",
+            "zk_server_state",
+            "zk_followers",
+            "zk_synced_followers",
+            "zk_pending_syncs"
         ])
         self.scan_interval = int(self.get_config("SCAN_INTERVAL", 600))
         self.last_scan = time.time() - self.scan_interval
@@ -76,10 +81,19 @@ class Zookeeper(CollectorBase):
                     metric = stat.split()[0]
                     if metric in self.KEYS:
                         try:
-                            value = int(stat.split()[1])
-                            self._readq.nput("%s %d %d %s" % (metric, ts, value, tags))
+                            valStr = stat.split()[1]
+                            if metric == "zk_server_state":
+                                value = self.convert_server_state_to_int(valStr)
+                                self._readq.nput("%s %d %d %s" % (metric, ts, value, tags))
+                            else:                           
+                                value = int(valStr)
+                                self._readq.nput("%s %d %d %s" % (metric, ts, value, tags))
+
                         except ValueError:
                             self.log_exception("failed to extract value for metric %s", metric)
+                    else:
+                        self.log_warn("%s not in KEYS" % (metric))
+                        
             finally:
                 sock.close()
 
@@ -156,7 +170,18 @@ class Zookeeper(CollectorBase):
             self.log_exception("exception when connecting to zookeeper")
         return sock
 
-
+    def convert_server_state_to_int(self, server_state):
+        if server_state == "leader":
+           return 1
+        elif server_state == "follower":
+           return 2
+        elif server_state == "observer":
+           return 3
+        elif server_state == "standalone":
+           return 0
+        else:
+           return -1
+  
 if __name__ == "__main__":
     from Queue import Queue
 
