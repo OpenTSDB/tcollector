@@ -19,7 +19,10 @@ import stat
 import pwd
 import errno
 import sys
+import requests
 import subprocess
+import socket
+import ConfigParser
 import re
 from Queue import Queue
 
@@ -120,6 +123,30 @@ def get_java_pid_and_user_by_pname(pname_pattern_compiled):
                 return long(m.group("pid")), None
     return None, None
 
+
+def summary_sender_info(name, info):
+    summary_sender(name, {}, info, {})
+
+def summary_sender(name, tag, info, content):
+    headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
+    host = socket.gethostname()
+    runner_config = load_runner_conf()
+    token = runner_config.get('base', 'token')
+    metrics_server = runner_config.get('base', 'host')
+    port = 5001  ## default port
+    data = {}
+    data['name'] = name
+    data['tag'] = {"host": host}
+    data['tag'].update(tag)
+    data['info'] = info
+    data['content'] = content
+    requests.post('http://%s:%s/summary?token=%s' % (metrics_server, port, token), json=data, headers=headers)
+
+def load_runner_conf():
+    runner_config_path = os.path.abspath(os.path.join(os.path.dirname( __file__ ), '../..', 'runner.conf'))
+    runner_config = ConfigParser.SafeConfigParser()
+    runner_config.read(runner_config_path)
+    return runner_config
 
 class TestQueue(Queue):
     def nput(self, value):

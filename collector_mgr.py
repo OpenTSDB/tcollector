@@ -4,7 +4,7 @@ import os
 import glob
 import sys
 import ConfigParser
-
+import json
 
 def main(argv):
     agent_install_root = os.path.dirname(os.path.realpath(__file__))
@@ -14,6 +14,8 @@ def main(argv):
         usage_and_exit(argv)
     if argv[1] == 'list':
         status()
+    if argv[1] == 'json':
+        status_json()
     elif argv[1] == 'version':
         version()
     else:
@@ -49,6 +51,18 @@ def status():
     for item in results:
         print "{: >20} {: >10} {: >5}".format(*item[1:])
 
+def status_json():
+    results = []
+    conf_files = glob.glob(os.path.join(COLLECTOR_CONFIG_ROOT, "*.conf"))
+    for conf_file in conf_files:
+        config = ConfigParser.SafeConfigParser({"enabled": 'False', 'interval': '15'})
+        config.read(conf_file)
+        config_obj = {}
+        config_obj['enable'] = config.get("base", "enabled")
+        config_obj['interval'] = config.get("base", "interval")
+        config_obj['service'] = os.path.splitext(os.path.basename(conf_file))[0]
+        results.append(config_obj)
+    print json.dumps(results)
 
 def enable_or_disable(comma_demilitted_str, action):
     for conf_file_name in comma_demilitted_str.split(","):

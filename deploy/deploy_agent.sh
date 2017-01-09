@@ -148,6 +148,8 @@ if [ -z "${METRIC_SERVER_HOST// }" ]; then
 else
   echo "set metric server host s/-H .* /-H $METRIC_SERVER_HOST /g"
   sed -i "s/-H .* /-H $METRIC_SERVER_HOST /g" ${agent_install_folder}/agent/run
+  ## TODO probably should need the port or add the new parameter
+  echo -e "host=$METRIC_SERVER_HOST" >> ${agent_install_folder}/agent/runner.conf
 fi
 
 mkdir -p "${altenv_cache_folder}"
