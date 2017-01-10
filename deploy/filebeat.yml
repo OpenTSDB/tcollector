@@ -15,6 +15,7 @@ filebeat:
         metric_prefix: sinorail
         metric_processor: sinorail-postsale-uploading
       fields_under_root: true
+      close_older: 24h
     # Additional prospector
     #-
       # Configuration to use stdin input
