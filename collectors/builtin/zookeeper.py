@@ -63,6 +63,7 @@ class Zookeeper(CollectorBase):
             self.last_scan = ts
 
         if not self.instances:
+            self._readq.nput("zookeeper.state %s %s" % (int(time.time()), '1'))
             self.log_warn("no zookeeper instance found")
             return 13
 
@@ -96,6 +97,7 @@ class Zookeeper(CollectorBase):
                         
             finally:
                 sock.close()
+            self._readq.nput("zookeeper.state %s %s" % (int(time.time()), '0'))
 
     def scan_zk_instances(self):
         """
@@ -114,9 +116,11 @@ class Zookeeper(CollectorBase):
                 raise CalledProcessError(ret, "netstat -lnpt", "netstat returned code %i" % ret)
             listen_sock = netstat.stdout.read()
         except OSError:
+            self._readq.nput("zookeeper.state %s %s" % (int(time.time()), '1'))
             self.log_exception("netstat is not in PATH")
             return instances
         except CalledProcessError:
+            self._readq.nput("zookeeper.state %s %s" % (int(time.time()), '1'))
             self.log_exception("Error run netstat in subprocess")
             return instances
 
@@ -152,6 +156,7 @@ class Zookeeper(CollectorBase):
                     if data == "imok":
                         instances.append([ip, port, tcp_version])
             except Exception:
+                self._readq.nput("zookeeper.state %s %s" % (int(time.time()), '1'))
                 self.log_exception("error opening /proc/%d/cmdline", pid)
             finally:
                 fd.close()
@@ -167,6 +172,7 @@ class Zookeeper(CollectorBase):
         try:
             sock.connect((ipaddr, port))
         except Exception:
+            self._readq.nput("zookeeper.state %s %s" % (int(time.time()), '1'))
             self.log_exception("exception when connecting to zookeeper")
         return sock
 

@@ -85,6 +85,7 @@ class DB(object):
         try:
             self.cursor.execute(sql)
         except MySQLdb.OperationalError, (errcode, msg):
+            self._readq.nput("mysql.state %s %s" % (int(time.time()), '1'))
             if errcode != 2006:  # "MySQL server has gone away"
                 raise
             self._reconnect()
@@ -184,8 +185,10 @@ class Mysql(CollectorBase):
         for dbname, db in self.dbs.iteritems():
             try:
                 self.collect(db)
+                self._readq.nput("mysql.state %s %s" % (int(time.time()), '0'))
             except (EnvironmentError, EOFError, RuntimeError, socket.error, MySQLdb.MySQLError):
                 self.log_exception("error: failed to collect data from %s" % db)
+                self._readq.nput("mysql.state %s %s" % (int(time.time()), '1'))
                 errs.append(dbname)
 
         for dbname in errs:
@@ -360,6 +363,7 @@ class Mysql(CollectorBase):
                 cursor = db.cursor()
                 cursor.execute("SELECT VERSION()")
             except (EnvironmentError, EOFError, RuntimeError, socket.error, MySQLdb.MySQLError):
+                self._readq.nput("mysql.state %s %s" % (int(time.time()), '1'))
                 self.log_exception("Couldn't connect to %s." % sockfile)
                 continue
             version = cursor.fetchone()[0]

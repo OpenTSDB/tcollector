@@ -40,7 +40,7 @@ CLUSTER = ['supervisors', 'slotsTotal', 'slotsUsed', 'slotsFree', 'executorsTota
 #     ],
 #     "schedulerDisplayResource": true
 # }
-SUPERVISOR = ['uptimeSeconds', 'slotsTotal', 'slotsUsed', 'totalMem', 'totalCpu', 'usedMem', 'usedCPU']
+SUPERVISOR = ['uptimeSeconds', 'slotsTotal', 'slotsUsed', 'totalMem', 'totalCpu', 'usedMem', 'usedCpu']
 
 # /api/v1/topology/summary
 # {
@@ -196,7 +196,9 @@ class Storm(CollectorBase):
             self._cluster_loader()
             self._supervisor_loader()
             self._topology_deatails_loader(topology_ids)
+            self._readq.nput("storm.state %s %s" % (int(time.time()), '0'))
         except Exception as e:
+            self._readq.nput("storm.state %s %s" % (int(time.time()), '1'))
             self.log_exception('exception collecting storm metrics %s' % e)
 
     def _cluster_loader(self):
@@ -206,6 +208,7 @@ class Storm(CollectorBase):
             for metric in CLUSTER:
                 self._readq.nput('storm.cluster.%s %d %d' % (metric, ts, summary[metric]))
         except Exception as e:
+            self._readq.nput("storm.state %s %s" % (int(time.time()), '1'))
             self.log_exception('exception collecting storm cluster metric form : %s \n %s' % ('%s%s' % (self.http_prefix, REST_API["cluster"]), e))
 
     def _supervisor_loader(self):
@@ -217,6 +220,7 @@ class Storm(CollectorBase):
                     self._readq.nput(
                         'storm.supervisor.%s %d %d host=%s' % (metric, ts, supervisor[metric], supervisor['host']))
         except Exception as e:
+            self._readq.nput("storm.state %s %s" % (int(time.time()), '1'))
             self.log_exception('exception collecting storm supervisor metric form : %s \n %s' % ('%s%s' % (self.http_prefix, REST_API["supervisor"]), e))
 
 
@@ -230,6 +234,7 @@ class Storm(CollectorBase):
                 for metric in TOPOLOGY:
                     self._readq.nput('storm.topology.%s %d %d host=%s name=%s' % (metric, ts, topology[metric], self.host, topology['name']))
         except Exception as e:
+            self._readq.nput("storm.state %s %s" % (int(time.time()), '1'))
             self.log_exception('exception collecting storm topology metric form : %s \n %s' % ('%s%s' % (self.http_prefix, REST_API["supervisor"]), e))
 
         return ids
@@ -254,6 +259,7 @@ class Storm(CollectorBase):
                         for metric in TOPOLOGY_DETAILS['bolts']:
                             self._readq.nput('storm.topology.bolts.%s %d %d id=%s topology_id=%s' % (metric, ts, bolts[metric], bolts['boltId'], utils.remove_invalid_characters(id)))
         except Exception as e:
+            self._readq.nput("storm.state %s %s" % (int(time.time()), '1'))
             self.log_exception('exception collecting storm topology details metric \n %s' % e)
 
 

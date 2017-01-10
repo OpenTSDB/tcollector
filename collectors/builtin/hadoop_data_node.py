@@ -14,6 +14,7 @@
 
 try:
     import json
+    import time
 except ImportError:
     json = None
 
@@ -45,8 +46,10 @@ class HadoopDataNode(CollectorBase):
     def __call__(self):
         with utils.lower_privileges(self._logger):
             if json:
+                self._readq.nput("hadoop.datanode.state %s %s" % (int(time.time()), '0'))
                 HadoopNode(self.service, self.daemon, self.host, self.port, REPLACEMENTS, self.readq, self._logger).emit()
             else:
+                self._readq.nput("hadoop.datanode.state %s %s" % (int(time.time()), '1'))
                 self.logger.error("This collector requires the `json' Python module.")
 
 

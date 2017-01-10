@@ -71,6 +71,7 @@ class Dfstat(CollectorBase):
                 try:
                     fs_spec, fs_file, fs_vfstype, fs_mntops, fs_freq, fs_passno = line.split(None)
                 except ValueError, e:
+                    self._readq.nput("df.state %d %s" % (ts, "1"))
                     self.log_exception("can't parse line at /proc/mounts.")
                     continue
 
@@ -103,6 +104,7 @@ class Dfstat(CollectorBase):
                 try:
                     r = os.statvfs(fs_file)
                 except OSError, e:
+                    self._readq.nput("df.state %d %s" % (ts, "1"))
                     self.log_exception("can't get info for mount point: %s: %s" % (fs_file, e))
                     continue
 
@@ -140,6 +142,7 @@ class Dfstat(CollectorBase):
                       % (ts, percent_used, fs_file, fs_vfstype))
                 self._readq.nput("df.inodes.free %d %s mount=%s fstype=%s"
                       % (ts, r.f_ffree, fs_file, fs_vfstype))
+                self._readq.nput("df.state %d %s" % (ts, "0"))
             return ret_metrics
 
     def cleanup(self):

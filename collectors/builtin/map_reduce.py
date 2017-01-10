@@ -109,7 +109,9 @@ class MapReduce(CollectorBase):
             running_jobs = self._mapreduce_job_metrics(running_apps)
             self._mapreduce_job_counters_metrics(running_jobs)
             self._mapreduce_task_metrics(running_jobs)
+            self._readq.nput("mapreduce.state %s %s" % (int(time.time()), '0'))
         except Exception as e:
+            self._readq.nput("mapreduce.state %s %s" % (int(time.time()), '1'))
             self.log_exception('exception collecting mapreduce metrics %s' % e)
 
     def _get_running_app_ids(self):
@@ -126,6 +128,7 @@ class MapReduce(CollectorBase):
                         if app_id and tracking_url and app_name:
                             running_apps[app_id] = (app_name, tracking_url)
         except Exception as e:
+            self._readq.nput("mapreduce.state %s %s" % (int(time.time()), '1'))
             self.log_exception('exception collecting yarn apps metric for mapreduce \n %s',e)
 
         return running_apps
@@ -165,6 +168,7 @@ class MapReduce(CollectorBase):
                                 for metric in JOB:
                                     self._readq.nput('mapreduce.job.%s %d %d app_name=%s user_name=%s job_name=%s' % (metric, ts, job_json[metric], utils.remove_invalid_characters(str(app_name)), utils.remove_invalid_characters(str(user_name)), utils.remove_invalid_characters(str(job_name))))
         except Exception as e:
+            self._readq.nput("mapreduce.state %s %s" % (int(time.time()), '1'))
             self.log_exception('exception collecting mapreduce jobs metric \n %s',e)
 
         return running_jobs
@@ -191,6 +195,7 @@ class MapReduce(CollectorBase):
                                             for metric in JOB_COUNTER:
                                                 self._readq.nput('mapreduce.job.counter.%s %d %d app_name=%s user_name=%s job_name=%s counter_name=%s' % (metric, ts, counter[metric], utils.remove_invalid_characters(job_metrics.get('app_name')), utils.remove_invalid_characters(job_metrics.get('user_name')), utils.remove_invalid_characters(job_name), utils.remove_invalid_characters(str(counter_name).lower())))
         except Exception as e:
+            self._readq.nput("mapreduce.state %s %s" % (int(time.time()), '1'))
             self.log_exception('exception collecting mapreduce jobs counter metric \n %s',e)
 
 
@@ -214,6 +219,7 @@ class MapReduce(CollectorBase):
                                     elif task_type == 'REDUCE':
                                         self._readq.nput('mapreduce.job.reduce.task.progress %d %d app_name=%s user_name=%s job_name=%s task_type=%s' % (ts, task['progress'], utils.remove_invalid_characters(job_stats.get('app_name')), utils.remove_invalid_characters(job_stats.get('user_name')), utils.remove_invalid_characters(job_stats.get('job_name')), utils.remove_invalid_characters(str(task_type).lower())))
             except Exception as e:
+                self._readq.nput("mapreduce.state %s %s" % (int(time.time()), '1'))
                 self.log_exception('exception collecting mapreduce task metric \n %s',e)
 
 

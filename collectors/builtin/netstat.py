@@ -222,6 +222,7 @@ class Netstat(CollectorBase):
             self.netstat = open("/proc/net/netstat")
             self.snmp = open("/proc/net/snmp")
         except IOError:
+            self._readq.nput("netstat.state %s %s" % (int(time.time()), '1'))
             self.log_exception('open failed')
             self.cleanup()
             raise
@@ -328,6 +329,7 @@ class Netstat(CollectorBase):
 
         self.parse_stats(netstats, self.netstat.name, ts)
         self.parse_stats(snmpstats, self.snmp.name, ts)
+        self._readq.nput("netstat.state %s %s" % (int(time.time()), '0'))
 
 
 if __name__ == "__main__":

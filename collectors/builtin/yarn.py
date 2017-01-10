@@ -113,7 +113,9 @@ class Yarn(CollectorBase):
             self._summary_loader()
             self._apps_loader()
             self._nodes_loader()
+            self._readq.nput("yarn.state %s %s" % (int(time.time()), '0'))
         except Exception as e:
+            self._readq.nput("yarn.state %s %s" % (int(time.time()), '1'))
             self.log_exception('exception collecting yarn metrics %s' % e)
 
     def _summary_loader(self):
@@ -124,6 +126,7 @@ class Yarn(CollectorBase):
             for metric in SUMMARY:
                 self._readq.nput('yarn.metrics.%s %d %d' % (metric, ts, yarn_metrics[metric]))
         except Exception as e:
+            self._readq.nput("yarn.state %s %s" % (int(time.time()), '1'))
             self.log_exception('exception collecting yarn metric form : %s \n %s' % ('%s%s' % (self.http_prefix, REST_API["metrics"]), e))
 
     def _apps_loader(self):
@@ -139,6 +142,7 @@ class Yarn(CollectorBase):
                                 self._readq.nput('yarn.apps.%s %d %d name=%s' % (metric, ts, app_json[metric], utils.remove_invalid_characters(app_json['name'])))
 
         except Exception as e:
+            self._readq.nput("yarn.state %s %s" % (int(time.time()), '1'))
             self.log_exception('exception collecting yarn metric form : %s \n %s' % ('%s%s' % (self.http_prefix, REST_API["apps"]), e))
 
     def _nodes_loader(self):
@@ -152,6 +156,7 @@ class Yarn(CollectorBase):
                             for metric in NODES:
                                 self._readq.nput('yarn.nodes.%s %d %d id=%s' % (metric, ts, node_json[metric], utils.remove_invalid_characters(node_json['id'])))
         except Exception as e:
+            self._readq.nput("yarn.state %s %s" % (int(time.time()), '1'))
             self.log_exception('exception collecting yarn metric form : %s \n %s' % ('%s%s' % (self.http_prefix, REST_API["nodes"]), e))
 
 

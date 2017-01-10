@@ -171,6 +171,7 @@ class Procnettcp(CollectorBase):
                 else:
                     raise
         except IOError:
+            self._readq.nput("procnettcp.state %s %s" % (int(time.time()), '1'))
             self.log_exception("Failed to open proc/net/tcp file")
             self.cleanup()
             raise
@@ -231,6 +232,8 @@ class Procnettcp(CollectorBase):
                                 self._readq.nput("proc.net.tcp {0} {1} {2}".format(ts, counter[key], key))
                             else:
                                 self._readq.nput("proc.net.tcp {0} {1} {2}".format(ts, "0", key))
+
+            self._readq.nput("procnettcp.state %s %s" % (int(time.time()), '0'))
 
 
 if __name__ == "__main__":

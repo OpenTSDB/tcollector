@@ -42,16 +42,21 @@ class CpusPctusage(CollectorBase):
         super(CpusPctusage, self).__init__(config, logger, readq)
         collection_interval = self.get_config('interval')
         os.environ['LANG'] = "en_US.UTF-8"
-        if platform.system() == "FreeBSD":
-            self.p_top = subprocess.Popen(
-                ["top", "-t", "-I", "-P", "-n", "-s" + str(collection_interval), "-d" + str((365*24*3600) / collection_interval)],
-                stdout=subprocess.PIPE,
-            )
-        else:
-            self.p_top = subprocess.Popen(
-                ["mpstat", "-P", "ALL", str(collection_interval)],
-                stdout=subprocess.PIPE,
-            )
+        try:
+            if platform.system() == "FreeBSD":
+                self.p_top = subprocess.Popen(
+                    ["top", "-t", "-I", "-P", "-n", "-s" + str(collection_interval), "-d" + str((365*24*3600) / collection_interval)],
+                    stdout=subprocess.PIPE,
+                )
+            else:
+                self.p_top = subprocess.Popen(
+                    ["mpstat", "-P", "ALL", str(collection_interval)],
+                    stdout=subprocess.PIPE,
+                )
+        except OSError:
+            self._readq.nput("cpu.state %s %s" % (int(time.time()), '1'))
+            self.log_error("cpus_pctusage collector except error, abort")
+            return
         self.log_info('CpusPctusage created subprocess %d', self.p_top.pid)
 
     def __call__(self):
@@ -75,6 +80,7 @@ class CpusPctusage(CollectorBase):
                 self._readq.nput("cpu.sys %s %s cpu=%s" % (timestamp, cpusystem, cpuid))
                 self._readq.nput("cpu.irq %s %s cpu=%s" % (timestamp, cpuinterrupt, cpuid))
                 self._readq.nput("cpu.idle %s %s cpu=%s" % (timestamp, cpuidle, cpuid))
+                self._readq.nput("cpu.state %s %s" % (int(time.time()), '0'))
 
     def cleanup(self):
         self.log_info('CpusPctusage stop subprocess %d', self.p_top.pid)

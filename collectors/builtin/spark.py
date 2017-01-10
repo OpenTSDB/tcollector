@@ -169,7 +169,9 @@ class Spark(CollectorBase):
             self._spark_stage_metrics(spark_apps)
             self._spark_executor_metrics(spark_apps)
             self._spark_rdd_metrics(spark_apps)
+            self._readq.nput("spark.state %s %s" % (int(time.time()), '0'))
         except Exception as e:
+            self._readq.nput("spark.state %s %s" % (int(time.time()), '1'))
             self.log_exception('exception collecting spark metrics %s' % e)
 
 
@@ -190,6 +192,7 @@ class Spark(CollectorBase):
             return self._get_spark_app_ids(running_apps)
 
         else:
+            self._readq.nput("spark.state %s %s" % (int(time.time()), '1'))
             raise Exception('Invalid setting for spark_cluster_mode. Received %s.' % (self.spark_cluster_mode))
 
     def _spark_job_metrics(self, running_apps):
@@ -205,6 +208,7 @@ class Spark(CollectorBase):
 
                 self._readq.nput('spark.job.count %d %d host=%s' % (ts, i, self.host))
         except Exception as e:
+            self._readq.nput("spark.state %s %s" % (int(time.time()), '1'))
             self.log_exception('exception collecting spark job metrics %s' % e)
 
 
@@ -221,6 +225,7 @@ class Spark(CollectorBase):
 
                 self._readq.nput('spark.stage.count %d %d host=%s' % (ts, i, self.host))
         except Exception as e:
+            self._readq.nput("spark.state %s %s" % (int(time.time()), '1'))
             self.log_exception('exception collecting spark stage metrics %s' % e)
 
     def _spark_executor_metrics(self, running_apps):
@@ -236,6 +241,7 @@ class Spark(CollectorBase):
 
                 self._readq.nput('spark.executor.count %d %d host=%s' % (ts, i, self.host))
         except Exception as e:
+            self._readq.nput("spark.state %s %s" % (int(time.time()), '1'))
             self.log_exception('exception collecting spark stage metrics %s' % e)
 
     def _spark_rdd_metrics(self, running_apps):
@@ -251,6 +257,7 @@ class Spark(CollectorBase):
 
                 self._readq.nput('spark.rdd.count %d %d host=%s' % (ts, i, self.host))
         except Exception as e:
+            self._readq.nput("spark.state %s %s" % (int(time.time()), '1'))
             self.log_exception('exception collecting spark stage metrics %s' % e)
 
     def _standalone_init(self):
@@ -326,6 +333,7 @@ class Spark(CollectorBase):
                 self.log_info ("Can not get any director link form spark standalone apps pages. Maybe parser would have problem: %s" % url)
 
         except Exception :
+            self._readq.nput("spark.state %s %s" % (int(time.time()), '1'))
             self.log_exception("Can not access SPARK_MASTER_APP_PATH %s" % url)
             raise HTTPError(app_page)
 

@@ -51,7 +51,9 @@ class Flume(CollectorBase):
         for key,value in stats[metric].items():
           if key not in EXCLUDE:
             self.printmetric(key, ts, value, **tags)
+      self._readq.nput("flume.state %d %s" % (ts, "0"))
     except Exception as e:
+      self._readq.nput("flume.state %d %s" % (ts, "1"))
       self.log_exception('exception collecting flume cluster metric form : %s \n %s' % ('%s%s' % (self.http_prefix, REST_API), e))
 
   def request(self,uri):

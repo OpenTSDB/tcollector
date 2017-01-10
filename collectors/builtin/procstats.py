@@ -77,6 +77,7 @@ class Procstats(CollectorBase):
 
             self.numastats = find_sysfs_numa_stats()
         except:
+            self._readq.nput("procstats.state %s %s" % (int(time.time()), '1'))
             self.cleanup()
             raise
 
@@ -244,6 +245,8 @@ class Procstats(CollectorBase):
                 f.seek(0)
                 for line in f:
                     self._readq.nput("proc.scaling.cur %d %s cpu=%s" % (ts, line.rstrip('\n'), cpu_no))
+
+            self._readq.nput("procstats.state %s %s" % (int(time.time()), '0'))
 
     def _print_numa_stats(self, numafiles):
         """From a list of files names, opens file, extracts and prints NUMA stats."""
