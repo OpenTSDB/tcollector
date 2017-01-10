@@ -20,6 +20,7 @@ Refer to the following zookeeper commands documentation for details:
 http://zookeeper.apache.org/doc/trunk/zookeeperAdmin.html#sc_zkCommands
 """
 
+import os
 import socket
 import time
 from subprocess import Popen, PIPE, CalledProcessError
@@ -56,6 +57,7 @@ class Zookeeper(CollectorBase):
 
     def __call__(self):
         ts = time.time()
+	os.seteuid(0)
 
         # We haven't looked for zookeeper instance recently, let's do that
         if ts - self.last_scan > self.scan_interval:
@@ -64,6 +66,8 @@ class Zookeeper(CollectorBase):
 
         if not self.instances:
             self.log_warn("no zookeeper instance found")
+            # If no zk process running, return a zk_server_state=100
+            self._readq.nput("zk_server_state %d %d %s" % (ts, 100, ""))
             return 13
 
         # Iterate over every zookeeper instance and get statistics
@@ -167,6 +171,7 @@ class Zookeeper(CollectorBase):
         try:
             sock.connect((ipaddr, port))
         except Exception:
+            self._readq.nput("zk_server_state %d %d %s" % (ts, 100, ""))
             self.log_exception("exception when connecting to zookeeper")
         return sock
 
