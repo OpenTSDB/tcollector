@@ -64,13 +64,19 @@ function get_os() {
 }
 
 function usage() {
-  printf "sudo ORG_TOKEN=<token> CLIENT_ID=<id> [AGENT_URL=<agent-tarball_url> METRIC_SERVER_HOST=<server> LOG_COLLECTOR=<log_server_host:port>] deploy_agent.sh [-h]\n"
+  printf "sudo ORG_TOKEN=<token> CLIENT_ID=<id> [AGENT_URL=<agent-tarball_url> METRIC_SERVER_HOST=<server> LOG_COLLECTOR=<log_server_host:port>] deploy_agent.sh [-h][-cp][-o]\n"
 }
 
 if [ "$#" -gt 0 ]; then
   if [ "$1" == "-h" ]; then
     usage
     exit 0
+  elif [ "$1" == "-cp" ]; then
+    log_info "copy ${agent_install_folder}/agent/collectors/conf into /tmp"
+    yes | cp -fr ${agent_install_folder}/agent/collectors/conf ${working_folder}
+  elif [ "$1" == "-o" ]; then
+    log_info "override ${agent_install_folder}/agent/collectors/conf use by before"
+    yes | cp -fr ${working_folder}/conf ${agent_install_folder}/agent/collectors
   else
     printf "unrecognized option\n"
     usage
@@ -177,6 +183,10 @@ else
   printf "${color_red}unrecognized OS $OS. abort!${color_normal}\n"
 fi
 
+if [ "$1" == "-cp" ]; then
+    log_info "override ${agent_install_folder}/agent/collectors/conf use by before"
+    yes | cp -fr ${working_folder}/conf ${agent_install_folder}/agent/collectors
+fi
 # chown -hR "$agent_user" "${agent_install_folder}"
 # abort_if_failed "failed to change ownership of ${agent_install_folder}/download to $agent_user"
 
