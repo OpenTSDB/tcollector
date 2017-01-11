@@ -1,6 +1,7 @@
 #!/usr/bin/python
 
 import sys
+import time
 from collectors.lib import utils
 from collectors.lib.jolokia import JolokiaCollector
 from collectors.lib.jolokia import JolokiaParserBase
@@ -89,7 +90,9 @@ class Tomcat(CollectorBase):
         for port in self.collectors:
             try:
                 self.collectors[port].__call__()
+                self._readq.nput("tomcat.state %s %s" % (int(time.time()), '0'))
             except:
+                self._readq.nput("tomcat.state %s %s" % (int(time.time()), '1'))
                 self.log_error("failed to collect for port %s", port)
 
 

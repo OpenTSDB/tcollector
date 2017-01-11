@@ -1,5 +1,6 @@
 #!/usr/bin/python
 
+import time
 from collectors.lib import utils
 from collectors.lib.jolokia_agent_collector_base import JolokiaAgentCollectorBase
 from collectors.lib.jolokia import JolokiaParserBase
@@ -102,7 +103,12 @@ class Kafka(JolokiaAgentCollectorBase):
         super(Kafka, self).__init__(config, logger, readq, Kafka.JMX_REQUEST_JSON, parsers, "kafka", Kafka.CHECK_KAFKA_PID_INTERVAL, port)
 
     def __call__(self):
-        super(Kafka, self).__call__()
+        try:
+            super(Kafka, self).__call__()
+            self._readq.nput("kafka.state %s %s" % (int(time.time()), '0'))
+        except Exception:
+            self.log_error("failed to kafka collect for application ")
+            self._readq.nput("kafka.state %s %s" % (int(time.time()), '1'))
 
     def cleanup(self):
         super(Kafka, self).cleanup()

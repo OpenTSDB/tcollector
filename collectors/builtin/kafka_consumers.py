@@ -1,5 +1,6 @@
 #!/usr/bin/python
 
+import time
 from collectors.lib.jolokia_agent_collector_base import JolokiaAgentCollectorBase
 from collectors.lib.jolokia import JolokiaParserBase
 from collectors.lib.collectorbase import CollectorBase
@@ -26,9 +27,11 @@ class KafkaConsumers(CollectorBase):
         for process_name, kafka_consumer_collector in self.kafka_consumer_collectors.iteritems():
             try:
                 self.log_info("collect for kafka consumer %s", process_name)
+                self._readq.nput("kafka.consumer.state %s %s" % (int(time.time()), '0'))
                 kafka_consumer_collector()
             except:
-                self.log_error("failed to collect for application %s", process_name)
+                self._readq.nput("kafka.consumer.state %s %s" % (int(time.time()), '1'))
+                self.log_error("failed to kafka consumer collect for application %s", process_name)
 
 
 # https://www.datadoghq.com/blog/monitoring-kafka-performance-metrics/
