@@ -1,13 +1,22 @@
 import os
 import json
 import platform
-from time import gmtime, strftime
+import time
+from time import localtime, strftime
 from collectors.lib import utils
 from collectors.lib.collectorbase import CollectorBase
 
+SERVICE_RUNNING_TIME = [
+    'hadoop',
+    'hbase',
+    'kafka',
+    'mysql',
+    'spark',
+    'storm',
+    'yarn',
+    'zookeeper'
+]
 
-## TODO
-# runtime
 
 class Summary(CollectorBase):
     def __init__(self, config, logger, readq):
@@ -17,13 +26,16 @@ class Summary(CollectorBase):
         version = runner_config.get('base', 'version')
         commit = runner_config.get('base', 'commit')
         token = runner_config.get('base', 'token')
-        ip = get_ip()
+        try:
+            ip = get_ip()
+        except Exception:
+            self.log_error("can't get ip adress")
 
         services = json.loads(os.popen('./collector_mgr.py json').read())
         utils.summary_sender("collector.service", {}, {"type": "service"}, services)
 
         summary = {"version": version, "commitId": commit, "token": token,
-                   "start_time": strftime("%Y-%m-%d %H:%M:%S", gmtime()),
+                   "start_time": strftime("%Y-%m-%d %H:%M:%S", localtime()),
                    "os_version": platform.platform()}
 
         if not ip and ip is not None:
@@ -31,17 +43,21 @@ class Summary(CollectorBase):
             utils.summary_sender_info("collector.ip", {"value": ip})
 
         utils.summary_sender_info("collector.os", {"value": platform.platform()})
-        utils.summary_sender("collector.summary", {}, {"type": "service"},[summary])
+        utils.summary_sender("collector.summary", {}, {"type": "service"}, [summary])
 
+    # def __call__(self):
+    #     for service in SERVICE_RUNNING_TIME:
+    #             pid = os.system("pgrep -f " + service + " | head -n 1")
+    #             if pid > 0:
+    #                 print pid, service
 
-    def __call__(self):
-        print "into summary collector"
 
 
 def get_ip():
     ips = os.popen("/sbin/ip -o -4 addr list| awk '{print $4}' | cut -d/ -f1").readlines()
     if not ips:
-        ips = os.popen("ifconfig | grep -v 'eth0:'| grep -A 1 'eth0' | tail -1 | cut -d ':' -f 2 | cut -d ' ' -f 1").readlines()
+        ips = os.popen(
+            "ifconfig | grep -v 'eth0:'| grep -A 1 'eth0' | tail -1 | cut -d ':' -f 2 | cut -d ' ' -f 1").readlines()
 
     try:
         ips.remove("")
