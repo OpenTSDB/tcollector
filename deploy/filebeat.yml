@@ -12,9 +12,10 @@ filebeat:
       input_type: log
       fields:
         token: <token>
-        metric_prefix: sinorail
-        metric_processor: sinorail-postsale-uploading
+        metric_prefix: <compxxx>
+        metric_processor: <comp-dept-xxx>
       fields_under_root: true
+      close_older: 24h
     # Additional prospector
     #-
       # Configuration to use stdin input

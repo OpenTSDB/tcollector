@@ -27,7 +27,9 @@ collector_pidfile="${agent_env_folder}/var/run/tcollector.pid"
 system_path="${agent_env_folder}/bin":$PATH
 name="cloudwiz-agent"
 
-. /etc/rc.d/init.d/functions
+if [[ -e /etc/rc.d/init.d/functions ]]; then
+   . /etc/rc.d/init.d/functions
+fi
 
 log_info() {
   echo "$1"

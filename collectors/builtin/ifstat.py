@@ -23,7 +23,8 @@ from collectors.lib.collectorbase import CollectorBase
 # /proc/net/dev has 16 fields, 8 for receive and 8 for transmit,
 # defined below.
 # So we can aggregate up the total bytes, packets, etc
-# we tag each metric with direction=in or =out
+# we give up tagging each metric with direction=in or =out
+# we add direction as part of metric name.
 # and iface=
 
 # The new naming scheme of network interfaces
@@ -68,7 +69,7 @@ class Ifstat(CollectorBase):
                         return "out"
                     return "in"
                 for i in xrange(16):
-                    self._readq.nput("proc.net.%s %d %s iface=%s direction=%s" % (FIELDS[i], ts, stats[i], intf, direction(i)))
+                    self._readq.nput("proc.net.%s.%s %d %s iface=%s" % (FIELDS[i], direction(i), ts, stats[i], intf))
 
     def cleanup(self):
         self.safe_close(self.f_netdev)
