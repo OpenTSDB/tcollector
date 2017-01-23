@@ -36,20 +36,22 @@ class RevertibleLowPrivilegeUser(object):
         self.logger = logger
 
     def __enter__(self):
-        if os.geteuid() != 0:
-            return
-        try:
-            ent = pwd.getpwnam(self.low_privilege_user)
-        except KeyError:
-            return
+        pass
+#        if os.geteuid() != 0:
+#            return
+#        try:
+#            ent = pwd.getpwnam(self.low_privilege_user)
+#        except KeyError:
+#            return
 
-        self.logger.info("set to lower-privilege user %s", self.low_privilege_user)
-        os.setegid(ent.pw_gid)
-        os.seteuid(ent.pw_uid)
+#        self.logger.info("set to lower-privilege user %s", self.low_privilege_user)
+#        os.setegid(ent.pw_gid)
+#        os.seteuid(ent.pw_uid)
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.logger.info("revert. set current euser %s back to %s", os.geteuid(), os.getuid())
-        os.seteuid(os.getuid())
+        pass
+#       self.logger.info("revert. set current euser %s back to %s", os.geteuid(), os.getuid())
+#       os.seteuid(os.getuid())
 
 
 def lower_privileges(logger, user=USER):
