@@ -725,6 +725,16 @@ class SenderThread(threading.Thread):
         # FIXME: we should be reading the result at some point to drain
         # the packets out of the kernel's queue
 
+    def build_http_url(self):
+        if self.ssl:
+            protocol = "https"
+        else:
+            protocol = "http"
+        details=""
+        if LOG.level == logging.DEBUG:
+            details="?details"
+        return "%s://%s:%s/api/put%s" % (protocol, self.host, self.port, details)
+
     def send_data_via_http(self):
         """Sends outstanding data in self.sendq to TSD in one HTTP API call."""
         metrics = []
@@ -764,20 +774,10 @@ class SenderThread(threading.Thread):
 
         if((self.current_tsd == -1) or (len(self.hosts) > 1)):
             self.pick_connection()
-        # print "Using server: %s:%s" % (self.host, self.port)
-        # url = "http://%s:%s/api/put?details" % (self.host, self.port)
-        # print "Url is %s" % url
-        if self.ssl:
-            protocol = "https"
-        else:
-            protocol = "http"
-        LOG.debug("Sending metrics to %s://%s:%s/api/put?details",
-                  protocol, self.host, self.port)
-        details=""
-        if LOG.level == logging.DEBUG:
-            details="?details"
-        req = urllib2.Request("%s://%s:%s/api/put%s" % (
-            protocol, self.host, self.port, details))
+
+        url = self.build_http_url()
+        LOG.debug("Sending metrics to url", url)
+        req = urllib2.Request(url)
         if self.http_username and self.http_password:
           req.add_header("Authorization", "Basic %s"
                          % base64.b64encode("%s:%s" % (self.http_username, self.http_password)))
