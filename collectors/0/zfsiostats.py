@@ -48,7 +48,7 @@ except ImportError:
 
 DEFAULT_COLLECTION_INTERVAL=15
 DEFAULT_REPORT_CAPACITY_EVERY_X_TIMES=20
-DEFAULT_REPORT_DISKS_IN_VDEVS=0
+DEFAULT_REPORT_DISKS_IN_VDEVS=False
 
 def convert_to_bytes(string):
     """Take a string in the form 1234K, and convert to bytes"""
@@ -58,6 +58,7 @@ def convert_to_bytes(string):
        "G": 1024 * 1024 * 1024,
        "T": 1024 * 1024 * 1024 * 1024,
        "P": 1024 * 1024 * 1024 * 1024 * 1024,
+       "E": 1024 * 1024 * 1024 * 1024 * 1024 * 1024,
     }
     if string == "-": return -1
     for f, fm in factors.items():
@@ -75,6 +76,7 @@ def convert_wo_prefix(string):
        "G": 1000 * 1000 * 1000,
        "T": 1000 * 1000 * 1000 * 1000,
        "P": 1000 * 1000 * 1000 * 1000 * 1000,
+       "E": 1000 * 1000 * 1000 * 1000 * 1000 * 1000,
     }
     if string == "-": return -1
     for f, fm in factors.items():
@@ -106,7 +108,7 @@ def extract_info(line,report_disks_in_vdevs):
     s_df["free"] = convert_to_bytes(free) / 1024
     if ((s_df["used"] < 0) or (s_df["free"] < 0)):
         s_df = {}
-        if(report_disks_in_vdevs == 0):
+        if(not report_disks_in_vdevs):
             s_io = {}
 
     return poolname, s_df, s_io

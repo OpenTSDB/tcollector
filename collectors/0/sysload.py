@@ -31,6 +31,9 @@ Requirements :
 In addition, for FreeBSD, it reports :
 - load average (1m, 5m, 15m)
 - number of processes (total, starting, running, sleeping, stopped, zombie, waiting, lock)
+- memory statistics (bytes) (active, inact, wired, cache, buf, free)
+- arc statistics (bytes) (total, mru, mfu, anon, header, other)
+- swap statistics (bytes) (total, free, inuse, in/s, out/s)
 '''
 
 import errno
@@ -59,6 +62,7 @@ def convert_to_bytes(string):
        "G": 1024 * 1024 * 1024,
        "T": 1024 * 1024 * 1024 * 1024,
        "P": 1024 * 1024 * 1024 * 1024 * 1024,
+       "E": 1024 * 1024 * 1024 * 1024 * 1024 * 1024,
     }
     for f, fm in factors.items():
         if string.endswith(f):
@@ -89,7 +93,7 @@ def main():
 
     try:
         if platform.system() == "FreeBSD":
-            if collect_every_cpu:
+            if(collect_every_cpu):
                 p_top = subprocess.Popen(
                     ["top", "-S", "-P", "-n", "-s"+str(collection_interval), "-dinfinity", "0"],
                     stdout=subprocess.PIPE,
@@ -100,7 +104,7 @@ def main():
                     stdout=subprocess.PIPE,
                 )            
         else:
-            if collect_every_cpu:
+            if(collect_every_cpu):
                 p_top = subprocess.Popen(
                     ["mpstat", "-P", "ALL", str(collection_interval)],
                     stdout=subprocess.PIPE,
@@ -249,6 +253,7 @@ def main():
 
         elif(fields[0] == "Swap:"):
             total=0
+            used=0
             free=0
             inuse=0
             inps=0
@@ -256,6 +261,8 @@ def main():
             for i in range(len(fields)):
                 if(fields[i] == "Total"):
                     total=convert_to_bytes(fields[i-1])
+                if(fields[i] == "Used"):
+                    used=convert_to_bytes(fields[i-1])
                 if(fields[i] == "Free"):
                     free=convert_to_bytes(fields[i-1])
                 if(fields[i] == "Inuse"):
@@ -265,6 +272,7 @@ def main():
                 if(fields[i] == "Out"):
                     outps=convert_to_bytes(fields[i-1])/collection_interval
             print ("swap.total %s %s" % (timestamp, total))
+            print ("swap.used %s %s" % (timestamp, used))
             print ("swap.free %s %s" % (timestamp, free))
             print ("swap.inuse %s %s" % (timestamp, inuse))
             print ("swap.inps %s %s" % (timestamp, inps))
