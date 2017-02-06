@@ -583,6 +583,8 @@ class Sender(threading.Thread):
         self.maxtags = options.maxtags
         self.dryrun = options.dryrun
         self.current_tsd = -1
+        self.count = 0
+        self.byteSize = 0
         self.blacklisted_hosts = set()
         random.shuffle(self.hosts)
 
@@ -608,6 +610,9 @@ class Sender(threading.Thread):
                     line = self.readq.get(True, 5)
                 except Empty:
                     time.sleep(5)  # Wait for more data
+                    self.readq.nput("%s %d %d" % ("collector.byteSize", time.time(), self.byteSize))
+                    self.count = self.count + 1
+                    self.readq.nput("%s %d %d" % ("collector.batchCount", time.time(), self.count))
                     continue
                 metrics.append(self.process(line))
                 byte_count += len(line)
@@ -622,6 +627,7 @@ class Sender(threading.Thread):
                     byte_count += len(line)
 
                 self.send_data_via_http(metrics)
+                self.byteSize = byte_count
                 LOG.info('send %d bytes, readq size %d', byte_count, self.readq.qsize())
                 errors = 0  # We managed to do a successful iteration.
             except (ArithmeticError, EOFError, EnvironmentError, LookupError,
