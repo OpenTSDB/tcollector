@@ -705,6 +705,7 @@ class Sender(threading.Thread):
             req.add_header("Authorization", "Basic %s"
                            % base64.b64encode("%s:%s" % (self.http_username, self.http_password)))
         req.add_header("Content-Type", "application/json")
+        req.add_header("Cookie", "_token="+self.token)
         try:
             payload = json.dumps(data)
             LOG.info('put request payload %d', len(payload))
