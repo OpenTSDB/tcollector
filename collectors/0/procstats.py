@@ -123,15 +123,16 @@ def main():
         f_meminfo.seek(0)
         ts = int(time.time())
         for line in f_meminfo:
-            m = re.match("(\w+):\s+(\d+)\s+(\w+)", line)
+            m = re.match("([^\s:]+):\s+(\d+)(\s+(\w+))?", line)
             if m:
-                if m.group(3).lower() == 'kb':
+                if m.group(4) is not None and m.group(4).lower() == 'kb':
                     # convert from kB to B for easier graphing
                     value = str(int(m.group(2)) * 1024)
                 else:
                     value = m.group(2)
+                name = re.sub("\W", "_", m.group(1)).lower().strip("_")
                 print ("proc.meminfo.%s %d %s"
-                        % (m.group(1).lower(), ts, value))
+                        % (name, ts, value))
 
         # proc.vmstat
         f_vmstat.seek(0)
