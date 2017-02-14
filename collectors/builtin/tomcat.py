@@ -90,9 +90,9 @@ class Tomcat(CollectorBase):
         for port in self.collectors:
             try:
                 self.collectors[port].__call__()
-                self._readq.nput("tomcat.state %s %s" % (int(time.time()), '0'))
+                self._readq.nput("tomcat.state %s %s %s" % (int(time.time()), '0', 'port=' + port))
             except:
-                self._readq.nput("tomcat.state %s %s" % (int(time.time()), '1'))
+                self._readq.nput("tomcat.state %s %s %s" % (int(time.time()), '1', 'port=' + port))
                 self.log_error("failed to collect for port %s", port)
 
 

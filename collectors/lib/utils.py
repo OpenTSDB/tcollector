@@ -135,7 +135,7 @@ def summary_sender(name, tag, info, content):
     runner_config = load_runner_conf()
     token = runner_config.get('base', 'token')
     metrics_server = runner_config.get('base', 'host')
-    port = 5001  ## default port
+    port =  runner_config.get('base', 'port') ## default port
     data = {}
     data['name'] = name
     data['tag'] = {"host": host}
@@ -146,7 +146,7 @@ def summary_sender(name, tag, info, content):
 
 def load_runner_conf():
     runner_config_path = os.path.abspath(os.path.join(os.path.dirname( __file__ ), '../..', 'runner.conf'))
-    runner_config = ConfigParser.SafeConfigParser()
+    runner_config = ConfigParser.SafeConfigParser({"host": 'localhost', 'port': '5001'})
     runner_config.read(runner_config_path)
     return runner_config
 

@@ -26,6 +26,12 @@ class Summary(CollectorBase):
         version = runner_config.get('base', 'version')
         commit = runner_config.get('base', 'commit')
         token = runner_config.get('base', 'token')
+        self.running_time = 0;
+        self.interval = self.get_config('interval')
+
+        # config.set('base', 'uuid', str(uuid.uuid4()))
+        self.log_info(os.path.join(os.path.dirname(os.path.realpath(__file__)), "../conf"))
+
         try:
             ip = get_ip()
         except Exception:
@@ -45,12 +51,10 @@ class Summary(CollectorBase):
         utils.summary_sender_info("collector.os", {"value": platform.platform()})
         utils.summary_sender("collector.summary", {}, {"type": "service"}, [summary])
 
-    # def __call__(self):
-    #     for service in SERVICE_RUNNING_TIME:
-    #             pid = os.system("pgrep -f " + service + " | head -n 1")
-    #             if pid > 0:
-    #                 print pid, service
-
+    def __call__(self):
+        self.running_time = self.running_time + int(self.interval)
+        self._readq.nput("collector.state %s %s" % (int(time.time()), '0'))
+        self._readq.nput("collector.runningTime %s %s" % (int(time.time()), self.running_time))
 
 
 def get_ip():
