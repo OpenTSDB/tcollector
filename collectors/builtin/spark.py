@@ -394,7 +394,7 @@ class HTTPError(RuntimeError):
 
 
 def url_join_2(prefix, uri):
-    return "%s/%s" % (prefix, uri)
+    return "%s%s" % (prefix, uri)
 
 
 def url_join_3(prefix, uri, param):
@@ -402,4 +402,4 @@ def url_join_3(prefix, uri, param):
 
 
 def url_join_4(prefix, uri, appId, service):
-    return "%s/%s/%s/%s" % (prefix, uri, appId, service)
+    return "%s%s/%s/%s" % (prefix, uri, appId, service)
