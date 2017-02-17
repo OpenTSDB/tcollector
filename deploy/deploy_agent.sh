@@ -64,7 +64,7 @@ function get_os() {
 }
 
 function usage() {
-  printf "sudo ORG_TOKEN=<token> CLIENT_ID=<id> [AGENT_URL=<agent-tarball_url> METRIC_SERVER_HOST=<server> LOG_COLLECTOR=<log_server_host:port>] deploy_agent.sh [-h][-cp][-o]\n"
+  printf "sudo ORG_TOKEN=<token> CLIENT_ID=<id> [AGENT_URL=<agent-tarball_url> METRIC_SERVER_HOST=<server> LOG_COLLECTOR=<log_server_host:port> ALERTD_SERVER=<alert_server:port>] deploy_agent.sh [-h][-cp][-o]\n"
 }
 
 if [ "$#" -gt 0 ]; then
@@ -74,9 +74,11 @@ if [ "$#" -gt 0 ]; then
   elif [ "$1" == "-cp" ]; then
     log_info "copy ${agent_install_folder}/agent/collectors/conf into /tmp"
     yes | cp -fr ${agent_install_folder}/agent/collectors/conf ${working_folder}
+    exit 0
   elif [ "$1" == "-o" ]; then
     log_info "override ${agent_install_folder}/agent/collectors/conf use by before"
     yes | cp -fr ${working_folder}/conf ${agent_install_folder}/agent/collectors
+    exit 0
   else
     printf "unrecognized option\n"
     usage
@@ -156,6 +158,13 @@ else
   sed -i "s/-H .* /-H $METRIC_SERVER_HOST /g" ${agent_install_folder}/agent/run
   ## TODO probably should need the port or add the new parameter
   echo -e "host=$METRIC_SERVER_HOST" >> ${agent_install_folder}/agent/runner.conf
+fi
+
+if [ -z "${ALERTD_SERVER// }" ]; then
+  echo "ALERTD_SERVER env variable is not set or empty, default to localhost:5001"
+else
+  echo "set alertd server host s/-H .* /-H $ALERTD_SERVER /g"
+  echo -e "alertd_server_and_port=$ALERTD_SERVER" >> ${agent_install_folder}/agent/runner.conf
 fi
 
 mkdir -p "${altenv_cache_folder}"

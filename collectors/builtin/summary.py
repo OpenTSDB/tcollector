@@ -26,23 +26,28 @@ class Summary(CollectorBase):
         version = runner_config.get('base', 'version')
         commit = runner_config.get('base', 'commit')
         token = runner_config.get('base', 'token')
-        self.running_time = 0;
+        self.running_time = 0
         self.interval = self.get_config('interval')
-
-        # config.set('base', 'uuid', str(uuid.uuid4()))
-        self.log_info(os.path.join(os.path.dirname(os.path.realpath(__file__)), "../conf"))
 
         try:
             ip = get_ip()
         except Exception:
             self.log_error("can't get ip adress")
 
-        services = json.loads(os.popen('./collector_mgr.py json').read())
+        services = json.loads(
+                        os.popen(
+                            os.path.join(os.path.dirname(os.path.realpath(__file__)), "../../collector_mgr.py")+' json'
+                        ).read())
+
         utils.summary_sender("collector.service", {}, {"type": "service"}, services)
 
-        summary = {"version": version, "commitId": commit, "token": token,
-                   "start_time": strftime("%Y-%m-%d %H:%M:%S", localtime()),
-                   "os_version": platform.platform()}
+        summary = {
+            "version": version,
+            "commitId": commit,
+            "token": token,
+            "start_time": strftime("%Y-%m-%d %H:%M:%S", localtime()),
+            "os_version": platform.platform()
+        }
 
         if not ip and ip is not None:
             summary["ip"] = ip

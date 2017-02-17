@@ -134,19 +134,19 @@ def summary_sender(name, tag, info, content):
     host = socket.gethostname()
     runner_config = load_runner_conf()
     token = runner_config.get('base', 'token')
-    metrics_server = runner_config.get('base', 'host')
-    port =  runner_config.get('base', 'port') ## default port
+    cookies = dict(_token=token)
+    metrics_server = runner_config.get('base', 'alertd_server_and_port')
     data = {}
     data['name'] = name
     data['tag'] = {"host": host}
     data['tag'].update(tag)
     data['info'] = info
     data['content'] = content
-    requests.post('http://%s:%s/summary?token=%s' % (metrics_server, port, token), json=data, headers=headers)
+    requests.post('http://%s/summary?token=%s' % (metrics_server, token), json=data, headers=headers, cookies=cookies)
 
 def load_runner_conf():
     runner_config_path = os.path.abspath(os.path.join(os.path.dirname( __file__ ), '../..', 'runner.conf'))
-    runner_config = ConfigParser.SafeConfigParser({"host": 'localhost', 'port': '5001'})
+    runner_config = ConfigParser.SafeConfigParser({"alertd_server_and_port": 'localhost:5001'})
     runner_config.read(runner_config_path)
     return runner_config
 
