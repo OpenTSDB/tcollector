@@ -49,7 +49,7 @@ class Summary(CollectorBase):
             "os_version": platform.platform()
         }
 
-        if not ip and ip is not None:
+        if ip and ip is not None:
             summary["ip"] = ip
             utils.summary_sender_info("collector.ip", {"value": ip})
 
@@ -63,13 +63,12 @@ class Summary(CollectorBase):
 
 
 def get_ip():
-    ips = os.popen("/sbin/ip -o -4 addr list| awk '{print $4}' | cut -d/ -f1").readlines()
+    ips = os.popen("/sbin/ip -o -4 addr list| awk '{print $4}' | cut -d/ -f1").read().splitlines()
     if not ips:
         ips = os.popen(
-            "ifconfig | grep -v 'eth0:'| grep -A 1 'eth0' | tail -1 | cut -d ':' -f 2 | cut -d ' ' -f 1").readlines()
+            "ifconfig | grep -v 'eth0:'| grep -A 1 'eth0' | tail -1 | cut -d ':' -f 2 | cut -d ' ' -f 1").read().splitlines()
 
     try:
-        ips.remove("")
         ips.remove("127.0.0.1")
     except ValueError:
         pass
