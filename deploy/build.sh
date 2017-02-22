@@ -21,7 +21,7 @@ local_config_folder="${agent_collector_folder}/local_config"
 publish_location="./releases"
 
 function display_usage() {
- log_info "$0 [-c] [-s] <path/to/tcollector/root>"
+ log_info "$0 [-c] [-s] [-ssl] <path/to/tcollector/root>"
 }
 
 function fix_python_recursively() {
@@ -52,8 +52,9 @@ check_root
 #parse cmdline
 while getopts "cs" flag; do
   case "$flag" in
-    c) clean=true;;
-    s) skip=true;;
+    c)   clean=true;;
+    s)   skip=true;;
+    ssl) ssl=true;;
     *) exit 1
   esac
 done
@@ -282,6 +283,10 @@ abort_if_failed 'failed to copy run'
 sed -i "s/^\.\/runner/${agent_install_folder_escaped}\/agent\/runner/g" ${agent_collector_folder}/run
 sed -i "/^log_folder=/c\log_folder=${agent_install_folder}/altenv/var/log" ${agent_collector_folder}/run
 sed -i "/^run_folder=/c\run_folder=${agent_install_folder}/altenv/var/run" ${agent_collector_folder}/run
+if [[ "$ssl" = true ]]; then
+  log_info "enable collector be true"
+  sed -i "/^ssl_enable=/c\ssl_enable=True"
+fi
 cp ${collector_source_path}/collectors/__init__.py ${agent_collector_folder}/collectors/__init__.py
 abort_if_failed 'failed to copy collectors/__init__.py'
 cp -ar ${collector_source_path}/collectors/builtin ${agent_collector_folder}/collectors/builtin

@@ -25,16 +25,17 @@ if [ "$#" -gt 0 ]; then
         for host in "${HOST[@]}"
         do
             echo "prepare tcollector deploy"
-            echo "scp -r  ${TCOLLECTOR_DIR} ${USERNAME}@${host}:${TCOLLECTOR_DIR}"
+            scp -r  ${TCOLLECTOR_DIR} ${USERNAME}@${host}:${TCOLLECTOR_DIR}
             echo "deploying tcollector for ${USERNAME}@${host}"
             ssh -t  ${USERNAME}@${host} "sudo ORG_TOKEN=${TOKEN} CLIENT_ID=${CLIENT_ID} METRIC_SERVER_HOST=${METRIC_SERVER_HOST} ALERTD_SERVER=${ALERTD_SERVER} ${TCOLLECTOR_DIR}/deploy_agent.sh -update > /tmp/tcollector_udpate.log"
+            ssh -t  ${USERNAME}@${host} "sudo /etc/init.d/cloudwiz-agent start > /tmp/tcollector_udpate.log"
         done
         exit 0
     elif [ "$1" == "-deploy" ]; then
         for host in "${HOST[@]}"
         do
             echo "prepare tcollector deploy"
-            echo "scp -r  ${TCOLLECTOR_DIR} ${USERNAME}@${host}:${TCOLLECTOR_DIR}"
+            scp -r  ${TCOLLECTOR_DIR} ${USERNAME}@${host}:${TCOLLECTOR_DIR}
             echo "deploying tcollector for ${USERNAME}@${host}"
             ssh -t  ${USERNAME}@${host} "sudo ORG_TOKEN=${TOKEN} CLIENT_ID=${CLIENT_ID} METRIC_SERVER_HOST=${METRIC_SERVER_HOST} ALERTD_SERVER=${ALERTD_SERVER} ${TCOLLECTOR_DIR}/deploy_agent.sh > /tmp/tcollector_udpate.log"
         done

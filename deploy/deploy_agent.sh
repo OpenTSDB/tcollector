@@ -73,6 +73,7 @@ if [ "$#" -gt 0 ]; then
     exit 0
   elif [ "$1" == "-update" ]; then
     #countinue
+    printf "redeploy tcollector"
   else
     printf "unrecognized option\n"
     usage
@@ -203,7 +204,8 @@ fi
 
 if [ "$1" == "-update" ]; then
     log_info "override ${agent_install_folder}/agent/collectors/conf use by before"
-    yes | mv -f ${working_folder}/conf ${agent_install_folder}/agent/collectors
+    yes | cp -rf ${working_folder}/conf ${agent_install_folder}/agent/collectors
+    yes | rm -rf ${working_folder}/conf
 fi
 # chown -hR "$agent_user" "${agent_install_folder}"
 # abort_if_failed "failed to change ownership of ${agent_install_folder}/download to $agent_user"
