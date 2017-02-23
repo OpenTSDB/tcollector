@@ -2,7 +2,7 @@
 
 log_folder=/tmp/log
 run_folder=/tmp/run
-ssl_enable=false
+ssl_enable=
 
 if [[ ! -d $log_folder ]]; then
     mkdir "$log_folder"
@@ -12,5 +12,5 @@ if [[ ! -d $run_folder ]]; then
     mkdir "$run_folder"
 fi
 
-./runner.py --ssl $ssl_enable --logfile "$log_folder/collector.log" -P "$run_folder/collector.pid" --dedup-interval 0 -H 172.16.210.50 "$@"
+./runner.py $ssl_enable --logfile "$log_folder/collector.log" -P "$run_folder/collector.pid" --dedup-interval 0 -H 172.16.210.50 "$@"
 
