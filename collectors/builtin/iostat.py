@@ -217,7 +217,8 @@ class Iostat(CollectorBase):
                         self._readq.nput("%s%s %d %.2f dev=%s" % (metric, "r_await", ts, r_await, device))
                         self._readq.nput("%s%s %d %.2f dev=%s" % (metric, "w_await", ts, w_await, device))
                         self._readq.nput("%s%s %d %.2f dev=%s" % (metric, "await", ts, await, device))
-                        self._readq.nput("%s%s %d %.2f dev=%s" % (metric, "util", ts, float(util / 1000.0), device))
+                        # can't work for our
+                        #self._readq.nput("%s%s %d %.2f dev=%s" % (metric, "util", ts, float(util / 1000.0), device))
 
                         prev_stats[device] = copy.deepcopy(stats)
 
