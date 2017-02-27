@@ -142,7 +142,7 @@ def summary_sender(name, tag, info, content):
     data['tag'].update(tag)
     data['info'] = info
     data['content'] = content
-    requests.post('http://%s/summary?token=%s' % (metrics_server, token), json=data, headers=headers, cookies=cookies)
+    requests.post('%s/summary?token=%s' % (metrics_server, token), json=data, headers=headers, cookies=cookies)
 
 def load_runner_conf():
     runner_config_path = os.path.abspath(os.path.join(os.path.dirname( __file__ ), '../..', 'runner.conf'))
