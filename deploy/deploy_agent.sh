@@ -206,6 +206,8 @@ if [ "$1" == "-update" ]; then
     log_info "override ${agent_install_folder}/agent/collectors/conf use by before"
     yes | cp -rf ${working_folder}/conf ${agent_install_folder}/agent/collectors
     yes | rm -rf ${working_folder}/conf
+    yes | cp -f  ${working_folder}/cloudwiz-agent-bk-${current_time}/filebeat-1.3.1/filebeat.yml ${agent_install_folder}/filebeat-1.3.1
+    yes | cp -f  ${working_folder}/cloudwiz-agent-bk-${current_time}/altenv/etc/supervisord.conf ${agent_install_folder}/altenv/etc/
 fi
 # chown -hR "$agent_user" "${agent_install_folder}"
 # abort_if_failed "failed to change ownership of ${agent_install_folder}/download to $agent_user"
