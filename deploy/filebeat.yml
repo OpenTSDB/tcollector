@@ -7,7 +7,7 @@ filebeat:
     # Each - is a prospector. Below are the prospector specific configurations
     -
       paths:
-        - /var/log/*.log
+        - /your/log/files
 
       input_type: log
       fields:
@@ -30,7 +30,7 @@ output:
   ### Logstash as output
   logstash:
     # The Logstash hosts
-    hosts: [<log-server-host-port>]
+    hosts: ["tsdb.cloudwiz.cn:5040"]
 
     # Number of workers per Logstash host.
     #worker: 1
@@ -43,12 +43,14 @@ output:
     #compression_level: 3
 
     # Optional load balance the events between the Logstash hosts
-    #loadbalance: true
+    loadbalance: true
 
     # Optional index name. The default index name depends on the each beat.
     # For Packetbeat, the default is set to packetbeat, for Topbeat
     # top topbeat and for Filebeat to filebeat.
     #index: filebeat
+
+    tls:
 
 ############################# Logging #########################################
 
