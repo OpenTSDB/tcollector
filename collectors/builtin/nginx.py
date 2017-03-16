@@ -50,7 +50,7 @@ class Nginx(CollectorBase):
 
     def collect_nginx_status(self, ts_curr):
         try:
-            stats = requests.get('%s%s' % (self.http_prefix, nginx_status_url))
+            stats = requests.get('%s%s' % (self.http_prefix, nginx_status_url)).content
             m = re.match(r"Active connections:\s+(\d+)\s+"
                          "\nserver accepts handled requests\n\s+(\d+)\s+(\d+)\s+(\d+)\s+"
                          "\nReading:\s+(\d+)\s+Writing:\s+(\d+)\s+Waiting:\s+(\d+)\s+\n",
