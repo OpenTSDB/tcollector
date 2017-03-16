@@ -30,7 +30,7 @@ args="-c $FB_HOME/filebeat.yml"
 test_args="-e -configtest"
 
 # Source function library.
-. /etc/rc.d/init.d/functions
+[ -r /etc/rc.d/init.d/functions ] && . /etc/rc.d/init.d/functions
 
 function kill_child_process {
     CHILD_PID=$(pgrep -P $$)
