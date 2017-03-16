@@ -333,6 +333,7 @@ abort_if_failed 'failed to copy startup scripts'
 log_info "set up filebeat"
 yes | cp -f -r "${workspace_folder}/filebeat-1.3.1" "${agent_install_folder}"
 yes | cp -f "${basedir}/filebeat.yml" "${agent_install_folder}/filebeat-1.3.1"
+yes | cp -f "${basedir}/filebeat.startup.sh" "${agent_install_folder}/filebeat-1.3.1"
 abort_if_failed "failed to copy ${workspace_folder}/filebeat-1.3.1 ${agent_install_folder}"
 log_info "finish setting up filebeat"
 
