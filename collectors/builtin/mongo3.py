@@ -16,14 +16,14 @@
 
 import sys
 import time
-import os
+import ast
+
 try:
     import pymongo
 except ImportError:
     pymongo = None  # This is handled gracefully in main()
 
 from collectors.lib import utils
-from collectors.etc import mongodb3_conf
 from collectors.lib.collectorbase import CollectorBase
 
 DB_NAMES = []
@@ -33,7 +33,6 @@ REPLICA_CONN = []
 
 USER = ''
 PASS = ''
-INTERVAL = 15
 
 CONFIG_METRICS = (
     'asserts.msg',
@@ -181,143 +180,149 @@ REPLICA_METRICS = (
     'uptime'
 )
 
-def runServerStatus(c):
-    res = c.admin.command('serverStatus')
-    ts = int(time.time())
 
-    for metric in CONFIG_METRICS:
-        cur = res
-        try:
-            for m in metric.split('.'):
-                cur = cur[m]
-        except KeyError:
-            continue
-        print 'mongo.%s %d %s' % (metric, ts, cur)
+class Mongo3(CollectorBase):
+    def loadEnv(self):
+        global USER, PASS, DB_NAMES, CONFIG_CONN, MONGOS_CONN, REPLICA_CONN
+        for item in ast.literal_eval(self.get_config("db")):
+            DB_NAMES.append(item)
 
-    for metric in CONFIG_LOCKS_METRICS:
-        cur = res
-        try:
-            for m in metric.split('.'):
-                cur = cur[m]
-        except KeyError:
-            continue
-        for k, v in cur.items():
-            print 'mongo.%s %d %s mode=%s' % (metric, ts, v, k)
+        for item in ast.literal_eval(self.get_config("config")):
+            if item:
+                host_port = item.split(':')
+                CONFIG_CONN.append({'host': host_port[0], 'port': int(host_port[1]), 'link': None})
 
-def runDbStats(c):
-    for db_name in DB_NAMES:
-        res = c[db_name].command('dbStats')
+        for item in ast.literal_eval(self.get_config('mongos')):
+            if item:
+                host_port = item.split(':')
+                MONGOS_CONN.append({'host': host_port[0], 'port': int(host_port[1]), 'link': None})
+
+        for item in ast.literal_eval(self.get_config('replica')):
+            if item:
+                host_port = item.split(':')
+                REPLICA_CONN.append({'host': host_port[0], 'port': int(host_port[1]), 'link': None})
+        USER = self.get_config('username')
+        PASS = self.get_config('password')
+
+    def runServerStatus(self, c):
+        res = c.admin.command('serverStatus')
         ts = int(time.time())
 
-        for metric in MONGOS_METRICS:
+        for metric in CONFIG_METRICS:
             cur = res
             try:
                 for m in metric.split('.'):
                     cur = cur[m]
             except KeyError:
                 continue
-            print 'mongo.db.%s %d %s db=%s' % (metric, ts, cur, db_name)
+            self._readq.nput('mongo.%s %d %s' % (metric, ts, cur))
 
-        raw_metrics = res['raw']
-        for key, value in raw_metrics.items():
-            replica_name = key.split('/', 1)[0]
-            replica_desc = key.split('/', 1)[1]
-
-            for metric in MONGOS_RAW_METRICS:
-                cur = value
-                try:
-                    for m in metric.split('.'):
-                        cur = cur[m]
-                except KeyError:
-                    continue
-                print 'mongo.rs.%s %d %s replica=%s db=%s' % (metric, ts, cur, replica_name, db_name)
-
-def runReplSetGetStatus(c):
-    res = c.admin.command('replSetGetStatus')
-    ts = int(time.time())
-
-    replica_set_name = res['set']
-    rs_status = res['myState']
-    rs_members = res['members']
-
-    for replica in res['members']:
-        replica_name = replica['name'].replace(':', '_')
-        replica_state = replica['stateStr']
-        if int(replica['health']) == 1:
-            replica_health = 'online'
-        else:
-            replica_health = 'offline'
-
-        for metric in REPLICA_METRICS:
-            cur = replica
+        for metric in CONFIG_LOCKS_METRICS:
+            cur = res
             try:
                 for m in metric.split('.'):
                     cur = cur[m]
             except KeyError:
                 continue
-            print 'mongo.replica.%s %d %s replica_set=%s replica=%s replica_state=%s replica_health=%s' % (metric, ts, cur, replica_set_name, replica_name, replica_state, replica_health)
+            for k, v in cur.items():
+                self._readq.nput('mongo.%s %d %s mode=%s' % (metric, ts, v, k))
 
-def loadEnv():
-    global USER, PASS, INTERVAL, DB_NAMES, CONFIG_CONN, MONGOS_CONN, REPLICA_CONN
-    for item in mongodb3_conf.get_settings()['db'].split(','):
-        DB_NAMES.append(item)
+    def runDbStats(self, c):
+        for db_name in DB_NAMES:
+            res = c[db_name].command('dbStats')
+            ts = int(time.time())
 
-    for item in mongodb3_conf.get_settings()['config'].split(','):
-        if item:
-            host_port = item.split(':')
-            CONFIG_CONN.append({'host': host_port[0], 'port': int(host_port[1]), 'link': None})
+            for metric in MONGOS_METRICS:
+                cur = res
+                try:
+                    for m in metric.split('.'):
+                        cur = cur[m]
+                except KeyError:
+                    continue
+                self._readq.nput('mongo.db.%s %d %s db=%s' % (metric, ts, cur, db_name))
 
-    for item in mongodb3_conf.get_settings()['mongos'].split(','):
-        if item:
-            host_port = item.split(':')
-            MONGOS_CONN.append({'host': host_port[0], 'port': int(host_port[1]), 'link': None})
+            raw_metrics = res['raw']
+            for key, value in raw_metrics.items():
+                replica_name = key.split('/', 1)[0]
+                replica_desc = key.split('/', 1)[1]
 
-    for item in mongodb3_conf.get_settings()['replica'].split(','):
-        if item:
-            host_port = item.split(':')
-            REPLICA_CONN.append({'host': host_port[0], 'port': int(host_port[1]), 'link': None})
-    USER = mongodb3_conf.get_settings()['username']
-    PASS = mongodb3_conf.get_settings()['password']
-    INTERVAL = mongodb3_conf.get_settings()['interval']
+                for metric in MONGOS_RAW_METRICS:
+                    cur = value
+                    try:
+                        for m in metric.split('.'):
+                            cur = cur[m]
+                    except KeyError:
+                        continue
+                    self._readq.nput('mongo.rs.%s %d %s replica=%s db=%s' % (metric, ts, cur, replica_name, db_name))
 
-def main():
-    loadEnv()
+    def runReplSetGetStatus(self, c):
+        res = c.admin.command('replSetGetStatus')
+        ts = int(time.time())
 
-    with utils.lower_privileges(self._logger):
-        if pymongo is None:
-            print >>sys.stderr, "error: Python module `pymongo' is missing"
-            return 13
+        replica_set_name = res['set']
+        rs_status = res['myState']
+        rs_members = res['members']
 
-        for index, item in enumerate(CONFIG_CONN, start=0):
-            conn = pymongo.MongoClient(host=item['host'], port=item['port'])
-            if USER:
-                conn.admin.authenticate(USER, PASS, mechanism='DEFAULT')
-            CONFIG_CONN[index]['link'] = conn
+        for replica in res['members']:
+            replica_name = replica['name'].replace(':', '_')
+            replica_state = replica['stateStr']
+            if int(replica['health']) == 1:
+                replica_health = 'online'
+            else:
+                replica_health = 'offline'
 
-        for index, item in enumerate(MONGOS_CONN, start=0):
-            conn = pymongo.MongoClient(host=item['host'], port=item['port'])
-            if USER:
-                conn.admin.authenticate(USER, PASS, mechanism='DEFAULT')
-            MONGOS_CONN[index]['link'] = conn
+            for metric in REPLICA_METRICS:
+                cur = replica
+                try:
+                    for m in metric.split('.'):
+                        cur = cur[m]
+                except KeyError:
+                    continue
+                self._readq.nput(
+                    'mongo.replica.%s %d %s replica_set=%s replica=%s replica_state=%s replica_health=%s' % (
+                        metric, ts, cur, replica_set_name, replica_name, replica_state, replica_health))
 
-        for index, item in enumerate(REPLICA_CONN, start=0):
-            conn = pymongo.MongoClient(host=item['host'], port=item['port'])
-            if USER:
-                conn.admin.authenticate(USER, PASS, mechanism='DEFAULT')
-            REPLICA_CONN[index]['link'] = conn
+    def __init__(self, config, logger, readq):
+        super(Mongo3, self).__init__(config, logger, readq)
+        self.loadEnv()
+        try:
+            with utils.lower_privileges(self._logger):
+                if pymongo is None:
+                    self._readq.nput("mongo3.state %s %s" % (int(time.time()), '1'))
+                    print >> sys.stderr, "error: Python module `pymongo' is missing"
+                    return 13
 
-        while True:
+                for index, item in enumerate(CONFIG_CONN, start=0):
+                    conn = pymongo.MongoClient(host=item['host'], port=item['port'])
+                    if USER:
+                        conn.admin.authenticate(USER, PASS, mechanism='DEFAULT')
+                    CONFIG_CONN[index]['link'] = conn
+
+                for index, item in enumerate(MONGOS_CONN, start=0):
+                    conn = pymongo.MongoClient(host=item['host'], port=item['port'])
+                    if USER:
+                        conn.admin.authenticate(USER, PASS, mechanism='DEFAULT')
+                    MONGOS_CONN[index]['link'] = conn
+
+                for index, item in enumerate(REPLICA_CONN, start=0):
+                    conn = pymongo.MongoClient(host=item['host'], port=item['port'])
+                    if USER:
+                        conn.admin.authenticate(USER, PASS, mechanism='DEFAULT')
+                    REPLICA_CONN[index]['link'] = conn
+        except:
+            self._readq.nput("mongo3.state %s %s" % (int(time.time()), '1'))
+
+    def __call__(self):
+        try:
             for conn in CONFIG_CONN:
-                runServerStatus(conn['link'])
+                self.runServerStatus(conn['link'])
 
             for conn in MONGOS_CONN:
-                runDbStats(conn['link'])
+                self.runDbStats(conn['link'])
 
             for conn in REPLICA_CONN:
-                runReplSetGetStatus(conn['link'])
-
-            sys.stdout.flush()
-            time.sleep(INTERVAL)
-
-if __name__ == '__main__':
-    sys.exit(main())
+                self.runReplSetGetStatus(conn['link'])
+        except:
+            self._readq.nput("mongo3.state %s %s" % (int(time.time()), '1'))
+        self._readq.nput("mongo3.state %s %s" % (int(time.time()), '0'))
+        sys.stdout.flush()
