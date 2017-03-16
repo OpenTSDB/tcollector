@@ -209,6 +209,8 @@ if [ "$1" == "-update" ]; then
     yes | cp -f  ${working_folder}/cloudwiz-agent-bk-${current_time}/filebeat-1.3.1/filebeat.yml ${agent_install_folder}/filebeat-1.3.1
     yes | cp -f  ${working_folder}/cloudwiz-agent-bk-${current_time}/filebeat-1.3.1/filebeat.startup.sh ${agent_install_folder}/filebeat-1.3.1
     yes | cp -f  ${working_folder}/cloudwiz-agent-bk-${current_time}/altenv/etc/supervisord.conf ${agent_install_folder}/altenv/etc/
+    echo "FB_HOME=${agent_install_folder}/filebeat-1.3.1" > /etc/default/filebeat
+    mkdir -p /var/log/filebeat
 fi
 # chown -hR "$agent_user" "${agent_install_folder}"
 # abort_if_failed "failed to change ownership of ${agent_install_folder}/download to $agent_user"
