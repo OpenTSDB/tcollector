@@ -159,6 +159,7 @@ if [ ! -z "${LOG_COLLECTOR// }" ]; then
   log_info "set log-server-host-port to ${LOG_COLLECTOR}"
   sed -i "s/<log-server-host-port>/\"${LOG_COLLECTOR}\"/" ${agent_install_folder}/filebeat-1.3.1/filebeat.yml
   sed -i "s/<token>/\"${ORG_TOKEN}\"/" ${agent_install_folder}/filebeat-1.3.1/filebeat.yml
+  echo "FB_HOME=${agent_install_folder}/filebeat-1.3.1" > /etc/default/filebeat
 fi
 
 if [ -z "${METRIC_SERVER_HOST// }" ]; then
