@@ -1,7 +1,7 @@
 {
-    "version": "0.2.0.0",
-    "platform": "Debian",
+    "version": "1.0.0.%BUILD%",
+    "platform": "%PLATFORM%",
     "checksum": "1b6373491e0ee45aaab666fcaaec5821bc090aef514f1b675414a1cc38032fa5",
-    "upgradeFrom": "0.0.0.0-0.1.0.0",
+    "upgradeFrom": "0.0.0.0-1.0.0.0",
     "packageFile": "agent.tar.gz"
 }

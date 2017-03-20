@@ -313,6 +313,9 @@ fix_python_recursively "${agent_install_folder}/uagent"
 abort_if_failed "failed to fix python env ${agent_install_folder}/uagent"
 cp -f "${collector_source_path}"/version.json "${agent_install_folder}/"
 abort_if_failed "failed to copy ${collector_source_path}/version.json ${agent_install_folder}/"
+BUILD=$(date -u +%y%m%d%H%M%S)
+sed -i "s/%BUILD%/$BUILD/g" "${agent_install_folder}/version.json"
+abort_if_failed "failed to update BUILD in version.json"
 mkdir -p ${agent_install_folder}/.gnupg
 abort_if_failed "failed to create ${agent_install_folder}/.gnupg"
 yes | cp -f ${basedir}/gnupg/pubring.gpg ${agent_install_folder}/.gnupg

@@ -152,6 +152,9 @@ abort_if_failed "failed to set ORG_TOKEN value in runner.conf file"
 sed -i "/^client_id *= */c\client_id = $CLIENT_ID" ${agent_install_folder}/uagent/uagent.conf
 abort_if_failed "failed to set client_id value in ${agent_install_folder}/uagent/uagent.conf"
 
+sed -i "s/%PLATFORM%/$OS/g" ${agent_install_folder}/version.json
+abort_if_failed "failed to update PLATFORM in version.json"
+
 if [ ! -z "${LOG_COLLECTOR// }" ]; then
   log_info "config filebeat in ${altenv_etc_folder}/supervisord.conf"
   sed -i "/\[group:cloudwiz-agent\]/i\\[program:filebeat\]\ncommand=${agent_install_folder}/filebeat-1.3.1/filebeat -c ${agent_install_folder}/filebeat-1.3.1/filebeat.yml\nstartsecs=5\nstartretries=3\nstopasgroup=true\n" ${altenv_etc_folder}/supervisord.conf
