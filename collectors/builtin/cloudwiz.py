@@ -77,7 +77,12 @@ class Cloudwiz(CollectorBase):
         # Can't delete entries while looping through it
         # So we just delete one at a time.
         for pid in self.cpu_total:
-            if not (pid in self.metrics):
+            found = False
+            for metric in self.metrics:
+                if int(pid) == self.metrics[metric]:
+                    found = True
+                    break
+            if not found:
                 self.cpu_total.pop(pid)
                 self.cpu_stime.pop(pid)
                 self.cpu_utime.pop(pid)
