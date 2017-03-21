@@ -74,11 +74,14 @@ class Cloudwiz(CollectorBase):
             self.log_error("Can't get pid of uagent")
 
     def cleanup(self):
+        # Can't delete entries while looping through it
+        # So we just delete one at a time.
         for pid in self.cpu_total:
             if not (pid in self.metrics):
                 self.cpu_total.pop(pid)
                 self.cpu_stime.pop(pid)
                 self.cpu_utime.pop(pid)
+                break
 
     def get_pid_from_file(self, pidfile):
         try:
