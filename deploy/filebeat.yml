@@ -30,7 +30,7 @@ output:
   ### Logstash as output
   logstash:
     # The Logstash hosts
-    hosts: ["tsdb.cloudwiz.cn:5040"]
+    hosts: [<log-server-host-port>]
 
     # Number of workers per Logstash host.
     #worker: 1

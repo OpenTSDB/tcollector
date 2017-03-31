@@ -64,7 +64,7 @@ function get_os() {
 }
 
 function usage() {
-  printf "sudo ORG_TOKEN=<token> CLIENT_ID=<id> [AGENT_URL=<agent-tarball_url> METRIC_SERVER_HOST=<server> LOG_COLLECTOR=<log_server_host:port> ALERTD_SERVER=<alert_server:port>] deploy_agent.sh [-h][-update]\n"
+  printf "sudo ORG_TOKEN=<token> CLIENT_ID=<id> [AGENT_URL=<agent-tarball_url> METRIC_SERVER_HOST=<server> ALERTD_SERVER=<alert_server:port>] deploy_agent.sh [-h][-update]\n"
 }
 
 if [ "$#" -gt 0 ]; then
@@ -155,15 +155,10 @@ abort_if_failed "failed to set client_id value in ${agent_install_folder}/uagent
 sed -i "s/%PLATFORM%/$OS/g" ${agent_install_folder}/version.json
 abort_if_failed "failed to update PLATFORM in version.json"
 
-if [ ! -z "${LOG_COLLECTOR// }" ]; then
-  log_info "config filebeat in ${altenv_etc_folder}/supervisord.conf"
-  sed -i "/\[group:cloudwiz-agent\]/i\\[program:filebeat\]\ncommand=${agent_install_folder}/filebeat-1.3.1/filebeat -c ${agent_install_folder}/filebeat-1.3.1/filebeat.yml\nstartsecs=5\nstartretries=3\nstopasgroup=true\n" ${altenv_etc_folder}/supervisord.conf
-  sed -i '/^programs=/ s/$/,filebeat/' ${altenv_etc_folder}/supervisord.conf
-  log_info "set log-server-host-port to ${LOG_COLLECTOR}"
-  sed -i "s/<log-server-host-port>/\"${LOG_COLLECTOR}\"/" ${agent_install_folder}/filebeat-1.3.1/filebeat.yml
-  sed -i "s/<token>/\"${ORG_TOKEN}\"/" ${agent_install_folder}/filebeat-1.3.1/filebeat.yml
-  echo "FB_HOME=${agent_install_folder}/filebeat-1.3.1" > /etc/default/filebeat
-fi
+log_info "set filebeat home by default"
+sed -i "s/<token>/\"${ORG_TOKEN}\"/" ${agent_install_folder}/filebeat-1.3.1/filebeat.yml
+sed -i "s/<log-server-host-port>/\"${METRIC_SERVER_HOST}:5040\"/" ${agent_install_folder}/filebeat-1.3.1/filebeat.yml
+echo "FB_HOME=${agent_install_folder}/filebeat-1.3.1" > /etc/default/filebeat
 
 if [ -z "${METRIC_SERVER_HOST// }" ]; then
   echo "METRIC_SERVER_HOST env variable is not set or empty, default to localhost"
