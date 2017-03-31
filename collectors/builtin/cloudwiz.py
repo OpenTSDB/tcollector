@@ -18,6 +18,7 @@ import subprocess
 import time
 import re
 import os
+import ast
 from Queue import Queue
 
 from collectors.lib.collectorbase import CollectorBase
@@ -31,6 +32,7 @@ class Cloudwiz(CollectorBase):
 
     def __init__(self, config, logger, readq):
         super(Cloudwiz, self).__init__(config, logger, readq)
+        self.process = ast.literal_eval(self.get_config("process"))
 
         self.cpu_total = {}
         self.cpu_stime = {}
@@ -45,33 +47,18 @@ class Cloudwiz(CollectorBase):
     def get_pids(self):
         self.metrics = {}
 
-        pid = self.get_pid_from_file(collector_pid_file)
-        if pid == 0:
-            pid = self.get_pid_from_pgrep('/opt/cloudwiz-agent/agent/runner.py')
-        if pid != 0:
-            self.metrics["cloudwiz.collector"] = pid
-        else:
-            self.log_error("Can't get pid of collector")
-
-        pid = self.get_pid_from_file(supervisord_pid_file)
-        if pid == 0:
-            pid = self.get_pid_from_pgrep('/opt/cloudwiz-agent/altenv/bin/supervisord')
-        if pid != 0:
-            self.metrics["cloudwiz.supervisord"] = pid
-        else:
-            self.log_error("Can't get pid of supervisord")
-
-        pid = self.get_pid_from_pgrep('/opt/cloudwiz-agent/filebeat-1.3.1/filebeat -c')
-        if pid != 0:
-            self.metrics["cloudwiz.filebeat"] = pid
-        else:
-            self.log_error("Can't get pid of filebeat")
-
-        pid = self.get_pid_from_pgrep('/opt/cloudwiz-agent/uagent/daemon.py')
-        if pid != 0:
-            self.metrics["cloudwiz.uagent"] = pid
-        else:
-            self.log_error("Can't get pid of uagent")
+        if len(self.process):
+            for proc in self.process:
+                arr = proc.split(":")
+                if len(arr) != 2 or arr[0].strip() == '' or arr[1].strip() == '':
+                    continue
+                name = arr[0]
+                cmd = arr[1]
+                pid = self.get_pid_from_pgrep(cmd)
+                if pid != 0:
+                    self.metrics["cloudwiz."+name] = pid
+                else:
+                    self.log_error("Can't get pid of " + name)
 
     def cleanup(self):
         # Can't delete entries while looping through it
@@ -87,15 +74,6 @@ class Cloudwiz(CollectorBase):
                 self.cpu_stime.pop(pid)
                 self.cpu_utime.pop(pid)
                 break
-
-    def get_pid_from_file(self, pidfile):
-        try:
-            f = open(pidfile, 'r')
-            pid = f.read()
-            f.close()
-            return int(pid)
-        except Exception as e:
-            return 0
 
     def get_pid_from_pgrep(self, cmd):
         proc = subprocess.Popen(['/usr/bin/pgrep', '-f', str(cmd)], stdout=subprocess.PIPE)
