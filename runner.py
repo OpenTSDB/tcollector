@@ -611,7 +611,7 @@ class Sender(threading.Thread):
                 except Empty:
                     time.sleep(5)  # Wait for more data
                     self.readq.nput("%s %d %d" % ("collector.byteSize", time.time(), self.byteSize))
-                    self.count = self.count + 1
+                    self.count += 1
                     self.readq.nput("%s %d %d" % ("collector.batchCount", time.time(), self.count))
                     continue
                 metrics.append(self.process(line))
@@ -631,7 +631,7 @@ class Sender(threading.Thread):
                 LOG.info('send %d bytes, readq size %d', byte_count, self.readq.qsize())
                 errors = 0  # We managed to do a successful iteration.
             except (ArithmeticError, EOFError, EnvironmentError, LookupError,
-                    ValueError):
+                    ValueError, urllib2.URLError):
                 errors += 1
                 if errors > MAX_UNCAUGHT_EXCEPTIONS:
                     LOG.error("sender thread exceeds the max number of errors (%d). exit", MAX_UNCAUGHT_EXCEPTIONS)
