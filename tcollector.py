@@ -421,7 +421,7 @@ class SenderThread(threading.Thread):
 
     def __init__(self, reader, dryrun, hosts, self_report_stats, tags,
                  reconnectinterval=0, http=False, http_username=None,
-                 http_password=None, ssl=False, maxtags=8):
+                 http_password=None, http_api_path=None, ssl=False, maxtags=8):
         """Constructor.
 
         Args:
@@ -442,6 +442,7 @@ class SenderThread(threading.Thread):
         self.reader = reader
         self.tags = sorted(tags.items()) # dictionary transformed to list
         self.http = http
+        self.http_api_path = http_api_path
         self.http_username = http_username
         self.http_password = http_password
         self.ssl = ssl
@@ -733,7 +734,7 @@ class SenderThread(threading.Thread):
         details=""
         if LOG.level == logging.DEBUG:
             details="?details"
-        return "%s://%s:%s/api/put%s" % (protocol, self.host, self.port, details)
+        return "%s://%s:%s/%s%s" % (protocol, self.host, self.port, self.http_api_path, details)
 
     def send_data_via_http(self):
         """Sends outstanding data in self.sendq to TSD in one HTTP API call."""
@@ -839,6 +840,7 @@ def parse_cmdline(argv):
             'port': 4242,
             'pidfile': '/var/run/tcollector.pid',
             'http': False,
+            'http_api_path': "api/put",
             'tags': [],
             'remove_inactive_collectors': False,
             'host': 'localhost',
@@ -935,6 +937,8 @@ def parse_cmdline(argv):
                         help='The maximum number of tags to send to our TSD Instances')
     parser.add_option('--http', dest='http', action='store_true', default=defaults['http'],
                         help='Send the data via the http interface')
+    parser.add_option('--http-api-path', dest='http_api_path', type='str',
+                      default=defaults['http_api_path'], help='URL path to use for HTTP requests to TSD.')
     parser.add_option('--http-username', dest='http_username', default=defaults['http_username'],
                       help='Username to use for HTTP Basic Auth when sending the data via HTTP')
     parser.add_option('--http-password', dest='http_password', default=defaults['http_password'],
@@ -1068,7 +1072,7 @@ def main(argv):
     sender = SenderThread(reader, options.dryrun, options.hosts,
                           not options.no_tcollector_stats, tags, options.reconnectinterval,
                           options.http, options.http_username,
-                          options.http_password, options.ssl, options.maxtags)
+                          options.http_password, options.http_api_path, options.ssl, options.maxtags)
     sender.start()
     LOG.info('SenderThread startup complete')
 
