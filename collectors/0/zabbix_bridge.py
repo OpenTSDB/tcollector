@@ -80,6 +80,7 @@ def main():
                                 print "tcollector.zabbix_bridge.key_lookup_miss_reload %d %s" % (sample_last_ts, (key_lookup_miss - last_key_lookup_miss))
                                 cachecur.execute('DROP TABLE zabbix_cache')
                                 cachecur.execute('CREATE TABLE zabbix_cache AS SELECT * FROM dbfile.zabbix_cache')
+                                cachecur.execute('CREATE UNIQUE INDEX uniq_zid on zabbix_cache (id)')
                                 last_key_lookup_miss = key_lookup_miss
                     else:
                         # TODO: Consider https://wiki.python.org/moin/PythonDecoratorLibrary#Retry
