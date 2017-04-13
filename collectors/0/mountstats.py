@@ -13,7 +13,7 @@
 # see <http://www.gnu.org/licenses/>.
 #
 
-"""mountstats.py  Tcollector 
+"""mountstats.py  Tcollector
 #
 # This script pull NFS mountstats data, dedupes it by mount point and puts it into the following namespaces:
 #
