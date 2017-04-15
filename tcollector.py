@@ -760,7 +760,7 @@ class SenderThread(threading.Thread):
             metric_entry["tags"] = dict(self.tags).copy()
             if len(metric_tags) + len(metric_entry["tags"]) > self.maxtags:
               metric_tags_orig = set(metric_tags)
-              subset_metric_keys = frozenset(metric_tags[:len(metric_tags[:self.maxtags-len(metric_entry["tags"])])])
+              subset_metric_keys = frozenset(metric_tags.keys()[:len(metric_tags.keys()[:self.maxtags-len(metric_entry["tags"])])])
               metric_tags = dict((k, v) for k, v in metric_tags.iteritems() if k in subset_metric_keys)
               LOG.error("Exceeding maximum permitted metric tags - removing %s for metric %s",
                         str(metric_tags_orig - set(metric_tags)), metric)
