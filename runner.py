@@ -1,4 +1,4 @@
-#!/opt/cloudwiz-agent/altenv/bin/python
+#!/usr/bin/env python
 
 import os
 import signal
