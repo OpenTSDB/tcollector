@@ -31,7 +31,7 @@ ALLOWED_INACTIVITY_TIME = 600  # seconds
 MAX_UNCAUGHT_EXCEPTIONS = 50000000
 MAX_SENDQ_SIZE = 20000      # this should match tsd.http.request.max_chunk, usually 1/3. json adds considerable overhead
 MAX_READQ_SIZE = 100000
-
+MAX_READQ_SIZE_TO_START = MAX_READQ_SIZE / 10
 # config constants
 SECTION_BASE = 'base'
 CONFIG_ENABLED = 'enabled'
@@ -466,7 +466,7 @@ def shutdown():
             LOG.exception('failed to wait shutdown collector %s. skip.', name)
 
     LOG.info('total %d collectors exited', len(COLLECTORS))
-    sys.exit(1)
+    os._exit(1)
 
 
 # noinspection PyUnusedLocal
@@ -630,6 +630,14 @@ class Sender(threading.Thread):
                 self.byteSize = byte_count
                 LOG.info('send %d bytes, readq size %d', byte_count, self.readq.qsize())
                 errors = 0  # We managed to do a successful iteration.
+            except urllib2.URLError:
+                if self.readq.qsize() > MAX_READQ_SIZE_TO_START:
+                    LOG.error("sender thread exceeds the max number of url errors (%d). exit", MAX_READQ_SIZE_TO_START)
+                    shutdown()
+                    raise
+                LOG.exception('url exception in Sender. readq size %d < threshold %d, ignoring', self.readq.qsize(), MAX_READQ_SIZE_TO_START)
+                time.sleep(50)
+                continue
             except (ArithmeticError, EOFError, EnvironmentError, LookupError,
                     ValueError, urllib2.URLError):
                 errors += 1
