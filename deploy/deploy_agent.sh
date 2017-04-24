@@ -168,7 +168,9 @@ if [[ "$snmp" = true ]]; then
   if which snmpget >/dev/null 2>&1; then
     echo "snmp already installed, skipping..."
   else
+    echo "If you run into conflicts when installing snmp rpms, consider downloading/installing a different version of these rpms."
     rpm -ivh ${agent_install_folder}/snmp/*.rpm
+    abort_if_failed "failed to install ${agent_install_folder}/snmp/*.rpm"
   fi
 fi
 
