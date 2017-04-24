@@ -64,7 +64,7 @@ function get_os() {
 }
 
 function usage() {
-  printf "sudo ORG_TOKEN=<token> CLIENT_ID=<id> [AGENT_URL=<agent-tarball_url> METRIC_SERVER_HOST=<server> ALERTD_SERVER=<alert_server:port>] deploy_agent.sh [-h][-update]\n"
+  printf "sudo ORG_TOKEN=<token> CLIENT_ID=<id> [AGENT_URL=<agent-tarball_url> METRIC_SERVER_HOST=<server> ALERTD_SERVER=<alert_server:port>] deploy_agent.sh [-h] [-snmp] [-update]\n"
 }
 
 if [ "$#" -gt 0 ]; then
@@ -74,6 +74,8 @@ if [ "$#" -gt 0 ]; then
   elif [ "$1" == "-update" ]; then
     #countinue
     printf "redeploy tcollector"
+  elif [ "$1" == "-snmp" ]; then
+    snmp=true
   else
     printf "unrecognized option\n"
     usage
@@ -159,6 +161,16 @@ log_info "set filebeat home by default"
 sed -i "s/<token>/\"${ORG_TOKEN}\"/" ${agent_install_folder}/filebeat-1.3.1/filebeat.yml
 sed -i "s/<log-server-host-port>/\"${METRIC_SERVER_HOST}:5040\"/" ${agent_install_folder}/filebeat-1.3.1/filebeat.yml
 echo "FB_HOME=${agent_install_folder}/filebeat-1.3.1" > /etc/default/filebeat
+
+# install snmp, if needed
+if [[ "$snmp" = true ]]; then
+  # install
+  if which snmpget >/dev/null 2>&1; then
+    echo "snmp already installed, skipping..."
+  else
+    rpm -ivh ${agent_install_folder}/snmp/*.rpm
+  fi
+fi
 
 if [ -z "${METRIC_SERVER_HOST// }" ]; then
   echo "METRIC_SERVER_HOST env variable is not set or empty, default to localhost"

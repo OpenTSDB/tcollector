@@ -18,6 +18,7 @@ altenv_ssl_folder="${altenv_usr_folder}/local/ssl"
 agent_collector_folder="${agent_install_folder}/$agent_folder_name"
 lib_folder="${agent_collector_folder}/lib"
 local_config_folder="${agent_collector_folder}/local_config"
+snmp_folder="${agent_install_folder}/snmp"
 publish_location="./releases"
 
 function display_usage() {
@@ -262,6 +263,21 @@ if [[ ! "$skip" = true ]]; then
     log_info "download jolokia-jvm-1.3.5-agent.jar"
     wget -O ${workspace_folder}/jolokia-jvm-1.3.5-agent.jar https://repo1.maven.org/maven2/org/jolokia/jolokia-jvm/1.3.5/jolokia-jvm-1.3.5-agent.jar
   fi
+
+  # snmp
+  log_info 'set up snmp'
+  if [[ ! -f ${workspace_folder}/net-snmp-5.5-57.el6_8.1.x86_64.rpm ]]; then
+    log_info "download net-snmp-5.5-57.el6_8.1.x86_64.rpm"
+    wget -O ${workspace_folder}/net-snmp-5.5-57.el6_8.1.x86_64.rpm ftp://195.220.108.108/linux/centos/6.8/updates/x86_64/Packages/net-snmp-5.5-57.el6_8.1.x86_64.rpm
+  fi
+  if [[ ! -f ${workspace_folder}/net-snmp-libs-5.5-57.el6_8.1.x86_64.rpm ]]; then
+    log_info "download net-snmp-libs-5.5-57.el6_8.1.x86_64.rpm"
+    wget -O ${workspace_folder}/net-snmp-libs-5.5-57.el6_8.1.x86_64.rpm ftp://195.220.108.108/linux/centos/6.8/updates/x86_64/Packages/net-snmp-libs-5.5-57.el6_8.1.x86_64.rpm
+  fi
+  if [[ ! -f ${workspace_folder}/net-snmp-utils-5.5-57.el6_8.1.x86_64.rpm ]]; then
+    log_info "download net-snmp-utils-5.5-57.el6_8.1.x86_64.rpm"
+    wget -O ${workspace_folder}/net-snmp-utils-5.5-57.el6_8.1.x86_64.rpm ftp://195.220.108.108/linux/centos/6.8/updates/x86_64/Packages/net-snmp-utils-5.5-57.el6_8.1.x86_64.rpm
+  fi
 fi
 
 log_info "setup agent/runner ${collector_source_path} => ${agent_collector_folder}"
@@ -346,6 +362,13 @@ abort_if_failed "failed to create ${lib_folder}"
 log_info "cp -f ${workspace_folder}/jolokia-jvm-1.3.5-agent.jar ${lib_folder}/jolokia-jvm-1.3.5-agent.jar"
 yes | cp -f ${workspace_folder}/jolokia-jvm-1.3.5-agent.jar ${lib_folder}/jolokia-jvm-1.3.5-agent.jar
 abort_if_failed "failed to copy jolokia agent"
+
+log_info "set up snmp folder"
+mkdir -p ${snmp_folder}
+abort_if_failed "failed to create ${snmp_folder}"
+log_info "cp -f ${workspace_folder}/net-snmp*.rpm ${snmp_folder}"
+yes | cp -f ${workspace_folder}/net-snmp*.rpm ${snmp_folder}
+abort_if_failed "failed to copy snmp rpms"
 
 log_info "setup local config folder"
 mkdir -p "${local_config_folder}"
