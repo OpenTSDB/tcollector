@@ -32,6 +32,7 @@ MAX_UNCAUGHT_EXCEPTIONS = 50000000
 MAX_SENDQ_SIZE = 20000      # this should match tsd.http.request.max_chunk, usually 1/3. json adds considerable overhead
 MAX_READQ_SIZE = 100000
 MAX_READQ_SIZE_TO_START = MAX_READQ_SIZE / 10
+MAX_DROPPED_LINES_TO_START = MAX_READQ_SIZE / 10
 # config constants
 SECTION_BASE = 'base'
 CONFIG_ENABLED = 'enabled'
@@ -564,6 +565,10 @@ class NonBlockingQueue(Queue):
         except Full:
             LOG.error("DROPPED LINE: %s", value)
             NonBlockingQueue.dropped += 1
+            if NonBlockingQueue.dropped > MAX_DROPPED_LINES_TO_START:
+                LOG.error("Too many lines dropped. Let's exit")
+                os._exit(1)
+
             return False
         return True
 
@@ -638,8 +643,7 @@ class Sender(threading.Thread):
                 LOG.exception('url exception in Sender. readq size %d < threshold %d, ignoring', self.readq.qsize(), MAX_READQ_SIZE_TO_START)
                 time.sleep(50)
                 continue
-            except (ArithmeticError, EOFError, EnvironmentError, LookupError,
-                    ValueError, urllib2.URLError):
+            except (ArithmeticError, EOFError, EnvironmentError, LookupError, ValueError):
                 errors += 1
                 if errors > MAX_UNCAUGHT_EXCEPTIONS:
                     LOG.error("sender thread exceeds the max number of errors (%d). exit", MAX_UNCAUGHT_EXCEPTIONS)
