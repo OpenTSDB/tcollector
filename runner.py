@@ -563,8 +563,10 @@ class NonBlockingQueue(Queue):
         try:
             self.put(value, False)
         except Full:
-            LOG.error("DROPPED LINE: %s", value)
             NonBlockingQueue.dropped += 1
+            if NonBlockingQueue.dropped % 50 == 0:
+                LOG.error("DROPPED LINE: %s", value)
+
             if NonBlockingQueue.dropped > MAX_DROPPED_LINES_TO_START:
                 LOG.error("Too many lines dropped. Let's exit")
                 os._exit(1)
