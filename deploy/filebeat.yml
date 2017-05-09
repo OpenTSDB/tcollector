@@ -7,15 +7,18 @@ filebeat:
     # Each - is a prospector. Below are the prospector specific configurations
     -
       paths:
-        - /your/log/files
+        - /opt/cloudwiz-agent/altenv/var/log/collector.log
 
       input_type: log
+      document_type: collector
       fields:
         token: <token>
-        metric_prefix: <compxxx>
-        metric_processor: <comp-dept-xxx>
       fields_under_root: true
-      close_older: 24h
+      close_older: 2h
+      multiline:
+        pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2},[0-9]{3} '
+        negate: true
+        match: after
     # Additional prospector
     #-
       # Configuration to use stdin input
@@ -90,5 +93,4 @@ logging:
   # Sets log level. The default log level is error.
   # Available log levels are: critical, error, warning, info, debug
   level: info
-
 
