@@ -34,27 +34,30 @@ class Summary(CollectorBase):
         except Exception:
             self.log_error("can't get ip adress")
 
-        services = json.loads(
-                        os.popen(
-                            os.path.join(os.path.dirname(os.path.realpath(__file__)), "../../collector_mgr.py")+' json'
-                        ).read())
+        try:
+            services = json.loads(
+                            os.popen(
+                                os.path.join(os.path.dirname(os.path.realpath(__file__)), "../../collector_mgr.py")+' json'
+                            ).read())
 
-        utils.summary_sender("collector.service", {}, {"type": "service"}, services)
+            utils.summary_sender("collector.service", {}, {"type": "service"}, services)
 
-        summary = {
-            "version": version,
-            "commitId": commit,
-            "token": token,
-            "start_time": strftime("%Y-%m-%d %H:%M:%S", localtime()),
-            "os_version": platform.platform()
-        }
+            summary = {
+                "version": version,
+                "commitId": commit,
+                "token": token,
+                "start_time": strftime("%Y-%m-%d %H:%M:%S", localtime()),
+                "os_version": platform.platform()
+            }
 
-        if ip and ip is not None:
-            summary["ip"] = ip
-            utils.summary_sender_info("collector.ip", {"value": ip})
+            if ip and ip is not None:
+                summary["ip"] = ip
+                utils.summary_sender_info("collector.ip", {"value": ip})
 
-        utils.summary_sender_info("collector.os", {"value": platform.platform()})
-        utils.summary_sender("collector.summary", {}, {"type": "service"}, [summary])
+            utils.summary_sender_info("collector.os", {"value": platform.platform()})
+            utils.summary_sender("collector.summary", {}, {"type": "service"}, [summary])
+        except Exception as e:
+            self.log_error("can't send summary data when init.  %s" % e)
 
     def __call__(self):
         self.running_time = self.running_time + int(self.interval)
