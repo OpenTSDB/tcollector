@@ -59,7 +59,7 @@ class TopN(CollectorBase):
     def process(self, line, metric):
 	if not ("COMMAND" in line and "PID" in line):
             tokens = line.split()
-            cmd = tokens[0]
+            cmd = utils.remove_invalid_characters(tokens[0])
 	    pid = tokens[1]
             #print cmd, pid, tokens[2] 
             value = float(tokens[2]) # cpu or mem
