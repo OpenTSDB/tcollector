@@ -336,7 +336,6 @@ mkdir -p ${agent_install_folder}/.gnupg
 abort_if_failed "failed to create ${agent_install_folder}/.gnupg"
 yes | cp -f ${basedir}/gnupg/pubring.gpg ${agent_install_folder}/.gnupg
 yes | cp -f ${basedir}/gnupg/trustdb.gpg ${agent_install_folder}/.gnupg
-yes | cp -f ${basedir}/gnupg/server-certs.pem ${agent_install_folder}/.gnupg
 abort_if_failed "failed to copy gpg files"
 log_info "finish setting up uagent"
 

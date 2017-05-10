@@ -1,6 +1,6 @@
 To build:
 
-$ sudo ./build.sh ..
+$ sudo ./build.sh -h ..
 
 To deploy:
 

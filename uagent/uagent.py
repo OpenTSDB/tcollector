@@ -319,10 +319,10 @@ class UAgent:
             return ExitCode.ERR_BAD_SERVER_URL
 
         # Download the header first, to make sure the size is reasonable
-        certs = os.path.join(gnupg_home, "server-certs.pem")
-        if not os.path.isfile(certs):
-            self._logger.log_error("%s is not a file.", certs)
-            return ExitCode.ERR_DOWNLOAD_FAILED
+        #certs = os.path.join(gnupg_home, "server-certs.pem")
+        #if not os.path.isfile(certs):
+        #    self._logger.log_error("%s is not a file.", certs)
+        #    return ExitCode.ERR_DOWNLOAD_FAILED
         components = url.split('/')
         filename = components[len(components) - 1]
         filename = os.path.join(download_path, filename)
@@ -333,7 +333,8 @@ class UAgent:
                 os.makedirs(download_path)
 
             # get header to check the size of the file
-            response = requests.head(url, verify=certs, stream=True, allow_redirects=True)
+            #response = requests.head(url, verify=certs, stream=True, allow_redirects=True)
+            response = requests.head(url, stream=True, allow_redirects=False)
             if response.status_code != 200:
                 self._logger.log_error("requests.head: url=%s, status=%d", url, response.status_code)
                 return ExitCode.ERR_DOWNLOAD_FAILED
@@ -341,7 +342,8 @@ class UAgent:
                 return ExitCode.ERR_PACKAGE_FILE_TOO_BIG
 
             # now download the file itself
-            response = requests.get(url, verify=certs, stream=True, allow_redirects=True)
+            #response = requests.get(url, verify=certs, stream=True, allow_redirects=True)
+            response = requests.get(url, stream=True, allow_redirects=False)
             if response.status_code != 200:
                 self._logger.log_error("requests.get: url=%s, status=%d", url, response.status_code)
                 return ExitCode.ERR_DOWNLOAD_FAILED
