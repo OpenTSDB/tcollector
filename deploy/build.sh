@@ -318,7 +318,7 @@ log_info 'finish setting up agent/tcollector'
 log_info "set up uagent"
 yes | cp -f -r "${collector_source_path}/uagent" "${agent_install_folder}/"
 abort_if_failed "failed to copy ${basedir}/uagent to ${agent_install_folder}/"
-sed -i "/^server_base *= */c\server_base = https://github.com/wangy1931/tcollector/tree/uagent-deploy/deploy/releases" "${agent_install_folder}/uagent/uagent.conf"
+#sed -i "/^server_base *= */c\server_base = https://github.com/wangy1931/tcollector/tree/uagent-deploy/deploy/releases" "${agent_install_folder}/uagent/uagent.conf"
 sed -i "/^install_root *= */c\install_root = ${agent_install_folder}" "${agent_install_folder}/uagent/uagent.conf"
 sed -i "/^platform *= */c\platform = ${os_type}" "${agent_install_folder}/uagent/uagent.conf"
 abort_if_failed "failed to config uagent.conf"

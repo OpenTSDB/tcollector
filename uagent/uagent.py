@@ -544,21 +544,21 @@ class NullableLogger:
 
     def log_info(self, msg, *args, **kwargs):
         if self._logger_writter:
-            self._logger_writter.info(msg, *args, **kwargs)
+            self._logger_writter.info(msg+"\n", *args, **kwargs)
         else:
-            sys.stdout.write("INFO: " + msg % args)
+            sys.stdout.write(("INFO: " + msg + "\n") % args)
 
     def log_error(self, msg, *args, **kwargs):
         if self._logger_writter:
-            self._logger_writter.error(msg, *args, **kwargs)
+            self._logger_writter.error(msg+"\n", *args, **kwargs)
         else:
-            sys.stderr.write("ERROR: " + msg % args)
+            sys.stderr.write(("ERROR: " + msg + "\n") % args)
 
     def log_exception(self, msg, *args, **kwargs):
         if self._logger_writter:
-            self._logger_writter.exception(msg, *args, **kwargs)
+            self._logger_writter.exception(msg+"\n", *args, **kwargs)
         else:
-            sys.stderr.write("ERROR: " + msg % args)
+            sys.stderr.write(("ERROR: " + msg + "\n") % args)
 
 if __name__ == "__main__":
     uagent = UAgent(None)
