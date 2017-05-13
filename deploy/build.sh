@@ -159,7 +159,7 @@ if [[ ! "$skip" = true ]]; then
   log_info 'set up meld3 ...'
   if [[ ! -f ${workspace_folder}/meld3-0.6.5.tar.gz ]]; then
     log_info 'download meld3-0.6.5 tarball'
-    wget --directory-prefix="${workspace_folder}" http://www.plope.com/software/meld3/meld3-0.6.5.tar.gz
+    wget --directory-prefix="${workspace_folder}" https://download.cloudwiz.cn/package/meld3-0.6.5.tar.gz
     abort_if_failed 'failed to download meld3-0.6.5 tarball' 
   fi
   tar -xzf "${workspace_folder}"/meld3-0.6.5.tar.gz -C "${workspace_folder}"
