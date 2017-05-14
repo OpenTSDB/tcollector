@@ -12,11 +12,11 @@
 # of the GNU Lesser General Public License along with this program.  If not,
 # see <http://www.gnu.org/licenses/>.
 
-import httplib
 import time
 import sys
 try:
     import json
+    import requests
 except ImportError:
     json = None
 try:
@@ -38,20 +38,16 @@ class HadoopHttp(object):
         self.port = port
         self.host = host
         self.uri = uri
-        self.server = httplib.HTTPConnection(self.host, self.port)
-        self.server.auto_open = True
+        self.http_prefix = 'http://%s:%s' % (self.host, self.port)
         self._readq = readq
         self.logger = logger
 
     def request(self):
         try:
-            self.server.request('GET', self.uri)
-            resp = self.server.getresponse().read()
+            resp = requests.get('%s%s' % (self.http_prefix, self.uri)).content
         except:
             resp = '{}'
-            self.logger.warn('hadoop_http request failed: %s', sys.exc_info()[0])
-        finally:
-            self.server.close()
+            self.logger.warn('hadoop_http request failed: %s from %s', sys.exc_info()[0], '%s%s' % (self.http_prefix, self.uri))
         return json.loads(resp)
 
     def poll(self):
