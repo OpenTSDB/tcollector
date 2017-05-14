@@ -302,6 +302,8 @@ sed -i "/^run_folder=/c\run_folder=${agent_install_folder}/altenv/var/run" ${age
 if [[ "$ssl" = true ]]; then
   log_info "enable collector be true"
   sed -i "/^ssl_enable=/c\ssl_enable=--ssl" ${agent_collector_folder}/run
+  log_info "ensure port to 443"
+  sed -i "/^ssl_port=/c\ssl_port=443" ${agent_collector_folder}/run
 fi
 cp ${collector_source_path}/collectors/__init__.py ${agent_collector_folder}/collectors/__init__.py
 abort_if_failed 'failed to copy collectors/__init__.py'
