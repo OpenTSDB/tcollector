@@ -88,18 +88,13 @@ class Dockerd(CollectorBase):
             pass
         elif isinstance(stats, dict):
             for key, value in stats.items():
-                if isinstance(value, (int, float, long)):
-                    self.print_metric(metric_prefix, ts, value, tags)
-                elif isinstance(stats, dict):
-                    metric_prefix += "." + key
-                    self.process_stat(metric_prefix, ts, value, tags)
-                elif isinstance(stats, list):
-                    metric_prefix += "." + key
-                    for v in value:
-                        self.process_stat(metric_prefix, ts, v, tags)
+                metric = metric_prefix + "." + key
+                self.process_stat(metric, ts, value, tags)
         elif isinstance(stats, list):
-            for s in stats:
-                self.process_stat(metric_prefix, ts, s, tags)
+            for stat in stats:
+                self.process_stat(metric_prefix, ts, stat, tags)
+        elif isinstance(stats, (int, float, long)):
+            self.print_metric(metric_prefix, ts, stats, tags)
 
     def print_metric(self, metric, ts, value, tags=""):
         if value is not None:
