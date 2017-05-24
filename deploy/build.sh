@@ -278,6 +278,21 @@ if [[ ! "$skip" = true ]]; then
     log_info "download net-snmp-utils-5.5-57.el6_8.1.x86_64.rpm"
     wget -O ${workspace_folder}/net-snmp-utils-5.5-57.el6_8.1.x86_64.rpm ftp://195.220.108.108/linux/centos/6.8/updates/x86_64/Packages/net-snmp-utils-5.5-57.el6_8.1.x86_64.rpm
   fi
+
+  log_info 'set up docker SDK...'
+  if [[ ! -f ${workspace_folder}/docker-2.3.0.tar.gz ]]; then
+    log_info 'download docker-2.3.0 tarball'
+    wget --directory-prefix="${workspace_folder}" https://download.cloudwiz.cn/package/docker-2.3.0.tar.gz
+    abort_if_failed 'failed to download docker-2.3.0 tarball'
+  fi
+  tar -xzf "${workspace_folder}"/docker-2.3.0.tar.gz -C "${workspace_folder}"
+  abort_if_failed 'failed to extract docker-2.3.0 tarball'
+
+  pushd "${workspace_folder}"/docker-2.3.0
+  "${altenv_bin_folder}"/python setup.py install --prefix="${altenv_folder}"
+  abort_if_failed 'failed to install docker-2.3.0'
+  popd
+  log_info 'finish setting up docker-2.3.0'
 fi
 
 log_info "setup agent/runner ${collector_source_path} => ${agent_collector_folder}"
