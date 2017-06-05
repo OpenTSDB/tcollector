@@ -71,7 +71,8 @@ def get_defaults():
         'ssl': False,
         'stdin': False,
         'daemonize': False,
-        'hosts': False
+        'hosts': False,
+        'elk': False
     }
 
     return defaults

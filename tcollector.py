@@ -935,7 +935,7 @@ def parse_cmdline(argv):
     parser.add_option('--ssl', dest='ssl', action='store_true', default=defaults['ssl'],
                       help='Enable SSL - used in conjunction with http')
     parser.add_option('--elk', dest='elk', action='store_true', default=defaults['elk'],
-                      help='Enable ELK shipping')
+                      help='Enable shipping metrics to Logstash')
     (options, args) = parser.parse_args(args=argv[1:])
     if options.dedupinterval < 0:
         parser.error('--dedup-interval must be at least 0 seconds')
