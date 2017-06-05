@@ -557,7 +557,7 @@ class SenderThread(threading.Thread):
 
         # we use the version command as it is very low effort for the TSD
         # to respond
-        if !self.elk:
+        if not self.elk:
             LOG.debug('verifying our TSD connection is alive')
             try:
                 self.tsd.sendall('version\n')
@@ -571,7 +571,7 @@ class SenderThread(threading.Thread):
             # try to read as much data as we can.  at some point this is going
             # to block, but we have set the timeout low when we made the
             # connection
-            if !self.elk:
+            if not self.elk:
                 try:
                     buf = self.tsd.recv(bufsize)
                 except socket.error, msg:
