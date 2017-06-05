@@ -417,7 +417,7 @@ class SenderThread(threading.Thread):
 
     def __init__(self, reader, dryrun, hosts, self_report_stats, tags,
                  reconnectinterval=0, http=False, http_username=None,
-                 http_password=None, ssl=False, maxtags=8):
+                 http_password=None, ssl=False, maxtags=8, elk=False):
         """Constructor.
 
         Args:
@@ -435,6 +435,7 @@ class SenderThread(threading.Thread):
         super(SenderThread, self).__init__()
 
         self.dryrun = dryrun
+        self.elk = elk
         self.reader = reader
         self.tags = sorted(tags.items()) # dictionary transformed to list
         self.http = http
@@ -556,37 +557,39 @@ class SenderThread(threading.Thread):
 
         # we use the version command as it is very low effort for the TSD
         # to respond
-        LOG.debug('verifying our TSD connection is alive')
-        try:
-            self.tsd.sendall('version\n')
-        except socket.error, msg:
-            self.tsd = None
-            self.blacklist_connection()
-            return False
+        if !self.elk:
+            LOG.debug('verifying our TSD connection is alive')
+            try:
+                self.tsd.sendall('version\n')
+            except socket.error, msg:
+                self.tsd = None
+                self.blacklist_connection()
+                return False
 
         bufsize = 4096
         while ALIVE:
             # try to read as much data as we can.  at some point this is going
             # to block, but we have set the timeout low when we made the
             # connection
-            try:
-                buf = self.tsd.recv(bufsize)
-            except socket.error, msg:
-                self.tsd = None
-                self.blacklist_connection()
-                return False
+            if !self.elk:
+                try:
+                    buf = self.tsd.recv(bufsize)
+                except socket.error, msg:
+                    self.tsd = None
+                    self.blacklist_connection()
+                    return False
 
-            # If we don't get a response to the `version' request, the TSD
-            # must be dead or overloaded.
-            if not buf:
-                self.tsd = None
-                self.blacklist_connection()
-                return False
+                # If we don't get a response to the `version' request, the TSD
+                # must be dead or overloaded.
+                if not buf:
+                    self.tsd = None
+                    self.blacklist_connection()
+                    return False
 
-            # Woah, the TSD has a lot of things to tell us...  Let's make
-            # sure we read everything it sent us by looping once more.
-            if len(buf) == bufsize:
-                continue
+                # Woah, the TSD has a lot of things to tell us...  Let's make
+                # sure we read everything it sent us by looping once more.
+                if len(buf) == bufsize:
+                    continue
 
             # If everything is good, send out our meta stats.  This
             # helps to see what is going on with the tcollector.
@@ -840,7 +843,8 @@ def parse_cmdline(argv):
             'ssl': False,
             'stdin': False,
             'daemonize': False,
-            'hosts': False
+            'hosts': False,
+            'elk': False
         }
     except:
         sys.stderr.write("Unexpected error: %s" % sys.exc_info()[0])
@@ -930,6 +934,8 @@ def parse_cmdline(argv):
                       help='Password to use for HTTP Basic Auth when sending the data via HTTP')
     parser.add_option('--ssl', dest='ssl', action='store_true', default=defaults['ssl'],
                       help='Enable SSL - used in conjunction with http')
+    parser.add_option('--elk', dest='elk', action='store_true', default=defaults['elk'],
+                      help='Enable ELK shipping')
     (options, args) = parser.parse_args(args=argv[1:])
     if options.dedupinterval < 0:
         parser.error('--dedup-interval must be at least 0 seconds')
@@ -1057,7 +1063,7 @@ def main(argv):
     sender = SenderThread(reader, options.dryrun, options.hosts,
                           not options.no_tcollector_stats, tags, options.reconnectinterval,
                           options.http, options.http_username,
-                          options.http_password, options.ssl, options.maxtags)
+                          options.http_password, options.ssl, options.maxtags, options.elk)
     sender.start()
     LOG.info('SenderThread startup complete')
 
@@ -1347,7 +1353,7 @@ def spawn_collector(col):
     # other logic and it makes no sense to update the last spawn time if the
     # collector didn't actually start.
     col.lastspawn = int(time.time())
-    # Without setting last_datapoint here, a long running check (>15s) will be 
+    # Without setting last_datapoint here, a long running check (>15s) will be
     # killed by check_children() the first time check_children is called.
     col.last_datapoint = col.lastspawn
     set_nonblocking(col.proc.stdout.fileno())
