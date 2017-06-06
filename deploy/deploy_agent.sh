@@ -129,12 +129,12 @@ useradd -d "${agent_install_folder}" -p "$agent_pass" "$agent_user"
 abort_if_failed "failed to create user $agent_user"
 
 log_info "downloading agent tarball ${download_source}/${OS}/agent.tar.gz ${working_folder} and extract it"
-curl -Lo ${working_folder}/agent.tar.gz "${download_source}/${OS}/agent.tar.gz"
+curl -kLo ${working_folder}/agent.tar.gz "${download_source}/${OS}/agent.tar.gz"
 abort_if_failed "failed to download tarball or source tarball isn't exit "
 
 ## should check sum by md5
 log_info "downloading agent md5 hash file"
-curl -Lo ${working_folder}/agent.tar.gz.md5 "${download_source}/${OS}/agent.tar.gz.md5"
+curl -kLo ${working_folder}/agent.tar.gz.md5 "${download_source}/${OS}/agent.tar.gz.md5"
 abort_if_failed "failed to download md5 file or source file isn't exit"
 
 MD5=$(_md5 "${working_folder}/agent.tar.gz")
