@@ -12,7 +12,8 @@ filebeat:
       input_type: log
       document_type: collector
       fields:
-        token: <token>
+        token: "571145dfa339dc049c7467475cf82b1b115bca00"
+        org: "<org>"
       fields_under_root: true
       close_older: 2h
       multiline:
