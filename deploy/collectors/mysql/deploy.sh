@@ -88,8 +88,8 @@ if ! $("$agent_install_folder/altenv/bin/python" -c 'import MySQLdb' &> /dev/nul
     pushd "$agent_install_folder"
     mkdir -p workspace
     if [ -z "$libpath" ]; then
-        wget --directory-prefix=./workspace/ https://pypi.python.org/packages/a5/e9/51b544da85a36a68debe7a7091f068d802fc515a3a202652828c73453cad/MySQL-python-1.2.5.zip#md5=654f75b302db6ed8dc5a898c625e030c
-        abort_if_failed 'failed to download https://pypi.python.org/packages/a5/e9/51b544da85a36a68debe7a7091f068d802fc515a3a202652828c73453cad/MySQL-python-1.2.5.zip#md5=654f75b302db6ed8dc5a898c625e030c'
+        wget --directory-prefix=./workspace/ https://download.cloudwiz.cn/package/MySQL-python-1.2.5.zip#md5=654f75b302db6ed8dc5a898c625e030c
+        abort_if_failed 'failed to download https://download.cloudwiz.cn/package/MySQL-python-1.2.5.zip#md5=654f75b302db6ed8dc5a898c625e030c'
     else
         log_info "cp $libpath workspace/MySQL-python-1.2.5.zip"
         cp "$libpath" workspace/MySQL-python-1.2.5.zip
