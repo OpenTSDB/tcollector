@@ -201,7 +201,7 @@ log_info "copy cloudwiz scripts to init.d"
 mv -f "${agent_install_folder}/startup_scripts/${OS}/${agent_startup_scripts}" /etc/init.d/
 abort_if_failed "failed to mv ${agent_install_folder}/startup_scripts/${OS}/${agent_startup_scripts} to /etc/init.d"
 log_info "install the scripts..."
-if [ $OS = "Debian" ]; then
+if [ $OS = "Debian" -o $OS = "Ubuntu" ]; then
   update-rc.d -f ${agent_startup_scripts} remove
   abort_if_failed "failed to unlink the startup scripts"
   update-rc.d ${agent_startup_scripts} defaults
