@@ -144,7 +144,7 @@ if [[ ! "$skip" = true ]]; then
   log_info 'set up setuptools ...'
   if [[ ! -f ${workspace_folder}/setuptools-20.2.2.tar.gz ]]; then
     log_info 'download setuptools-20.2.2 tarball'
-    wget --directory-prefix="${workspace_folder}" https://download.cloudwiz.cn/package//setuptools-20.2.2.tar.gz#md5=bf37191cb4c1472fb61e6f933d2006b1
+    wget --directory-prefix="${workspace_folder}" https://download.cloudwiz.cn/package/setuptools-20.2.2.tar.gz#md5=bf37191cb4c1472fb61e6f933d2006b1
     abort_if_failed 'failed to download setuptools-20.2.2 tarball'
   fi
   tar -xzf "${workspace_folder}"/setuptools-20.2.2.tar.gz -C "${workspace_folder}"
