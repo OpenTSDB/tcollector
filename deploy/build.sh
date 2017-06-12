@@ -95,7 +95,7 @@ if [[ ! "$skip" = true ]]; then
   log_info 'build openssl...'
   if [[ ! -f ${workspace_folder}/openssl-1.0.2j.tar.gz ]]; then
     log_info 'download openssl-1.0.2j package'
-    wget --directory-prefix="${workspace_folder}" https://www.openssl.org/source/openssl-1.0.2j.tar.gz
+    wget --directory-prefix="${workspace_folder}" https://download.cloudwiz.cn/package/openssl-1.0.2j.tar.gz
     abort_if_failed 'failed to download openssl-1.0.2j package'
   fi
   tar -xzf "${workspace_folder}"/openssl-1.0.2j.tar.gz -C "${workspace_folder}"
@@ -114,7 +114,7 @@ if [[ ! "$skip" = true ]]; then
   log_info 'setup python environment'
   if [[ ! -f ${workspace_folder}/Python-2.7.11.tgz ]]; then
     log_info 'download python-2.7.11 package'
-    wget --directory-prefix="${workspace_folder}" https://www.python.org/ftp/python/2.7.11/Python-2.7.11.tgz
+    wget --directory-prefix="${workspace_folder}" https://download.cloudwiz.cn/package/Python-2.7.11.tgz
     abort_if_failed 'failed to download python-2.7.11 package'
   fi
   rm -rf "${workspace_folder}"/Python-2.7.11
@@ -144,8 +144,8 @@ if [[ ! "$skip" = true ]]; then
   log_info 'set up setuptools ...'
   if [[ ! -f ${workspace_folder}/setuptools-20.2.2.tar.gz ]]; then
     log_info 'download setuptools-20.2.2 tarball'
-    wget --directory-prefix="${workspace_folder}" https://pypi.python.org/packages/source/s/setuptools/setuptools-20.2.2.tar.gz#md5=bf37191cb4c1472fb61e6f933d2006b1
-    abort_if_failed 'failed to download setuptools-20.2.2 tarball' 
+    wget --directory-prefix="${workspace_folder}" https://download.cloudwiz.cn/package//setuptools-20.2.2.tar.gz#md5=bf37191cb4c1472fb61e6f933d2006b1
+    abort_if_failed 'failed to download setuptools-20.2.2 tarball'
   fi
   tar -xzf "${workspace_folder}"/setuptools-20.2.2.tar.gz -C "${workspace_folder}"
   abort_if_failed 'failed to extract setuptools tarball'
@@ -160,7 +160,7 @@ if [[ ! "$skip" = true ]]; then
   if [[ ! -f ${workspace_folder}/meld3-0.6.5.tar.gz ]]; then
     log_info 'download meld3-0.6.5 tarball'
     wget --directory-prefix="${workspace_folder}" https://download.cloudwiz.cn/package/meld3-0.6.5.tar.gz
-    abort_if_failed 'failed to download meld3-0.6.5 tarball' 
+    abort_if_failed 'failed to download meld3-0.6.5 tarball'
   fi
   tar -xzf "${workspace_folder}"/meld3-0.6.5.tar.gz -C "${workspace_folder}"
   abort_if_failed 'failed to extract meld3-0.6.5 tarball'
@@ -174,8 +174,8 @@ if [[ ! "$skip" = true ]]; then
   log_info 'set up elementtree ...'
   if [[ ! -f ${workspace_folder}/elementtree-1.2.6-20050316.tar.gz ]]; then
     log_info 'download elementtree-1.2.6-20050316 tarball'
-    wget --directory-prefix="${workspace_folder}" http://effbot.org/media/downloads/elementtree-1.2.6-20050316.tar.gz
-    abort_if_failed 'failed to download elementtree-1.2.6-20050316  tarball' 
+    wget --directory-prefix="${workspace_folder}" https://download.cloudwiz.cn/package/elementtree-1.2.6-20050316.tar.gz
+    abort_if_failed 'failed to download elementtree-1.2.6-20050316  tarball'
   fi
   tar -xzf "${workspace_folder}"/elementtree-1.2.6-20050316.tar.gz -C "${workspace_folder}"
   abort_if_failed 'failed to extract elementtree-1.2.6-20050316.tar.gz tarball'
@@ -189,8 +189,8 @@ if [[ ! "$skip" = true ]]; then
   log_info 'set up supervisord ...'
   if [[ ! -f ${workspace_folder}/supervisor-3.2.2.tar.gz ]]; then
     log_info 'download supervisor-3.2.2 tarball'
-    wget --directory-prefix="${workspace_folder}" https://pypi.python.org/packages/source/s/supervisor/supervisor-3.2.2.tar.gz#md5=bf1c8877f2ace04d62665a7c6e351219
-    abort_if_failed 'failed to download supervisor-3.2.2 tarball' 
+    wget --directory-prefix="${workspace_folder}" https://download.cloudwiz.cn/package/supervisor-3.2.2.tar.gz#md5=bf1c8877f2ace04d62665a7c6e351219
+    abort_if_failed 'failed to download supervisor-3.2.2 tarball'
   fi
   tar -xzf "${workspace_folder}"/supervisor-3.2.2.tar.gz -C "${workspace_folder}"
   abort_if_failed 'failed to extract supervisor-3.2.2 tarball'
@@ -209,7 +209,7 @@ if [[ ! "$skip" = true ]]; then
   log_info 'set up psutil ...'
   if [[ ! -f ${workspace_folder}/psutil-2.1.3.tar.gz ]]; then
     log_info 'download psutil-2.1.3 tarball'
-    wget --directory-prefix="${workspace_folder}" https://pypi.python.org/packages/source/p/psutil/psutil-2.1.3.tar.gz
+    wget --directory-prefix="${workspace_folder}" https://download.cloudwiz.cn/package/psutil-2.1.3.tar.gz
   fi
   tar -xzf "${workspace_folder}"/psutil-2.1.3.tar.gz -C "${workspace_folder}"
   abort_if_failed 'failed to extact psutil'
@@ -222,7 +222,7 @@ if [[ ! "$skip" = true ]]; then
   log_info 'set up python-gnupg ...'
   if [[ ! -f ${workspace_folder}/python-gnupg-0.3.8.tar.gz ]]; then
     log_info 'download python-gnupg-0.3.8 tarball'
-    wget --directory-prefix="${workspace_folder}" https://pypi.python.org/packages/source/p/python-gnupg/python-gnupg-0.3.8.tar.gz
+    wget --directory-prefix="${workspace_folder}" https://download.cloudwiz.cn/package/python-gnupg-0.3.8.tar.gz
   fi
   tar -xzf "${workspace_folder}"/python-gnupg-0.3.8.tar.gz -C "${workspace_folder}"
   abort_if_failed 'failed to extact gnupg'
@@ -235,7 +235,7 @@ if [[ ! "$skip" = true ]]; then
   log_info 'set up requests ...'
   if [[ ! -f ${workspace_folder}/python-requests.tar.gz ]]; then
     log_info 'download python-requests tarball'
-    wget -O "${workspace_folder}/python-requests.tar.gz" https://github.com/kennethreitz/requests/tarball/master
+    wget -O "${workspace_folder}/python-requests.tar.gz" https://download.cloudwiz.cn/package/master
   fi
   mkdir -p ${workspace_folder}/python-requests
   tar -xzf "${workspace_folder}"/python-requests.tar.gz -C "${workspace_folder}/python-requests" --strip-components=1
@@ -261,22 +261,22 @@ if [[ ! "$skip" = true ]]; then
   log_info 'set up jolokia'
   if [[ ! -f ${workspace_folder}/jolokia-jvm-1.3.5-agent.jar ]]; then
     log_info "download jolokia-jvm-1.3.5-agent.jar"
-    wget -O ${workspace_folder}/jolokia-jvm-1.3.5-agent.jar https://repo1.maven.org/maven2/org/jolokia/jolokia-jvm/1.3.5/jolokia-jvm-1.3.5-agent.jar
+    wget -O ${workspace_folder}/jolokia-jvm-1.3.5-agent.jar https://download.cloudwiz.cn/package/jolokia-jvm-1.3.5-agent.jar
   fi
 
   # snmp
   log_info 'set up snmp'
   if [[ ! -f ${workspace_folder}/net-snmp-5.5-57.el6_8.1.x86_64.rpm ]]; then
     log_info "download net-snmp-5.5-57.el6_8.1.x86_64.rpm"
-    wget -O ${workspace_folder}/net-snmp-5.5-57.el6_8.1.x86_64.rpm ftp://195.220.108.108/linux/centos/6.8/updates/x86_64/Packages/net-snmp-5.5-57.el6_8.1.x86_64.rpm
+    wget -O ${workspace_folder}/net-snmp-5.5-57.el6_8.1.x86_64.rpm  https://download.cloudwiz.cn/package/net-snmp-5.5-57.el6_8.1.x86_64.rpm
   fi
   if [[ ! -f ${workspace_folder}/net-snmp-libs-5.5-57.el6_8.1.x86_64.rpm ]]; then
     log_info "download net-snmp-libs-5.5-57.el6_8.1.x86_64.rpm"
-    wget -O ${workspace_folder}/net-snmp-libs-5.5-57.el6_8.1.x86_64.rpm ftp://195.220.108.108/linux/centos/6.8/updates/x86_64/Packages/net-snmp-libs-5.5-57.el6_8.1.x86_64.rpm
+    wget -O ${workspace_folder}/net-snmp-libs-5.5-57.el6_8.1.x86_64.rpm https://download.cloudwiz.cn/package/net-snmp-libs-5.5-57.el6_8.1.x86_64.rpm
   fi
   if [[ ! -f ${workspace_folder}/net-snmp-utils-5.5-57.el6_8.1.x86_64.rpm ]]; then
     log_info "download net-snmp-utils-5.5-57.el6_8.1.x86_64.rpm"
-    wget -O ${workspace_folder}/net-snmp-utils-5.5-57.el6_8.1.x86_64.rpm ftp://195.220.108.108/linux/centos/6.8/updates/x86_64/Packages/net-snmp-utils-5.5-57.el6_8.1.x86_64.rpm
+    wget -O ${workspace_folder}/net-snmp-utils-5.5-57.el6_8.1.x86_64.rpm https://download.cloudwiz.cn/package/net-snmp-utils-5.5-57.el6_8.1.x86_64.rpm
   fi
 
   log_info 'set up docker SDK...'
@@ -362,7 +362,7 @@ abort_if_failed "failed to cp ${collector_source_path}/common_utils.py ${agent_i
 log_info "finish copying common_utils.py"
 
 log_info "copy cloudwiz-agent startup scripts ${basedir}/startup_scripts/"
-yes | cp -f -r "${basedir}/startup_scripts" "${agent_install_folder}/" 
+yes | cp -f -r "${basedir}/startup_scripts" "${agent_install_folder}/"
 abort_if_failed 'failed to copy startup scripts'
 
 log_info "set up filebeat"
