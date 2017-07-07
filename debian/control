@@ -3,7 +3,7 @@ Priority: optional
 Maintainer: Fabian Holler <fabian.holler@profitbricks.com>
 Standards-Version: 3.9.4
 Section: utils
-Build-Depends: debhelper ( >= 8 ), python-support
+Build-Depends: debhelper ( >= 8 ), dh-python
 vcs-Browser: https://github.com/OpenTSDB/tcollector
 Homepage: http://opentsdb.net/
 
