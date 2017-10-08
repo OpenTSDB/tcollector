@@ -29,11 +29,14 @@ nfs_client_proc_names = {
         "lock", "lockt", "locku", "access", "getattr", "lookup", "lookup_root",
         "remove", "rename", "link", "symlink", "create", "pathconf", "statfs",
         "readlink", "readdir", "server_caps", "delegreturn", "getacl", "setacl",
-        "fs_locations", "rel_lkowner", "secinfo",
+        "fs_locations", "rel_lkowner", "secinfo", "fsid_present",
         # nfsv4.1 client ops
         "exchange_id", "create_ses", "destroy_ses", "sequence", "get_lease_t",
         "reclaim_comp", "layoutget", "getdevinfo", "layoutcommit", "layoutreturn",
-        "getdevlist", "getdevinfo", "ds_write", "ds_commit"
+        "secinfo_no", "test_stateid", "free_stateid",
+        "getdevicelist", "bind_conn_to_ses", "destroy_clientid",
+        # nfsv4.2 clientops
+        "seek", "allocate", "deallocate", "layoutstats", "clone"
     ),
     "proc3": (
         "null", "getattr", "setattr", "lookup", "access", "readlink",
