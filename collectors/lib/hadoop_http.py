@@ -28,6 +28,20 @@ EXCLUDED_KEYS = (
     "name"
 )
 
+def recurse(key,value):
+    if type(value) == dict:
+        for k,v in value.iteritems():
+            newkey = '_'.join([key,k])
+            for j in recurse(newkey,v):
+                yield j
+    elif type(value) == list:
+        for i,x in enumerate(value):
+            newi = '_'.join([key,str(i)])
+            for j in recurse(newi,x):
+                yield j
+    else:
+        yield (key,value)
+
 class HadoopHttp(object):
     def __init__(self, service, daemon, host, port, uri="/jmx"):
         self.service = service
@@ -69,11 +83,14 @@ class HadoopHttp(object):
             context = [c for c in context if c != self.service and c != self.daemon]
 
             for key, value in bean.iteritems():
-                if key in EXCLUDED_KEYS:
-                    continue
-                if not is_numeric(value):
-                    continue
-                kept.append((context, key, value))
+               for m, n in recurse(key, value):
+                    if m in EXCLUDED_KEYS:
+                        continue
+                    if m in LIST_KEYS:
+                        value = len(n)
+                    if not is_numeric(n):
+                        continue
+                    kept.append((context, m, n))
         return kept
 
     def emit_metric(self, context, current_time, metric_name, value, tag_dict=None):
