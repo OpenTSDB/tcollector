@@ -25,8 +25,10 @@ except ImportError:
 from collectors.lib.utils import is_numeric
 
 try:
+    # noinspection PyCompatibility
     from http.client import HTTPConnection
 except ImportError:
+    # noinspection PyUnresolvedReferences,PyCompatibility
     from httplib import HTTPConnection
 
 
@@ -34,6 +36,20 @@ EXCLUDED_KEYS = (
     "Name",
     "name"
 )
+
+def recurse(key,value):
+    if type(value) == dict:
+        for k,v in value.items():
+            newkey = '_'.join([key,k])
+            for j in recurse(newkey,v):
+                yield j
+    elif type(value) == list:
+        for i,x in enumerate(value):
+            newi = '_'.join([key,str(i)])
+            for j in recurse(newi,x):
+                yield j
+    else:
+        yield (key,value)
 
 class HadoopHttp(object):
     def __init__(self, service, daemon, host, port, uri="/jmx"):
@@ -76,18 +92,19 @@ class HadoopHttp(object):
             context = [c for c in context if c != self.service and c != self.daemon]
 
             for key, value in bean.items():
-                if key in EXCLUDED_KEYS:
-                    continue
-                if not is_numeric(value):
-                    continue
-                kept.append((context, key, value))
+               for m, n in recurse(key, value):
+                    if m in EXCLUDED_KEYS:
+                        continue
+                    if not is_numeric(n):
+                        continue
+                    kept.append((context, m, n))
         return kept
 
     def emit_metric(self, context, current_time, metric_name, value, tag_dict=None):
         if not tag_dict:
             print("%s.%s.%s.%s %d %d" % (self.service, self.daemon, ".".join(context), metric_name, current_time, float(value)))
         else:
-            tag_string = " ".join([k + "=" + v for k, v in tag_dict.iteritems()])
+            tag_string = " ".join([k + "=" + v for k, v in tag_dict.items()])
             print ("%s.%s.%s.%s %d %d %s" % \
                   (self.service, self.daemon, ".".join(context), metric_name, current_time, float(value), tag_string))
         # flush to protect against subclassed collectors that output few metrics not having enough output to trigger
