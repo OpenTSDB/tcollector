@@ -247,7 +247,8 @@ class TcollectorAgent(eossdk.AgentHandler,
       modules = tcollector.load_etc_dir(options, self.tags_)
 
       reader = tcollector.ReaderThread(options.dedupinterval,
-                                       options.evictinterval)
+                                       options.evictinterval,
+                                       options.deduponlyzero)
       self.reader_thread_ = reader
       reader.start()
       debug("ReaderThread startup complete")
