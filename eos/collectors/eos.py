@@ -13,183 +13,93 @@
 
 
 try:
-   import eossdk
+   import jsonrpclib
 except ImportError:
-   eossdk = None
+   jsonrpclib = None
 
+import os
 import sys
 import time
 
 
-class IntfCounterCollector(eossdk.AgentHandler,
-                           eossdk.TimeoutHandler):
+class IntfCounterCollector(object):
 
-   intf_types = frozenset([eossdk.INTF_TYPE_ETH,
-                           eossdk.INTF_TYPE_MANAGEMENT,
-                           eossdk.INTF_TYPE_LAG])
+   def __init__(self, server):
+      self.server_ = server
 
-   def __init__(self, agent_mgr, timeout_mgr, intf_mgr,
-                intf_counter_mgr, eth_phy_intf_counter_mgr):
-      self.intf_mgr_ = intf_mgr
-      self.intf_counter_mgr_ = intf_counter_mgr
-      self.eth_phy_intf_counter_mgr_ = eth_phy_intf_counter_mgr
-      self.interval_ = 30
-      eossdk.AgentHandler.__init__(self, agent_mgr)
-      eossdk.TimeoutHandler.__init__(self, timeout_mgr)
-
-   def on_initialized(self):
-      # Schedule ourselves to run immediately
-      self.timeout_time_is(eossdk.now())
-
-   def on_timeout(self):
-      for intf_id in self.intf_mgr_.intf_iter():
-         if intf_id.intf_type() in self.intf_types:
-            self.printIntfCounters(intf_id)
-      sys.stdout.flush()
-      self.timeout_time_is(eossdk.now() + self.interval_)
-
-   def printIntfCounters(self, intf_id):
+   def printIntfCounters(self):
       ts = int(time.time())
 
-      self.intf_counter_mgr_.counters(intf_id)
-      intf_counters = self.intf_counter_mgr_.counters(intf_id)
-      counters = [
-         ("ucastPkts", {"direction" : "out"},
-          intf_counters.out_ucast_pkts()),
-         ("multicastPkts", {"direction" : "out"},
-          intf_counters.out_multicast_pkts()),
-         ("broadcastPkts", {"direction" : "out"},
-          intf_counters.out_broadcast_pkts()),
-         ("ucastPkts", {"direction" : "in"},
-          intf_counters.in_ucast_pkts()),
-         ("multicastPkts", {"direction" : "in"},
-          intf_counters.in_multicast_pkts()),
-         ("broadcastPkts", {"direction" : "in"},
-          intf_counters.in_broadcast_pkts()),
-         ("octets", {"direction" : "out"},
-          intf_counters.out_octets()),
-         ("octets", {"direction" : "in"},
-          intf_counters.in_octets()),
-         ("discards", {"direction" : "out"},
-          intf_counters.out_discards()),
-         ("errors", {"direction" : "out"},
-          intf_counters.out_errors()),
-         ("discards", {"direction" : "in"},
-          intf_counters.in_discards()),
-         ("errors", {"direction" : "in"},
-          intf_counters.in_errors()),
-         ]
-      for counter, tags, value in counters:
-         self.printIntfCounter(counter, ts, value, intf_id, tags)
+      result = self.server_.runCmds(1, ["show interfaces counters",
+                                        "show interfaces counters errors",
+                                        "show interfaces counters bins"])
+      (counters, error_counters, bin_counters) = result
 
-      if intf_id.intf_type() == eossdk.INTF_TYPE_ETH:
-         eth_intf_counters = self.eth_phy_intf_counter_mgr_.counters(intf_id)
-         eth_counters = [
-            ("singleCollisionFrames", {},
-             eth_intf_counters.single_collision_frames()),
-            ("multipleCollisionFrames", {},
-             eth_intf_counters.multiple_collision_frames()),
-            ("fcsErrors", {},
-             eth_intf_counters.fcs_errors()),
-            ("alignmentErrors", {},
-             eth_intf_counters.alignment_errors()),
-            ("deferredTransmissions", {},
-             eth_intf_counters.deferred_transmissions()),
-            ("lateCollisions", {},
-             eth_intf_counters.late_collisions()),
-            ("excessiveCollisions", {},
-             eth_intf_counters.excessive_collisions()),
-            ("internalMacTransmitErrors", {},
-             eth_intf_counters.internal_mac_transmit_errors()),
-            ("carrierSenseErrors", {},
-             eth_intf_counters.carrier_sense_errors()),
-            ("internalMacReceiveErrors", {},
-             eth_intf_counters.internal_mac_receive_errors()),
-            ("frameTooShorts", {},
-             eth_intf_counters.frame_too_shorts()),
-            ("sqe_testErrors", {},
-             eth_intf_counters.sqe_test_errors()),
-            ("symbolErrors", {},
-             eth_intf_counters.symbol_errors()),
-            ("unknownOpcodes", {"direction" : "in"},
-             eth_intf_counters.in_unknown_opcodes()),
-            ("pauseFrames", {"direction" : "out"},
-             eth_intf_counters.out_pause_frames()),
-            ("pauseFrames", {"direction" : "in"},
-             eth_intf_counters.in_pause_frames()),
-            ("fragments", {},
-             eth_intf_counters.fragments()),
-            ("jabbers", {},
-             eth_intf_counters.jabbers()),
-            ]
-         for counter, tags, value in eth_counters:
-            self.printIntfCounter(counter, ts, value, intf_id, tags)
+      # Print general interface counters
+      counter_definitions = [
+         ("ucastPkts", {"direction" : "out"}, "outUcastPkts"),
+         ("multicastPkts", {"direction" : "out"}, "outMulticastPkts"),
+         ("broadcastPkts", {"direction" : "out"}, "outBroadcastPkts"),
+         ("ucastPkts", {"direction" : "in"}, "inUcastPkts"),
+         ("multicastPkts", {"direction" : "in"}, "inMulticastPkts"),
+         ("broadcastPkts", {"direction" : "in"}, "inBroadcastPkts"),
+         ("octets", {"direction" : "out"}, "outOctets"),
+         ("octets", {"direction" : "in"}, "inOctets"),
+         ("discards", {"direction" : "out"}, "outDiscards"),
+         ("discards", {"direction" : "in"}, "inDiscards"),
+      ]
+      for intf_id, intf_counters in counters["interfaces"].iteritems():
+         for counter_name, tags, eos_counter_name in counter_definitions:
+            self.printIntfCounter(counter_name, ts, intf_counters[eos_counter_name],
+                                  intf_id, tags)
 
-         eth_intf_bin_counters = self.eth_phy_intf_counter_mgr_.bin_counters(intf_id)
-         eth_bin_counters = [
-            ("frameBySize", {"size" : "64", "direction" : "in"},
-             eth_intf_bin_counters.in_64_octet_frames()),
-            ("frameBySize", {"size" : "65To127", "direction" : "in"},
-             eth_intf_bin_counters.in_65_to_127_octet_frames()),
-            ("frameBySize", {"size" : "128To255", "direction" : "in"},
-             eth_intf_bin_counters.in_128_to_255_octet_frames()),
-            ("frameBySize", {"size" : "256To511", "direction" : "in"},
-             eth_intf_bin_counters.in_256_to_511_octet_frames()),
-            ("frameBySize", {"size" : "512To1023", "direction" : "in"},
-             eth_intf_bin_counters.in_512_to_1023_octet_frames()),
-            ("frameBySize", {"size" : "1024To1522", "direction" : "in"},
-             eth_intf_bin_counters.in_1024_to_1522_octet_frames()),
-            ("frameBySize", {"size" : "1523ToMax", "direction" : "in"},
-             eth_intf_bin_counters.in_1523_to_max_octet_frames()),
-            ("frameBySize", {"size" : "64", "direction" : "out"},
-             eth_intf_bin_counters.out_64_octet_frames()),
-            ("frameBySize", {"size" : "65To127", "direction" : "out"},
-             eth_intf_bin_counters.out_65_to_127_octet_frames()),
-            ("frameBySize", {"size" : "128To255", "direction" : "out"},
-             eth_intf_bin_counters.out_128_to_255_octet_frames()),
-            ("frameBySize", {"size" : "256To511", "direction" : "out"},
-             eth_intf_bin_counters.out_256_to_511_octet_frames()),
-            ("frameBySize", {"size" : "512To1023", "direction" : "out"},
-             eth_intf_bin_counters.out_512_to_1023_octet_frames()),
-            ("frameBySize", {"size" : "1024To1522", "direction" : "out"},
-             eth_intf_bin_counters.out_1024_to_1522_octet_frames()),
-            ("frameBySize", {"size" : "1523ToMax", "direction" : "out"},
-             eth_intf_bin_counters.out_1523_to_max_octet_frames()),
-            ]
-         for counter, tags, value in eth_bin_counters:
-            self.printIntfCounter(counter, ts, value, intf_id, tags)
+      # Print interface error counters
+      error_counter_definitions = [
+         ("errors", {"direction" : "out"}, "outErrors"),
+         ("errors", {"direction" : "in"}, "inErrors"),
+         ("frameTooShorts", {}, "frameTooShorts"),
+         ("fcsErrors", {}, "fcsErrors"),
+         ("alignmentErrors", {}, "alignmentErrors"),
+         ("symbolErrors", {}, "symbolErrors"),
+      ]
+      for intf_id, intf_error_counters in error_counters["interfaceErrorCounters"].iteritems():
+         for counter_name, tags, eos_counter_name in error_counter_definitions:
+            self.printIntfCounter(counter_name, ts, intf_error_counters[eos_counter_name],
+                                  intf_id, tags)
+
+      # Print interface bin counters
+      for intf_id, intf_bin_counters in bin_counters["interfaces"].iteritems():
+         for direction in ["in", "out"]:
+            if not intf_bin_counters.get("%sBinsCounters" % direction):
+               continue
+            for binSize in ["64", "65To127", "128To255", "256To511",
+                        "512To1023", "1024To1522", "1523ToMax"]:
+               value = intf_bin_counters["%sBinsCounters" % direction]["frames%sOctet" % binSize]
+               tags = {"size" : binSize, "direction" : direction}
+            self.printIntfCounter("frameBySize", ts, value, intf_id, tags)
+
+      sys.stdout.flush()
 
    def printIntfCounter(self, counter, ts, value, intf_id, tags):
       tag_str = " ".join(["%s=%s" % (tag_name, tag_value) for
                           (tag_name, tag_value) in tags.items()])
       sys.stdout.write("eos.interface.%s %d %d iface=%s %s\n"
-             % (counter, ts, value, intf_id.to_string(), tag_str))
+             % (counter, ts, value, intf_id, tag_str))
 
 
 def main():
-   if eossdk == None:
-      # This collector requires the eossdk module
+   commandApiSocket = "/var/run/command-api.sock"
+   if (jsonrpclib == None) or not os.path.exists(commandApiSocket):
       return 13 # Ask tcollector to not respawn us
 
-   sdk = eossdk.Sdk("tcollector-eos")
+   server = jsonrpclib.Server("unix:%s" % commandApiSocket)
+   interval = 30
 
-   # Create the state managers we're going to poll. For now,
-   # we're just pulling information on interface counters
-   agent_mgr = sdk.get_agent_mgr()
-   intf_mgr = sdk.get_intf_mgr()
-   intf_counter_mgr = sdk.get_intf_counter_mgr()
-   eth_phy_intf_counter_mgr = sdk.get_eth_phy_intf_counter_mgr()
-   timeout_mgr = sdk.get_timeout_mgr()
+   intfCounterCollector = IntfCounterCollector(server)
 
-   # Create a periodic interface counter collector
-   _ = IntfCounterCollector(agent_mgr,
-                            timeout_mgr,
-                            intf_mgr,
-                            intf_counter_mgr,
-                            eth_phy_intf_counter_mgr)
-
-   # Start the main loop
-   sdk.main_loop(sys.argv)
+   while True:
+      intfCounterCollector.printIntfCounters()
+      time.sleep(interval)
 
 
 if __name__ == "__main__":

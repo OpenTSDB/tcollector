@@ -125,12 +125,12 @@ fi
 Summary: Linux Collectors and Arista EOS Collectors
 Group: System/Monitoring
 Requires: tcollector
-Requires: EosSdk >= 1.5.1
-Obsoletes: tcollectorAgent <= 1.0.2
+Requires: EosSdk >= 1.7.1
+Requires: Eos >= 3:4.16.0
 
 %description eos
-The tcollector-eos subpackage provides files that leverage the EOSSDK to
-gather statistics from EOS.  It should be used in conjunction with
+The tcollector-eos subpackage provides files that leverage the EOSSDK and
+eAPI to gather statistics from EOS.  It should be used in conjunction with
 the tcollector package and optionally the tcollector-collectors subpackage. If
 you run make swix, all three packages will be included.
 
