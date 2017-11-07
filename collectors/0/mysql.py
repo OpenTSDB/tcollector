@@ -64,6 +64,8 @@ class DB(object):
     self.master = None
     self.slave_bytes_executed = None
     self.relay_bytes_relayed = None
+    self.is_master = False
+    self.is_slave = False
 
     version = version.split(".")
     try:
@@ -72,12 +74,41 @@ class DB(object):
     except (ValueError, IndexError), e:
       self.major = self.medium = 0
 
+    # initialize db master/slave status, which will be updated in each collect
+    mysql_slave_status = self.query("SHOW SLAVE STATUS")
+    if mysql_slave_status:
+      self.is_slave = True
+
+    mysql_attached_slaves = self.query("SHOW SLAVE HOSTS")
+    if mysql_attached_slaves:
+      self.is_master = True
+
   def __str__(self):
     return "DB(%r, %r, version=%r)" % (self.sockfile, self.dbname,
                                        self.version)
 
   def __repr__(self):
     return self.__str__()
+
+  def isMaster(self):
+    """Returns whether or not the DB has slaves attached to it.
+
+    NOTE: A DB can be both master and slave, in a multi-tiered setup.
+    """
+    return self.is_master
+
+  def setMaster(self, is_master):
+    self.is_master = is_master
+
+  def isSlave(self):
+    """Returns whether or not the DB is configured to replicate from a Master.
+
+    NOTE: A DB can be both master and slave, in a multi-tiered setup.
+    """
+    return self.is_slave
+
+  def setSlave(self, is_slave):
+    self.is_slave = is_slave
 
   def isShowGlobalStatusSafe(self):
     """Returns whether or not SHOW GLOBAL STATUS is safe to run."""
@@ -211,6 +242,8 @@ def collectInnodbStatus(db):
   """Collects and prints InnoDB stats about the given DB instance."""
   ts = now()
   def printmetric(metric, value, tags=""):
+    master_slave_tag = ' is_master=%s is_slave=%s' % (db.is_master, db.is_slave)
+    tags = '%s%s' % (master_slave_tag, tags)
     print "mysql.%s %d %s schema=%s%s" % (metric, ts, value, db.dbname, tags)
 
   innodb_status = db.query("SHOW ENGINE INNODB STATUS")[0][2]
@@ -302,6 +335,8 @@ def collect(db):
 
   ts = now()
   def printmetric(metric, value, tags=""):
+    master_slave_tag = ' is_master=%s is_slave=%s' % (db.is_master, db.is_slave)
+    tags = '%s%s' % (master_slave_tag, tags)
     print "mysql.%s %d %s schema=%s%s" % (metric, ts, value, db.dbname, tags)
 
   has_innodb = False
@@ -340,11 +375,21 @@ def collect(db):
 
   ts = now()
 
+  mysql_attached_slaves = db.query("SHOW SLAVE HOSTS")
+  if mysql_attached_slaves:
+    db.setMaster(True)
+    printmetric("master.attached_slaves", len(mysql_attached_slaves))
+  else:
+    db.setMaster(False)
+
   mysql_slave_status = db.query("SHOW SLAVE STATUS")
   if mysql_slave_status:
+    # update master/slave status of the DB
+    db.setSlave(True)
     slave_status = todict(db, mysql_slave_status[0])
     master_host = slave_status["master_host"]
   else:
+    db.setSlave(False)
     master_host = None
 
   if master_host and master_host != "None":
