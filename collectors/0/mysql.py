@@ -223,6 +223,7 @@ def collectInnodbStatus(db):
   def match(regexp):
     return re.match(regexp, line)
 
+  start_merged_line = False
   for line in innodb_status.split("\n"):
     # SEMAPHORES
     m = match("OS WAIT ARRAY INFO: reservation count (\d+), signal count (\d+)")
@@ -262,18 +263,24 @@ def collectInnodbStatus(db):
     # the following one can appear multiple times.  I've never seen this.
     # If that happens, we need to aggregate the values here instead of
     # printing them directly.
-    m = match("Ibuf: size (\d+), free list len (\d+), seg size (\d+),")
+    m = match("Ibuf: size (\d+), free list len (\d+), seg size (\d+), (\d+) merges")
     if m:
       printmetric("innodb.ibuf.size", m.group(1))
       printmetric("innodb.ibuf.free_list_len", m.group(2))
       printmetric("innodb.ibuf.seg_size", m.group(3))
+      printmetric("innodb.ibuf.merges", m.group(4))
       continue
-    m = match("(\d+) inserts, (\d+) merged recs, (\d+) merges")
+    m = match("merged operations:")
     if m:
-      printmetric("innodb.ibuf.inserts", m.group(1))
-      printmetric("innodb.ibuf.merged_recs", m.group(2))
-      printmetric("innodb.ibuf.merges", m.group(3))
+      start_merged_line = True
       continue
+    if start_merged_line:
+      start_merged_line = False
+      m = match("\s*insert (\d+), delete mark (\d+), delete (\d+)")
+      if m:
+        printmetric("innodb.ibuf.merged_operations",
+                    int(m.group(1)) + int(m.group(2)) + int(m.group(3)))
+        continue
     # ROW OPERATIONS
     m = match("\d+ queries inside InnoDB, (\d+) queries in queue")
     if m:
