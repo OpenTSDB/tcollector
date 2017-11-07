@@ -164,10 +164,24 @@ def todict(db, row):
     d[column] = row[i]
   return d
 
+
+def get_houzz_db_name():
+  """Houzz specific logic to parse out shard name from hostname."""
+  hostname = socket.gethostname()
+  if hostname.startswith('mysql-master-'):
+    # ex.: mysql-master-kv-04681cb62eb0d3660.web-production.houzz.net
+    m = re.match(r'mysql-master-([^-]+)-.+', hostname.split('.')[0])
+    if m:
+      return m.group(1)
+    else:
+      return "main"
+  return "default"
+
+
 def get_dbname(sockfile):
   """Returns the name of the DB based on the path to the socket file."""
   if sockfile in DEFAULT_SOCKFILES:
-    return "default"
+    return get_houzz_db_name()
   m = re.search("/mysql-(.+)/[^.]+\.sock$", sockfile)
   if not m:
     utils.err("error: couldn't guess the name of the DB for " + sockfile)
