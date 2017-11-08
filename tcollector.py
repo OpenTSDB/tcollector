@@ -421,7 +421,8 @@ class SenderThread(threading.Thread):
 
     def __init__(self, reader, dryrun, hosts, self_report_stats, tags,
                  reconnectinterval=0, http=False, http_username=None,
-                 http_password=None, http_api_path=None, ssl=False, maxtags=8):
+                 http_password=None, http_api_path=None, ssl=False, maxtags=8,
+                 namespace=""):
         """Constructor.
 
         Args:
@@ -435,6 +436,7 @@ class SenderThread(threading.Thread):
           http: A boolean that controls whether or not the http endpoint is used.
           ssl: A boolean that controls whether or not the http endpoint uses ssl.
           tags: A dictionary of tags to append for every data point.
+          namespace: A prefix to be added to each metric name.
         """
         super(SenderThread, self).__init__()
 
@@ -460,6 +462,10 @@ class SenderThread(threading.Thread):
         self.sendq = []
         self.self_report_stats = self_report_stats
         self.maxtags = maxtags # The maximum number of tags TSD will accept.
+        self.namespace = namespace
+        # remove all '.' postfix. It will be automatically added when we send.
+        while self.namespace.endswith('.'):
+            self.namespace = self.namespace[:-1]
 
     def pick_connection(self):
         """Picks up a random host/port connection."""
@@ -685,6 +691,11 @@ class SenderThread(threading.Thread):
                 line += ' %s=%s' % (tag, value)
         return line
 
+    def add_metric_namespace(self, line):
+        if self.namespace:
+            return '%s.%s' % (self.namespace, line)
+        return line
+
     def send_data(self):
         """Sends outstanding data in self.sendq to the TSD in one operation."""
         if self.http:
@@ -696,11 +707,12 @@ class SenderThread(threading.Thread):
         # in case of logging we use less efficient variant
         if LOG.level == logging.DEBUG:
             for line in self.sendq:
-                line = "put %s" % self.add_tags_to_line(line)
+                line = "put %s" % self.add_tags_to_line(self.add_metric_namespace(line))
                 out += line + "\n"
                 LOG.debug('SENDING: %s', line)
         else:
-            out = "".join("put %s\n" % self.add_tags_to_line(line) for line in self.sendq)
+            out = "".join("put %s\n" % self.add_tags_to_line(self.add_metric_namespace(line))
+                          for line in self.sendq)
 
         if not out:
             LOG.debug('send_data no data?')
@@ -825,6 +837,7 @@ def parse_cmdline(argv):
         sys.stderr.write("ImportError: Could not load defaults from configuration. Using hardcoded values")
         default_cdir = os.path.join(os.path.dirname(os.path.realpath(sys.argv[0])), 'collectors')
         defaults = {
+            'namespace': "tcollector",
             'verbose': False,
             'no_tcollector_stats': False,
             'evictinterval': 6000,
@@ -859,6 +872,9 @@ def parse_cmdline(argv):
     # get arguments
     parser = OptionParser(description='Manages collectors which gather '
                                        'data and report back.')
+    parser.add_option('--namespace', dest='namespace', metavar='NAMESPACE',
+                        default=defaults['namespace'],
+                        help='A prefix to be added to every metrics sent by tcollector.')
     parser.add_option('-c', '--collector-dir', dest='cdir', metavar='DIR',
                         default=defaults['cdir'],
                         help='Directory where the collectors are located.')
@@ -1072,7 +1088,8 @@ def main(argv):
     sender = SenderThread(reader, options.dryrun, options.hosts,
                           not options.no_tcollector_stats, tags, options.reconnectinterval,
                           options.http, options.http_username,
-                          options.http_password, options.http_api_path, options.ssl, options.maxtags)
+                          options.http_password, options.http_api_path, options.ssl,
+                          options.maxtags, options.namespace)
     sender.start()
     LOG.info('SenderThread startup complete')
 

@@ -48,6 +48,7 @@ def get_defaults():
     default_cdir = os.path.join(os.path.dirname(os.path.realpath(sys.argv[0])), 'collectors')
 
     defaults = {
+        'namespace': 'tcollector',
         'verbose': False,
         'no_tcollector_stats': False,
         'evictinterval': 6000,
