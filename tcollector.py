@@ -181,7 +181,7 @@ class Collector(object):
             if line:
                 self.datalines.append(line)
                 self.last_datapoint = int(time.time())
-            self.buffer = self.buffer[idx+1:]
+            self.buffer = self.buffer[idx + 1:]
 
     def collect(self):
         """Reads input from the collector and returns the lines up to whomever
@@ -254,9 +254,7 @@ class StdinCollector(Collector):
         else:
             ALIVE = False
 
-
     def shutdown(self):
-
         pass
 
 
@@ -331,10 +329,10 @@ class ReaderThread(threading.Thread):
             LOG.warning('%s line too long: %s', col.name, line)
             col.lines_invalid += 1
             return
-        parsed = re.match('^([-_./a-zA-Z0-9]+)\s+' # Metric name.
-                          '(\d+\.?\d+)\s+'               # Timestamp.
-                          '(\S+?)'                 # Value (int or float).
-                          '((?:\s+[-_./a-zA-Z0-9]+=[-_./a-zA-Z0-9]+)*)$', # Tags
+        parsed = re.match('^([-_./a-zA-Z0-9]+)\s+'  # Metric name.
+                          '(\d+\.?\d+)\s+'          # Timestamp.
+                          '(\S+?)'                  # Value (int or float).
+                          '((?:\s+[-_./a-zA-Z0-9]+=[-_./a-zA-Z0-9]+)*)$',  # Tags
                           line)
         if parsed is None:
             LOG.warning('%s sent invalid data: %s', col.name, line)
@@ -383,7 +381,7 @@ class ReaderThread(threading.Thread):
                 # the dedup interval so we can print the value.
                 if ((not self.deduponlyzero or (self.deduponlyzero and float(value) == 0.0)) and
                     col.values[key][0] == value and
-                    (timestamp - col.values[key][3] < self.dedupinterval)):
+                        (timestamp - col.values[key][3] < self.dedupinterval)):
                     col.values[key] = (value, True, line, col.values[key][3])
                     return
 
@@ -392,8 +390,8 @@ class ReaderThread(threading.Thread):
                 # replay the last value we skipped (if changed) so the jumps in
                 # our graph are accurate,
                 if ((col.values[key][1] or
-                    (timestamp - col.values[key][3] >= self.dedupinterval))
-                    and col.values[key][0] != value):
+                    (timestamp - col.values[key][3] >= self.dedupinterval)) and
+                        col.values[key][0] != value):
                     col.lines_sent += 1
                     if not self.readerq.nput(col.values[key][2]):
                         self.lines_dropped += 1
@@ -442,7 +440,7 @@ class SenderThread(threading.Thread):
 
         self.dryrun = dryrun
         self.reader = reader
-        self.tags = sorted(tags.items()) # dictionary transformed to list
+        self.tags = sorted(tags.items())  # dictionary transformed to list
         self.http = http
         self.http_api_path = http_api_path
         self.http_username = http_username
@@ -457,11 +455,11 @@ class SenderThread(threading.Thread):
         self.port = None  # The port of the current TSD.
         self.tsd = None   # The socket connected to the aforementioned TSD.
         self.last_verify = 0
-        self.reconnectinterval = reconnectinterval # in seconds.
+        self.reconnectinterval = reconnectinterval  # in seconds.
         self.time_reconnect = 0  # if reconnectinterval > 0, used to track the time.
         self.sendq = []
         self.self_report_stats = self_report_stats
-        self.maxtags = maxtags # The maximum number of tags TSD will accept.
+        self.maxtags = maxtags  # The maximum number of tags TSD will accept.
         self.namespace = namespace
         # remove all '.' postfix. It will be automatically added when we send.
         while self.namespace.endswith('.'):
@@ -528,7 +526,7 @@ class SenderThread(threading.Thread):
                     self.send_data()
                 errors = 0  # We managed to do a successful iteration.
             except (ArithmeticError, EOFError, EnvironmentError, LookupError,
-                    ValueError), e:
+                    ValueError):
                 errors += 1
                 if errors > MAX_UNCAUGHT_EXCEPTIONS:
                     shutdown()
@@ -556,11 +554,12 @@ class SenderThread(threading.Thread):
             return True
 
         # in case reconnect is activated, check if it's time to reconnect
-        if self.reconnectinterval > 0 and self.time_reconnect < time.time() - self.reconnectinterval:
+        if (self.reconnectinterval > 0 and
+                self.time_reconnect < time.time() - self.reconnectinterval):
             # closing the connection and indicating that we need to reconnect.
             try:
                 self.tsd.close()
-            except socket.error, msg:
+            except socket.error:
                 pass    # not handling that
             self.time_reconnect = time.time()
             return False
@@ -570,7 +569,7 @@ class SenderThread(threading.Thread):
         LOG.debug('verifying our TSD connection is alive')
         try:
             self.tsd.sendall('version\n')
-        except socket.error, msg:
+        except socket.error:
             self.tsd = None
             self.blacklist_connection()
             return False
@@ -582,7 +581,7 @@ class SenderThread(threading.Thread):
             # connection
             try:
                 buf = self.tsd.recv(bufsize)
-            except socket.error, msg:
+            except socket.error:
                 self.tsd = None
                 self.blacklist_connection()
                 return False
@@ -604,19 +603,17 @@ class SenderThread(threading.Thread):
             # TODO need to fix this for http
             if self.self_report_stats:
                 strs = [
-                        ('reader.lines_collected',
-                         '', self.reader.lines_collected),
-                        ('reader.lines_dropped',
-                         '', self.reader.lines_dropped)
-                       ]
+                    ('reader.lines_collected', '', self.reader.lines_collected),
+                    ('reader.lines_dropped', '', self.reader.lines_dropped)
+                ]
 
                 for col in all_living_collectors():
-                    strs.append(('collector.lines_sent', 'collector='
-                                 + col.name, col.lines_sent))
-                    strs.append(('collector.lines_received', 'collector='
-                                 + col.name, col.lines_received))
-                    strs.append(('collector.lines_invalid', 'collector='
-                                 + col.name, col.lines_invalid))
+                    strs.append(('collector.lines_sent',
+                                 'collector=' + col.name, col.lines_sent))
+                    strs.append(('collector.lines_received',
+                                 'collector=' + col.name, col.lines_received))
+                    strs.append(('collector.lines_invalid',
+                                 'collector=' + col.name, col.lines_invalid))
 
                 ts = int(time.time())
                 strout = ["tcollector.%s %d %d %s"
@@ -674,7 +671,7 @@ class SenderThread(threading.Thread):
                     self.tsd.settimeout(15)
                     self.tsd.connect(sockaddr)
                     # if we get here it connected
-                    LOG.debug('Connection to %s was successful'%(str(sockaddr)))
+                    LOG.debug('Connection to %s was successful' % (str(sockaddr)))
                     break
                 except socket.error, msg:
                     LOG.warning('Connection attempt failed to %s:%d: %s',
@@ -743,9 +740,9 @@ class SenderThread(threading.Thread):
             protocol = "https"
         else:
             protocol = "http"
-        details=""
+        details = ""
         if LOG.level == logging.DEBUG:
-            details="?details"
+            details = "?details"
         return "%s://%s:%s/%s%s" % (protocol, self.host, self.port, self.http_api_path, details)
 
     def send_data_via_http(self):
@@ -756,10 +753,10 @@ class SenderThread(threading.Thread):
             parts = line.split(None, 3)
             # not all metrics have metric-specific tags
             if len(parts) == 4:
-              (metric, timestamp, value, raw_tags) = parts
+                (metric, timestamp, value, raw_tags) = parts
             else:
-              (metric, timestamp, value) = parts
-              raw_tags = ""
+                (metric, timestamp, value) = parts
+                raw_tags = ""
             # process the tags
             metric_tags = {}
             for tag in raw_tags.strip().split():
@@ -771,11 +768,14 @@ class SenderThread(threading.Thread):
             metric_entry["value"] = float(value)
             metric_entry["tags"] = dict(self.tags).copy()
             if len(metric_tags) + len(metric_entry["tags"]) > self.maxtags:
-              metric_tags_orig = set(metric_tags)
-              subset_metric_keys = frozenset(metric_tags[:len(metric_tags[:self.maxtags-len(metric_entry["tags"])])])
-              metric_tags = dict((k, v) for k, v in metric_tags.iteritems() if k in subset_metric_keys)
-              LOG.error("Exceeding maximum permitted metric tags - removing %s for metric %s",
-                        str(metric_tags_orig - set(metric_tags)), metric)
+                metric_tags_orig = set(metric_tags)
+                subset_metric_keys = frozenset(
+                    metric_tags[:len(metric_tags[:self.maxtags - len(metric_entry["tags"])])]
+                )
+                metric_tags = dict((k, v) for k, v in metric_tags.iteritems()
+                                   if k in subset_metric_keys)
+                LOG.error("Exceeding maximum permitted metric tags - removing %s for metric %s",
+                          str(metric_tags_orig - set(metric_tags)), metric)
             metric_entry["tags"].update(metric_tags)
             metrics.append(metric_entry)
 
@@ -792,8 +792,8 @@ class SenderThread(threading.Thread):
         LOG.debug("Sending metrics to url", url)
         req = urllib2.Request(url)
         if self.http_username and self.http_password:
-          req.add_header("Authorization", "Basic %s"
-                         % base64.b64encode("%s:%s" % (self.http_username, self.http_password)))
+            req.add_header("Authorization", "Basic %s"
+                           % base64.b64encode("%s:%s" % (self.http_username, self.http_password)))
         req.add_header("Content-Type", "application/json")
         try:
             response = urllib2.urlopen(req, json.dumps(metrics))
@@ -834,7 +834,9 @@ def parse_cmdline(argv):
         from collectors.etc import config
         defaults = config.get_defaults()
     except ImportError:
-        sys.stderr.write("ImportError: Could not load defaults from configuration. Using hardcoded values")
+        sys.stderr.write(
+            "ImportError: Could not load defaults from configuration. Using hardcoded values"
+        )
         default_cdir = os.path.join(os.path.dirname(os.path.realpath(sys.argv[0])), 'collectors')
         defaults = {
             'namespace': "tcollector",
@@ -871,90 +873,93 @@ def parse_cmdline(argv):
 
     # get arguments
     parser = OptionParser(description='Manages collectors which gather '
-                                       'data and report back.')
+                          'data and report back.')
     parser.add_option('--namespace', dest='namespace', metavar='NAMESPACE',
-                        default=defaults['namespace'],
-                        help='A prefix to be added to every metrics sent by tcollector.')
+                      default=defaults['namespace'],
+                      help='A prefix to be added to every metrics sent by tcollector.')
     parser.add_option('-c', '--collector-dir', dest='cdir', metavar='DIR',
-                        default=defaults['cdir'],
-                        help='Directory where the collectors are located.')
+                      default=defaults['cdir'],
+                      help='Directory where the collectors are located.')
     parser.add_option('-d', '--dry-run', dest='dryrun', action='store_true',
-                        default=defaults['dryrun'],
-                        help='Don\'t actually send anything to the TSD, '
-                           'just print the datapoints.')
+                      default=defaults['dryrun'],
+                      help='Don\'t actually send anything to the TSD, '
+                      'just print the datapoints.')
     parser.add_option('-D', '--daemonize', dest='daemonize', action='store_true',
-                        default=defaults['daemonize'],
-                        help='Run as a background daemon.')
+                      default=defaults['daemonize'],
+                      help='Run as a background daemon.')
     parser.add_option('-H', '--host', dest='host',
-                        metavar='HOST',
-                        default=defaults['host'],
-                        help='Hostname to use to connect to the TSD.')
+                      metavar='HOST',
+                      default=defaults['host'],
+                      help='Hostname to use to connect to the TSD.')
     parser.add_option('-L', '--hosts-list', dest='hosts',
-                        metavar='HOSTS',
-                        default=defaults['hosts'],
-                        help='List of host:port to connect to tsd\'s (comma separated).')
+                      metavar='HOSTS',
+                      default=defaults['hosts'],
+                      help='List of host:port to connect to tsd\'s (comma separated).')
     parser.add_option('--no-tcollector-stats', dest='no_tcollector_stats',
-                        action='store_true',
-                        default=defaults['no_tcollector_stats'],
-                        help='Prevent tcollector from reporting its own stats to TSD')
+                      action='store_true',
+                      default=defaults['no_tcollector_stats'],
+                      help='Prevent tcollector from reporting its own stats to TSD')
     parser.add_option('-s', '--stdin', dest='stdin', action='store_true',
-                        default=defaults['stdin'],
-                        help='Run once, read and dedup data points from stdin.')
+                      default=defaults['stdin'],
+                      help='Run once, read and dedup data points from stdin.')
     parser.add_option('-p', '--port', dest='port', type='int',
-                        default=defaults['port'], metavar='PORT',
-                        help='Port to connect to the TSD instance on. '
-                        'default=%default')
+                      default=defaults['port'], metavar='PORT',
+                      help='Port to connect to the TSD instance on. '
+                      'default=%default')
     parser.add_option('-v', dest='verbose', action='store_true',
-                        default=defaults['verbose'],
-                        help='Verbose mode (log debug messages).')
+                      default=defaults['verbose'],
+                      help='Verbose mode (log debug messages).')
     parser.add_option('-t', '--tag', dest='tags', action='append',
-                        default=defaults['tags'], metavar='TAG',
-                        help='Tags to append to all timeseries we send, '
-                            'e.g.: -t TAG=VALUE -t TAG2=VALUE')
+                      default=defaults['tags'], metavar='TAG',
+                      help='Tags to append to all timeseries we send, '
+                           'e.g.: -t TAG=VALUE -t TAG2=VALUE')
     parser.add_option('-P', '--pidfile', dest='pidfile',
-                        default=defaults['pidfile'],
-                        metavar='FILE', help='Write our pidfile')
+                      default=defaults['pidfile'],
+                      metavar='FILE', help='Write our pidfile')
     parser.add_option('--dedup-interval', dest='dedupinterval', type='int',
-                        default=defaults['dedupinterval'], metavar='DEDUPINTERVAL',
-                        help='Number of seconds in which successive duplicate '
+                      default=defaults['dedupinterval'], metavar='DEDUPINTERVAL',
+                      help='Number of seconds in which successive duplicate '
                            'datapoints are suppressed before sending to the TSD. '
                            'Use zero to disable. '
                            'default=%default')
     parser.add_option('--dedup-only-zero', dest='deduponlyzero', action='store_true',
-                        default=defaults['deduponlyzero'],
-                        help='Only dedup 0 values.')
+                      default=defaults['deduponlyzero'],
+                      help='Only dedup 0 values.')
     parser.add_option('--evict-interval', dest='evictinterval', type='int',
-                        default=defaults['evictinterval'], metavar='EVICTINTERVAL',
-                        help='Number of seconds after which to remove cached '
+                      default=defaults['evictinterval'], metavar='EVICTINTERVAL',
+                      help='Number of seconds after which to remove cached '
                            'values of old data points to save memory. '
                            'default=%default')
     parser.add_option('--allowed-inactivity-time', dest='allowed_inactivity_time', type='int',
-                        default=ALLOWED_INACTIVITY_TIME, metavar='ALLOWEDINACTIVITYTIME',
-                            help='How long to wait for datapoints before assuming '
-                                'a collector is dead and restart it. '
-                                'default=%default')
-    parser.add_option('--remove-inactive-collectors', dest='remove_inactive_collectors', action='store_true',
-                        default=defaults['remove_inactive_collectors'], help='Remove collectors not sending data '
-                                          'in the max allowed inactivity interval')
+                      default=ALLOWED_INACTIVITY_TIME, metavar='ALLOWEDINACTIVITYTIME',
+                      help='How long to wait for datapoints before assuming '
+                           'a collector is dead and restart it. '
+                           'default=%default')
+    parser.add_option('--remove-inactive-collectors', dest='remove_inactive_collectors',
+                      action='store_true', default=defaults['remove_inactive_collectors'],
+                      help='Remove collectors not sending data '
+                           'in the max allowed inactivity interval')
     parser.add_option('--max-bytes', dest='max_bytes', type='int',
-                        default=defaults['max_bytes'],
-                        help='Maximum bytes per a logfile.')
+                      default=defaults['max_bytes'],
+                      help='Maximum bytes per a logfile.')
     parser.add_option('--backup-count', dest='backup_count', type='int',
-                        default=defaults['backup_count'], help='Maximum number of logfiles to backup.')
+                      default=defaults['backup_count'],
+                      help='Maximum number of logfiles to backup.')
     parser.add_option('--logfile', dest='logfile', type='str',
-                        default=DEFAULT_LOG,
-                        help='Filename where logs are written to.')
-    parser.add_option('--reconnect-interval',dest='reconnectinterval', type='int',
-                        default=defaults['reconnectinterval'], metavar='RECONNECTINTERVAL',
-                        help='Number of seconds after which the connection to'
+                      default=DEFAULT_LOG,
+                      help='Filename where logs are written to.')
+    parser.add_option('--reconnect-interval', dest='reconnectinterval', type='int',
+                      default=defaults['reconnectinterval'], metavar='RECONNECTINTERVAL',
+                      help='Number of seconds after which the connection to'
                            'the TSD hostname reconnects itself. This is useful'
                            'when the hostname is a multiple A record (RRDNS).')
     parser.add_option('--max-tags', dest='maxtags', type=int, default=defaults['maxtags'],
-                        help='The maximum number of tags to send to our TSD Instances')
+                      help='The maximum number of tags to send to our TSD Instances')
     parser.add_option('--http', dest='http', action='store_true', default=defaults['http'],
-                        help='Send the data via the http interface')
+                      help='Send the data via the http interface')
     parser.add_option('--http-api-path', dest='http_api_path', type='str',
-                      default=defaults['http_api_path'], help='URL path to use for HTTP requests to TSD.')
+                      default=defaults['http_api_path'],
+                      help='URL path to use for HTTP requests to TSD.')
     parser.add_option('--http-username', dest='http_username', default=defaults['http_username'],
                       help='Username to use for HTTP Basic Auth when sending the data via HTTP')
     parser.add_option('--http-password', dest='http_password', default=defaults['http_password'],
@@ -1044,7 +1049,7 @@ def main(argv):
             assert False, 'Tag "%s" already declared.' % k
         tags[k] = v
 
-    if not 'host' in tags and not options.stdin:
+    if 'host' not in tags and not options.stdin:
         tags['host'] = socket.gethostname()
         LOG.warning('Tag "host" not specified, defaulting to %s.', tags['host'])
 
@@ -1104,7 +1109,7 @@ def main(argv):
 
     # We're exiting, make sure we don't leave any collector behind.
     for col in all_living_collectors():
-      col.shutdown()
+        col.shutdown()
     LOG.debug('Shutting down -- joining the reader thread.')
     reader.join()
     LOG.debug('Shutting down -- joining the sender thread.')
@@ -1147,8 +1152,7 @@ def list_config_modules(etcdir):
     if not os.path.isdir(etcdir):
         return iter(())  # Empty iterator.
     return (name for name in os.listdir(etcdir)
-            if (name.endswith('.py')
-                and os.path.isfile(os.path.join(etcdir, name))))
+            if (name.endswith('.py') and os.path.isfile(os.path.join(etcdir, name))))
 
 
 def load_etc_dir(options, tags):
@@ -1179,12 +1183,12 @@ def load_config_module(name, options, tags):
     """
 
     if isinstance(name, str):
-      LOG.info('Loading %s', name)
-      d = {}
-      # Strip the trailing .py
-      module = __import__(name[:-3], d, d)
+        LOG.info('Loading %s', name)
+        d = {}
+        # Strip the trailing .py
+        module = __import__(name[:-3], d, d)
     else:
-      module = reload(name)
+        module = reload(name)
     onload = module.__dict__.get('onload')
     if callable(onload):
         try:
@@ -1282,7 +1286,7 @@ def shutdown_signal(signum, frame):
 
 
 def kill(proc, signum=signal.SIGTERM):
-  os.killpg(proc.pid, signum)
+    os.killpg(proc.pid, signum)
 
 
 def shutdown():
@@ -1325,7 +1329,7 @@ def reap_children():
         # any other status code is an error and is logged.
         if status == 13:
             LOG.info('removing %s from the list of collectors (by request)',
-                      col.name)
+                     col.name)
             col.dead = True
         elif status != 0:
             LOG.warning('collector %s terminated after %d seconds with '
@@ -1379,7 +1383,7 @@ def spawn_collector(col):
     # other logic and it makes no sense to update the last spawn time if the
     # collector didn't actually start.
     col.lastspawn = int(time.time())
-    # Without setting last_datapoint here, a long running check (>15s) will be 
+    # Without setting last_datapoint here, a long running check (>15s) will be
     # killed by check_children() the first time check_children is called.
     col.last_datapoint = col.lastspawn
     set_nonblocking(col.proc.stdout.fileno())
@@ -1425,15 +1429,15 @@ def spawn_children():
                 col.killstate = 1
             elif col.killstate == 1:
                 LOG.error('error: %s (interval=%d, pid=%d) still not dead, '
-                           'SIGKILL sent',
-                           col.name, col.interval, col.proc.pid)
+                          'SIGKILL sent',
+                          col.name, col.interval, col.proc.pid)
                 kill(col.proc, signal.SIGKILL)
                 col.nextkill = now + 5
                 col.killstate = 2
             else:
                 LOG.error('error: %s (interval=%d, pid=%d) needs manual '
-                           'intervention to kill it',
-                           col.name, col.interval, col.proc.pid)
+                          'intervention to kill it',
+                          col.name, col.interval, col.proc.pid)
                 col.nextkill = now + 300
 
 
@@ -1474,8 +1478,8 @@ def populate_collectors(coldir):
                     # this...
                     if col.interval != interval:
                         LOG.error('two collectors with the same name %s and '
-                                   'different intervals %d and %d',
-                                   colname, interval, col.interval)
+                                  'different intervals %d and %d',
+                                  colname, interval, col.interval)
                         continue
 
                     # we have to increase the generation or we will kill
@@ -1498,7 +1502,7 @@ def populate_collectors(coldir):
     for col in all_collectors():
         if col.generation < GENERATION:
             LOG.info('collector %s removed from the filesystem, forgetting',
-                      col.name)
+                     col.name)
             col.shutdown()
             to_delete.append(col.name)
     for name in to_delete:
