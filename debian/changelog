@@ -1,3 +1,18 @@
+tcollector (1.0-6.houzz) stable; urgency=low
+
+  * 7ad563b Zheng Liu       Wed Nov 8 17:22:21 2017 -0800
+    move common mysql func to mysql_utils to be shared, also re-format to fix all PEP8 warnings
+  * 3f178a5 Zheng Liu       Tue Nov 7 17:12:56 2017 -0800
+    support adding a namespace prefix to each metric sent
+  * e501e9c Zheng Liu       Tue Nov 7 15:52:09 2017 -0800
+    add houzz specific logic to parse out db name from hostname
+  * 0a62bc9 Zheng Liu       Tue Nov 7 15:20:57 2017 -0800
+    add is_master and is_slave tags to each metrics
+  * c1f0dc3 Zheng Liu       Mon Nov 6 23:58:41 2017 -0800
+    update mysql collector to support latest Insert Buffer status line format
+
+ -- Zheng Liu <zheng@houzz.com>  Wed, 08 Nov 2017 17:52:13 -0800
+
 tcollector (1.0-6) stable; urgency=low
 
   * Small tweaks and unification of init wrappers.
