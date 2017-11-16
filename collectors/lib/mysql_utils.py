@@ -13,9 +13,11 @@
 # see <http://www.gnu.org/licenses/>.
 """Utils to write collectors for MySQL."""
 
+import errno
 import os
 import re
 import socket
+import sys
 import time
 
 import MySQLdb
@@ -237,6 +239,19 @@ def find_databases(dbs=None):
     return dbs
 
 
+def find_schemas(db):
+    """Return a sequence of database schemas within the given db."""
+    db_list_query = """
+    SELECT
+        SCHEMA_NAME
+    FROM
+        information_schema.schemata
+    WHERE
+        SCHEMA_NAME NOT IN ('mysql', 'performance_schema', 'information_schema')
+    """
+    return db.query(db_list_query)
+
+
 def now():
     return int(time.time())
 
@@ -251,3 +266,39 @@ def print_metric(db, ts, metric, value, tags=""):
     master_slave_tag = ' is_master=%s is_slave=%s' % (db.is_master, db.is_slave)
     tags = '%s%s' % (master_slave_tag, tags)
     print "mysql.%s %d %s schema=%s%s" % (metric, ts, value, db.dbname, tags)
+
+
+def collect_loop(collect_func, collect_interval, args):
+    """Collects and dumps stats from a MySQL server."""
+    if not find_sockfiles():  # Nothing to monitor.
+        return 13               # Ask tcollector to not respawn us.
+    if MySQLdb is None:
+        utils.err("error: Python module `MySQLdb' is missing")
+        return 1
+
+    last_db_refresh = now()
+    dbs = find_databases()
+    while True:
+        ts = now()
+        if ts - last_db_refresh >= DB_REFRESH_INTERVAL:
+            find_databases(dbs)
+            last_db_refresh = ts
+
+        errs = []
+        for dbname, db in dbs.iteritems():
+            try:
+                collect_func(db)
+            except (EnvironmentError, EOFError, RuntimeError, socket.error,
+                    MySQLdb.MySQLError), e:
+                if isinstance(e, IOError) and e[0] == errno.EPIPE:
+                    # Exit on a broken pipe.  There's no point in continuing
+                    # because no one will read our stdout anyway.
+                    return 2
+                utils.err("error: failed to collect data from %s: %s" % (db, e))
+                errs.append(dbname)
+
+        for dbname in errs:
+            del dbs[dbname]
+
+        sys.stdout.flush()
+        time.sleep(collect_interval)
