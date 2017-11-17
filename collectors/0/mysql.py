@@ -27,7 +27,6 @@ from collectors.lib.mysql_utils import (
     is_yes,
     now,
     print_metric,
-    to_dict,
 )
 
 COLLECTION_INTERVAL = 15  # seconds
@@ -127,6 +126,27 @@ def collect(db):
 
     ts = now()
 
+    # update master/slave status.
+    db.check_set_master()
+    db.check_set_slave()
+
+    # Ouput master related metrics
+    if db.attached_slaves:
+        print_metric(db, ts, "master.attached_slaves", len(db.attached_slaves))
+
+    # Ouput slave related metrics
+    if db.is_slave and db.slave_status:
+        sbm = db.slave_status.get("seconds_behind_master")
+        if isinstance(sbm, (int, long)):
+            print_metric(db, ts, "slave.seconds_behind_master", sbm)
+        print_metric(db, ts, "slave.bytes_executed", db.slave_status["exec_master_log_pos"])
+        print_metric(db, ts, "slave.bytes_relayed", db.slave_status["read_master_log_pos"])
+        print_metric(db, ts, "slave.thread_io_running",
+                     is_yes(db.slave_status["slave_io_running"]))
+        print_metric(db, ts, "slave.thread_sql_running",
+                     is_yes(db.slave_status["slave_sql_running"]))
+
+    # Ouput InnoDB related metrics
     has_innodb = False
     if db.isShowGlobalStatusSafe():
         for metric, value in db.query("SHOW GLOBAL STATUS"):
@@ -163,34 +183,7 @@ def collect(db):
 
     ts = now()
 
-    mysql_attached_slaves = db.query("SHOW SLAVE HOSTS")
-    if mysql_attached_slaves:
-        db.setMaster(True)
-        print_metric(db, ts, "master.attached_slaves", len(mysql_attached_slaves))
-    else:
-        db.setMaster(False)
-
-    mysql_slave_status = db.query("SHOW SLAVE STATUS")
-    if mysql_slave_status:
-        # update master/slave status of the DB
-        db.setSlave(True)
-        slave_status = to_dict(db, mysql_slave_status[0])
-        master_host = slave_status["master_host"]
-    else:
-        db.setSlave(False)
-        master_host = None
-
-    if master_host and master_host != "None":
-        sbm = slave_status.get("seconds_behind_master")
-        if isinstance(sbm, (int, long)):
-            print_metric(db, ts, "slave.seconds_behind_master", sbm)
-        print_metric(db, ts, "slave.bytes_executed", slave_status["exec_master_log_pos"])
-        print_metric(db, ts, "slave.bytes_relayed", slave_status["read_master_log_pos"])
-        print_metric(db, ts, "slave.thread_io_running",
-                     is_yes(slave_status["slave_io_running"]))
-        print_metric(db, ts, "slave.thread_sql_running",
-                     is_yes(slave_status["slave_sql_running"]))
-
+    # Ouput process related metrics
     states = {}  # maps a connection state to number of connections in that state
     for row in db.query("SHOW PROCESSLIST"):
         id, user, host, db_, cmd, time, state = row[:7]

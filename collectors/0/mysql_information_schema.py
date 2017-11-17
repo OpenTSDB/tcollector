@@ -67,12 +67,13 @@ def collect(db):
 
     ts = now()
 
+    # update master/slave status.
+    db.check_set_master()
+    db.check_set_slave()
+
     # Per table stats in information_schema.tables are the same across
     # master and slave. Therefore only need to be reported from master.
-    mysql_attached_slaves = db.query("SHOW SLAVE HOSTS")
-    if mysql_attached_slaves:
-        db.setMaster(True)
-    else:
+    if db.is_slave:
         return
 
     db_list = find_schemas(db)
@@ -90,7 +91,7 @@ def collect(db):
                 print_metric(
                     db,
                     ts,
-                    "info_schema.%s" % metric_name,
+                    "info_schema.tables.%s" % metric_name,
                     table_info[metric_name],
                     tags
                 )

@@ -63,6 +63,8 @@ class DB(object):
         self.relay_bytes_relayed = None
         self.is_master = False
         self.is_slave = False
+        self.attached_slaves = []
+        self.slave_status = {}
 
         version = version.split(".")
         try:
@@ -72,13 +74,8 @@ class DB(object):
             self.major = self.medium = 0
 
         # initialize db master/slave status, which will be updated in each collect
-        mysql_slave_status = self.query("SHOW SLAVE STATUS")
-        if mysql_slave_status:
-            self.is_slave = True
-
-        mysql_attached_slaves = self.query("SHOW SLAVE HOSTS")
-        if mysql_attached_slaves:
-            self.is_master = True
+        self.check_set_master()
+        self.check_set_slave()
 
     def __str__(self):
         return "DB(%r, %r, version=%r)" % (self.sockfile, self.dbname,
@@ -87,25 +84,31 @@ class DB(object):
     def __repr__(self):
         return self.__str__()
 
-    def isMaster(self):
-        """Returns whether or not the DB has slaves attached to it.
+    def check_set_master(self):
+        """If DB has slaves attached to it, set is_master to True.
 
         NOTE: A DB can be both master and slave, in a multi-tiered setup.
         """
-        return self.is_master
+        attached_slaves = self.query("SHOW SLAVE HOSTS")
+        if attached_slaves:
+            self.is_master = True
+            self.attached_slaves = attached_slaves
+        else:
+            self.is_master = False
+            self.attached_slaves = []
 
-    def setMaster(self, is_master):
-        self.is_master = is_master
-
-    def isSlave(self):
-        """Returns whether or not the DB is configured to replicate from a Master.
+    def check_set_slave(self):
+        """If DB attaches to a master, set is_slave to True.
 
         NOTE: A DB can be both master and slave, in a multi-tiered setup.
         """
-        return self.is_slave
-
-    def setSlave(self, is_slave):
-        self.is_slave = is_slave
+        mysql_slave_status = self.query("SHOW SLAVE STATUS")
+        if mysql_slave_status:
+            self.is_slave = True
+            self.slave_status = to_dict(self, mysql_slave_status[0])
+        else:
+            self.is_slave = False
+            self.slave_status = {}
 
     def isShowGlobalStatusSafe(self):
         """Returns whether or not SHOW GLOBAL STATUS is safe to run."""

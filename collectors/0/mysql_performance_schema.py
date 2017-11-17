@@ -13,6 +13,7 @@
 # see <http://www.gnu.org/licenses/>.
 """Collector for MySQL query stats from performance_schema."""
 
+import re
 import sys
 from collections import defaultdict
 
@@ -40,6 +41,7 @@ STMT_BY_DIGEST_QUERY = """
 SELECT
     ifnull(SCHEMA_NAME, 'NONE') as SCHEMA_NAME,
     DIGEST,
+    DIGEST_TEXT,
     SUM(COUNT_STAR) AS COUNT_STAR,
     SUM(SUM_TIMER_WAIT) AS SUM_TIMER_WAIT,
     SUM(SUM_LOCK_TIME) AS SUM_LOCK_TIME,
@@ -72,7 +74,8 @@ FROM (
 ) Q
 GROUP BY
     Q.SCHEMA_NAME,
-    Q.DIGEST
+    Q.DIGEST,
+    Q.DIGEST_TEXT
 ORDER BY
     SUM_TIMER_WAIT DESC
 LIMIT %(limit)d;
@@ -102,17 +105,52 @@ METRICS = [
     'sum_no_good_index_used',
 ]
 
+SUPPORTED_COMMANDS = frozenset([
+    'ALTER',
+    'BEGIN',
+    'CHANGE',
+    'COMMIT',
+    'CREATE',
+    'DELETE',
+    'DESC',
+    'DROP',
+    'FLUSH',
+    'GRANT',
+    'INSERT',
+    'KILL',
+    'REPLACE',
+    'SELECT',
+    'SET',
+    'SHOW',
+    'START',
+    'TRUNCATE',
+    'UNION',
+    'UPDATE',
+])
+
+
+def get_command_from_digest_text(digest_text):
+    """Extract command, ex. SELECT, DELETE, etc., from the digest_text."""
+    cmd = digest_text.split(' ')[0]
+    if cmd in SUPPORTED_COMMANDS:
+        return cmd
+
+    if cmd == '(':
+        # Handle '(...) UNION (...)' query
+        mo = re.match(u'[^\(]*\([^\(]+\) *([^\( ]+).*', digest_text)
+        if mo:
+            return mo.group(1)
+    return 'UNKNOWN'
+
 
 def collect(db):
     """Collects and prints stats about the given DB instance."""
 
     ts = now()
 
-    mysql_attached_slaves = db.query("SHOW SLAVE HOSTS")
-    if mysql_attached_slaves:
-        db.setMaster(True)
-    else:
-        db.setMaster(False)
+    # update master/slave status.
+    db.check_set_master()
+    db.check_set_slave()
 
     stmt_by_digest = db.query(
         STMT_BY_DIGEST_QUERY % {
@@ -128,19 +166,23 @@ def collect(db):
     for row in stmt_by_digest:
         stmt_summary = to_dict(db, row)
         digest = stmt_summary['digest']
+        command = get_command_from_digest_text(stmt_summary['digest_text'])
 
         # create tags
         def create_tags(digest_prefix):
-            return " schema_name=%s digest_prefix=%s" % (
-                stmt_summary['schema_name'], digest_prefix
+            return " schema_name=%s digest_prefix=%s cmd=%s" % (
+                stmt_summary['schema_name'], digest_prefix, command
             )
 
         # accumulate metrics for different tiers
         for metric_name in METRICS:
+            # top tier
             metric_value = stmt_summary[metric_name]
             name = '%s.%s' % (metric_name, digest[:1])
             tags = create_tags(digest[:2])
             top_tier_metrics[(name, tags)] += metric_value
+
+            # bottom tier
             name = '%s.%s' % (metric_name, digest[:2])
             tags = create_tags(digest)
             bot_tier_metrics[(name, tags)] += metric_value
@@ -148,7 +190,7 @@ def collect(db):
     # report metrics
     for metrics in (top_tier_metrics, bot_tier_metrics):
         for (name, tags), value in metrics.iteritems():
-            print_metric(db, ts, "perf_schema.%s" % name, value, tags)
+            print_metric(db, ts, "perf_schema.stmt_by_digest.%s" % name, value, tags)
 
 
 if __name__ == "__main__":
