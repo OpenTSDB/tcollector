@@ -25,6 +25,7 @@ import MySQLdb
 from collectors.etc import mysqlconf
 from collectors.lib import utils
 
+MAX_DB_QUERY_RETRY = 3
 CONNECT_TIMEOUT = 2  # seconds
 # How frequently we try to find new databases.
 DB_REFRESH_INTERVAL = 60  # seconds
@@ -119,13 +120,15 @@ class DB(object):
     def query(self, sql):
         """Executes the given SQL statement and returns a sequence of rows."""
         assert self.cursor, "%s already closed?" % (self,)
-        try:
-            self.cursor.execute(sql)
-        except MySQLdb.OperationalError, (errcode, msg):
-            if errcode != 2006:  # "MySQL server has gone away"
-                raise
-            self._reconnect()
-        return self.cursor.fetchall()
+        for _ in range(MAX_DB_QUERY_RETRY):
+            try:
+                self.cursor.execute(sql)
+                return self.cursor.fetchall()
+            except MySQLdb.OperationalError, (errcode, msg):
+                if errcode != 2006:  # "MySQL server has gone away"
+                    raise
+                self._reconnect()
+        return []
 
     def close(self):
         """Closes the connection to this MySQL server."""
