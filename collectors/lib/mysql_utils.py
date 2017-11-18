@@ -307,4 +307,12 @@ def collect_loop(collect_func, collect_interval, args):
             del dbs[dbname]
 
         sys.stdout.flush()
-        time.sleep(collect_interval)
+
+        sleep_seconds = collect_interval - (now() - ts)
+        if sleep_seconds > 0:
+            utils.err("INFO: sleep %d seconds before next collect." % sleep_seconds)
+            time.sleep(sleep_seconds)
+        else:
+            utils.err("ERROR: one round of collect took %d seconds! "
+                      "No sleep before next round of collect." %
+                      (collect_interval - sleep_seconds))
