@@ -96,6 +96,24 @@ SUPPORTED_COMMANDS = frozenset([
     'UPDATE',
 ])
 
+DDL_DML_COMMANDS = frozenset([
+    'ALTER',
+    'BEGIN',
+    'CHANGE',
+    'COMMIT',
+    'CREATE',
+    'DELETE',
+    'DROP',
+    'FLUSH',
+    'GRANT',
+    'INSERT',
+    'REPLACE',
+    'SET',
+    'START',
+    'TRUNCATE',
+    'UPDATE',
+])
+
 
 def get_command_from_digest_text(digest_text):
     """Extract command, ex. SELECT, DELETE, etc., from the digest_text."""
@@ -109,6 +127,13 @@ def get_command_from_digest_text(digest_text):
         if mo:
             return mo.group(1)
     return 'UNKNOWN'
+
+
+def should_skip_collect(db, command):
+    """Skip collecting DDL and DML queries on slaves."""
+    if db.is_slave and command in DDL_DML_COMMANDS:
+        return True
+    return False
 
 
 def collect(db):
@@ -135,6 +160,9 @@ def collect(db):
         stmt_summary = to_dict(db, row)
         digest = stmt_summary['digest']
         command = get_command_from_digest_text(stmt_summary['digest_text'])
+        skip = should_skip_collect(db, command)
+        if skip:
+            continue
 
         # create tags
         def create_tags(digest_prefix):
