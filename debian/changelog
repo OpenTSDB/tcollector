@@ -1,5 +1,17 @@
 tcollector (1.0-6.houzz) stable; urgency=low
 
+  * f747e43 Zheng Liu       Mon Nov 20 14:36:52 2017 -0800
+    Skip collecting DDL and DML query stats on slaves to save on time series created
+  * 33be235 Zheng Liu       Fri Nov 17 16:25:23 2017 -0800
+    deduct the collector runtime from sleep interval between collects
+  * 3e4de9f Zheng Liu       Fri Nov 17 15:28:27 2017 -0800
+    Reduce amount of performance_schema metrics and expand tcollector queues
+  * e3af8c8 Zheng Liu       Thu Nov 16 16:39:04 2017 -0800
+    [metric] refactor the db master/slave status checks
+  * 375c2e5 Zheng Liu       Thu Nov 16 01:21:13 2017 -0800
+    [metric] add collectors on MySQL table and query stats
+  * 14b8621 Zheng Liu       Thu Nov 9 12:04:24 2017 -0800
+    update debian pkg changelog to include additional changes
   * 7ad563b Zheng Liu       Wed Nov 8 17:22:21 2017 -0800
     move common mysql func to mysql_utils to be shared, also re-format to fix all PEP8 warnings
   * 3f178a5 Zheng Liu       Tue Nov 7 17:12:56 2017 -0800
@@ -11,7 +23,7 @@ tcollector (1.0-6.houzz) stable; urgency=low
   * c1f0dc3 Zheng Liu       Mon Nov 6 23:58:41 2017 -0800
     update mysql collector to support latest Insert Buffer status line format
 
- -- Zheng Liu <zheng@houzz.com>  Wed, 08 Nov 2017 17:52:13 -0800
+ -- Zheng Liu <zheng@houzz.com>  Mon, 20 Nov 2017 14:59:18 -0800
 
 tcollector (1.0-6) stable; urgency=low
 
