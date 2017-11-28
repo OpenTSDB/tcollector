@@ -12,7 +12,7 @@
 # see <http://www.gnu.org/licenses/>.
 
 while :; do
-  for task in Sysdb Arp Ebra Ira Stp StpTopology TopoAgent ribd; do
+  for task in Sysdb Arp Ebra Ira Stp StpTopology TopoAgent ribd Rib; do
     for pid in `pidof $task`; do
       ts=`date +%s`
       eval `awk '{print "ppid=" $4 ";usercpu=" $14 "; systcpu=" $15 ";"}' /proc/$pid/stat`

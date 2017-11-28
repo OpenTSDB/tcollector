@@ -12,7 +12,7 @@
 # see <http://www.gnu.org/licenses/>.
 
 while :; do
-  for task in Sysdb Arp Ebra Ira Stp StpTopology TopoAgent ribd Strata StrataL2 StrataL3 Snmp CliSessionMgr; do
+  for task in Sysdb Arp Ebra Ira Stp StpTopology TopoAgent ribd Rib Strata StrataL2 StrataL3 Snmp CliSessionMgr; do
     for pid in `pidof $task`; do
       ts=`date +%s`
       eval `awk '{print "ppid=" $4 ";rss=" ($24*4096) "; vsize=" $23 ";"}' /proc/$pid/stat`
