@@ -50,8 +50,9 @@ class IntfCounterCollector(object):
       ]
       for intf_id, intf_counters in counters["interfaces"].iteritems():
          for counter_name, tags, eos_counter_name in counter_definitions:
-            self.printIntfCounter(counter_name, ts, intf_counters[eos_counter_name],
-                                  intf_id, tags)
+            if eos_counter_name in intf_counters:
+               self.printIntfCounter(counter_name, ts, intf_counters[eos_counter_name],
+                                     intf_id, tags)
 
       # Print interface error counters
       error_counter_definitions = [
@@ -64,8 +65,9 @@ class IntfCounterCollector(object):
       ]
       for intf_id, intf_error_counters in error_counters["interfaceErrorCounters"].iteritems():
          for counter_name, tags, eos_counter_name in error_counter_definitions:
-            self.printIntfCounter(counter_name, ts, intf_error_counters[eos_counter_name],
-                                  intf_id, tags)
+            if eos_counter_name in intf_error_counters:
+               self.printIntfCounter(counter_name, ts, intf_error_counters[eos_counter_name],
+                                     intf_id, tags)
 
       # Print interface bin counters
       for intf_id, intf_bin_counters in bin_counters["interfaces"].iteritems():
