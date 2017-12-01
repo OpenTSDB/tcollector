@@ -227,6 +227,11 @@ class TcollectorAgent(eossdk.AgentHandler,
       fd = self.vrf_mgr_.socket_at(family, socktype, proto, vrf)
       return socket._socketobject(_sock=socket.fromfd(fd, family, socktype, proto))
 
+   def on_hostname(self, hostname):
+      debug("Hostname changed to", hostname)
+      self.tags_["host"] = hostname
+      self.sender_thread_.tags = sorted(self.tags_.iteritems())
+
    def start(self):
       tcollector = self.module_
       tcollector.ALIVE = True
