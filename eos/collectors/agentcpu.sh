@@ -11,8 +11,39 @@
 # of the GNU Lesser General Public License along with this program.  If not,
 # see <http://www.gnu.org/licenses/>.
 
+agents='
+Acl
+Arp
+Bfd
+CliSessionMgr
+ConfigAgent
+Ebra
+Fru
+Ira
+LacpTxAgent
+Lag
+Lldp
+Rib
+SandCounters
+SandFabric
+SandFap
+SandMact
+Sflow
+Snmp
+Stp
+StpTopology
+Strata
+StrataL2
+StrataL3
+SuperServer
+Sysdb
+TopoAgent
+XcvrAgent
+ribd
+'
+
 while :; do
-  for task in Sysdb Arp Ebra Ira Stp StpTopology TopoAgent ribd Rib; do
+  for task in $agents; do
     for pid in `pidof $task`; do
       ts=`date +%s`
       eval `awk '{print "ppid=" $4 ";usercpu=" $14 "; systcpu=" $15 ";"}' /proc/$pid/stat`
