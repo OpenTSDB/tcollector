@@ -44,15 +44,17 @@ ribd
 
 while :; do
   for task in $agents; do
+    usercpu=0
+    systcpu=0
     for pid in `pidof $task`; do
       ts=`date +%s`
-      eval `awk '{print "ppid=" $4 ";usercpu=" $14 "; systcpu=" $15 ";"}' /proc/$pid/stat`
+      eval `awk '{print "ppid=" $4 ";usercpu=$((usercpu+" $14 ")); systcpu=$((systcpu+" $15 "));"}' /proc/$pid/stat`
       if fgrep -q $task /proc/$ppid/stat; then
         continue  # We are a fork of the agent.
       fi
-      echo "proc.stat.cpu.task $ts $usercpu type=user task=$task"
-      echo "proc.stat.cpu.task $ts $systcpu type=system task=$task"
     done
+    echo "proc.stat.cpu.task $ts $usercpu type=user task=$task"
+    echo "proc.stat.cpu.task $ts $systcpu type=system task=$task"
   done
   sleep 5
 done

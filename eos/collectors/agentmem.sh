@@ -44,15 +44,17 @@ ribd
 
 while :; do
   for task in $agents; do
+    rss=0
+    vsize=0
     for pid in `pidof $task`; do
       ts=`date +%s`
-      eval `awk '{print "ppid=" $4 ";rss=" ($24*4096) "; vsize=" $23 ";"}' /proc/$pid/stat`
+      eval `awk '{print "ppid=" $4 ";rss=$((rss+" ($24*4096) ")); vsize=$((vsize+" $23 "));"}' /proc/$pid/stat`
       if fgrep -q $task /proc/$ppid/stat; then
         continue  # We are a fork of the agent.
       fi
-      echo "proc.stat.mem.rss $ts $rss task=$task"
-      echo "proc.stat.mem.vsize $ts $vsize task=$task"
     done
+    echo "proc.stat.mem.rss $ts $rss task=$task"
+    echo "proc.stat.mem.vsize $ts $vsize task=$task"
   done
   sleep 5
 done
