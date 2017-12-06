@@ -11,5 +11,7 @@
 # of the GNU Lesser General Public License along with this program.  If not,
 # see <http://www.gnu.org/licenses/>.
 
+# This comment is needed to help EOS detect this script as an EOS SDK agent:
+# import eossdk
 import tcollector_agent
 tcollector_agent.main()
