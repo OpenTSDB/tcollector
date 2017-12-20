@@ -83,7 +83,7 @@ def main(argv):
   if (settings['default_timeout']):
     DEFAULT_TIMEOUT = settings['default_timeout']
 
-  if (settings['default_timeout']):
+  if (settings['collection_interval']):
     COLLECTION_INTERVAL = settings['collection_interval']
 
   if (settings['flume_host']):
