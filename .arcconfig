@@ -1,0 +1,5 @@
+{
+  "project_id" : "TSDB Collector",
+  "phabricator.uri" : "https://cr.houzz.net/",
+  "conduit_uri" : "https://cr.houzz.net/"
+}
