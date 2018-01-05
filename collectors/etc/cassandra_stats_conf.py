@@ -14,6 +14,6 @@
 
 def get_config():
   config = {
-    'collection_interval': 15
+    'collection_interval': 30
   }
   return config
