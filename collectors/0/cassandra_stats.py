@@ -276,7 +276,7 @@ def main():
         }
     cql_output = get_stats(cql_options)
     print >> sys.stderr, 'cql output:', cql_output
-    tags = "cluster='%s'" % cql_output['Cluster']
+    tags = "cluster=" + re.sub('\W+', '_', cql_output['Cluster'])
 
     while True:
         ts = int(time.time())
