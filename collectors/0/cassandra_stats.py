@@ -167,7 +167,7 @@ def dict_sum(value_dict):
         print >> sys.stderr, "Not a dict:", value_dict
         return None
     else:
-    return sum(value_dict.values())
+        return sum(value_dict.values())
 
 '''
 Convert
