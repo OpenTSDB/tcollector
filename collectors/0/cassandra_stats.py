@@ -40,7 +40,6 @@ import subprocess
 import sys
 import time
 import yaml
-from collectors.lib import utils
 from collectors.etc import cassandra_stats_conf
 
 # If we are root, drop privileges to this user, if necessary.  NOTE: if this is
@@ -73,17 +72,17 @@ stat_families = {
         'args': ['nodetool', 'cfstats', '-F', 'json'],
         'format': 'json',
         'filter': {
-            '!^system': {
+            '.+': {
                 'read_count': True,
-                'read_latency_ms': 'nan_converter',
+                'read_latency_ms': True,
                 'write_count': True,
-                'write_latency_ms': 'nan_converter',
+                'write_latency_ms': True,
                 'tables': {
                     '.+': {
                         'local_read_count': True,
-                        'local_read_latency_ms': 'nan_converter',
+                        'local_read_latency_ms': True,
                         'local_write_count': True,
-                        'local_write_latency_ms': 'nan_converter',
+                        'local_write_latency_ms': True,
                         'space_used_total': True,
                         'space_used_live': True,
                         'memtable_data_size': True
@@ -147,20 +146,28 @@ def heap_converter(value_str):
 # Extract recent hit rate from "entries 166, size 15.27 KiB, capacity 100 MiB, 138 hits, 299 requests, 0.462 recent hit rate, 14400 save period in seconds"
 def cache_converter(value_str):
     parts = value_str.split(',')
-    regex = re.compile('(.+) recent hit rate')
+    regex = re.compile('(\S+) recent hit rate')
     for part in parts:
         match = regex.search(part)
         if match:
-            return float(match.group(1))
+            return match.group(1)
 
     return None
 
 # Convert 'NaN' to None
 def nan_converter(value_str):
-    if value_str == 'NaN':
+    if value_str == "NaN" or value_str == u"NaN":
         return None
     else:
         return value_str
+
+# Convert a dict to the sum of its values
+def dict_sum(value_dict):
+    if not isinstance(value_dict, dict):
+        print >> sys.stderr, "Not a dict:", value_dict
+        return None
+    else:
+    return sum(value_dict.values())
 
 '''
 Convert
@@ -205,13 +212,17 @@ def get_cached_regex(pattern):
     global cached_regex
 
     if cached_regex.has_key(pattern):
-        return cached_regex.get(pattern)
+        return cached_regex[pattern]
     else:
         regex = re.compile(pattern)
-        cached_regex.put(pattern, regex)
+        cached_regex[pattern] = regex
         return regex
 
 def get_sub_filters(filters, name):
+    if not isinstance(filters, dict):
+        print >> sys.stderr, 'Invalid filters type:', type(filters), 'filters:', filters, 'name:', name
+        return None
+
     for pattern, sub_filters in filters.items():
         regex = get_cached_regex(pattern)
         if regex.search(name):
@@ -219,20 +230,20 @@ def get_sub_filters(filters, name):
 
     return None
 
-def print_stat(name, value):
+def print_stat(name, value, ts):
     global tags
 
-    if value is not None:
+    if value is not None and value != "NaN" and value != u"NaN":
         print "cas.%s %d %s %s" % (name, ts, value, tags)
 
-def print_stats(path, values, filters):
-    if isinstance(values, int) or isinstance(values, float):
+def print_stats(path, values, filters, ts):
+    if isinstance(values, int) or isinstance(values, float) or isinstance(values, str) or isinstance(filters, bool) or isinstance(filters, str):
         name = '.'.join(path)
         if isinstance(filters, bool) and filters:
-            print_stat(name, values)
-        else:
+            print_stat(name, values, ts)
+        elif isinstance(filters, str):
             v = globals().get(filters)(values)
-            print_stat(name, v)
+            print_stat(name, v, ts)
         return
 
     if not isinstance(values, dict):
@@ -242,7 +253,11 @@ def print_stats(path, values, filters):
     for name, value in values.items():
         sub_filters = get_sub_filters(filters, name)
         if sub_filters:
-            print_stats(copy.copy(path).append(name), value, sub_filters)
+            sub_path = copy.copy(path)
+            norm_name = re.sub('\W+', '_', name)
+            norm_name = norm_name.lower()
+            sub_path.append(norm_name)
+            print_stats(sub_path, value, sub_filters, ts)
 
 def main():
     """Main loop"""
@@ -250,28 +265,27 @@ def main():
     global stat_families
     global tags
 
-    if USER != "root":
-        utils.drop_privileges(user=USER)
     sys.stdin.close()
 
     config = cassandra_stats_conf.get_config()
     interval = config['collection_interval']
 
     cql_options = {
-        'args': ['nodetool', 'info'],
+        'args': ['cqlsh', '-e', 'desc cluster'],
         'format': 'yaml'
         }
     cql_output = get_stats(cql_options)
+    print >> sys.stderr, 'cql output:', cql_output
     tags = "cluster='%s'" % cql_output['Cluster']
 
     while True:
         ts = int(time.time())
 
         # now iterate over every stat family and gather statistics
-        for stat_name, stat_options in stat_families:
+        for stat_name, stat_options in stat_families.items():
             stats = get_stats(stat_options)
             if stats:
-                print_stats([stat_name], stats, stat_options['filter'])
+                print_stats([stat_name], stats, stat_options['filter'], ts)
 
         sys.stdout.flush()
         time.sleep(interval)
