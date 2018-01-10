@@ -32,6 +32,7 @@ For more information on these values, see this documentation:
     http://cassandra.apache.org/doc/latest/operating/metrics.html
 """
 
+import argparse
 import cassandra
 import copy
 import json
@@ -40,7 +41,6 @@ import subprocess
 import sys
 import time
 import yaml
-from collectors.etc import cassandra_stats_conf
 
 # If we are root, drop privileges to this user, if necessary.  NOTE: if this is
 # not root, this MUST be the user that you run cassandra server under.  If not, we
@@ -123,6 +123,8 @@ size_multiplier = {
 
 tags = ''
 
+args = None
+
 # Convert "299.62 KiB" to 306810 (unit is bytes)
 def size_converter(value_str):
     global size_multiplier
@@ -153,13 +155,6 @@ def cache_converter(value_str):
             return match.group(1)
 
     return None
-
-# Convert 'NaN' to None
-def nan_converter(value_str):
-    if value_str == "NaN" or value_str == u"NaN":
-        return None
-    else:
-        return value_str
 
 # Convert a dict to the sum of its values
 def dict_sum(value_dict):
@@ -231,9 +226,10 @@ def get_sub_filters(filters, name):
     return None
 
 def print_stat(name, value, ts):
+    global args
     global tags
 
-    if value is not None and value != "NaN" and value != u"NaN":
+    if value is not None and (args.names or (value != "NaN" and value != u"NaN")):
         print "cas.%s %d %s %s" % (name, ts, value, tags)
 
 def print_stats(path, values, filters, ts):
@@ -259,14 +255,25 @@ def print_stats(path, values, filters, ts):
             sub_path.append(norm_name)
             print_stats(sub_path, value, sub_filters, ts)
 
+def print_once():
+    global stat_families
+
+    ts = int(time.time())
+
+    # Iterate over every stat family and gather statistics
+    for stat_name, stat_options in stat_families.items():
+        stats = get_stats(stat_options)
+        if stats:
+            print_stats([stat_name], stats, stat_options['filter'], ts)
+
 def main():
     """Main loop"""
 
-    global stat_families
     global tags
 
     sys.stdin.close()
 
+    from collectors.etc import cassandra_stats_conf
     config = cassandra_stats_conf.get_config()
     interval = config['collection_interval']
 
@@ -279,16 +286,21 @@ def main():
     tags = "cluster=" + re.sub('\W+', '_', cql_output['Cluster'])
 
     while True:
-        ts = int(time.time())
-
-        # now iterate over every stat family and gather statistics
-        for stat_name, stat_options in stat_families.items():
-            stats = get_stats(stat_options)
-            if stats:
-                print_stats([stat_name], stats, stat_options['filter'], ts)
-
+        print_once()
         sys.stdout.flush()
         time.sleep(interval)
 
 if __name__ == "__main__":
-    sys.exit(main())
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        '-n',
+        '--names',
+        action='store_true',
+        default=False,
+        help="Print all metric names and exit")
+    args = parser.parse_args()
+
+    if args.names:
+        sys.exit(print_once())
+    else:
+        sys.exit(main())
