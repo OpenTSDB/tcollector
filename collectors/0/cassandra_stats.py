@@ -47,10 +47,6 @@ import yaml
 # will not be able to find your Cassandra instances.
 USER = "root"
 
-# Every SCAN_INTERVAL seconds, we look for new cassandra instances.  Prevents the
-# situation where you put up a new instance and we never notice.
-SCAN_INTERVAL = 300
-
 # these are the things in nodetool that we care about
 stat_families = {
     'info': {
