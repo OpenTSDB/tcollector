@@ -217,18 +217,20 @@ def runDbStats(c):
                 continue
             print 'mongo.db.%s %d %s db=%s' % (metric, ts, cur, db_name)
 
-        raw_metrics = res['raw']
-        for key, value in raw_metrics.items():
+
+        # raw_metrics = res['raw']
+        # for key, value in raw_metrics.items():
+        for key, value in res.items():
             replica_name = key.split('/', 1)[0]
-            replica_desc = key.split('/', 1)[1]
+            # replica_desc = key.split('/', 1)[1]
 
             for metric in MONGOS_RAW_METRICS:
                 cur = value
-                try:
-                    for m in metric.split('.'):
-                        cur = cur[m]
-                except KeyError:
-                    continue
+                # try:
+                #     for m in metric.split('.'):
+                #         cur = cur[m]
+                # except KeyError:
+                #     continue
                 print 'mongo.rs.%s %d %s replica=%s db=%s' % (metric, ts, cur, replica_name, db_name)
 
 def runReplSetGetStatus(c):

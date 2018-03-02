@@ -15,7 +15,7 @@
 
 def get_settings():
   return {
-    "db": "db1,db2",
+    "db": "argus-alert,argus-statistics,argus-users,argus-web",
     "config": "192.168.0.10:27017,192.168.0.11:27017",
     "mongos": "192.168.0.13:27017",
     "replica": "192.168.0.14:27017",
