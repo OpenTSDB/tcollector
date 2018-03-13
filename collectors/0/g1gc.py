@@ -104,7 +104,7 @@ pattern_map = {
                                     (FLOAT_NUMBER_PATTERN, FLOAT_NUMBER_PATTERN, FLOAT_NUMBER_PATTERN)),
     # [GC remark 2013-11-06T04:10:06.212-0500: 627.107: [GC ref-proc, 0.0190820 secs], 0.0500000 secs]
     #  [Times: user=0.52 sys=0.01, real=0.05 secs]
-    REMARK_PATTERN: re.compile('GC remark.*\[GC ref-proc,\s*(\d+\.\d+)\s*secs\],\s*(\d+\.\d+)\s*secs\]$'),
+    REMARK_PATTERN: re.compile('GC remark.*\[GC ref-proc,\s*(\d+\.\d+)\s*secs\].*(\d+\.\d+)\s*secs\]$'),
     # [Scan RS (ms): Min: 0.0, Avg: 0.1, Max: 0.2, Diff: 0.2, Sum: 1.7]
     SCAN_RS_PATTERN: re.compile('\s*\[Scan RS \(ms\): Min: (%s), Avg: (%s), Max: (%s)' % (FLOAT_NUMBER_PATTERN, FLOAT_NUMBER_PATTERN, FLOAT_NUMBER_PATTERN)),
     OBJECT_COPY_PATTERN: re.compile('\s*\[Object Copy \(ms\): Min: (%s), Avg: (%s), Max: (%s)' % (FLOAT_NUMBER_PATTERN, FLOAT_NUMBER_PATTERN, FLOAT_NUMBER_PATTERN)),
@@ -155,14 +155,6 @@ def match_pattern(line):
         m = pattern.match(line)
         if m: return (pattern_name, m)
     return (None, None)
-
-def match_until(file_handler, pattern):
-    while True:
-        line = file_handler.readline()
-        if len(line) == 0: break
-        m = pattern.match(line)
-        if m: return m
-    return None
 
 def sec2milli(seconds):
     return 1000 * seconds
@@ -271,26 +263,26 @@ def scan_rs_handler(prefix, matcher, timestamp, collector, file_handler):
 # Complex GC events: initial-mark, young-pause, mixed-pause and remark
 # These GC events contains several inner gc events and we must call match_remaining_log to parse remaining gc events
 def initial_mark_handler(prefix, log_line, timestamp, collector, file_handler):
-    m = match_until(file_handler, pattern_map[GC_PAUSE_PATTERN])
+    m = pattern_map[GC_PAUSE_PATTERN].match(log_line)
     initial_mark_pause_time = sec2milli(float(m.group(1)))
     collect_metric_with_prefix(prefix, "gc.g1.duration %s %s phase=initial-mark", timestamp, initial_mark_pause_time, collector)
     match_remaining_log(prefix, timestamp, collector, file_handler)
 
 def young_pause_handler(prefix, log_line, timestamp, collector, file_handler):
-    m = match_until(file_handler, pattern_map[GC_PAUSE_PATTERN])
+    m = pattern_map[GC_PAUSE_PATTERN].match(log_line)
     young_pause_time = sec2milli(float(m.group(1)))
     collect_metric_with_prefix(prefix, "gc.g1.duration %s %s phase=young-pause", timestamp, young_pause_time, collector)
     match_remaining_log(prefix, timestamp, collector, file_handler)
 
 def mixed_pause_handler(prefix, log_line, timestamp, collector, file_handler):
-    m = match_until(file_handler, pattern_map[GC_PAUSE_PATTERN])
+    m = pattern_map[GC_PAUSE_PATTERN].match(log_line)
     mixed_pause_time = sec2milli(float(m.group(1)))
     collect_metric_with_prefix(prefix, "gc.g1.duration %s %s phase=mixed-pause", timestamp, mixed_pause_time, collector)
     match_remaining_log(prefix, timestamp, collector, file_handler)
 
 def remark_handler(prefix, log_line, timestamp, collector, file_handler):
     m =  pattern_map[REMARK_PATTERN].match(log_line)
-    remark_time, ref_process_time = [sec2milli(float(m.group(i))) for i in range(1, 3)]
+    ref_process_time, remark_time = [sec2milli(float(m.group(i))) for i in range(1, 3)]
     collect_metric_with_prefix(prefix, "gc.g1.duration %s %s phase=remark", timestamp, remark_time, collector)
     match_remaining_log(prefix, timestamp, collector, file_handler)
 
@@ -312,6 +304,9 @@ def match_remaining_log(prefix, timestamp, collector, file_handler):
         elif pattern_name == CLEAR_CT_PATTERN: clear_ct_handler(prefix, matcher, timestamp, collector, file_handler)
         else: unmatched_gc_log(line)
 
+def isPause(type, cause):
+    return 'GC pause' in cause and type in cause
+
 def process_gc_record(prefix, file_handler, timestamp, cause, collector):
     # process simple gc events
     if 'concurrent-cleanup-end' in cause: concurrent_cleanup_handler(prefix, cause, timestamp, collector, file_handler)
@@ -326,10 +321,10 @@ def process_gc_record(prefix, file_handler, timestamp, cause, collector):
         if 'initial-mark' in cause:
             collector['count']['initialmark'] += 1
             initial_mark_handler(prefix, cause, timestamp, collector, file_handler)
-        elif 'pause (young)' in cause:
+        elif isPause('young', cause):
             collector['count']['young'] += 1
             young_pause_handler(prefix, cause, timestamp, collector, file_handler)
-        elif 'pause (mixed)' in cause:
+        elif isPause('mixed', cause):
             collector['count']['mixed'] += 1
             mixed_pause_handler(prefix, cause, timestamp, collector, file_handler)
         elif 'remark' in cause:
