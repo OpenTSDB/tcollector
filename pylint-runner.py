@@ -59,7 +59,7 @@ def check(module, options):
             if re.match("E\:.*", line):
                 errors += 1
                 if options.summary or options.verbose:
-                  print "Module: %s - %s" % (module, line.rstrip())
+                  print("Module: %s - %s" % (module, line.rstrip()))
             if re.match("[RCWF]\:.*", line) and options.show_all:
                 print_line(line)
             if  re.match("E....:.", line):
@@ -120,11 +120,11 @@ def main(argv):
             check(filepath, options)
 
     if options.summary:
-        print "==" * 50
-        print "%d modules found" % count
-        print "%d errors found" % errors
+        print("==" * 50)
+        print("%d modules found" % count)
+        print("%d errors found" % errors)
         if options.show_all and count > 0:
-            print "AVERAGE SCORE = %.02f" % (total / count)
+            print("AVERAGE SCORE = %.02f" % (total / count))
     return errors
 
 if __name__ == '__main__':
