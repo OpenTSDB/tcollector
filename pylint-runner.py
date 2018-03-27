@@ -52,7 +52,8 @@ def check(module, options):
     if module[-3:] == ".py":
 
         args = ''
-        print_line("CHECKING %s" % (module))
+        print("Checking %s" % (module))
+        #print_line("CHECKING %s" % (module))
         pout = run_pylint(module, options)
         count += 1
         for line in pout:
