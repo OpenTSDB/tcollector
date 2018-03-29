@@ -12,7 +12,7 @@
 # of the GNU Lesser General Public License along with this program. If not,
 # see <http://www.gnu.org/licenses/>.
 """
-Collector for PostgreSQL.
+Collector for PostgreSQL replication statistics.
 
 Ensure that etc/postgresqlconf.py exists as defined at
 https://github.com/OpenTSDB/tcollector/blob/v1.3.0/collectors/etc/postgresqlconf.py.
@@ -27,60 +27,69 @@ import os
 import time
 import socket
 import errno
+import re
+import subprocess
 
-COLLECTION_INTERVAL = 15 # seconds
+COLLECTION_INTERVAL = 5 # seconds
 
 from collectors.lib import utils
 from collectors.lib import postgresqlutils
 
 def collect(db):
   """
-  Collects and prints stats.
-
-  Here we collect only general info, for full list of data for collection
-  see http://www.postgresql.org/docs/9.2/static/monitoring-stats.html
+  Collects and prints replication statistics.
   """
 
   try:
     cursor = db.cursor()
 
-    # general statics
-    cursor.execute("SELECT pg_stat_database.*, pg_database_size"
-                   " (pg_database.datname) AS size FROM pg_database JOIN"
-                   " pg_stat_database ON pg_database.datname ="
-                   " pg_stat_database.datname WHERE pg_stat_database.datname"
-                   " NOT IN ('template0', 'template1', 'postgres')")
+    # Replication lag time (could be slave only or a master / slave combo)
+    cursor.execute("SELECT "
+                   "CASE WHEN pg_is_in_recovery() THEN (EXTRACT (EPOCH FROM now() - pg_last_xact_replay_timestamp()) * 1000)::BIGINT ELSE NULL END AS replication_lag_time, "
+                   "pg_xlog_location_diff(pg_last_xlog_receive_location(), pg_last_xlog_replay_location()) AS replication_lag_bytes, "
+                   "pg_is_in_recovery() AS in_recovery;")
     ts = time.time()
     stats = cursor.fetchall()
 
-#  datid |  datname   | numbackends | xact_commit | xact_rollback | blks_read  |  blks_hit   | tup_returned | tup_fetched | tup_inserted | tup_updated | tup_deleted | conflicts | temp_files |  temp_bytes  | deadlocks | blk_read_time | blk_write_time |          stats_reset          |     size
-    result = {}
-    for stat in stats:
-      database = stat[1]
-      result[database] = stat
+    if (stats[0][0] is not None):
+      print ("postgresql.replication.upstream.lag.time %i %s"
+             % (ts, stats[0][0]))
 
-    for database in result:
-      for i in range(2,len(cursor.description)):
-        metric = cursor.description[i].name
-        value = result[database][i]
-        try:
-          if metric in ("stats_reset"):
-            continue
-          print ("postgresql.%s %i %s database=%s"
-                 % (metric, ts, value, database))
-        except:
-          utils.err("got here")
-          continue
+    if (stats[0][1] is not None):
+      print ("postgresql.replication.upstream.lag.bytes %i %s"
+             % (ts, stats[0][1]))
 
-    # connections
-    cursor.execute("SELECT datname, count(datname) FROM pg_stat_activity"
-                   " GROUP BY pg_stat_activity.datname")
+    print ("postgresql.replication.recovering %i %i"
+           % (ts, stats[0][2]))
+
+    #  WAL receiver process running (could be slave only or master / slave combo)
+    ps_out = subprocess.check_output(["/bin/ps", "aux"] , stderr=subprocess.STDOUT)
+    ps_out = ps_out.split("\n")
     ts = time.time()
-    connections = cursor.fetchall()
 
-    for database, connection in connections:
-      print ("postgresql.connections %i %s database=%s"
-             % (ts, connection, database))
+    wal_receiver_running = 0
+    for l in ps_out:
+      l = l.strip()
+      if (re.match (".*wal\\sreceiver.*", l)):
+        wal_receiver_running = 1;
+        break
+
+    print ("postgresql.replication.walreceiver.running %i %s"
+         % (ts, wal_receiver_running))
+
+    # WAL sender process info (could be master only or master / slave combo)
+    cursor.execute("SELECT client_addr, client_port, "
+                   "pg_xlog_location_diff(sent_location, replay_location) AS lag_bytes "
+                   "FROM pg_stat_replication;")
+    ts = time.time()
+    stats = cursor.fetchall()
+
+    print ("postgresql.replication.downstream.count %i %i"
+           % (ts, len(stats)))
+
+    for stat in stats:
+      print ("postgresql.replication.downstream.lag.bytes %i %i client_ip=%s client_port=%s"
+           % (ts, stat[2], stat[0], stat[1]))
 
   except (EnvironmentError, EOFError, RuntimeError, socket.error), e:
     if isinstance(e, IOError) and e[0] == errno.EPIPE:
