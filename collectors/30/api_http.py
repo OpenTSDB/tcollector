@@ -3,32 +3,13 @@ import time
 import requests
 import sys
 
-from collectors.lib.optimizely_utils import format_tsd_key
+from collectors.lib.optimizely_utils import format_tsd_key, get_json
 
 
 # Constants
 TIME = int(time.time())
 URL = 'http://127.0.0.1:8081/metrics'
 METRIC_PREFIX = 'optimizely.codahale.'
-
-
-def get_json(url):
-    """ Request URL, load JSON, exit if error. """
-    url_json = None
-    try:
-        r = requests.get(url)
-    except Exception, e:
-        print 'Unable to query url {} - {}'.format(url, e)
-        sys.exit(0)
-    if r.status_code == 200:
-        try:
-            url_json = r.json()
-        except Exception, e:
-            print 'Could not load JSON for {}'.format(url)
-            raise e
-    else:
-        print 'Did not receive 200 response for {}'.format(url)
-    return url_json
 
 
 def main():
