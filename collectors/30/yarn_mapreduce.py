@@ -1,4 +1,12 @@
 #!/usr/bin/env python
+"""
+Collector used to pull metrics from the MapReduce Application Master REST API
+
+https://hadoop.apache.org/docs/r2.6.0/hadoop-mapreduce-client/hadoop-mapreduce-client-core/MapredAppMasterRest.html
+
+This collector is meant to run on the active YARN ResourceManager and queries specifically for RUNNING applications.
+"""
+
 import socket
 import time
 
@@ -17,7 +25,11 @@ METRIC_PREFIX = 'yarn.mapreduce'
 
 
 def main():
-    running_apps = get_json(APP_BASE_URL + '?state=RUNNING')
+    try:
+        running_apps = get_json(APP_BASE_URL + '?state=RUNNING')
+    except Exception, e:
+        # This will fail if not the active RM so let's exit gracefully so we don't mark this collector as dead
+        return
 
     apps = running_apps.get('apps')
     if apps is None:
