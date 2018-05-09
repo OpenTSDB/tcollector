@@ -32,7 +32,13 @@ ELB_METRICS = {
         "HTTPCode_Backend_2XX": "Sum",
         "HTTPCode_Backend_3XX": "Sum",
         "HTTPCode_Backend_4XX": "Sum",
-        "HTTPCode_Backend_5XX": "Sum"
+        "HTTPCode_Backend_5XX": "Sum",
+        "HTTPCode_ELB_4XX_Count": "Sum",
+        "HTTPCode_ELB_5XX_Count": "Sum",
+        "HTTPCode_Target_2XX_Count": "Sum",
+        "HTTPCode_Target_3XX_Count": "Sum",
+        "HTTPCode_Target_4XX_Count": "Sum",
+        "HTTPCode_Target_5XX_Count": "Sum"
     }
 
 AZS = ['us-east-1b', 'us-east-1c', 'us-east-1d', 'us-east-1e']
