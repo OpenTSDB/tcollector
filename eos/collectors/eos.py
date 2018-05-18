@@ -33,6 +33,7 @@ class IntfCounterCollector(object):
       result = self.server_.runCmds(1, ["show interfaces counters",
                                         "show interfaces counters errors",
                                         "show interfaces counters bins"])
+      jsonrpclib.history.clear()
       (counters, error_counters, bin_counters) = result
 
       # Print general interface counters
