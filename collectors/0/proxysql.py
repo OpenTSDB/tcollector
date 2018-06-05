@@ -413,10 +413,6 @@ class LogTable(StatsMultiValueTable):
 
 class MysqlServerConnectLog(LogTable):
     TABLE_NAME = 'mysql_server_connect_log'
-    PKEY_COLUMNS = [
-        'hostname',
-        'port',
-    ]
     COLUMNS = [
         'hostname',
         'port',
