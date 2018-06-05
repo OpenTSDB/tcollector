@@ -253,7 +253,7 @@ def find_schemas(db):
     FROM
         information_schema.schemata
     WHERE
-        SCHEMA_NAME NOT IN ('mysql', 'performance_schema', 'information_schema')
+        SCHEMA_NAME NOT IN ('mysql', 'performance_schema', 'information_schema', 'sys')
     """
     return db.query(db_list_query)
 
