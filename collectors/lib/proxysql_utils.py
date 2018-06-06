@@ -155,8 +155,8 @@ def find_proxysql_instances(instances=None):
             cursor.execute("SELECT VERSION()")
         except (EnvironmentError, EOFError, RuntimeError,
                 socket.error, MySQLdb.MySQLError), e:
-            utils.err('Could not connect to instance at (%s, %s): %s',
-                      host, port, e)
+            utils.err('Could not connect to instance at (%s, %s): %s' %
+                      (host, port, e))
             continue
         version = cursor.fetchone()[0]
         instances[name] = ProxySQL(host, port, name, inst, cursor, version)
