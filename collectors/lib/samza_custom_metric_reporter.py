@@ -21,6 +21,7 @@ class SamzaCustomMetricReporter(SamzaMetricReporter):
             'com.optimizely.preprocessing.samza.enrichevent.processor.EventTicketProjectIdProcessor' : 'enrichevents.metrics',
             'com.optimizely.preprocessing.samza.enrichevent.processor.DecisionEventTicketProjectIdProcessor' : 'enrichevents.metrics',
             'com.optimizely.validator.samza.ValidatorTask': 'validator.metrics',
+            'com.optimizely.achievement.samza.AchievementTask': 'achievement.metrics'
         }
 
         for m in class_to_metric_name_map:
