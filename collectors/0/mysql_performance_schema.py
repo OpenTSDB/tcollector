@@ -32,7 +32,7 @@ from collectors.lib.mysql_utils import (
 COLLECTION_INTERVAL = 60  # seconds
 
 NUM_QUERY_SUMMARY_LIMIT = 10000
-MAX_QUERY_LAST_SEEN_SECONDS = 86400
+MAX_QUERY_LAST_SEEN_SECONDS = 86400 * 7
 
 # Due to bug https://bugs.mysql.com/bug.php?id=79533, we can NOT assume
 # the performance_schema.events_statements_summary_by_digest table
