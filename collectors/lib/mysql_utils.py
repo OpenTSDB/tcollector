@@ -173,7 +173,7 @@ def get_houzz_db_name():
     hostname = socket.gethostname()
     if hostname.startswith('mysql-master-'):
         # ex.: mysql-master-kv-04681cb62eb0d3660.web-production.houzz.net
-        m = re.match(r'mysql-master-([^-]+)-.+', hostname.split('.')[0])
+        m = re.match(r'mysql-(master|slave)-([^-]+)-.+', hostname.split('.')[0])
         if m:
             return m.group(1)
         else:
