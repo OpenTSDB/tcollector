@@ -175,7 +175,7 @@ def get_houzz_db_name():
         # ex.: mysql-master-kv-04681cb62eb0d3660.web-production.houzz.net
         m = re.match(r'mysql-(master|slave)-([^-]+)-.+', hostname.split('.')[0])
         if m:
-            return m.group(1)
+            return m.group(2)
         else:
             return "main"
     return "default"
