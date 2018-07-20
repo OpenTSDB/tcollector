@@ -30,7 +30,7 @@ REGION_METRIC_PATTERN = re.compile(r"[N|n]amespace_(.*)_table_(.*)_region_(.*)_m
 
 class HBaseRegionserver(HadoopHttp):
     def __init__(self):
-        super(HBaseRegionserver, self).__init__("hbase", "regionserver", "localhost", 60030)
+        super(HBaseRegionserver, self).__init__("hbase", "regionserver", "localhost", 16030)
 
     def emit_region_metric(self, context, current_time, full_metric_name, value):
 	match = REGION_METRIC_PATTERN.match(full_metric_name)

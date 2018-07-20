@@ -31,11 +31,11 @@ class HBaseMaster(HadoopHttp):
     """
     Class to get metrics from Apache HBase's master
 
-    Require HBase 0.96.0+
+    Require HBase 0.99+
     """
 
     def __init__(self):
-        super(HBaseMaster, self).__init__('hbase', 'master', 'localhost', 60010)
+        super(HBaseMaster, self).__init__('hbase', 'master', 'localhost', 16010)
 
     def emit(self):
         current_time = int(time.time())
