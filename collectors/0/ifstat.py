@@ -84,7 +84,7 @@ def main():
                 if i >= 8:
                     return "out"
                 return "in"
-            for i in xrange(16):
+            for i in range(16):
                 print("proc.net.%s %d %s iface=%s direction=%s"
                       % (FIELDS[i], ts, stats[i], intf, direction(i)))
 

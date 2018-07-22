@@ -114,7 +114,7 @@ class ProcessTable(object):
 
     def filter(self, cond):
         """ Return processes for that the function cond evaluates to true. """
-        return filter(cond, self.processes.values())
+        return list(filter(cond, self.processes.values()))
 
 def collect_tcollect_stats(processes):
     # print a msg and do nothing if the parent process isn't tcollector

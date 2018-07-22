@@ -51,7 +51,7 @@ def main():
   """dfstats main loop"""
   try:
     f_mounts = open("/proc/mounts", "r")
-  except IOError, e:
+  except IOError as e:
     utils.err("error: can't open /proc/mounts: %s" % e)
     return 13 # Ask tcollector to not respawn us
 
@@ -72,7 +72,7 @@ def main():
       # fs_passno   # Order in which filesystem checks are done at reboot time
       try:
         fs_spec, fs_file, fs_vfstype, fs_mntops, fs_freq, fs_passno = line.split(None)
-      except ValueError, e:
+      except ValueError as e:
         utils.err("error: can't parse line at /proc/mounts: %s" % e)
         continue
 
@@ -105,7 +105,7 @@ def main():
       fs_spec, fs_file, fs_vfstype = device
       try:
         r = os.statvfs(fs_file)
-      except OSError, e:
+      except OSError as e:
         utils.err("can't get info for mount point: %s: %s" % (fs_file, e))
         continue
 

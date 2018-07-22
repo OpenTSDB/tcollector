@@ -39,6 +39,10 @@ import re
 import signal
 import os
 
+PY3 = sys.version_info[0] > 2
+if PY3:
+    long = int
+
 from collectors.lib import utils
 
 try:
@@ -147,7 +151,7 @@ def main():
             ["zpool", "iostat", "-v", str(collection_interval)],
             stdout=subprocess.PIPE,
         )
-    except OSError, e:
+    except OSError as e:
         if e.errno == errno.ENOENT:
             # it makes no sense to run this collector here
             sys.exit(13) # we signal tcollector to not run us
@@ -168,7 +172,7 @@ def main():
     while signal_received is None:
         try:
             line = p_zpool.stdout.readline()
-        except (IOError, OSError), e:
+        except (IOError, OSError) as e:
             if e.errno in (errno.EINTR, errno.EAGAIN):
                 break
             raise
@@ -250,13 +254,13 @@ def main():
                 for poolname, stats in capacity_stats_pool.items():
                     fm = "zfs.df.pool.kb.%s %d %s pool=%s"
                     for statname, statnumber in stats.items():
-                        print fm % (statname, timestamp, statnumber, poolname)
+                        print(fm % (statname, timestamp, statnumber, poolname))
                 for devicename, stats in capacity_stats_device.items():
                     fm = "zfs.df.device.kb.%s %d %s device=%s pool=%s"
                     poolname, devicename = devicename.split(" ", 1)
                     for statname, statnumber in stats.items():
-                        print fm % (statname, timestamp, statnumber,
-                                    devicename, poolname)
+                        print(fm % (statname, timestamp, statnumber,
+                                    devicename, poolname))
             if firstloop:
                 # this flag prevents printing out of the data in the first loop
                 # which is a since-boot summary similar to iostat
@@ -266,13 +270,13 @@ def main():
                 for poolname, stats in io_stats_pool.items():
                     fm = "zfs.io.pool.%s %d %s pool=%s"
                     for statname, statnumber in stats.items():
-                        print fm % (statname, timestamp, statnumber, poolname)
+                        print(fm % (statname, timestamp, statnumber, poolname))
                 for devicename, stats in io_stats_device.items():
                     fm = "zfs.io.device.%s %d %s device=%s pool=%s"
                     poolname, devicename = devicename.split(" ", 1)
                     for statname, statnumber in stats.items():
-                        print fm % (statname, timestamp, statnumber,
-                                    devicename, poolname)
+                        print(fm % (statname, timestamp, statnumber,
+                                    devicename, poolname))
             sys.stdout.flush()
 
     if signal_received is None:

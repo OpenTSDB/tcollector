@@ -14,11 +14,15 @@
 
 """Common utility functions shared for Python collectors"""
 
+from __future__ import print_function
+
 import os
 import stat
 import pwd
 import errno
 import sys
+
+PY3 = sys.version_info[0] > 2
 
 # If we're running as root and this user exists, we'll drop privileges.
 USER = "nobody"
@@ -42,17 +46,21 @@ def is_sockfile(path):
     """Returns whether or not the given path is a socket file."""
     try:
         s = os.stat(path)
-    except OSError, (no, e):
-        if no == errno.ENOENT:
+    except OSError as exc:
+        if exc.errno == errno.ENOENT:
             return False
-        err("warning: couldn't stat(%r): %s" % (path, e))
+        err("warning: couldn't stat(%r): %s" % (path, exc))
         return None
     return s.st_mode & stat.S_IFSOCK == stat.S_IFSOCK
 
 
 def err(msg):
-    print >> sys.stderr, msg
+    print(msg, file=sys.stderr)
 
 
-def is_numeric(value):
-    return isinstance(value, (int, long, float))
+if PY3:
+    def is_numeric(value):
+        return isinstance(value, (int, float))
+else:
+    def is_numeric(value):
+        return isinstance(value, (int, long, float))

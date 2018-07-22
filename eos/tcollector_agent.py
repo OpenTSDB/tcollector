@@ -200,7 +200,7 @@ class TcollectorAgent(eossdk.AgentHandler,
          self.get_agent_mgr().status_set("has_tcollector_py", "True")
          self.module_.LOG = SdkLogger("tcollector")
          self.module_.setup_logging()
-      except IOError, e:
+      except IOError as e:
          import errno
          if e.errno != errno.ENOENT:
             raise
@@ -230,7 +230,7 @@ class TcollectorAgent(eossdk.AgentHandler,
    def on_hostname(self, hostname):
       debug("Hostname changed to", hostname)
       self.tags_["host"] = hostname
-      self.sender_thread_.tags = sorted(self.tags_.iteritems())
+      self.sender_thread_.tags = sorted(self.tags_.items())
 
    def start(self):
       tcollector = self.module_

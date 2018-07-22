@@ -64,6 +64,7 @@
 # when you have to handle mapping of /dev/mapper to dm-N, pulling out
 # swap partitions from /proc/swaps, etc.
 
+from __future__ import print_function
 
 import sys
 import time
@@ -197,7 +198,7 @@ def main():
                     tput = ((nr_ios - prev_nr_ios) * float(HZ) / float(itv))
                     util = ((float(stats.get("msec_total")) - float(prev_stats[device].get("msec_total"))) * float(HZ) / float(itv))
                     svctm = 0.0
-                    await = 0.0
+                    await_ = 0.0
                     r_await = 0.0
                     w_await = 0.0
 
@@ -213,7 +214,7 @@ def main():
                     if wr_ios != prev_wr_ios:
                         w_await = (float(wr_ticks) - float(prev_wr_ticks) ) / float(wr_ios - prev_wr_ios)
                     if nr_ios != prev_nr_ios:
-                        await = (float(rd_ticks) + float(wr_ticks) - float(prev_rd_ticks) - float(prev_wr_ticks)) / float(nr_ios - prev_nr_ios)
+                        await_ = (float(rd_ticks) + float(wr_ticks) - float(prev_rd_ticks) - float(prev_wr_ticks)) / float(nr_ios - prev_nr_ios)
                     print("%s%s %d %.2f dev=%s"
                           % (metric, "svctm", ts, svctm, device))
                     print("%s%s %d %.2f dev=%s"
@@ -221,7 +222,7 @@ def main():
                     print("%s%s %d %.2f dev=%s"
                           % (metric, "w_await", ts, w_await, device))
                     print("%s%s %d %.2f dev=%s"
-                          % (metric, "await", ts, await, device))
+                          % (metric, "await", ts, await_, device))
                     print("%s%s %d %.2f dev=%s"
                           % (metric, "util", ts, float(util/1000.0), device))
 
@@ -233,7 +234,7 @@ def main():
                     print("%s%s %d %s dev=%s"
                           % (metric, FIELDS_PART[i], ts, values[i+3], device))
             else:
-                print >> sys.stderr, "Cannot parse /proc/diskstats line: ", line
+                print("Cannot parse /proc/diskstats line: ", line, file=sys.stderr)
                 continue
 
         sys.stdout.flush()

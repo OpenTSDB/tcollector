@@ -2,6 +2,8 @@
 # More informations on https://docs.docker.com/articles/runmetrics/
 """Imports Docker stats from /sys/fs/cgroup."""
 
+from __future__ import print_function
+
 import os
 import re
 import socket
@@ -60,7 +62,7 @@ def getnameandimage(containerid):
     try:
         r = sock.connect_ex(DOCKER_SOCK)
         if (r != 0):
-            print >>sys.stderr, "Can not connect to %s" % (DOCKER_SOCK)
+            print("Can not connect to %s" % (DOCKER_SOCK), file=sys.stderr)
         else:
             message = 'GET /containers/' + containerid + '/json HTTP/1.1\r\nHost: http\n\n'
             sock.sendall(message)
@@ -79,16 +81,16 @@ def getnameandimage(containerid):
                 try:
                     containernames[containerid] = data["Name"].lstrip('/')
                 except:
-                    print >>sys.stderr, containerid+" has no Name field"
+                    print(containerid+" has no Name field", file=sys.stderr)
                 try:
                     containerimages[containerid] = data["Config"]["Image"].replace(':', '_')
                 except:
-                    print >>sys.stderr, containerid+" has no Image field"
+                    print(containerid+" has no Image field", file=sys.stderr)
             except:
-                print >>sys.stderr, "Can not load json"
+                print("Can not load json", file=sys.stderr)
 
-    except socket.timeout, e:
-        print >>sys.stderr, "Socket: %s" % (e,)
+    except socket.timeout as e:
+        print("Socket: %s" % (e,), file=sys.stderr)
 
 def senddata(datatosend, containerid):
     if datatosend:
@@ -97,7 +99,7 @@ def senddata(datatosend, containerid):
             datatosend += " containername="+containernames[containerid]
         if (containerid in containerimages):
             datatosend += " containerimage="+containerimages[containerid]
-        print "docker.%s" % datatosend
+        print("docker.%s" % datatosend)
     sys.stdout.flush()
 
 def readdockerstats(path, containerid):
@@ -112,8 +114,8 @@ def readdockerstats(path, containerid):
         and ((file_stat in proc_names.keys()) or (file_stat in proc_names_to_agg.keys()))):
             try:
                 f_stat = open(path+"/"+file_stat)
-            except IOError, e:
-                print >>sys.stderr, "Failed to open input file: %s" % (e,)
+            except IOError as e:
+                print("Failed to open input file: %s" % (e,), file=sys.stderr)
                 return 1
             ts = int(time.time())
 

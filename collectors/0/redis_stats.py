@@ -57,6 +57,8 @@ For more information on these values, see this (not very useful) documentation:
     http://redis.io/commands/info
 """
 
+from __future__ import print_function
+
 import re
 import subprocess
 import sys
@@ -112,7 +114,7 @@ def main():
 
     def print_stat(metric, value, tags=""):
         if value is not None:
-            print "redis.%s %d %s %s" % (metric, ts, value, tags)
+            print("redis.%s %d %s %s" % (metric, ts, value, tags))
 
     dbre = re.compile("^db\d+$")
 
@@ -137,8 +139,8 @@ def main():
                         print_stat(key, info[key], tags)
 
                 # per database metrics
-                for db in filter(dbre.match, info.keys()):
-                    for db_metric in info[db].keys():
+                for db in filter(dbre.match, list(info.keys())):
+                    for db_metric in list(info[db].keys()):
                         print_stat(db_metric, info[db][db_metric], "%s db=%s" % (tags, db))
 
                 # get some instant latency information
@@ -163,7 +165,7 @@ def scan_for_instances():
     ns_proc = subprocess.Popen(["netstat", "-tnlp"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     stdout, _ = ns_proc.communicate()
     if ns_proc.returncode != 0:
-        print >> sys.stderr, "failed to find instances %r" % ns_proc.returncode
+        print("failed to find instances %r" % ns_proc.returncode, file=sys.stderr)
         return {}
 
     for line in stdout.split("\n"):

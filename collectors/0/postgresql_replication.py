@@ -52,14 +52,14 @@ def collect(db):
     stats = cursor.fetchall()
 
     if (stats[0][0] is not None):
-      print ("postgresql.replication.upstream.lag.time %i %s"
+      print("postgresql.replication.upstream.lag.time %i %s"
              % (ts, stats[0][0]))
 
     if (stats[0][1] is not None):
-      print ("postgresql.replication.upstream.lag.bytes %i %s"
+      print("postgresql.replication.upstream.lag.bytes %i %s"
              % (ts, stats[0][1]))
 
-    print ("postgresql.replication.recovering %i %i"
+    print("postgresql.replication.recovering %i %i"
            % (ts, stats[0][2]))
 
     #  WAL receiver process running (could be slave only or master / slave combo)
@@ -74,7 +74,7 @@ def collect(db):
         wal_receiver_running = 1;
         break
 
-    print ("postgresql.replication.walreceiver.running %i %s"
+    print("postgresql.replication.walreceiver.running %i %s"
          % (ts, wal_receiver_running))
 
     # WAL sender process info (could be master only or master / slave combo)
@@ -84,14 +84,14 @@ def collect(db):
     ts = time.time()
     stats = cursor.fetchall()
 
-    print ("postgresql.replication.downstream.count %i %i"
+    print("postgresql.replication.downstream.count %i %i"
            % (ts, len(stats)))
 
     for stat in stats:
-      print ("postgresql.replication.downstream.lag.bytes %i %i client_ip=%s client_port=%s"
+      print("postgresql.replication.downstream.lag.bytes %i %i client_ip=%s client_port=%s"
            % (ts, stat[2], stat[0], stat[1]))
 
-  except (EnvironmentError, EOFError, RuntimeError, socket.error), e:
+  except (EnvironmentError, EOFError, RuntimeError, socket.error) as e:
     if isinstance(e, IOError) and e[0] == errno.EPIPE:
       # exit on a broken pipe. There is no point in continuing
       # because no one will read our stdout anyway.
@@ -103,7 +103,7 @@ def main(args):
 
   try:
     db = postgresqlutils.connect()
-  except (Exception), e:
+  except (Exception) as e:
     utils.err("error: Could not initialize collector : %s" % (e))
     return 13 # Ask tcollector to not respawn us
 

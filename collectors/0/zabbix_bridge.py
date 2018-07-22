@@ -70,14 +70,14 @@ def main():
                     cachecur.execute('SELECT id, key, host, proxy FROM zabbix_cache WHERE id=?', (itemid,))
                     row = cachecur.fetchone()
                     if (row is not None):
-                        print "zbx.%s %d %s host=%s proxy=%s" % (row[1], r['clock'], r['value'], row[2], row[3])
+                        print("zbx.%s %d %s host=%s proxy=%s" % (row[1], r['clock'], r['value'], row[2], row[3]))
                         if ((int(time.time()) - sample_last_ts) > settings['internal_metric_interval']): # Sample internal metrics @ 10s intervals
                             sample_last_ts = int(time.time())
-                            print "tcollector.zabbix_bridge.log_pos %d %s" % (sample_last_ts, log_pos)
-                            print "tcollector.zabbix_bridge.key_lookup_miss %d %s" % (sample_last_ts, key_lookup_miss)
-                            print "tcollector.zabbix_bridge.timestamp_drift %d %s" % (sample_last_ts, (sample_last_ts - r['clock']))
+                            print("tcollector.zabbix_bridge.log_pos %d %s" % (sample_last_ts, log_pos))
+                            print("tcollector.zabbix_bridge.key_lookup_miss %d %s" % (sample_last_ts, key_lookup_miss))
+                            print("tcollector.zabbix_bridge.timestamp_drift %d %s" % (sample_last_ts, (sample_last_ts - r['clock'])))
                             if ((key_lookup_miss - last_key_lookup_miss) > settings['dbrefresh']):
-                                print "tcollector.zabbix_bridge.key_lookup_miss_reload %d %s" % (sample_last_ts, (key_lookup_miss - last_key_lookup_miss))
+                                print("tcollector.zabbix_bridge.key_lookup_miss_reload %d %s" % (sample_last_ts, (key_lookup_miss - last_key_lookup_miss)))
                                 cachecur.execute('DROP TABLE zabbix_cache')
                                 cachecur.execute('CREATE TABLE zabbix_cache AS SELECT * FROM dbfile.zabbix_cache')
                                 cachecur.execute('CREATE UNIQUE INDEX uniq_zid on zabbix_cache (id)')
