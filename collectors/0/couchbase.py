@@ -87,7 +87,7 @@ def find_conf_file(pid):
   """Returns config file for couchbase-server."""
   try:
     fd = open('/proc/%s/cmdline' % pid)
-  except IOError, e:
+  except IOError as e:
     utils.err("Couchbase (pid %s) went away ? %s" % (pid, e))
     return
   try:
@@ -100,7 +100,7 @@ def find_bindir_path(config_file):
   """Returns the bin directory path"""
   try:
     fd = open(config_file)
-  except IOError, e:
+  except IOError as e:
     utils.err("Error for Config file (%s): %s" % (config_file, e))
     return None
   try:
@@ -142,7 +142,7 @@ def collect_stats(bin_dir, bucket):
     metric = stat.split(":")[0].lstrip(" ")
     value = stat.split(":")[1].lstrip(" \t")
     if metric in KEYS:
-      print ("couchbase.%s %i %s bucket=%s" % (metric, ts, value, bucket))
+      print("couchbase.%s %i %s bucket=%s" % (metric, ts, value, bucket))
 
 def main():
   utils.drop_privileges()

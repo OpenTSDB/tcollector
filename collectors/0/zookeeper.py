@@ -68,7 +68,7 @@ def scan_zk_instances():
     except OSError:
         utils.err("netstat is not in PATH")
         return instances
-    except CalledProcessError, err:
+    except CalledProcessError as err:
         utils.err("Error: %s" % err)
 
     for line in listen_sock.split("\n"):
@@ -92,7 +92,7 @@ def scan_zk_instances():
                     sock.settimeout(0.5)
                     sock.send("ruok\n")
                     data = sock.recv(1024)
-                except Exception, err:
+                except Exception as err:
                     utils.err(err)
                 finally:
                     if sock: 
@@ -100,7 +100,7 @@ def scan_zk_instances():
                 if data == "imok":	
                     instances.append([ip, port, tcp_version])
                     data = ""
-        except Exception, err:
+        except Exception as err:
             utils.err(err)
         finally:
             fd.close()
@@ -108,7 +108,7 @@ def scan_zk_instances():
 
 def print_stat(metric, ts, value, tags=""):
     if value is not None:
-        print "zookeeper.%s %i %s %s" % (metric, ts, value, tags)
+        print("zookeeper.%s %i %s %s" % (metric, ts, value, tags))
 
 def connect_socket(tcp_version, port):
     sock = None
@@ -120,7 +120,7 @@ def connect_socket(tcp_version, port):
         ipaddr = '127.0.0.1'
     try:
         sock.connect((ipaddr, port))
-    except Exception, err:
+    except Exception as err:
         utils.err(err)
     return sock
 

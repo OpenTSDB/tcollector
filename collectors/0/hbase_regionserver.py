@@ -44,7 +44,7 @@ class HBaseRegionserver(HadoopHttp):
         metric_name = match.group(4)
         tag_dict = {"namespace": namespace, "table": table, "region": region}
 
-        if any( not v for k,v in tag_dict.iteritems()):
+        if any( not v for k,v in tag_dict.items()):
             utils.err("Error splitting %s" % full_metric_name)
         else:
             self.emit_metric(context, current_time, metric_name, value, tag_dict)

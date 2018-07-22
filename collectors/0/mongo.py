@@ -13,6 +13,8 @@
 # of the GNU Lesser General Public License along with this program.  If not,
 # see <http://www.gnu.org/licenses/>.
 
+from __future__ import print_function
+
 import sys
 import time
 try:
@@ -63,7 +65,7 @@ TAG_METRICS = (
 def main():
     utils.drop_privileges()
     if pymongo is None:
-       print >>sys.stderr, "error: Python module `pymongo' is missing"
+       print("error: Python module `pymongo' is missing", file=sys.stderr)
        return 13
 
     c = pymongo.Connection(host=HOST, port=PORT)
@@ -74,8 +76,8 @@ def main():
 
         for base_metric, tags in TAG_METRICS:
             for tag in tags:
-                print 'mongo.%s %d %s type=%s' % (base_metric, ts,
-                                                  res[base_metric][tag], tag)
+                print('mongo.%s %d %s type=%s' % (base_metric, ts,
+                                                  res[base_metric][tag], tag))
         for metric in METRICS:
             cur = res
             try:
@@ -83,7 +85,7 @@ def main():
                     cur = cur[m]
             except KeyError:
                 continue
-            print 'mongo.%s %d %s' % (metric, ts, cur)
+            print('mongo.%s %d %s' % (metric, ts, cur))
 
         sys.stdout.flush()
         time.sleep(INTERVAL)

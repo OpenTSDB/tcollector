@@ -17,6 +17,8 @@
 #
 # ntp.offset             estimated offset
 
+from __future__ import print_function
+
 import os
 import socket
 import subprocess
@@ -47,7 +49,7 @@ def main():
         ts = int(time.time())
         try:
             ntp_proc = subprocess.Popen(["ntpq", "-p"], stdout=subprocess.PIPE)
-        except OSError, e:
+        except OSError as e:
             if e.errno == errno.ENOENT:
                 # looks like ntpdc is not available, stop using this collector
                 sys.exit(13) # we signal tcollector to stop using this
@@ -64,9 +66,9 @@ def main():
                 if fields[0].startswith("*"):
                     offset=fields[8]
                     continue
-            print ("ntp.offset %d %s" % (ts, offset))
+            print("ntp.offset %d %s" % (ts, offset))
         else:
-            print >> sys.stderr, "ntpq -p, returned %r" % (ntp_proc.returncode)
+            print("ntpq -p, returned %r" % (ntp_proc.returncode), file=sys.stderr)
 
         sys.stdout.flush()
         time.sleep(collection_interval)

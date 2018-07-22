@@ -83,7 +83,18 @@ import os
 import socket
 import sys
 import time
-import md5
+
+PY3 = sys.version_info[0] > 2
+if PY3:
+    from hashlib import md5
+
+    def md5_digest(line):
+        return md5(line.encode("utf8")).digest()
+else:
+    import md5
+
+    def md5_digest(line):
+        return md5.new(line).digest()
 
 COLLECTION_INTERVAL = 10  # seconds
 
@@ -140,7 +151,7 @@ def main():
             # ( If multiple subdirectories of the same volume are mounted to different places they
             #   will show up in mountstats, but will have duplicate data. )
             if field == "events":
-                m = md5.new(line).digest()
+                m = md5_digest(line)
                 rpc_metrics[device]['digest'] = m
                 if m in rpc_metrics:
                     # metrics already counted, mark as dupe ignore
@@ -176,9 +187,9 @@ def main():
             nfsvol = rpc_metrics[device]['mounts'][0]
             for metric in KEY_METRICS+['other']:
                 for field in rpc_metrics[device][metric]:
-                    print "proc.mountstats.%s.%s %d %s nfshost=%s nfsvol=%s" % (metric.lower(), field.lower(), ts, rpc_metrics[device][metric][field], nfshost, nfsvol)
+                    print("proc.mountstats.%s.%s %d %s nfshost=%s nfsvol=%s" % (metric.lower(), field.lower(), ts, rpc_metrics[device][metric][field], nfshost, nfsvol))
             for field in BYTES_FIELDS:
-                print "proc.mountstats.bytes.%s %d %s nfshost=%s nfsvol=%s" % (field.lower(), ts, rpc_metrics[device]['bytes'][field], nfshost, nfsvol)
+                print("proc.mountstats.bytes.%s %d %s nfshost=%s nfsvol=%s" % (field.lower(), ts, rpc_metrics[device]['bytes'][field], nfshost, nfsvol))
 
         sys.stdout.flush()
         time.sleep(COLLECTION_INTERVAL)
