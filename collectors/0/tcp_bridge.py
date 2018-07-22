@@ -13,17 +13,23 @@
 # see <http://www.gnu.org/licenses/>.
 """Listens on a local TCP socket for incoming Metrics """
 
+from __future__ import print_function
+
 import socket
 import os
 import sys
 import time
 from collectors.lib import utils
-from thread import *
+
+try:
+    from _thread import *
+except ImportError:
+    from thread import *
 
 try:
     from collectors.etc import tcp_bridge_conf
 except ImportError:
-    print >> sys.stderr, 'unable to import tcp_bridge_conf'
+    print('unable to import tcp_bridge_conf', file=sys.stderr)
     tcp_bridge_conf = None
 
 HOST = '127.0.0.1'
@@ -42,7 +48,7 @@ out = os.fdopen(sys.stdout.fileno(), 'w', 0)
 
 def main():
     if not (tcp_bridge_conf and tcp_bridge_conf.enabled()):
-        print >> sys.stderr, 'not enabled, or tcp_bridge_conf unavilable'
+        print('not enabled, or tcp_bridge_conf unavilable', file=sys.stderr)
         sys.exit(13)
     utils.drop_privileges()
 
@@ -103,7 +109,7 @@ def main():
         sock.bind((HOST, PORT))
         sock.listen(1)
 
-    except socket.error, msg:
+    except socket.error as msg:
         utils.err('could not open socket: %s' % msg)
         sys.exit(1)
 

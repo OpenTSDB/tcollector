@@ -41,7 +41,7 @@ def main():
     try:
         f_slab = open("/proc/spl/kmem/slab", "r")
         f_arcstats = open("/proc/spl/kstat/zfs/arcstats", "r")
-    except IOError, e:
+    except IOError as e:
         if e.errno == errno.ENOENT:
             # it makes no sense to run this collector here
             sys.exit(13) # we signal tcollector to not run us
@@ -63,10 +63,10 @@ def main():
                 typ = typ.group(1)
             else:
                 typ = name
-            print ("zfs.mem.slab.size %d %d type=%s objsize=%d" %
+            print("zfs.mem.slab.size %d %d type=%s objsize=%d" %
                   (ts, size, typ, objsize)
             )
-            print ("zfs.mem.slab.alloc %d %d type=%s objsize=%d" %
+            print("zfs.mem.slab.alloc %d %d type=%s objsize=%d" %
                   (ts, alloc, typ, objsize)
             )
 
@@ -76,7 +76,7 @@ def main():
             line = line.split()
             name, _, data = line
             data = int(data)
-            print ("zfs.mem.arc.%s %d %d" %
+            print("zfs.mem.arc.%s %d %d" %
                   (name, ts, data)
             )
 

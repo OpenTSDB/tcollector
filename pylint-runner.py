@@ -48,7 +48,7 @@ def check(module, options):
     apply pylint to the file specified if it is a *.py file
     '''
     global total, count, errors
-    
+
     if module[-3:] == ".py":
 
         args = ''

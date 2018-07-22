@@ -26,10 +26,11 @@ Tested with flume-ng 1.4.0 only. So far
 
 Based on the elastichsearch collector
 
-"""  
+"""
+
+from __future__ import print_function
 
 import errno
-import httplib
 try:
   import json
 except ImportError:
@@ -45,6 +46,11 @@ try:
 except ImportError:
   flume_conf = None
 
+try:
+    from http.client import HTTPConnection, OK
+except ImportError:
+    from httplib import HTTPConnection, OK
+
 COLLECTION_INTERVAL = 15  # seconds
 DEFAULT_TIMEOUT = 10.0    # seconds
 FLUME_HOST = "localhost"
@@ -54,7 +60,7 @@ FLUME_PORT = 34545
 EXCLUDE = [ 'StartTime', 'StopTime', 'Type' ]
 
 def err(msg):
-  print >>sys.stderr, msg
+  print(msg, file=sys.stderr)
 
 class FlumeError(RuntimeError):
   """Exception raised if we don't get a 200 OK from Flume webserver."""
@@ -66,7 +72,7 @@ def request(server, uri):
   """Does a GET request of the given uri on the given HTTPConnection."""
   server.request("GET", uri)
   resp = server.getresponse()
-  if resp.status != httplib.OK:
+  if resp.status != OK:
     raise FlumeError(resp)
   return json.loads(resp.read())
 
@@ -94,11 +100,11 @@ def main(argv):
 
   utils.drop_privileges()
   socket.setdefaulttimeout(DEFAULT_TIMEOUT)
-  server = httplib.HTTPConnection(FLUME_HOST, FLUME_PORT)
+  server = HTTPConnection(FLUME_HOST, FLUME_PORT)
   try:
     server.connect()
-  except socket.error, (erno, e):
-    if erno == errno.ECONNREFUSED:
+  except socket.error as exc:
+    if exc.errno == errno.ECONNREFUSED:
       return 13  # No Flume server available, ask tcollector to not respawn us.
     raise
   if json is None:
@@ -108,10 +114,10 @@ def main(argv):
   def printmetric(metric, value, **tags):
     if tags:
       tags = " " + " ".join("%s=%s" % (name, value)
-                            for name, value in tags.iteritems())
+                            for name, value in tags.items())
     else:
       tags = ""
-    print ("flume.%s %d %s %s" % (metric, ts, value, tags))
+    print(("flume.%s %d %s %s" % (metric, ts, value, tags)))
 
   while True:
     # Get the metrics

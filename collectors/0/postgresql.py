@@ -66,7 +66,7 @@ def collect(db):
         try:
           if metric in ("stats_reset"):
             continue
-          print ("postgresql.%s %i %s database=%s"
+          print("postgresql.%s %i %s database=%s"
                  % (metric, ts, value, database))
         except:
           utils.err("got here")
@@ -79,10 +79,10 @@ def collect(db):
     connections = cursor.fetchall()
 
     for database, connection in connections:
-      print ("postgresql.connections %i %s database=%s"
+      print("postgresql.connections %i %s database=%s"
              % (ts, connection, database))
 
-  except (EnvironmentError, EOFError, RuntimeError, socket.error), e:
+  except (EnvironmentError, EOFError, RuntimeError, socket.error) as e:
     if isinstance(e, IOError) and e[0] == errno.EPIPE:
       # exit on a broken pipe. There is no point in continuing
       # because no one will read our stdout anyway.
@@ -94,7 +94,7 @@ def main(args):
 
   try:
     db = postgresqlutils.connect()
-  except (Exception), e:
+  except (Exception) as e:
     utils.err("error: Could not initialize collector : %s" % (e))
     return 13 # Ask tcollector to not respawn us
 
