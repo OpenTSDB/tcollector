@@ -171,7 +171,7 @@ def to_dict(db, row):
 def get_houzz_db_name():
     """Houzz specific logic to parse out shard name from hostname."""
     hostname = socket.gethostname()
-    if hostname.startswith('mysql-master-'):
+    if hostname.startswith('mysql-'):
         # ex.: mysql-master-kv-04681cb62eb0d3660.web-production.houzz.net
         m = re.match(r'mysql-(master|slave)-([^-]+)-.+', hostname.split('.')[0])
         if m:
