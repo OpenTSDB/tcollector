@@ -61,7 +61,7 @@ class HBaseRegionserver(HadoopHttp):
             if any( c in EXCLUDED_CONTEXTS for c in context):
                 continue
 
-            if any(c == "regions" for c in context):
+            if any(c == "regions" for c in context) and '_region_' in metric_name:
                 if EMIT_REGION:
                     self.emit_region_metric(context, current_time, metric_name, value)
             else:
