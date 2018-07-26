@@ -12,6 +12,7 @@
 # of the GNU Lesser General Public License along with this program.  If not,
 # see <http://www.gnu.org/licenses/>.
 
+import sys
 import httplib
 try:
     import json
@@ -83,6 +84,9 @@ class HadoopHttp(object):
             tag_string = " ".join([k + "=" + v for k, v in tag_dict.iteritems()])
             print "%s.%s.%s.%s %d %d %s" % \
                   (self.service, self.daemon, ".".join(context), metric_name, current_time, value, tag_string)
+        # flush to protect against subclassed collectors that output few metrics not having enough output to trigger
+        # buffer flush within 10 mins, which then get killed by TCollector due to "inactivity"
+        sys.stdout.flush()
 
     def emit(self):
         pass
