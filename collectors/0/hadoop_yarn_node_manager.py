@@ -14,7 +14,7 @@
 
 """
 
-TCollector plugin to get metrics from Hadoop Yarn Node Manager via it's JMX API
+TCollector plugin to get metrics from Hadoop Yarn Node Manager JMX API
 
 """
 
