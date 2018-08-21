@@ -93,7 +93,7 @@ METRIC_NAMES = {
 def haproxy_pid():
   """Finds out the pid of haproxy process"""
   try:
-     pid = subprocess.check_output(["pidof", "haproxy"])
+     pid = subprocess.check_output(["pidof", "-s", "haproxy"])
   except subprocess.CalledProcessError:
      return None
   return pid.rstrip()
