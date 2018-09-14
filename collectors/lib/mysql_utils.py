@@ -19,7 +19,6 @@ import re
 import socket
 import sys
 import time
-import yaml
 
 import MySQLdb
 
@@ -67,15 +66,6 @@ class DB(object):
         self.is_slave = False
         self.attached_slaves = []
         self.slave_status = {}
-        self.is_dump_server = False
-
-        try:
-            with open('/etc/salt/grains') as f:
-                grains = yaml.load(f)
-                if 'dump_server' in grains:
-                    self.is_dump_server = bool(grains['dump_server'])
-        except:
-            pass
 
         version = version.split(".")
         try:
@@ -279,7 +269,7 @@ def is_yes(s):
 
 
 def print_metric(db, ts, metric, value, tags=""):
-    master_slave_tag = ' is_master=%s is_slave=%s is_dump_server=%s ' % (db.is_master, db.is_slave, db.is_dump_server)
+    master_slave_tag = ' is_master=%s is_slave=%s' % (db.is_master, db.is_slave)
     tags = '%s%s' % (master_slave_tag, tags)
     print "mysql.%s %d %s schema=%s%s" % (metric, ts, value, db.dbname, tags)
 
