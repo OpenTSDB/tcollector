@@ -73,7 +73,7 @@ class DB(object):
             with open('/etc/salt/grains') as f:
                 grains = yaml.load(f)
                 if 'dump_server' in grains:
-                    self.is_dump_server = grains['dump_server']
+                    self.is_dump_server = bool(grains['dump_server'])
         except:
             pass
 
