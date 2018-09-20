@@ -327,8 +327,7 @@ class ReaderThread(threading.Thread):
         self.lines_collected += 1
         # If the line contains more than a whitespace between
         # parameters, it won't be interpeted.
-        while '  ' in line:
-            line = line.replace('  ', ' ')
+        line = ' '.join(line.split())
 
         col.lines_received += 1
         if len(line) >= 1024:  # Limit in net.opentsdb.tsd.PipelineFactory
@@ -345,13 +344,14 @@ class ReaderThread(threading.Thread):
             col.lines_invalid += 1
             return
         metric, timestamp, value, tags = parsed.groups()
-        timestamp = int(timestamp)
 
         # If there are more than 11 digits we're dealing with a timestamp
         # with millisecond precision
-        if len(str(timestamp)) > 11:
-            global MAX_REASONABLE_TIMESTAMP
-            MAX_REASONABLE_TIMESTAMP = MAX_REASONABLE_TIMESTAMP * 1000
+        max_timestamp = MAX_REASONABLE_TIMESTAMP
+        if len(timestamp) > 11:
+            max_timestamp = MAX_REASONABLE_TIMESTAMP * 1000
+
+        timestamp = int(timestamp)
 
         # De-dupe detection...  To reduce the number of points we send to the
         # TSD, we suppress sending values of metrics that don't change to
@@ -373,7 +373,7 @@ class ReaderThread(threading.Thread):
                               col.values[key][3], timestamp, value, col.name)
                     col.lines_invalid += 1
                     return
-                elif timestamp >= MAX_REASONABLE_TIMESTAMP:
+                elif timestamp >= max_timestamp:
                     LOG.error("Timestamp is too far out in the future: metric=%s%s"
                               " old_ts=%d, new_ts=%d - ignoring data point"
                               " (value=%r, collector=%s)", metric, tags,
