@@ -273,13 +273,13 @@ def main():
     config = cassandra_stats_conf.get_config()
     interval = config['collection_interval']
 
-    cql_options = {
-        'args': ['cqlsh', '-e', 'desc cluster'],
+    cas_config_options = {
+        'args': ['cat', '/etc/cassandra/cassandra.yaml'],
         'format': 'yaml'
-        }
-    cql_output = get_stats(cql_options)
-    print >> sys.stderr, 'cql output:', cql_output
-    tags = "cluster=" + re.sub('\W+', '_', cql_output['Cluster'])
+    }
+    cas_config = get_stats(cas_config_options)
+    print >> sys.stderr, 'Cassandra Configuration:', cas_config
+    tags = "cluster=" + re.sub('\W+', '_', cas_config['cluster_name'])
 
     while True:
         print_once()
