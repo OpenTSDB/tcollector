@@ -161,7 +161,7 @@ def sec2milli(seconds):
 
 def flush_collector(collector):
     for metric_name, value in collector['data'].items():
-        print metric_name % (collector['timestamp'], value)
+        print(metric_name % (collector['timestamp'], value))
 
     collector['timestamp'] = None
     collector['data'] = {}
@@ -372,11 +372,11 @@ def process_gc_log(collector):
 
         if not collector['timestamp'] is None:
             for gen, value in collector['gensize'].items():
-                print "%s.gc.g1.gensize %s %s gen=%s" % (prefix, current_timestamp_in_sec, value, gen)
+                print("%s.gc.g1.gensize %s %s gen=%s" % (prefix, current_timestamp_in_sec, value, gen))
 
         # publish gc event count metrics
         for event, value in collector['count'].items():
-            print "%s.gc.g1.event.count %s %s event=%s" % (prefix, current_timestamp_in_sec, value, event)
+            print("%s.gc.g1.event.count %s %s event=%s" % (prefix, current_timestamp_in_sec, value, event))
 
     except Exception:
         exc_type, exc_value, exc_traceback = sys.exc_info()

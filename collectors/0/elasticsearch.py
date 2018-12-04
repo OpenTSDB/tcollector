@@ -16,7 +16,6 @@
 # Tested with ES 0.16.5, 0.17.x, 0.90.1 .
 
 import errno
-import httplib
 try:
   import json
 except ImportError:
@@ -29,6 +28,11 @@ import re
 
 from collectors.lib import utils
 from collectors.etc import elasticsearch_conf
+
+try:
+  from http.client import HTTPConnection, OK
+except ImportError:
+  from httplib import HTTPConnection, OK
 
 
 COLLECTION_INTERVAL = 15  # seconds
@@ -57,7 +61,7 @@ def request(server, uri, json_in = True):
   """Does a GET request of the given uri on the given HTTPConnection."""
   server.request("GET", uri)
   resp = server.getresponse()
-  if resp.status != httplib.OK:
+  if resp.status != OK:
     raise ESError(resp)
   if json_in:
     return json.loads(resp.read())
@@ -99,10 +103,10 @@ def printmetric(metric, ts, value, tags):
   # Warning, this should be called inside a lock
   if tags:
     tags = " " + " ".join("%s=%s" % (name.replace(" ",""), value.replace(" ",""))
-                          for name, value in tags.iteritems())
+                          for name, value in tags.items())
   else:
     tags = ""
-  print ("%s %d %s %s"
+  print("%s %d %s %s"
          % (metric, ts, value, tags))
 
 def _traverse(metric, stats, ts, tags):
@@ -148,7 +152,7 @@ def _collect_indices(server, metric, tags, lock):
         # now print value
         with lock:
           printmetric(metric + ".cluster.byindex." + headerlist[count], ts, value, newtags)
-      except ValueError, ve:
+      except ValueError:
         # add this as a tag
         newtags[headerlist[count]] = value
       count += 1
@@ -200,11 +204,11 @@ def main(argv):
     return 1
 
   for conf in elasticsearch_conf.get_servers():
-    server = httplib.HTTPConnection( *conf )
+    server = HTTPConnection( *conf )
     try:
       server.connect()
-    except socket.error, (erno, e):
-      if erno == errno.ECONNREFUSED:
+    except socket.error as exc:
+      if exc.errno == errno.ECONNREFUSED:
         continue
       raise
     servers.append( server )
@@ -222,7 +226,7 @@ def main(argv):
       t.start()
       threads.append(t)
     for thread in threads:
-      t.join()
+      thread.join()
     time.sleep(COLLECTION_INTERVAL)
 
 if __name__ == "__main__":

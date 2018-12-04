@@ -17,8 +17,12 @@ from __future__ import print_function
 
 import sys
 from collectors.lib import utils
-import SocketServer
 import threading
+
+try:
+    from socketserver import ThreadingTCPServer, BaseRequestHandler
+except ImportError:
+    from SocketServer import ThreadingTCPServer, BaseRequestHandler
 
 try:
   from collectors.etc import graphite_bridge_conf
@@ -29,12 +33,12 @@ HOST = '127.0.0.1'
 PORT = 2003
 SIZE = 8192
 
-class GraphiteServer(SocketServer.ThreadingTCPServer):
+class GraphiteServer(ThreadingTCPServer):
     allow_reuse_address = True
 
     print_lock = threading.Lock()
 
-class GraphiteHandler(SocketServer.BaseRequestHandler):
+class GraphiteHandler(BaseRequestHandler):
 
     def handle_line(self, line):
         line_parts = line.split()

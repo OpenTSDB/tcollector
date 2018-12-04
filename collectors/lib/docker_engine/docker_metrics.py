@@ -12,13 +12,11 @@
 # of the GNU Lesser General Public License along with this program.  If not,
 # see <http://www.gnu.org/licenses/>.
 
+from __future__ import print_function
 import time
-
 import requests
 from prometheus_client.parser import text_string_to_metric_families
-
 from collectors.lib.docker_engine.metric import Metric
-
 
 class DockerMetrics(object):
     def __init__(self, url):
@@ -30,10 +28,10 @@ class DockerMetrics(object):
         ret = []
         r = requests.get(self._url)
         if r.status_code != 200:
-            print "Error %s: %s" % (r.status_code, r.text)
+            print("Error %s: %s" % (r.status_code, r.text))
         else:
-            for line in r.iter_lines():
-                if not line.startswith("#"):
+            for line in r.iter_lines(decode_unicode=True):
+                if not line.startswith('#'):
                     ret.extend(self.eval_prometheus_line(self.event_time, line))
         return ret
 

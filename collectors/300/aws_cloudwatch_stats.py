@@ -6,9 +6,7 @@ import datetime
 import re
 import json
 from collections import OrderedDict
-import exceptions
 import threading
-import Queue
 from time import mktime
 from collectors.lib import utils
 from collectors.etc import aws_cloudwatch_conf
@@ -19,6 +17,11 @@ try:
     from boto.ec2.cloudwatch import regions
 except ImportError:
     exit(13)
+
+try:
+    from queue import Queue
+except ImportError:
+    from Queue import Queue
 
 ILLEGAL_CHARS_REGEX = re.compile('[^a-zA-Z0-9\- _./]')
 
@@ -41,7 +44,7 @@ STATISTICS = frozenset([
                         'SampleCount'
                        ])
 
-sendQueue = Queue.Queue()
+sendQueue = Queue()
 
 def validate_config():
     access_key, secret_access_key = aws_cloudwatch_conf.get_accesskey_secretkey()
@@ -57,7 +60,7 @@ def cloudwatch_connect_to_region(region):
     try:
         conn =  boto.ec2.cloudwatch.connect_to_region(region, aws_access_key_id=access_key, aws_secret_access_key=secret_access_key)
     except:
-        print "Unexpected error:", sys.exc_info()[0]
+        print("Unexpected error:", sys.exc_info()[0])
     else:
         return conn
 
@@ -88,7 +91,7 @@ def format_timestamp(ts):
 def build_tag_list(metric_name, region, dimensions):
     tags = "region=" + str(region)
 
-    for tagk,tagv in dimensions.iteritems():
+    for tagk,tagv in dimensions.items():
         tagkey = str(tagk)
         tagval = str(tagv[0])
         tags += " %s=%s" % (tagkey, tagval)
@@ -120,10 +123,10 @@ def handle_region(region, statistic):
         metrics = cloudwatch_list_metrics(region_conn)
         for metric in metrics:
             cloudwatch_query_metric(region, metric, statistic)
-    except boto.exception.BotoServerError, e:
+    except boto.exception.BotoServerError as e:
  #       sys.stderr.write("finished region " + region + "," + statistic + "\n")
         pass
-    except exceptions.KeyboardInterrupt:
+    except KeyboardInterrupt:
         return 0
     except:
         sys.stderr.write("failed region " + region + "," + statistic + "\n")
@@ -145,11 +148,11 @@ def send_metrics():
             datapoints[timestamp].append(output)
             sendQueue.task_done()
         sys.stderr.write("Queue Emptied, sorting output")
-        for outputs in sorted(datapoints.iteritems(), key=lambda x: x[1]):
+        for outputs in sorted(datapoints.items(), key=lambda x: x[1]):
             for output in outputs:
                 for t in output:
-                    print t
-    except exceptions.KeyboardInterrupt:
+                    print(t)
+    except KeyboardInterrupt:
         return 0
 
 # Uses the same code as tcollector here
@@ -176,7 +179,7 @@ def main():
                 t.start()
         while threading.activeCount() > 1:
             time.sleep(1)
-    except exceptions.KeyboardInterrupt:
+    except KeyboardInterrupt:
         return 0
     except:
         raise

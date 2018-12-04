@@ -13,7 +13,7 @@
 # see <http://www.gnu.org/licenses/>.
 
 import sys
-import httplib
+
 try:
     import json
 except ImportError:
@@ -23,6 +23,12 @@ try:
 except ImportError:
     from ordereddict import OrderedDict  # Can be easy_install'ed for <= 2.6
 from collectors.lib.utils import is_numeric
+
+try:
+    from http.client import HTTPConnection
+except ImportError:
+    from httplib import HTTPConnection
+
 
 EXCLUDED_KEYS = (
     "Name",
@@ -36,7 +42,7 @@ class HadoopHttp(object):
         self.port = port
         self.host = host
         self.uri = uri
-        self.server = httplib.HTTPConnection(self.host, self.port)
+        self.server = HTTPConnection(self.host, self.port)
         self.server.auto_open = True
 
     def request(self):
@@ -63,13 +69,13 @@ class HadoopHttp(object):
             #split the name string
             context = bean['name'].split("name=")[1].split(",sub=")
             # Create a set that keeps the first occurrence
-            context = OrderedDict.fromkeys(context).keys()
+            context = list(OrderedDict.fromkeys(context).keys())
             # lower case and replace spaces.
             context = [c.lower().replace(" ", "_") for c in context]
             # don't want to include the service or daemon twice
             context = [c for c in context if c != self.service and c != self.daemon]
 
-            for key, value in bean.iteritems():
+            for key, value in bean.items():
                 if key in EXCLUDED_KEYS:
                     continue
                 if not is_numeric(value):
@@ -79,11 +85,11 @@ class HadoopHttp(object):
 
     def emit_metric(self, context, current_time, metric_name, value, tag_dict=None):
         if not tag_dict:
-            print "%s.%s.%s.%s %d %d" % (self.service, self.daemon, ".".join(context), metric_name, current_time, value)
+            print("%s.%s.%s.%s %d %d" % (self.service, self.daemon, ".".join(context), metric_name, current_time, value))
         else:
             tag_string = " ".join([k + "=" + v for k, v in tag_dict.iteritems()])
-            print "%s.%s.%s.%s %d %d %s" % \
-                  (self.service, self.daemon, ".".join(context), metric_name, current_time, value, tag_string)
+            print ("%s.%s.%s.%s %d %d %s" % \
+                  (self.service, self.daemon, ".".join(context), metric_name, current_time, value, tag_string))
         # flush to protect against subclassed collectors that output few metrics not having enough output to trigger
         # buffer flush within 10 mins, which then get killed by TCollector due to "inactivity"
         sys.stdout.flush()

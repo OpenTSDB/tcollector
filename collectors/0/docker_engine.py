@@ -13,6 +13,7 @@
 # see <http://www.gnu.org/licenses/>.
 """Imports Docker stats from the docker-api"""
 
+from __future__ import print_function
 import sys
 
 from collectors.etc import docker_engine_conf
@@ -32,7 +33,7 @@ def main():
     cli = DockerMetrics(METRICS_PATH)
 
     for m in cli.get_endpoint():
-        print m.get_metric_lines()
+        print(m.get_metric_lines())
 
 
 if __name__ == "__main__":

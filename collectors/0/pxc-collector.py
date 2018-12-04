@@ -52,7 +52,7 @@ def getRow():
                 result  = cursor.fetchall()
 
         except:
-                print "Error: unable to fetch data - Check your configuration!"
+                print("Error: unable to fetch data - Check your configuration!")
                 sys.exit(13) # Don't respawn collector
 
         db.close()
@@ -77,7 +77,7 @@ def main():
                                 timestamp = int(time.time())
                                 if row[0] in myMap:
                                         result = TSDResult(row[0], row[1], prefix, timestamp)
-                                        print result.TSDRow()
+                                        print(result.TSDRow())
                         time.sleep(interval)
                 return 0
         else:

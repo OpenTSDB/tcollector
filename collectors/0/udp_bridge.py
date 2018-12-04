@@ -44,7 +44,7 @@ def main():
         else:
           sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.bind((HOST, PORT))
-    except socket.error, msg:
+    except socket.error as msg:
         utils.err('could not open socket: %s' % msg)
         sys.exit(1)
 
@@ -64,7 +64,7 @@ def main():
                 if not data:
                     utils.err("invalid data")
                     break
-                print data
+                print(data)
                 now = int(time.time())
                 if now > flush_timeout:
                     sys.stdout.flush()

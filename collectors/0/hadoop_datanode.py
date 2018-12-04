@@ -47,7 +47,7 @@ class HadoopDataNode(HadoopHttp):
         current_time = int(time.time())
         metrics = self.poll()
         for context, metric_name, value in metrics:
-            for k, v in REPLACEMENTS.iteritems():
+            for k, v in REPLACEMENTS.items():
                 if any(c.startswith(k) for c in context):
                     context = v
             self.emit_metric(context, current_time, metric_name, value)

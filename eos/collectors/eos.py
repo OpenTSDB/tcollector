@@ -49,7 +49,7 @@ class IntfCounterCollector(object):
          ("discards", {"direction" : "out"}, "outDiscards"),
          ("discards", {"direction" : "in"}, "inDiscards"),
       ]
-      for intf_id, intf_counters in counters["interfaces"].iteritems():
+      for intf_id, intf_counters in counters["interfaces"].items():
          for counter_name, tags, eos_counter_name in counter_definitions:
             if eos_counter_name in intf_counters:
                self.printIntfCounter(counter_name, ts, intf_counters[eos_counter_name],
@@ -64,14 +64,14 @@ class IntfCounterCollector(object):
          ("alignmentErrors", {}, "alignmentErrors"),
          ("symbolErrors", {}, "symbolErrors"),
       ]
-      for intf_id, intf_error_counters in error_counters["interfaceErrorCounters"].iteritems():
+      for intf_id, intf_error_counters in error_counters["interfaceErrorCounters"].items():
          for counter_name, tags, eos_counter_name in error_counter_definitions:
             if eos_counter_name in intf_error_counters:
                self.printIntfCounter(counter_name, ts, intf_error_counters[eos_counter_name],
                                      intf_id, tags)
 
       # Print interface bin counters
-      for intf_id, intf_bin_counters in bin_counters["interfaces"].iteritems():
+      for intf_id, intf_bin_counters in bin_counters["interfaces"].items():
          for direction in ["in", "out"]:
             if not intf_bin_counters.get("%sBinsCounters" % direction):
                continue

@@ -20,6 +20,12 @@ import socket
 import sys
 import time
 
+PY3 = sys.version_info[0] > 2
+if PY3:
+  INTEGER_TYPES = (int, )
+else:
+  INTEGER_TYPES = (int, long) # pylint: disable=undefined-variable
+
 try:
   import MySQLdb
 except ImportError:
@@ -69,7 +75,7 @@ class DB(object):
     try:
       self.major = int(version[0])
       self.medium = int(version[1])
-    except (ValueError, IndexError), e:
+    except (ValueError, IndexError) as e:
       self.major = self.medium = 0
 
   def __str__(self):
@@ -90,8 +96,8 @@ class DB(object):
     assert self.cursor, "%s already closed?" % (self,)
     try:
       self.cursor.execute(sql)
-    except MySQLdb.OperationalError, (errcode, msg):
-      if errcode != 2006:  # "MySQL server has gone away"
+    except MySQLdb.OperationalError as exc:
+      if exc.errno != 2006:  # "MySQL server has gone away"
         raise
       self._reconnect()
     return self.cursor.fetchall()
@@ -189,7 +195,7 @@ def find_databases(dbs=None):
       cursor = db.cursor()
       cursor.execute("SELECT VERSION()")
     except (EnvironmentError, EOFError, RuntimeError, socket.error,
-            MySQLdb.MySQLError), e:
+            MySQLdb.MySQLError) as e:
       utils.err("Couldn't connect to %s: %s" % (sockfile, e))
       continue
     version = cursor.fetchone()[0]
@@ -211,7 +217,7 @@ def collectInnodbStatus(db):
   """Collects and prints InnoDB stats about the given DB instance."""
   ts = now()
   def printmetric(metric, value, tags=""):
-    print "mysql.%s %d %s schema=%s%s" % (metric, ts, value, db.dbname, tags)
+    print("mysql.%s %d %s schema=%s%s" % (metric, ts, value, db.dbname, tags))
 
   innodb_status = db.query("SHOW ENGINE INNODB STATUS")[0][2]
   m = re.search("^(\d{6}\s+\d{1,2}:\d\d:\d\d) INNODB MONITOR OUTPUT$",
@@ -295,7 +301,7 @@ def collect(db):
 
   ts = now()
   def printmetric(metric, value, tags=""):
-    print "mysql.%s %d %s schema=%s%s" % (metric, ts, value, db.dbname, tags)
+    print("mysql.%s %d %s schema=%s%s" % (metric, ts, value, db.dbname, tags))
 
   has_innodb = False
   if db.isShowGlobalStatusSafe():
@@ -328,7 +334,7 @@ def collect(db):
         mutex += "." + kind
       wait_count = int(status.split("=", 1)[1])
       waits[mutex] = waits.get(mutex, 0) + wait_count
-    for mutex, wait_count in waits.iteritems():
+    for mutex, wait_count in waits.items():
       printmetric("innodb.locks", wait_count, " mutex=" + mutex)
 
   ts = now()
@@ -342,7 +348,7 @@ def collect(db):
 
   if master_host and master_host != "None":
     sbm = slave_status.get("seconds_behind_master")
-    if isinstance(sbm, (int, long)):
+    if isinstance(sbm, INTEGER_TYPES):
       printmetric("slave.seconds_behind_master", sbm)
     printmetric("slave.bytes_executed", slave_status["exec_master_log_pos"])
     printmetric("slave.bytes_relayed", slave_status["read_master_log_pos"])
@@ -355,7 +361,7 @@ def collect(db):
   for row in db.query("SHOW PROCESSLIST"):
     id, user, host, db_, cmd, time, state = row[:7]
     states[cmd] = states.get(cmd, 0) + 1
-  for state, count in states.iteritems():
+  for state, count in states.items():
     state = state.lower().replace(" ", "_")
     printmetric("connection_states", count, " state=%s" % state)
 
@@ -377,11 +383,11 @@ def main(args):
       last_db_refresh = ts
 
     errs = []
-    for dbname, db in dbs.iteritems():
+    for dbname, db in dbs.items():
       try:
         collect(db)
       except (EnvironmentError, EOFError, RuntimeError, socket.error,
-              MySQLdb.MySQLError), e:
+              MySQLdb.MySQLError) as e:
         if isinstance(e, IOError) and e[0] == errno.EPIPE:
           # Exit on a broken pipe.  There's no point in continuing
           # because no one will read our stdout anyway.

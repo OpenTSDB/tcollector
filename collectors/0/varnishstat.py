@@ -68,7 +68,7 @@ def main():
           ["varnishstat", "-1", "-f" + fields, "-j"],
           stdout=subprocess.PIPE,
         )
-    except OSError, e:
+    except OSError as e:
       # Die and signal to tcollector not to run this script.
       sys.stderr.write("Error: %s\n" % e)
       sys.exit(13)
@@ -85,11 +85,11 @@ def main():
     else:
       timestamp = time.time()
 
-    for k, v in metrics.iteritems():
+    for k, v in metrics.items():
       if k != "timestamp" and None == bad_regex.search(k):
         metric_name = metric_prefix + "." + k
-        print "%s %d %s %s" % \
-          (metric_name, timestamp, v['value'], ",".join(tags))
+        print("%s %d %s %s" % \
+          (metric_name, timestamp, v['value'], ",".join(tags)))
 
     sys.stdout.flush()
     time.sleep(interval)

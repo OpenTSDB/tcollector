@@ -57,7 +57,7 @@ def postgres_connect(sockdir):
                             "connect_timeout='%s' dbname=postgres"
                             % (sockdir, user, password,
                             CONNECT_TIMEOUT))
-  except (EnvironmentError, EOFError, RuntimeError, socket.error), e:
+  except (EnvironmentError, EOFError, RuntimeError, socket.error) as e:
     utils.err("Couldn't connect to DB :%s" % (e))
 
 def connect():
