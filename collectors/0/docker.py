@@ -62,7 +62,7 @@ def getnameandimage(containerid):
         if (r != 0):
             print >>sys.stderr, "Can not connect to %s" % (DOCKER_SOCK)
         else:
-            message = 'GET /containers/' + containerid + '/json HTTP/1.1\n\n'
+            message = 'GET /containers/' + containerid + '/json HTTP/1.1\r\nHost: http\n\n'
             sock.sendall(message)
             json_data = ""
             # "\r\n0\r\n" is raised on last chunk. See RFC 7230.
