@@ -47,9 +47,8 @@ if PY3:
     from urllib.error import HTTPError # pylint: disable=maybe-no-member,no-name-in-module,import-error
 
 else:
-    from Queue import Queue, Empty, Full
+    from Queue import Queue, Empty, Full # pylint: disable=maybe-no-member,no-name-in-module,import-error
     from urllib2 import Request, urlopen, HTTPError # pylint: disable=maybe-no-member,no-name-in-module,import-error
-
 
 # global variables.
 COLLECTORS = {}
@@ -1180,7 +1179,7 @@ def load_config_module(name, options, tags):
       module = __import__(name[:-3], d, d)
     else:
         if PY3:
-            module = importlib.reload(name) # pylint: disable=undefined-variable
+            module = importlib.reload(name) # pylint: disable=no-member,undefined-variable
         else:
             module = reload(name) # pylint: disable=undefined-variable
     onload = module.__dict__.get('onload')
