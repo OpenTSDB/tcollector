@@ -41,9 +41,9 @@ import collections
 
 PY3 = sys.version_info[0] > 2
 if PY3:
-    from queue import Queue, Empty, Full
-    from urllib.request import Request, urlopen
-    from urllib.error import HTTPError
+    from queue import Queue, Empty, Full # pylint: disable=import-error
+    from urllib.request import Request, urlopen # pylint: disable=maybe-no-member,no-name-in-module,import-error
+    from urllib.error import HTTPError # pylint: disable=maybe-no-member,no-name-in-module,import-error
 else:
     from Queue import Queue, Empty, Full
     from urllib2 import Request, urlopen, HTTPError
