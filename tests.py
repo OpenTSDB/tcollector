@@ -24,7 +24,7 @@ import tcollector
 class CollectorsTests(unittest.TestCase):
 
     def test_collectorsAccessRights(self):
-        """Test of collectors access rights, permissions should be 0100755."""
+        """Test of collectors access rights, permissions should be 0100775."""
 
         def check_access_rights(top):
             for f in os.listdir(top):
