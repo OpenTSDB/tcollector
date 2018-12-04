@@ -18,7 +18,7 @@ import sys
 import threading
 import traceback
 
-import eossdk
+import eossdk # pylint: disable=import-error
 
 tracer = eossdk.Tracer("tcollectorAgent")
 warn = tracer.trace0
