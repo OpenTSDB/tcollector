@@ -13,7 +13,7 @@
 # see <http://www.gnu.org/licenses/>.
 
 def enabled():
-  return True
+  return False
 
 def get_config():
   """Configuration for the Docker collector
