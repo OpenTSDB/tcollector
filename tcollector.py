@@ -1278,7 +1278,10 @@ def shutdown_signal(signum, frame):
 
 
 def kill(proc, signum=signal.SIGTERM):
-  os.killpg(proc.pid, signum)
+  try:
+    os.killpg(proc.pid, signum)
+  except: # pylint: disable=bare-except
+    LOG.info('already killed: %s', proc.pid)
 
 
 def shutdown():
