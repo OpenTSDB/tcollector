@@ -24,7 +24,7 @@ PY3 = sys.version_info[0] > 2
 if PY3:
   INTEGER_TYPES = (int, )
 else:
-  INTEGER_TYPES = (int, long)
+  INTEGER_TYPES = (int, long) # pylint: disable=undefined-variable
 
 try:
   import MySQLdb

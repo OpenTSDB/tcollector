@@ -225,7 +225,7 @@ class TcollectorAgent(eossdk.AgentHandler,
    def _socket_at(self, family, socktype, proto):
       vrf = self.get_agent_mgr().agent_option("vrf") or ""
       fd = self.vrf_mgr_.socket_at(family, socktype, proto, vrf)
-      return socket._socketobject(_sock=socket.fromfd(fd, family, socktype, proto))
+      return socket._socketobject(_sock=socket.fromfd(fd, family, socktype, proto)) # pylint: disable=no-member
 
    def on_hostname(self, hostname):
       debug("Hostname changed to", hostname)

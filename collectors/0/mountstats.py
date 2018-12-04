@@ -91,7 +91,7 @@ if PY3:
     def md5_digest(line):
         return md5(line.encode("utf8")).digest()
 else:
-    import md5
+    import md5 # pylint: disable=import-error
 
     def md5_digest(line):
         return md5.new(line).digest()

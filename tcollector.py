@@ -41,12 +41,14 @@ import collections
 
 PY3 = sys.version_info[0] > 2
 if PY3:
+    import importlib
     from queue import Queue, Empty, Full # pylint: disable=import-error
     from urllib.request import Request, urlopen # pylint: disable=maybe-no-member,no-name-in-module,import-error
     from urllib.error import HTTPError # pylint: disable=maybe-no-member,no-name-in-module,import-error
+
 else:
     from Queue import Queue, Empty, Full
-    from urllib2 import Request, urlopen, HTTPError
+    from urllib2 import Request, urlopen, HTTPError # pylint: disable=maybe-no-member,no-name-in-module,import-error
 
 
 # global variables.
@@ -1177,7 +1179,10 @@ def load_config_module(name, options, tags):
       # Strip the trailing .py
       module = __import__(name[:-3], d, d)
     else:
-      module = reload(name)
+        if PY3:
+            module = importlib.reload(name) # pylint: disable=undefined-variable
+        else:
+            module = reload(name) # pylint: disable=undefined-variable
     onload = module.__dict__.get('onload')
     if isinstance(onload, collections.Callable):
         try:

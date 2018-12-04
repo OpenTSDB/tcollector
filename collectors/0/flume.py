@@ -125,11 +125,11 @@ def main(argv):
     stats = flume_metrics(server)
 
     for metric in stats:
-	(component, name) = metric.split(".")
-	tags = {component.lower(): name}
-	for key,value in stats[metric].items():
-	   if key not in EXCLUDE:
-	       printmetric(key.lower(), value, **tags)
+      (component, name) = metric.split(".")
+      tags = {component.lower(): name}
+      for key,value in stats[metric].items():
+         if key not in EXCLUDE:
+            printmetric(key.lower(), value, **tags)
 
     time.sleep(COLLECTION_INTERVAL)
 

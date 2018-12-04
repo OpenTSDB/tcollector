@@ -13,7 +13,7 @@
 # see <http://www.gnu.org/licenses/>.
 
 def enabled():
-  return False
+  return True
 
 def get_config():
   """Configuration for the Docker engine (Prometeus) collector """

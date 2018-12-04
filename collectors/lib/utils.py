@@ -63,4 +63,4 @@ if PY3:
         return isinstance(value, (int, float))
 else:
     def is_numeric(value):
-        return isinstance(value, (int, long, float))
+        return isinstance(value, (int, long, float)) # pylint: disable=undefined-variable
