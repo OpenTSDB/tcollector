@@ -787,7 +787,7 @@ class SenderThread(threading.Thread):
             self.pick_connection()
 
         url = self.build_http_url()
-        LOG.debug("Sending metrics to url", url)
+        LOG.debug("Sending metrics to url: %s", url)
         req = Request(url)
         if self.http_username and self.http_password:
           req.add_header("Authorization", "Basic %s"

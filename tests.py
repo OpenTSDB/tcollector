@@ -68,14 +68,14 @@ class TSDBlacklistingTests(unittest.TestCase):
 
     def setUp(self):
         # Stub out the randomness
-        self.random_shuffle = tcollector.random.shuffle
-        tcollector.random.shuffle = lambda x: x
+        self.random_shuffle = tcollector.random.shuffle # pylint: disable=maybe-no-member
+        tcollector.random.shuffle = lambda x: x # pylint: disable=maybe-no-member
 
     def tearDown(self):
-        tcollector.random.shuffle = self.random_shuffle
+        tcollector.random.shuffle = self.random_shuffle # pylint: disable=maybe-no-member
 
     def mkSenderThread(self, tsds):
-        return tcollector.SenderThread(None, True, tsds, False, {}, reconnectinterval=5)
+        return tcollector.SenderThread(None, True, tsds, False, {}, reconnectinterval=5) # pylint: disable=maybe-no-member
 
     def test_blacklistOneConnection(self):
         tsd = ("localhost", 4242)
@@ -121,13 +121,13 @@ class TSDBlacklistingTests(unittest.TestCase):
 class UDPCollectorTests(unittest.TestCase):
 
     def setUp(self):
-        if ('udp_bridge.py' not in tcollector.COLLECTORS):
+        if ('udp_bridge.py' not in tcollector.COLLECTORS): # pylint: disable=maybe-no-member
             return
 
         self.saved_exit = sys.exit
         self.saved_stderr = sys.stderr
         self.saved_stdout = sys.stdout
-        self.udp_bridge = tcollector.COLLECTORS['udp_bridge.py']
+        self.udp_bridge = tcollector.COLLECTORS['udp_bridge.py'] # pylint: disable=maybe-no-member
         self.udp_globals = {}
 
         sys.exit = return_none
@@ -163,7 +163,7 @@ class UDPCollectorTests(unittest.TestCase):
 
     def test_populated(self):
         # assertIsInstance, assertIn, assertIsNone do not exist in Python 2.6
-        self.assertTrue(isinstance(self.udp_bridge, tcollector.Collector), msg="self.udp_bridge not instance of tcollector.Collector")
+        self.assertTrue(isinstance(self.udp_bridge, tcollector.Collector), msg="self.udp_bridge not instance of tcollector.Collector")  # pylint: disable=maybe-no-member
         self.assertEqual(self.udp_bridge.proc, None)
         self.assertTrue('main' in self.udp_globals, msg="'main' not in self.udp_globals")
 
@@ -326,6 +326,6 @@ class UDPCollectorTests(unittest.TestCase):
 if __name__ == '__main__':
     cdir = os.path.join(os.path.dirname(os.path.realpath(sys.argv[0])),
                         'collectors')
-    tcollector.setup_python_path(cdir)
-    tcollector.populate_collectors(cdir)
+    tcollector.setup_python_path(cdir) # pylint: disable=maybe-no-member
+    tcollector.populate_collectors(cdir) # pylint: disable=maybe-no-member
     sys.exit(unittest.main())
