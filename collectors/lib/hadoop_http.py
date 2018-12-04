@@ -87,9 +87,12 @@ class HadoopHttp(object):
         if not tag_dict:
             print("%s.%s.%s.%s %d %d" % (self.service, self.daemon, ".".join(context), metric_name, current_time, value))
         else:
-            tag_string = " ".join([k + "=" + v for k, v in tag_dict.items()])
-            print("%s.%s.%s.%s %d %d %s" % \
+            tag_string = " ".join([k + "=" + v for k, v in tag_dict.iteritems()])
+            print ("%s.%s.%s.%s %d %d %s" % \
                   (self.service, self.daemon, ".".join(context), metric_name, current_time, value, tag_string))
+        # flush to protect against subclassed collectors that output few metrics not having enough output to trigger
+        # buffer flush within 10 mins, which then get killed by TCollector due to "inactivity"
+        sys.stdout.flush()
 
     def emit(self):
         pass
