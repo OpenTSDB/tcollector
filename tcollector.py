@@ -61,7 +61,7 @@ ALIVE = True
 # Hopefully some kind of supervising daemon will then restart it.
 MAX_UNCAUGHT_EXCEPTIONS = 100
 DEFAULT_PORT = 4242
-MAX_REASONABLE_TIMESTAMP = 1600000000  # Good until September 2020 :)
+MAX_REASONABLE_TIMESTAMP = 2209212000  # Good until Tue  3 Jan 14:00:00 GMT 2040
 # How long to wait for datapoints before assuming
 # a collector is dead and restarting it
 ALLOWED_INACTIVITY_TIME = 600  # seconds
