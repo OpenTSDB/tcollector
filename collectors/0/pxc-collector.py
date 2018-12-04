@@ -22,7 +22,7 @@ If you want to add more variables simply edit the pxcconf.py
 ATTENTION: Only tested on Debian/Ubuntu systems.
 """
 
-import MySQLdb as mysql
+import MySQLdb as mysql # pylint: disable=import-error
 import time
 import sys
 import os.path
