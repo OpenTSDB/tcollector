@@ -163,7 +163,7 @@ class UDPCollectorTests(unittest.TestCase):
 
     def test_populated(self):
         # assertIsInstance, assertIn, assertIsNone do not exist in Python 2.6
-        self.assertTrue(isinstance(self.udp_bridge, tcollector.Collector), msg="self.udp_bridge not instance of tcollector.Collector")  # pylint: disable=maybe-no-member
+        self.assertTrue(isinstance(self.udp_bridge, tcollector.Collector), msg="self.udp_bridge not instance of tcollector.Collector") # pylint: disable=maybe-no-member
         self.assertEqual(self.udp_bridge.proc, None)
         self.assertTrue('main' in self.udp_globals, msg="'main' not in self.udp_globals")
 
