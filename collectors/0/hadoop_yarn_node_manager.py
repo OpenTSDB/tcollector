@@ -55,7 +55,7 @@ class HadoopYarnNodeManager(HadoopHttp):
         current_time = int(time.time())
         metrics = self.poll()
         for context, metric_name, value in metrics:
-            for key, value in REPLACEMENTS.iteritems():
+            for key, value in REPLACEMENTS.items():
                 if any(_.startswith(key) for _ in context):
                     context = value
             self.emit_metric(context, current_time, metric_name, value)
