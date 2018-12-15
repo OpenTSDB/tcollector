@@ -38,14 +38,8 @@ from collectors.lib import utils
 COLLECTION_INTERVAL = 60  # seconds
 
 # File system types to ignore
-FSTYPE_IGNORE = frozenset([
-  "cgroup",
-  "debugfs",
-  "devtmpfs",
-  "nfs",
-  "rpc_pipefs",
-  "rootfs",
-])
+FSTYPE_IGNORE = frozenset(["cgroup", "debugfs", "devtmpfs", "nfs", "rpc_pipefs", "rootfs"])
+
 
 def main():
   """dfstats main loop"""
@@ -90,64 +84,44 @@ def main():
       device_found = False
       if fs_spec.startswith("/dev"):
         for device in devices:
-          if fs_spec == device[0]:
-            device_found = True
-            if len(fs_file) < len(device[1]):
-              device[1] = fs_file
-            break
-        if not device_found:
-          devices.append([fs_spec, fs_file, fs_vfstype])
-      else:
-        devices.append([fs_spec, fs_file, fs_vfstype])
+            fs_spec, fs_file, fs_vfstype = device
+            try:
+                r = os.statvfs(fs_file)
+            except OSError as e:
+                utils.err("can't get info for mount point: %s: %s" % (fs_file, e))
+                continue
 
+            used = r.f_blocks - r.f_bfree
 
-    for device in devices:
-      fs_spec, fs_file, fs_vfstype = device
-      try:
-        r = os.statvfs(fs_file)
-      except OSError as e:
-        utils.err("can't get info for mount point: %s: %s" % (fs_file, e))
-        continue
+            # conditional expression avoided to preserve support of Python 2.4
+            # percent_used = 100 if r.f_blocks == 0 else used * 100.0 / r.f_blocks
+            if r.f_blocks == 0:
+                percent_used = 100
+            else:
+                percent_used = used * 100.0 / r.f_blocks
 
-      used = r.f_blocks - r.f_bfree
+            print("df.bytes.total %d %s mount=%s fstype=%s" % (ts, r.f_frsize * r.f_blocks, fs_file, fs_vfstype))
+            print("df.bytes.used %d %s mount=%s fstype=%s" % (ts, r.f_frsize * used, fs_file, fs_vfstype))
+            print("df.bytes.percentused %d %s mount=%s fstype=%s" % (ts, percent_used, fs_file, fs_vfstype))
+            print("df.bytes.free %d %s mount=%s fstype=%s" % (ts, r.f_frsize * r.f_bfree, fs_file, fs_vfstype))
 
-      # conditional expression avoided to preserve support of Python 2.4
-      # percent_used = 100 if r.f_blocks == 0 else used * 100.0 / r.f_blocks
-      if r.f_blocks == 0:
-          percent_used = 100
-      else:
-          percent_used = used * 100.0 / r.f_blocks
+            used = r.f_files - r.f_ffree
 
-      print("df.bytes.total %d %s mount=%s fstype=%s"
-            % (ts, r.f_frsize * r.f_blocks, fs_file, fs_vfstype))
-      print("df.bytes.used %d %s mount=%s fstype=%s"
-            % (ts, r.f_frsize * used, fs_file, fs_vfstype))
-      print("df.bytes.percentused %d %s mount=%s fstype=%s"
-            % (ts, percent_used, fs_file, fs_vfstype))
-      print("df.bytes.free %d %s mount=%s fstype=%s"
-            % (ts, r.f_frsize * r.f_bfree, fs_file, fs_vfstype))
+            # percent_used = 100 if r.f_files == 0 else used * 100.0 / r.f_files
+            if r.f_files == 0:
+                percent_used = 100
+            else:
+                percent_used = used * 100.0 / r.f_files
 
-      used = r.f_files - r.f_ffree
+            print("df.inodes.total %d %s mount=%s fstype=%s" % (ts, r.f_files, fs_file, fs_vfstype))
+            print("df.inodes.used %d %s mount=%s fstype=%s" % (ts, used, fs_file, fs_vfstype))
+            print("df.inodes.percentused %d %s mount=%s fstype=%s" % (ts, percent_used, fs_file, fs_vfstype))
+            print("df.inodes.free %d %s mount=%s fstype=%s" % (ts, r.f_ffree, fs_file, fs_vfstype))
 
-      # percent_used = 100 if r.f_files == 0 else used * 100.0 / r.f_files
-      if r.f_files == 0:
-          percent_used = 100
-      else:
-          percent_used = used * 100.0 / r.f_files
-
-      print("df.inodes.total %d %s mount=%s fstype=%s"
-            % (ts, r.f_files, fs_file, fs_vfstype))
-      print("df.inodes.used %d %s mount=%s fstype=%s"
-            % (ts, used, fs_file, fs_vfstype))
-      print("df.inodes.percentused %d %s mount=%s fstype=%s"
-            % (ts, percent_used,  fs_file, fs_vfstype))
-      print("df.inodes.free %d %s mount=%s fstype=%s"
-            % (ts, r.f_ffree, fs_file, fs_vfstype))
-
-    sys.stdout.flush()
-    time.sleep(COLLECTION_INTERVAL)
+        sys.stdout.flush()
+        time.sleep(COLLECTION_INTERVAL)
 
 
 if __name__ == "__main__":
-  sys.stdin.close()
-  sys.exit(main())
+    sys.stdin.close()
+    sys.exit(main())

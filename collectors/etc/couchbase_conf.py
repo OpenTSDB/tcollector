@@ -12,9 +12,7 @@
 # of the GNU Lesser General Public License along with this program.  If not,
 # see <http://www.gnu.org/licenses/>.
 
+
 def get_config():
-  config = {
-    'interval': 15,
-    'couchbase_initfile': '/etc/init.d/couchbase-server'
-  }
-  return config
+    config = {"interval": 15, "couchbase_initfile": "/etc/init.d/couchbase-server"}
+    return config

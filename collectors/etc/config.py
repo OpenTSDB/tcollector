@@ -30,6 +30,7 @@
 import os
 import sys
 
+
 def onload(options, tags):
     """Function called by tcollector when it starts up.
 
@@ -39,13 +40,14 @@ def onload(options, tags):
     """
     pass
 
+
 def get_defaults():
     """Configuration values to use as defaults in the code
 
         This is called by the OptionParser.
     """
 
-    default_cdir = os.path.join(os.path.dirname(os.path.realpath(sys.argv[0])), 'collectors')
+    default_cdir = os.path.join(os.path.dirname(os.path.realpath(sys.argv[0])), "collectors")
 
     defaults = {
         'verbose': False,

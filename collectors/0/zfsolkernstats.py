@@ -18,7 +18,7 @@ import re
 import sys
 import time
 
-'''
+"""
 ZFS on Linux kernel memory statistics for TSDB
 
 This plugin tracks kernel memory for both:
@@ -27,11 +27,12 @@ This plugin tracks kernel memory for both:
   zfs.mem.slab
 - the ARC and its various values
   zfs.mem.arc
-'''
+"""
 
 # /proc/spl/slab has several fields.  we only care about the sizes
 # and the allocation sizes for the slabs
 # /proc/spl/kstat/zfs/arcstats is a table.  we only care about the data column
+
 
 def main():
     """zfsstat main loop"""
@@ -44,7 +45,7 @@ def main():
     except IOError as e:
         if e.errno == errno.ENOENT:
             # it makes no sense to run this collector here
-            sys.exit(13) # we signal tcollector to not run us
+            sys.exit(13)  # we signal tcollector to not run us
         raise
 
     while True:
@@ -63,12 +64,8 @@ def main():
                 typ = typ.group(1)
             else:
                 typ = name
-            print("zfs.mem.slab.size %d %d type=%s objsize=%d" %
-                  (ts, size, typ, objsize)
-            )
-            print("zfs.mem.slab.alloc %d %d type=%s objsize=%d" %
-                  (ts, alloc, typ, objsize)
-            )
+            print("zfs.mem.slab.size %d %d type=%s objsize=%d" % (ts, size, typ, objsize))
+            print("zfs.mem.slab.alloc %d %d type=%s objsize=%d" % (ts, alloc, typ, objsize))
 
         for n, line in enumerate(f_arcstats):
             if n < 2:
@@ -76,13 +73,11 @@ def main():
             line = line.split()
             name, _, data = line
             data = int(data)
-            print("zfs.mem.arc.%s %d %d" %
-                  (name, ts, data)
-            )
+            print("zfs.mem.arc.%s %d %d" % (name, ts, data))
 
         sys.stdout.flush()
         time.sleep(interval)
 
+
 if __name__ == "__main__":
     main()
-

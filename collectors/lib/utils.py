@@ -59,9 +59,13 @@ def err(msg):
 
 
 if PY3:
+
     def is_numeric(value):
         return isinstance(value, (int, float))
+
+
 else:
+
     def is_numeric(value):
         try:
             float(str(value))

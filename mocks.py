@@ -17,21 +17,23 @@ import traceback
 # for debugging
 real_stderr = sys.stderr
 
+
 class SocketDone(Exception):
     pass
 
-class Socket():
+
+class Socket:
     def __init__(self):
         self.AF_INET = 0
         self.SOCK_DGRAM = 0
         self.error = Exception
-        self.state = { 'udp_in': [] }
+        self.state = {"udp_in": []}
         self._socketSingleton = self.SocketSingleton(self.state)
 
     def socket(self, ignored1, ignored2):
         return self._socketSingleton
 
-    class SocketSingleton():
+    class SocketSingleton:
         def __init__(self, state):
             self.state = state
 
@@ -42,13 +44,14 @@ class Socket():
             return None
 
         def recvfrom(self, inBytes):
-            if (len(self.state['udp_in']) > 0):
-                line = self.state['udp_in'].pop(0)
+            if len(self.state["udp_in"]) > 0:
+                line = self.state["udp_in"].pop(0)
                 return (line, None)
             else:
-                raise SocketDone('stop reading from socket')
+                raise SocketDone("stop reading from socket")
 
-class Sys():
+
+class Sys:
     def __init__(self):
         self.stderr = self.Stderr()
         self.stdout = self.Stdout()
@@ -56,24 +59,25 @@ class Sys():
     def exit(self, exitCode):
         err = "\n".join(self.stderr.lines)
         trace = traceback.format_exc()
-        msg = 'exit called with code %s\n  stderr: %s\n  trace: %s'
+        msg = "exit called with code %s\n  stderr: %s\n  trace: %s"
         raise Exception(msg % (exitCode, err, trace))
 
-    class Stderr():
+    class Stderr:
         def __init__(self):
             self.lines = []
 
         def write(self, outString):
             self.lines.append(outString)
 
-    class Stdout():
+    class Stdout:
         def __init__(self):
             self.lines = []
 
         def write(self, outString):
             self.lines.append(outString)
 
-class Utils():
+
+class Utils:
     def __init__(self):
         self.drop_privileges = lambda: None
 

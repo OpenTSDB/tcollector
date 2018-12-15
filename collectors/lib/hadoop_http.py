@@ -30,10 +30,8 @@ except ImportError:
     from httplib import HTTPConnection
 
 
-EXCLUDED_KEYS = (
-    "Name",
-    "name"
-)
+EXCLUDED_KEYS = ("Name", "name")
+
 
 class HadoopHttp(object):
     def __init__(self, service, daemon, host, port, uri="/jmx"):
@@ -47,10 +45,10 @@ class HadoopHttp(object):
 
     def request(self):
         try:
-            self.server.request('GET', self.uri)
+            self.server.request("GET", self.uri)
             resp = self.server.getresponse().read()
         except:
-            resp = '{}'
+            resp = "{}"
         finally:
             self.server.close()
         return json.loads(resp)
@@ -61,13 +59,13 @@ class HadoopHttp(object):
 
         @return: array of tuples ([u'Context', u'Array'], u'metricName', value)
         """
-        json_arr = self.request().get('beans', [])
+        json_arr = self.request().get("beans", [])
         kept = []
         for bean in json_arr:
-            if (not bean['name']) or (not "name=" in bean['name']):
+            if (not bean["name"]) or (not "name=" in bean["name"]):
                 continue
-            #split the name string
-            context = bean['name'].split("name=")[1].split(",sub=")
+            # split the name string
+            context = bean["name"].split("name=")[1].split(",sub=")
             # Create a set that keeps the first occurrence
             context = list(OrderedDict.fromkeys(context).keys())
             # lower case and replace spaces.
@@ -88,8 +86,7 @@ class HadoopHttp(object):
             print("%s.%s.%s.%s %d %d" % (self.service, self.daemon, ".".join(context), metric_name, current_time, float(value)))
         else:
             tag_string = " ".join([k + "=" + v for k, v in tag_dict.iteritems()])
-            print ("%s.%s.%s.%s %d %d %s" % \
-                  (self.service, self.daemon, ".".join(context), metric_name, current_time, float(value), tag_string))
+            print("%s.%s.%s.%s %d %d %s" % (self.service, self.daemon, ".".join(context), metric_name, current_time, float(value), tag_string))
         # flush to protect against subclassed collectors that output few metrics not having enough output to trigger
         # buffer flush within 10 mins, which then get killed by TCollector due to "inactivity"
         sys.stdout.flush()

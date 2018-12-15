@@ -33,5 +33,6 @@ class TestDockerMetrics(unittest.TestCase):
         provided_line = provided.get_metric_lines()
         self.assertEqual(expected_line, provided_line)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()

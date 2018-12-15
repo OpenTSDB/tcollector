@@ -88,23 +88,24 @@ def main():
     # socket types but not others.  So we don't report it because it's
     # more confusing than anything else and it's not well documented
     # what type of sockets are or aren't included in this count.
-    regexp = re.compile("sockets: used \d+\n"
-                        "TCP: inuse (?P<tcp_inuse>\d+) orphan (?P<orphans>\d+)"
-                        " tw (?P<tw_count>\d+) alloc (?P<tcp_sockets>\d+)"
-                        " mem (?P<tcp_pages>\d+)\n"
-                        "UDP: inuse (?P<udp_inuse>\d+)"
-                        # UDP memory accounting was added in v2.6.25-rc1
-                        "(?: mem (?P<udp_pages>\d+))?\n"
-                        # UDP-Lite (RFC 3828) was added in v2.6.20-rc2
-                        "(?:UDPLITE: inuse (?P<udplite_inuse>\d+)\n)?"
-                        "RAW: inuse (?P<raw_inuse>\d+)\n"
-                        "FRAG: inuse (?P<ip_frag_nqueues>\d+)"
-                        " memory (?P<ip_frag_mem>\d+)\n")
+    regexp = re.compile(
+        "sockets: used \d+\n"
+        "TCP: inuse (?P<tcp_inuse>\d+) orphan (?P<orphans>\d+)"
+        " tw (?P<tw_count>\d+) alloc (?P<tcp_sockets>\d+)"
+        " mem (?P<tcp_pages>\d+)\n"
+        "UDP: inuse (?P<udp_inuse>\d+)"
+        # UDP memory accounting was added in v2.6.25-rc1
+        "(?: mem (?P<udp_pages>\d+))?\n"
+        # UDP-Lite (RFC 3828) was added in v2.6.20-rc2
+        "(?:UDPLITE: inuse (?P<udplite_inuse>\d+)\n)?"
+        "RAW: inuse (?P<raw_inuse>\d+)\n"
+        "FRAG: inuse (?P<ip_frag_nqueues>\d+)"
+        " memory (?P<ip_frag_mem>\d+)\n"
+    )
 
     def print_sockstat(metric, value, tags=""):  # Note: tags must start with ' '
         if value is not None:
             print("net.sockstat.%s %d %s%s" % (metric, ts, value, tags))
-
 
     # If a line in /proc/net/{netstat,snmp} doesn't start with a word in that
     # dict, we'll ignore it.  We use the value to build the metric name.
@@ -118,7 +119,7 @@ def main():
         "Udp:": "udp",
         "UdpLite:": "udplite",  # We don't collect anything from here for now.
         "Arista:": "arista",  # We don't collect anything from here for now.
-        }
+    }
 
     # Any stat in /proc/net/{netstat,snmp} that doesn't appear in this dict will
     # be ignored.  If we find a match, we'll use the (metricname, tags).
@@ -228,12 +229,9 @@ def main():
     }
     known_stats = {
         "tcp": tcp_stats,
-        "ip": {
-        },
-        "icmp": {
-        },
-        "icmpmsg": {
-        },
+        "ip": {},
+        "icmp": {},
+        "icmpmsg": {},
         "udp": {
             # Total UDP datagrams received by this host
             "InDatagrams": ("datagrams", "direction=in"),
@@ -249,20 +247,16 @@ def main():
             # Datagrams for which not enough socket buffer memory to transmit
             "SndbufErrors": ("errors", "direction=out reason=nomem"),
         },
-        "udplite": {
-        },
-        "arista": {
-        },
+        "udplite": {},
+        "arista": {},
     }
-
 
     def print_netstat(statstype, metric, value, tags=""):
         if tags:
             space = " "
         else:
             tags = space = ""
-        print("net.stat.%s.%s %d %s%s%s" % (statstype, metric, ts, value,
-                                            space, tags))
+        print("net.stat.%s.%s %d %s%s%s" % (statstype, metric, ts, value, space, tags))
 
     def parse_stats(stats, filename):
         statsdikt = {}
@@ -284,8 +278,7 @@ def main():
             assert header[0] == data[0], repr((header, data))
             assert len(header) == len(data), repr((header, data))
             if header[0] not in known_statstypes:
-                print("Unrecoginized line in %s:"
-                                     " %r (file=%r)" % (filename, header, stats), file=sys.stderr)
+                print("Unrecoginized line in %s:" " %r (file=%r)" % (filename, header, stats), file=sys.stderr)
                 continue
             statstype = header.pop(0)
             data.pop(0)
@@ -317,19 +310,17 @@ def main():
 
         # The difference between the first two values is the number of
         # sockets allocated vs the number of sockets actually in use.
-        print_sockstat("num_sockets",   m.group("tcp_sockets"),   " type=tcp")
-        print_sockstat("num_timewait",  m.group("tw_count"))
-        print_sockstat("sockets_inuse", m.group("tcp_inuse"),     " type=tcp")
-        print_sockstat("sockets_inuse", m.group("udp_inuse"),     " type=udp")
+        print_sockstat("num_sockets", m.group("tcp_sockets"), " type=tcp")
+        print_sockstat("num_timewait", m.group("tw_count"))
+        print_sockstat("sockets_inuse", m.group("tcp_inuse"), " type=tcp")
+        print_sockstat("sockets_inuse", m.group("udp_inuse"), " type=udp")
         print_sockstat("sockets_inuse", m.group("udplite_inuse"), " type=udplite")
-        print_sockstat("sockets_inuse", m.group("raw_inuse"),     " type=raw")
+        print_sockstat("sockets_inuse", m.group("raw_inuse"), " type=raw")
 
         print_sockstat("num_orphans", m.group("orphans"))
-        print_sockstat("memory", int(m.group("tcp_pages")) * page_size,
-                       " type=tcp")
+        print_sockstat("memory", int(m.group("tcp_pages")) * page_size, " type=tcp")
         if m.group("udp_pages") is not None:
-          print_sockstat("memory", int(m.group("udp_pages")) * page_size,
-                         " type=udp")
+            print_sockstat("memory", int(m.group("udp_pages")) * page_size, " type=udp")
         print_sockstat("memory", m.group("ip_frag_mem"), " type=ipfrag")
         print_sockstat("ipfragqueues", m.group("ip_frag_nqueues"))
 
@@ -338,6 +329,7 @@ def main():
 
         sys.stdout.flush()
         time.sleep(interval)
+
 
 if __name__ == "__main__":
     sys.exit(main())

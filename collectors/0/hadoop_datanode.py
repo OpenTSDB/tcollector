@@ -24,12 +24,7 @@ from collectors.lib import utils
 from collectors.lib.hadoop_http import HadoopHttp
 
 
-REPLACEMENTS = {
-    "datanodeactivity-": ["activity"],
-    "fsdatasetstate-ds-": ["fs_data_set_state"],
-    "rpcdetailedactivityforport": ["rpc_activity"],
-    "rpcactivityforport": ["rpc_activity"]
-}
+REPLACEMENTS = {"datanodeactivity-": ["activity"], "fsdatasetstate-ds-": ["fs_data_set_state"], "rpcdetailedactivityforport": ["rpc_activity"], "rpcactivityforport": ["rpc_activity"]}
 
 
 class HadoopDataNode(HadoopHttp):
@@ -41,7 +36,7 @@ class HadoopDataNode(HadoopHttp):
     """
 
     def __init__(self):
-        super(HadoopDataNode, self).__init__('hadoop', 'datanode', 'localhost', 50075)
+        super(HadoopDataNode, self).__init__("hadoop", "datanode", "localhost", 50075)
 
     def emit(self):
         current_time = int(time.time())
@@ -67,4 +62,3 @@ def main(args):
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv))
-

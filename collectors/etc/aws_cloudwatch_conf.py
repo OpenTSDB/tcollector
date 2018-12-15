@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 def enabled():
-  return True
+    return True
+
 
 def get_accesskey_secretkey():
-  return ('<access_key_id>', '<secret_access_key>')
+    return ("<access_key_id>", "<secret_access_key>")

@@ -17,7 +17,7 @@ import time
 from collectors.etc import docker_engine_conf
 
 CONFIG = docker_engine_conf.get_config()
-DEFAULT_DIMS = CONFIG['default_dims']
+DEFAULT_DIMS = CONFIG["default_dims"]
 
 
 class Metric(object):

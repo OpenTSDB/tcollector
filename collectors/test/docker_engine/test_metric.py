@@ -21,7 +21,6 @@ from collectors.lib.docker_engine.metric import Metric
 
 
 class TestMetric(TestCase):
-
     def setUp(self):
         self.now = time.gmtime()
         self.metric = Metric("metric", self.now, 10)
@@ -57,5 +56,5 @@ class TestMetric(TestCase):
         self.assertEqual(expected, self.metric.get_metric_lines())
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

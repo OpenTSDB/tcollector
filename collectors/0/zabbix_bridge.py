@@ -21,9 +21,7 @@ import time
 
 try:
     from pymysqlreplication import BinLogStreamReader
-    from pymysqlreplication.row_event import (
-        WriteRowsEvent
-    )
+    from pymysqlreplication.row_event import WriteRowsEvent
 except ImportError:
     BinLogStreamReader = None  # This is handled gracefully in main()
 
@@ -40,18 +38,14 @@ def main():
 
     # Set blocking to True if you want to block and wait for the next event at
     # the end of the stream
-    stream = BinLogStreamReader(connection_settings=settings['mysql'],
-                                server_id=settings['slaveid'],
-                                only_events=[WriteRowsEvent],
-                                resume_stream=True,
-                                blocking=True)
+    stream = BinLogStreamReader(connection_settings=settings["mysql"], server_id=settings["slaveid"], only_events=[WriteRowsEvent], resume_stream=True, blocking=True)
 
-    db_filename = settings['sqlitedb']
-    dbcache = sqlite3.connect(':memory:')
+    db_filename = settings["sqlitedb"]
+    dbcache = sqlite3.connect(":memory:")
     cachecur = dbcache.cursor()
     cachecur.execute("ATTACH DATABASE '%s' as 'dbfile'" % (db_filename,))
-    cachecur.execute('CREATE TABLE zabbix_cache AS SELECT * FROM dbfile.zabbix_cache')
-    cachecur.execute('CREATE UNIQUE INDEX uniq_zid on zabbix_cache (id)')
+    cachecur.execute("CREATE TABLE zabbix_cache AS SELECT * FROM dbfile.zabbix_cache")
+    cachecur.execute("CREATE UNIQUE INDEX uniq_zid on zabbix_cache (id)")
 
     # tcollector.zabbix_bridge namespace for internal Zabbix bridge metrics.
     log_pos = 0
@@ -60,27 +54,27 @@ def main():
     last_key_lookup_miss = 0
 
     for binlogevent in stream:
-        if binlogevent.schema == settings['mysql']['db']:
+        if binlogevent.schema == settings["mysql"]["db"]:
             table = binlogevent.table
             log_pos = binlogevent.packet.log_pos
-            if table == 'history' or table == 'history_uint':
+            if table == "history" or table == "history_uint":
                 for row in binlogevent.rows:
-                    r = row['values']
-                    itemid = r['itemid']
-                    cachecur.execute('SELECT id, key, host, proxy FROM zabbix_cache WHERE id=?', (itemid,))
+                    r = row["values"]
+                    itemid = r["itemid"]
+                    cachecur.execute("SELECT id, key, host, proxy FROM zabbix_cache WHERE id=?", (itemid,))
                     row = cachecur.fetchone()
-                    if (row is not None):
-                        print("zbx.%s %d %s host=%s proxy=%s" % (row[1], r['clock'], r['value'], row[2], row[3]))
-                        if ((int(time.time()) - sample_last_ts) > settings['internal_metric_interval']): # Sample internal metrics @ 10s intervals
+                    if row is not None:
+                        print("zbx.%s %d %s host=%s proxy=%s" % (row[1], r["clock"], r["value"], row[2], row[3]))
+                        if (int(time.time()) - sample_last_ts) > settings["internal_metric_interval"]:  # Sample internal metrics @ 10s intervals
                             sample_last_ts = int(time.time())
                             print("tcollector.zabbix_bridge.log_pos %d %s" % (sample_last_ts, log_pos))
                             print("tcollector.zabbix_bridge.key_lookup_miss %d %s" % (sample_last_ts, key_lookup_miss))
-                            print("tcollector.zabbix_bridge.timestamp_drift %d %s" % (sample_last_ts, (sample_last_ts - r['clock'])))
-                            if ((key_lookup_miss - last_key_lookup_miss) > settings['dbrefresh']):
+                            print("tcollector.zabbix_bridge.timestamp_drift %d %s" % (sample_last_ts, (sample_last_ts - r["clock"])))
+                            if (key_lookup_miss - last_key_lookup_miss) > settings["dbrefresh"]:
                                 print("tcollector.zabbix_bridge.key_lookup_miss_reload %d %s" % (sample_last_ts, (key_lookup_miss - last_key_lookup_miss)))
-                                cachecur.execute('DROP TABLE zabbix_cache')
-                                cachecur.execute('CREATE TABLE zabbix_cache AS SELECT * FROM dbfile.zabbix_cache')
-                                cachecur.execute('CREATE UNIQUE INDEX uniq_zid on zabbix_cache (id)')
+                                cachecur.execute("DROP TABLE zabbix_cache")
+                                cachecur.execute("CREATE TABLE zabbix_cache AS SELECT * FROM dbfile.zabbix_cache")
+                                cachecur.execute("CREATE UNIQUE INDEX uniq_zid on zabbix_cache (id)")
                                 last_key_lookup_miss = key_lookup_miss
                     else:
                         # TODO: Consider https://wiki.python.org/moin/PythonDecoratorLibrary#Retry

@@ -25,21 +25,22 @@ except ImportError:
     from SocketServer import ThreadingTCPServer, BaseRequestHandler
 
 try:
-  from collectors.etc import graphite_bridge_conf
+    from collectors.etc import graphite_bridge_conf
 except ImportError:
-  graphite_bridge_conf = None
+    graphite_bridge_conf = None
 
-HOST = '127.0.0.1'
+HOST = "127.0.0.1"
 PORT = 2003
 SIZE = 8192
+
 
 class GraphiteServer(ThreadingTCPServer):
     allow_reuse_address = True
 
     print_lock = threading.Lock()
 
-class GraphiteHandler(BaseRequestHandler):
 
+class GraphiteHandler(BaseRequestHandler):
     def handle_line(self, line):
         line_parts = line.split()
         with self.server.print_lock:
@@ -48,9 +49,8 @@ class GraphiteHandler(BaseRequestHandler):
             else:
                 print(line_parts[0], line_parts[2], line_parts[1])
 
-
     def handle(self):
-        data = ''
+        data = ""
         while True:
             new_data = self.request.recv(SIZE)
             if not new_data:
@@ -69,7 +69,7 @@ class GraphiteHandler(BaseRequestHandler):
 
 def main():
     if not (graphite_bridge_conf and graphite_bridge_conf.enabled()):
-      sys.exit(13)
+        sys.exit(13)
     utils.drop_privileges()
 
     server = GraphiteServer((HOST, PORT), GraphiteHandler)
@@ -79,6 +79,7 @@ def main():
     except KeyboardInterrupt:
         server.shutdown()
         server.server_close()
+
 
 if __name__ == "__main__":
     main()

@@ -17,6 +17,7 @@ from __future__ import print_function
 
 import sys
 import time
+
 try:
     import pymongo
 except ImportError:
@@ -24,71 +25,69 @@ except ImportError:
 
 from collectors.lib import utils
 
-HOST = 'localhost'
+HOST = "localhost"
 PORT = 27017
 INTERVAL = 15
 METRICS = (
-    'backgroundFlushing.average_ms',
-    'backgroundFlushing.flushes',
-    'backgroundFlushing.total_ms',
-    'connections.available',
-    'connections.current',
-    'cursors.totalOpen',
-    'cursors.timedOut',
-    'dur.commits',
-    'dur.commitsInWriteLock',
-    'dur.compression',
-    'dur.earlyCommits',
-    'dur.journaledMB',
-    'dur.writeToDataFilesMB',
-    'extra_info.heap_usage_bytes',
-    'extra_info.page_faults',
-    'globalLock.lockTime',
-    'globalLock.totalTime',
-    'indexCounters.btree.accesses',
-    'indexCounters.btree.hits',
-    'indexCounters.btree.missRatio',
-    'indexCounters.btree.misses',
-    'indexCounters.btree.resets',
-    'mem.resident',
-    'mem.virtual',
-    'mem.mapped',
-    'network.bytesIn',
-    'network.bytesOut',
-    'network.numRequests',
+    "backgroundFlushing.average_ms",
+    "backgroundFlushing.flushes",
+    "backgroundFlushing.total_ms",
+    "connections.available",
+    "connections.current",
+    "cursors.totalOpen",
+    "cursors.timedOut",
+    "dur.commits",
+    "dur.commitsInWriteLock",
+    "dur.compression",
+    "dur.earlyCommits",
+    "dur.journaledMB",
+    "dur.writeToDataFilesMB",
+    "extra_info.heap_usage_bytes",
+    "extra_info.page_faults",
+    "globalLock.lockTime",
+    "globalLock.totalTime",
+    "indexCounters.btree.accesses",
+    "indexCounters.btree.hits",
+    "indexCounters.btree.missRatio",
+    "indexCounters.btree.misses",
+    "indexCounters.btree.resets",
+    "mem.resident",
+    "mem.virtual",
+    "mem.mapped",
+    "network.bytesIn",
+    "network.bytesOut",
+    "network.numRequests",
 )
-TAG_METRICS = (
-    ('asserts',     ('msg', 'regular', 'user', 'warning')),
-    ('opcounters',  ('command', 'delete', 'getmore', 'insert', 'query', 'update')),
-)
+TAG_METRICS = (("asserts", ("msg", "regular", "user", "warning")), ("opcounters", ("command", "delete", "getmore", "insert", "query", "update")))
+
 
 def main():
     utils.drop_privileges()
     if pymongo is None:
-       print("error: Python module `pymongo' is missing", file=sys.stderr)
-       return 13
+        print("error: Python module `pymongo' is missing", file=sys.stderr)
+        return 13
 
     c = pymongo.Connection(host=HOST, port=PORT)
 
     while True:
-        res = c.admin.command('serverStatus')
+        res = c.admin.command("serverStatus")
         ts = int(time.time())
 
         for base_metric, tags in TAG_METRICS:
             for tag in tags:
-                print('mongo.%s %d %s type=%s' % (base_metric, ts,
-                                                  res[base_metric][tag], tag))
+                print("mongo.%s %d %s type=%s" % (base_metric, ts, res[base_metric][tag], tag))
         for metric in METRICS:
             cur = res
             try:
-                for m in metric.split('.'):
+                for m in metric.split("."):
                     cur = cur[m]
             except KeyError:
                 continue
-            print('mongo.%s %d %s' % (metric, ts, cur))
+            print("mongo.%s %d %s" % (metric, ts, cur))
 
         sys.stdout.flush()
         time.sleep(INTERVAL)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     sys.exit(main())

@@ -1,3 +1,4 @@
+---
 language: python
 sudo: true
 dist: "xenial"
@@ -12,8 +13,13 @@ jobs:
     - python: 3.8
 install:
   - sudo apt-get update && sudo apt-get install -y rpm
-  - pip install pylint pylint_runner ordereddict mysqlclient requests feedparser prometheus_client flask schedule
+  - pip install pylint pylint_runner yamllint ordereddict mysqlclient requests feedparser prometheus_client flask schedule
+  - if [[ $TRAVIS_PYTHON_VERSION == 3.6 ]]; then pip install "black>=18.*,<19.*"; fi
+  - if [[ $TRAVIS_PYTHON_VERSION == 3.7 ]]; then pip install "black>=18.*,<19.*"; fi
+  - if [[ $TRAVIS_PYTHON_VERSION == 3.8 ]]; then pip install "black>=18.*,<19.*"; fi
 script:
   - cd rpm && make all && cd ..
   - pylint_runner --rcfile .pylintrc
+  - if [[ $TRAVIS_PYTHON_VERSION == 3.6 ]]; then black -l 400 --check *.py eos collectors; fi
+  - yamllint .yamllint $(find ./ -name "*.y*ml")
   - ./tests.py

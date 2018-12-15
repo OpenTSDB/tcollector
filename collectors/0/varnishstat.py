@@ -24,7 +24,7 @@ import re
 
 from collectors.lib import utils
 
-interval = 10 # seconds
+interval = 10  # seconds
 
 # If you would rather use the timestamp returned by varnishstat instead of a
 # local timestamp, then change this value to "True"
@@ -51,48 +51,43 @@ vstats = "all"
 #   "cache_miss"
 # ])
 
+
 def main():
- utils.drop_privileges()
- bad_regex = re.compile("[,()]+")  # avoid forbidden by TSD symbols
+    utils.drop_privileges()
+    bad_regex = re.compile("[,()]+")  # avoid forbidden by TSD symbols
 
- while True:
-    try:
-      if vstats == "all":
-        stats = subprocess.Popen(
-          ["varnishstat", "-1", "-j"],
-          stdout=subprocess.PIPE,
-        )
-      else:
-        fields = ",".join(vstats)
-        stats = subprocess.Popen(
-          ["varnishstat", "-1", "-f" + fields, "-j"],
-          stdout=subprocess.PIPE,
-        )
-    except OSError as e:
-      # Die and signal to tcollector not to run this script.
-      sys.stderr.write("Error: %s\n" % e)
-      sys.exit(13)
+    while True:
+        try:
+            if vstats == "all":
+                stats = subprocess.Popen(["varnishstat", "-1", "-j"], stdout=subprocess.PIPE)
+            else:
+                fields = ",".join(vstats)
+                stats = subprocess.Popen(["varnishstat", "-1", "-f" + fields, "-j"], stdout=subprocess.PIPE)
+        except OSError as e:
+            # Die and signal to tcollector not to run this script.
+            sys.stderr.write("Error: %s\n" % e)
+            sys.exit(13)
 
-    metrics = ""
-    for line in stats.stdout.readlines():
-      metrics += line
-    metrics = json.loads(metrics)
+        metrics = ""
+        for line in stats.stdout.readlines():
+            metrics += line
+        metrics = json.loads(metrics)
 
-    timestamp = ""
-    if use_varnishstat_timestamp:
-      pattern = "%Y-%m-%dT%H:%M:%S"
-      timestamp = int(time.mktime(time.strptime(metrics['timestamp'], pattern)))
-    else:
-      timestamp = time.time()
+        timestamp = ""
+        if use_varnishstat_timestamp:
+            pattern = "%Y-%m-%dT%H:%M:%S"
+            timestamp = int(time.mktime(time.strptime(metrics["timestamp"], pattern)))
+        else:
+            timestamp = time.time()
 
-    for k, v in metrics.items():
-      if k != "timestamp" and None == bad_regex.search(k):
-        metric_name = metric_prefix + "." + k
-        print("%s %d %s %s" % \
-          (metric_name, timestamp, v['value'], ",".join(tags)))
+        for k, v in metrics.items():
+            if k != "timestamp" and None == bad_regex.search(k):
+                metric_name = metric_prefix + "." + k
+                print("%s %d %s %s" % (metric_name, timestamp, v["value"], ",".join(tags)))
 
-    sys.stdout.flush()
-    time.sleep(interval)
+        sys.stdout.flush()
+        time.sleep(interval)
+
 
 if __name__ == "__main__":
-  sys.exit(main())
+    sys.exit(main())

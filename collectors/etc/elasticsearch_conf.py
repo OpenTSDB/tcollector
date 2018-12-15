@@ -12,11 +12,11 @@
 # of the GNU Lesser General Public License along with this program.  If not,
 # see <http://www.gnu.org/licenses/>.
 
+
 def get_servers():
-  """Get the ElasticSearch servers on this host.
+    """Get the ElasticSearch servers on this host.
 
   Returns:
     An iterable of tuples of (host, port)
   """
-  return [ ("localhost", 9200) ]
-
+    return [("localhost", 9200)]

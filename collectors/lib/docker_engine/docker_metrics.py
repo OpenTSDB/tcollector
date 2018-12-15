@@ -18,6 +18,7 @@ import requests
 from prometheus_client.parser import text_string_to_metric_families
 from collectors.lib.docker_engine.metric import Metric
 
+
 class DockerMetrics(object):
     def __init__(self, url):
         self._url = url
@@ -31,7 +32,7 @@ class DockerMetrics(object):
             print("Error %s: %s" % (r.status_code, r.text))
         else:
             for line in r.iter_lines(decode_unicode=True):
-                if not line.startswith('#'):
+                if not line.startswith("#"):
                     ret.extend(self.eval_prometheus_line(self.event_time, line))
         return ret
 

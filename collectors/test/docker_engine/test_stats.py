@@ -22,20 +22,10 @@ from collectors.lib.docker_engine.stats import Stats
 class TestStats(unittest.TestCase):
     def setUp(self):
         self.now = time.gmtime()
-        self.container = {
-            "Names": ["/name"],
-            "Id": "cntHASH",
-            "Image": "qnib/test",
-            "ImageID": "sha256:123"
-        }
+        self.container = {"Names": ["/name"], "Id": "cntHASH", "Image": "qnib/test", "ImageID": "sha256:123"}
 
     def test_stats_dims(self):
-        expected_dims = [
-            "container_name=name",
-            "container_id=cntHASH",
-            "image_name=qnib/test",
-            "image_id=sha256:123"
-        ]
+        expected_dims = ["container_name=name", "container_id=cntHASH", "image_name=qnib/test", "image_id=sha256:123"]
 
         s = Stats(self.container, self.now)
 
@@ -51,5 +41,5 @@ class TestStats(unittest.TestCase):
         self.assertEqual(expected, Stats.trim_container_name(self.container))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

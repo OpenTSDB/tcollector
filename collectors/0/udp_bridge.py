@@ -19,33 +19,34 @@ import time
 from collectors.lib import utils
 
 try:
-  from collectors.etc import udp_bridge_conf
+    from collectors.etc import udp_bridge_conf
 except ImportError:
-  udp_bridge_conf = None
+    udp_bridge_conf = None
 
-HOST = '127.0.0.1'
+HOST = "127.0.0.1"
 PORT = 8953
 SIZE = 8192
 
+
 def main():
     if not (udp_bridge_conf and udp_bridge_conf.enabled()):
-      sys.exit(13)
+        sys.exit(13)
     utils.drop_privileges()
 
     def removePut(line):
-        if line.startswith('put '):
+        if line.startswith("put "):
             return line[4:]
         else:
             return line
 
     try:
-        if (udp_bridge_conf and udp_bridge_conf.usetcp()):
-          sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        if udp_bridge_conf and udp_bridge_conf.usetcp():
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         else:
-          sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.bind((HOST, PORT))
     except socket.error as msg:
-        utils.err('could not open socket: %s' % msg)
+        utils.err("could not open socket: %s" % msg)
         sys.exit(1)
 
     try:
@@ -60,7 +61,7 @@ def main():
                 data, address = sock.recvfrom(SIZE)
                 if data:
                     lines = data.splitlines()
-                    data = '\n'.join(map(removePut, lines))
+                    data = "\n".join(map(removePut, lines))
                 if not data:
                     utils.err("invalid data")
                     break
@@ -74,6 +75,7 @@ def main():
             utils.err("keyboard interrupt, exiting")
     finally:
         sock.close()
+
 
 if __name__ == "__main__":
     main()

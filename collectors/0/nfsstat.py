@@ -46,6 +46,7 @@ nfs_client_proc_names = {
         "remove", "rmdir", "rename", "link", "readdir", "readdirplus",
         "fsstat", "fsinfo", "pathconf", "commit",
     ),
+    "proc3": ("null", "getattr", "setattr", "lookup", "access", "readlink", "read", "write", "create", "mkdir", "symlink", "mknod", "remove", "rmdir", "rename", "link", "readdir", "readdirplus", "fsstat", "fsinfo", "pathconf", "commit"),
 }
 
 
@@ -67,16 +68,12 @@ def main():
             if fields[0] in nfs_client_proc_names.keys():
                 # NFSv4
                 # first entry should equal total count of subsequent entries
-                assert int(fields[1]) == len(fields[2:]), (
-                    "reported count (%d) does not equal list length (%d)"
-                    % (int(fields[1]), len(fields[2:])))
+                assert int(fields[1]) == len(fields[2:]), "reported count (%d) does not equal list length (%d)" % (int(fields[1]), len(fields[2:]))
                 for idx, val in enumerate(fields[2:]):
                     try:
-                        print("nfs.client.rpc %d %s op=%s version=%s"
-                               % (ts, int(val), nfs_client_proc_names[fields[0]][idx], fields[0][4:]))
+                        print("nfs.client.rpc %d %s op=%s version=%s" % (ts, int(val), nfs_client_proc_names[fields[0]][idx], fields[0][4:]))
                     except IndexError:
-                        print("Warning: name lookup failed"
-                                              " at position %d" % idx, file=sys.stderr)
+                        print("Warning: name lookup failed" " at position %d" % idx, file=sys.stderr)
             elif fields[0] == "rpc":
                 # RPC
                 calls = int(fields[1])
@@ -84,11 +81,11 @@ def main():
                 authrefrsh = int(fields[3])
                 print("nfs.client.rpc.stats %d %d type=calls" % (ts, calls))
                 print("nfs.client.rpc.stats %d %d type=retrans" % (ts, retrans))
-                print("nfs.client.rpc.stats %d %d type=authrefrsh"
-                       % (ts, authrefrsh))
+                print("nfs.client.rpc.stats %d %d type=authrefrsh" % (ts, authrefrsh))
 
         sys.stdout.flush()
         time.sleep(COLLECTION_INTERVAL)
+
 
 if __name__ == "__main__":
     sys.exit(main())

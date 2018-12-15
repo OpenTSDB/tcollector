@@ -66,27 +66,9 @@ def get_config():
     # }
 
     config = {
-        'interval': 15,
-        'common_monitors': [{
-            'mbean': 'java.lang:type=*',
-            'metric': 'java.lang',
-            'not_tags': ['type']
-            }, {
-            'mbean': 'java.lang:type=Runtime',
-            'metric': 'java.lang',
-            'not_tags': ['type']
-            }, {
-            'mbean': 'java.lang:name=*,type=GarbageCollector',
-            'metric': 'java.lang',
-            'not_tags': ['type']
-            }, {
-            'mbean': 'java.lang:name=*,type=MemoryPool',
-            'metric': 'java.lang',
-            'not_tags': ['type']
-        }],
-        'instances': [{
-            'url': 'http://localhost:8778/jolokia/'
-        }]
+        "interval": 15,
+        "common_monitors": [{"mbean": "java.lang:type=*", "metric": "java.lang", "not_tags": ["type"]}, {"mbean": "java.lang:type=Runtime", "metric": "java.lang", "not_tags": ["type"]}, {"mbean": "java.lang:name=*,type=GarbageCollector", "metric": "java.lang", "not_tags": ["type"]}, {"mbean": "java.lang:name=*,type=MemoryPool", "metric": "java.lang", "not_tags": ["type"]}],
+        "instances": [{"url": "http://localhost:8778/jolokia/"}],
     }
 
     return config

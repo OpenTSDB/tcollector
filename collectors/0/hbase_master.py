@@ -24,7 +24,7 @@ from collectors.lib import utils
 from collectors.lib.hadoop_http import HadoopHttp
 
 
-EXCLUDED_CONTEXTS = ('regionserver', 'regions', )
+EXCLUDED_CONTEXTS = ("regionserver", "regions")
 
 
 class HBaseMaster(HadoopHttp):
@@ -35,7 +35,7 @@ class HBaseMaster(HadoopHttp):
     """
 
     def __init__(self):
-        super(HBaseMaster, self).__init__('hbase', 'master', 'localhost', 16010)
+        super(HBaseMaster, self).__init__("hbase", "master", "localhost", 16010)
 
     def emit(self):
         current_time = int(time.time())
@@ -60,4 +60,3 @@ def main(args):
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv))
-

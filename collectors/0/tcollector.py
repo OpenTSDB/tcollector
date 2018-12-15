@@ -56,7 +56,7 @@ class Process(object):
                 with open(path) as f:
                     cmdl = f.readline()
                     if cmdl:
-                        self._cmdline = tuple(cmdl.split('\0'))
+                        self._cmdline = tuple(cmdl.split("\0"))
             except IOError:
                 raise ProcessTerminatedError()
 
@@ -77,13 +77,10 @@ class Process(object):
         except IOError:
             raise ProcessTerminatedError()
 
-        rv = {"pid": spl[0], "comm": spl[1], "ppid": spl[3],
-                "utime": spl[13], "stime": spl[14], "cutime": spl[15],
-                "cstime": spl[16], "vsize": spl[22], "rss": spl[23]}
+        rv = {"pid": spl[0], "comm": spl[1], "ppid": spl[3], "utime": spl[13], "stime": spl[14], "cutime": spl[15], "cstime": spl[16], "vsize": spl[22], "rss": spl[23]}
         # supported since Kernel 2.6.24
         if len(spl) > 43:
-                rv.update({"guest_time": spl[42],
-                           "cguest_time": spl[43]})
+            rv.update({"guest_time": spl[42], "cguest_time": spl[43]})
         return rv
 
 
@@ -92,6 +89,7 @@ class ProcessTable(object):
 
     Process informations are gathered from /proc.
     """
+
     def __init__(self):
         self.processes = {}
         self.update()
@@ -116,14 +114,14 @@ class ProcessTable(object):
         """ Return processes for that the function cond evaluates to true. """
         return list(filter(cond, self.processes.values()))
 
+
 def collect_tcollect_stats(processes):
     # print a msg and do nothing if the parent process isn't tcollector
     # (eg when processtats.py is executed from shell)
     tcol_pid = os.getppid()
     tcol_process = Process(tcol_pid)
     if not "tcollector.py" in " ".join(tcol_process.cmdline):
-        sys.stderr.write("Parent Process %s isn't a tcollector instance\n" %
-                tcol_pid)
+        sys.stderr.write("Parent Process %s isn't a tcollector instance\n" % tcol_pid)
         return
 
     tcollect_procs = processes.filter(lambda p: p.ppid == tcol_pid)
@@ -153,10 +151,8 @@ def collect_tcollect_stats(processes):
             comm = p.comm
 
         print("tcollector.cputime %s %s name=%s" % (ts, cpu_time, comm))
-        print("tcollector.mem_bytes %s %s name=%s type=vsize" %
-                (ts, s["vsize"], comm))
-        print("tcollector.mem_bytes %s %s name=%s type=rss" %
-                (ts, int(s["rss"]) * resource.getpagesize(), comm))
+        print("tcollector.mem_bytes %s %s name=%s type=vsize" % (ts, s["vsize"], comm))
+        print("tcollector.mem_bytes %s %s name=%s type=rss" % (ts, int(s["rss"]) * resource.getpagesize(), comm))
 
 
 def main():
@@ -168,6 +164,7 @@ def main():
         collect_tcollect_stats(processes)
 
         time.sleep(COLLECTION_INTERVAL)
+
 
 if __name__ == "__main__":
     main()

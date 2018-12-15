@@ -36,10 +36,7 @@ interval = 15  # seconds
 # p<slot number>p<port number>_<virtual function instance / NPAR Index>
 
 
-FIELDS = ("bytes", "packets", "errs", "dropped",
-          "fifo.errs", "frame.errs", "compressed", "multicast",
-          "bytes", "packets", "errs", "dropped",
-          "fifo.errs", "collisions", "carrier.errs", "compressed")
+FIELDS = ("bytes", "packets", "errs", "dropped", "fifo.errs", "frame.errs", "compressed", "multicast", "bytes", "packets", "errs", "dropped", "fifo.errs", "collisions", "carrier.errs", "compressed")
 
 
 def main():
@@ -56,7 +53,8 @@ def main():
         f_netdev.seek(0)
         ts = int(time.time())
         for line in f_netdev:
-            m = re.match(r'''
+            m = re.match(
+                r"""
                 \s*
                 (
                     eth?\d+ |
@@ -74,7 +72,10 @@ def main():
                             p\d+s\d+(?:f\d+)?(?:u\d+)*(?:c\d+)?(?:i\d+)? # USB
                          )
                     )
-                ):(.*)''', line, re.VERBOSE)
+                ):(.*)""",
+                line,
+                re.VERBOSE,
+            )
             if not m:
                 continue
             intf = m.group(1)
@@ -84,12 +85,13 @@ def main():
                 if i >= 8:
                     return "out"
                 return "in"
+
             for i in range(16):
-                print("proc.net.%s %d %s iface=%s direction=%s"
-                      % (FIELDS[i], ts, stats[i], intf, direction(i)))
+                print("proc.net.%s %d %s iface=%s direction=%s" % (FIELDS[i], ts, stats[i], intf, direction(i)))
 
         sys.stdout.flush()
         time.sleep(interval)
+
 
 if __name__ == "__main__":
     sys.exit(main())
