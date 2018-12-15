@@ -1,0 +1,4 @@
+-r requirements.txt
+pylint<3.0.0
+pylint-runner>=0.5.4,<1.0.0
+yamllint>=1.13.0,<2.0.0

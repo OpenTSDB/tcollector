@@ -12,14 +12,10 @@
 # of the GNU Lesser General Public License along with this program.  If not,
 # see <http://www.gnu.org/licenses/>.
 
+
 class Stats(object):
     def __init__(self, container, mtime):
-        self.dims = [
-            "container_name=%s" % self.trim_container_name(container),
-            "container_id=%s" % container['Id'],
-            "image_name=%s" % container['Image'],
-            "image_id=%s" % container['ImageID']
-        ]
+        self.dims = ["container_name=%s" % self.trim_container_name(container), "container_id=%s" % container["Id"], "image_name=%s" % container["Image"], "image_id=%s" % container["ImageID"]]
         self.event_time = mtime
 
     @staticmethod

@@ -29,19 +29,20 @@ import errno
 from collectors.lib import utils
 
 try:
-  from collectors.etc import ntpstat_conf
+    from collectors.etc import ntpstat_conf
 except ImportError:
-  ntpstat_conf = None
+    ntpstat_conf = None
 
-DEFAULT_COLLECTION_INTERVAL=60
+DEFAULT_COLLECTION_INTERVAL = 60
+
 
 def main():
     """ntpstats main loop"""
 
-    collection_interval=DEFAULT_COLLECTION_INTERVAL
-    if(ntpstat_conf):
+    collection_interval = DEFAULT_COLLECTION_INTERVAL
+    if ntpstat_conf:
         config = ntpstat_conf.get_config()
-        collection_interval=config['collection_interval']
+        collection_interval = config["collection_interval"]
 
     utils.drop_privileges()
 
@@ -52,7 +53,7 @@ def main():
         except OSError as e:
             if e.errno == errno.ENOENT:
                 # looks like ntpdc is not available, stop using this collector
-                sys.exit(13) # we signal tcollector to stop using this
+                sys.exit(13)  # we signal tcollector to stop using this
             raise
 
         stdout, _ = ntp_proc.communicate()
@@ -64,7 +65,7 @@ def main():
                 if len(fields) <= 0:
                     continue
                 if fields[0].startswith("*"):
-                    offset=fields[8]
+                    offset = fields[8]
                     continue
             print("ntp.offset %d %s" % (ts, offset))
         else:
@@ -72,6 +73,7 @@ def main():
 
         sys.stdout.flush()
         time.sleep(collection_interval)
+
 
 if __name__ == "__main__":
     main()

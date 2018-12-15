@@ -26,23 +26,60 @@ COLLECTION_INTERVAL = 15  # seconds
 nfs_client_proc_names = {
     "proc4": (
         # list of ops taken from nfs-utils / nfsstat.c
-        "null", "read", "write", "commit", "open", "open_conf", "open_noat",
-        "open_dgrd", "close", "setattr", "fsinfo", "renew", "setclntid", "confirm",
-        "lock", "lockt", "locku", "access", "getattr", "lookup", "lookup_root",
-        "remove", "rename", "link", "symlink", "create", "pathconf", "statfs",
-        "readlink", "readdir", "server_caps", "delegreturn", "getacl", "setacl",
-        "fs_locations", "rel_lkowner", "secinfo",
+        "null",
+        "read",
+        "write",
+        "commit",
+        "open",
+        "open_conf",
+        "open_noat",
+        "open_dgrd",
+        "close",
+        "setattr",
+        "fsinfo",
+        "renew",
+        "setclntid",
+        "confirm",
+        "lock",
+        "lockt",
+        "locku",
+        "access",
+        "getattr",
+        "lookup",
+        "lookup_root",
+        "remove",
+        "rename",
+        "link",
+        "symlink",
+        "create",
+        "pathconf",
+        "statfs",
+        "readlink",
+        "readdir",
+        "server_caps",
+        "delegreturn",
+        "getacl",
+        "setacl",
+        "fs_locations",
+        "rel_lkowner",
+        "secinfo",
         # nfsv4.1 client ops
-        "exchange_id", "create_ses", "destroy_ses", "sequence", "get_lease_t",
-        "reclaim_comp", "layoutget", "getdevinfo", "layoutcommit", "layoutreturn",
-        "getdevlist", "getdevinfo", "ds_write", "ds_commit"
+        "exchange_id",
+        "create_ses",
+        "destroy_ses",
+        "sequence",
+        "get_lease_t",
+        "reclaim_comp",
+        "layoutget",
+        "getdevinfo",
+        "layoutcommit",
+        "layoutreturn",
+        "getdevlist",
+        "getdevinfo",
+        "ds_write",
+        "ds_commit",
     ),
-    "proc3": (
-        "null", "getattr", "setattr", "lookup", "access", "readlink",
-        "read", "write", "create", "mkdir", "symlink", "mknod",
-        "remove", "rmdir", "rename", "link", "readdir", "readdirplus",
-        "fsstat", "fsinfo", "pathconf", "commit",
-    ),
+    "proc3": ("null", "getattr", "setattr", "lookup", "access", "readlink", "read", "write", "create", "mkdir", "symlink", "mknod", "remove", "rmdir", "rename", "link", "readdir", "readdirplus", "fsstat", "fsinfo", "pathconf", "commit"),
 }
 
 
@@ -64,16 +101,12 @@ def main():
             if fields[0] in nfs_client_proc_names.keys():
                 # NFSv4
                 # first entry should equal total count of subsequent entries
-                assert int(fields[1]) == len(fields[2:]), (
-                    "reported count (%d) does not equal list length (%d)"
-                    % (int(fields[1]), len(fields[2:])))
+                assert int(fields[1]) == len(fields[2:]), "reported count (%d) does not equal list length (%d)" % (int(fields[1]), len(fields[2:]))
                 for idx, val in enumerate(fields[2:]):
                     try:
-                        print("nfs.client.rpc %d %s op=%s version=%s"
-                               % (ts, int(val), nfs_client_proc_names[fields[0]][idx], fields[0][4:]))
+                        print("nfs.client.rpc %d %s op=%s version=%s" % (ts, int(val), nfs_client_proc_names[fields[0]][idx], fields[0][4:]))
                     except IndexError:
-                        print("Warning: name lookup failed"
-                                              " at position %d" % idx, file=sys.stderr)
+                        print("Warning: name lookup failed" " at position %d" % idx, file=sys.stderr)
             elif fields[0] == "rpc":
                 # RPC
                 calls = int(fields[1])
@@ -81,11 +114,11 @@ def main():
                 authrefrsh = int(fields[3])
                 print("nfs.client.rpc.stats %d %d type=calls" % (ts, calls))
                 print("nfs.client.rpc.stats %d %d type=retrans" % (ts, retrans))
-                print("nfs.client.rpc.stats %d %d type=authrefrsh"
-                       % (ts, authrefrsh))
+                print("nfs.client.rpc.stats %d %d type=authrefrsh" % (ts, authrefrsh))
 
         sys.stdout.flush()
         time.sleep(COLLECTION_INTERVAL)
+
 
 if __name__ == "__main__":
     sys.exit(main())

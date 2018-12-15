@@ -103,23 +103,11 @@ PORTS = {
     11226: "memcache",
     50020: "datanode",
     60020: "hregionserver",
-    }
+}
 
 SERVICES = tuple(set(PORTS.values()))
 
-TCPSTATES = {
-    "01": "established",
-    "02": "syn_sent",
-    "03": "syn_recv",
-    "04": "fin_wait1",
-    "05": "fin_wait2",
-    "06": "time_wait",
-    "07": "close",
-    "08": "close_wait",
-    "09": "last_ack",
-    "0A": "listen",
-    "0B": "closing",
-    }
+TCPSTATES = {"01": "established", "02": "syn_sent", "03": "syn_recv", "04": "fin_wait1", "05": "fin_wait2", "06": "time_wait", "07": "close", "08": "close_wait", "09": "last_ack", "0A": "listen", "0B": "closing"}
 
 
 def is_public_ip(ipstr):
@@ -145,10 +133,10 @@ def is_public_ip(ipstr):
 
 def main(unused_args):
     """procnettcp main loop"""
-    try:           # On some Linux kernel versions, with lots of connections
-      os.nice(19)  # this collector can be very CPU intensive.  So be nicer.
+    try:  # On some Linux kernel versions, with lots of connections
+        os.nice(19)  # this collector can be very CPU intensive.  So be nicer.
     except OSError as e:
-      print("warning: failed to self-renice:", e, file=sys.stderr)
+        print("warning: failed to self-renice:", e, file=sys.stderr)
 
     interval = 60
 
@@ -188,8 +176,7 @@ def main(unused_args):
             for line in procfile:
                 try:
                     # pylint: disable=W0612
-                    (num, src, dst, state, queue, when, retrans,
-                     uid, timeout, inode) = line.split(None, 9)
+                    (num, src, dst, state, queue, when, retrans, uid, timeout, inode) = line.split(None, 9)
                 except ValueError:  # Malformed line
                     continue
 
@@ -208,11 +195,9 @@ def main(unused_args):
                 else:
                     endpoint = "internal"
 
-
                 user = uids.get(uid, "other")
 
-                key = "state=" + TCPSTATES[state] + " endpoint=" + endpoint + \
-                      " service=" + service + " user=" + user
+                key = "state=" + TCPSTATES[state] + " endpoint=" + endpoint + " service=" + service + " user=" + user
                 if key in counter:
                     counter[key] += 1
                 else:
@@ -223,8 +208,7 @@ def main(unused_args):
             for service in SERVICES + ("other",):
                 for user in USERS + ("other",):
                     for endpoint in ("internal", "external"):
-                        key = ("state=%s endpoint=%s service=%s user=%s"
-                               % (TCPSTATES[state], endpoint, service, user))
+                        key = "state=%s endpoint=%s service=%s user=%s" % (TCPSTATES[state], endpoint, service, user)
                         if key in counter:
                             print("proc.net.tcp", ts, counter[key], key)
                         else:
@@ -232,6 +216,7 @@ def main(unused_args):
 
         sys.stdout.flush()
         time.sleep(interval)
+
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv))

@@ -13,14 +13,6 @@
 # of the GNU Lesser General Public License along with this program.  If not,
 # see <http://www.gnu.org/licenses/>.
 
-def get_settings():
-  return {
-    "db": "db1,db2",
-    "config": "192.168.0.10:27017,192.168.0.11:27017",
-    "mongos": "192.168.0.13:27017",
-    "replica": "192.168.0.14:27017",
-    "username": "",
-    "password": "",
-    "interval": 15
-  }
 
+def get_settings():
+    return {"db": "db1,db2", "config": "192.168.0.10:27017,192.168.0.11:27017", "mongos": "192.168.0.13:27017", "replica": "192.168.0.14:27017", "username": "", "password": "", "interval": 15}

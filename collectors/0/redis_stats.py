@@ -68,6 +68,7 @@ from collectors.etc import redis_stats_conf
 
 try:
     import redis
+
     has_redis = True
 except ImportError:
     has_redis = False
@@ -83,12 +84,31 @@ SCAN_INTERVAL = 300
 
 # these are the things in the info struct that we care about
 KEYS = [
-    'pubsub_channels', 'bgrewriteaof_in_progress', 'connected_slaves', 'connected_clients', 'keyspace_misses',
-    'used_memory', 'total_commands_processed', 'used_memory_rss', 'total_connections_received', 'pubsub_patterns',
-    'used_cpu_sys', 'blocked_clients', 'used_cpu_user', 'expired_keys', 'bgsave_in_progress', 'hash_max_zipmap_entries',
-    'hash_max_zipmap_value', 'client_longest_output_list', 'client_biggest_input_buf', 'uptime_in_seconds',
-    'changes_since_last_save', 'mem_fragmentation_ratio', 'keyspace_hits', 'evicted_keys'
-];
+    "pubsub_channels",
+    "bgrewriteaof_in_progress",
+    "connected_slaves",
+    "connected_clients",
+    "keyspace_misses",
+    "used_memory",
+    "total_commands_processed",
+    "used_memory_rss",
+    "total_connections_received",
+    "pubsub_patterns",
+    "used_cpu_sys",
+    "blocked_clients",
+    "used_cpu_user",
+    "expired_keys",
+    "bgsave_in_progress",
+    "hash_max_zipmap_entries",
+    "hash_max_zipmap_value",
+    "client_longest_output_list",
+    "client_biggest_input_buf",
+    "uptime_in_seconds",
+    "changes_since_last_save",
+    "mem_fragmentation_ratio",
+    "keyspace_hits",
+    "evicted_keys",
+]
 
 
 def main():
@@ -99,7 +119,7 @@ def main():
     sys.stdin.close()
 
     config = redis_stats_conf.get_config()
-    interval = config['collection_interval']
+    interval = config["collection_interval"]
 
     # we scan for instances here to see if there are any redis servers
     # running on this machine...
@@ -108,8 +128,7 @@ def main():
     if not len(instances):
         return 13
     if not has_redis:
-        sys.stderr.write("Found %d instance(s) to monitor, but the Python"
-                         " Redis module isn't installed.\n" % len(instances))
+        sys.stderr.write("Found %d instance(s) to monitor, but the Python" " Redis module isn't installed.\n" % len(instances))
         return 1
 
     def print_stat(metric, value, tags=""):
@@ -169,7 +188,7 @@ def scan_for_instances():
         return {}
 
     for line in stdout.split("\n"):
-        if not (line and 'redis-server' in line):
+        if not (line and "redis-server" in line):
             continue
         pid = int(line.split()[6].split("/")[0])
         port = int(line.split()[3].split(":")[-1])

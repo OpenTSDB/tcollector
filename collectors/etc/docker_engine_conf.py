@@ -12,14 +12,12 @@
 # of the GNU Lesser General Public License along with this program.  If not,
 # see <http://www.gnu.org/licenses/>.
 
+
 def enabled():
-  return True
+    return True
+
 
 def get_config():
-  """Configuration for the Docker engine (Prometeus) collector """
-  config = {
-    'interval': 15,
-    'default_dims': '',
-    'metrics_path': 'http://localhost:3376/metrics'
-  }
-  return config
+    """Configuration for the Docker engine (Prometeus) collector """
+    config = {"interval": 15, "default_dims": "", "metrics_path": "http://localhost:3376/metrics"}
+    return config

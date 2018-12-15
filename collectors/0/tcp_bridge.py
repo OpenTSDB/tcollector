@@ -29,14 +29,14 @@ except ImportError:
 try:
     from collectors.etc import tcp_bridge_conf
 except ImportError:
-    print('unable to import tcp_bridge_conf', file=sys.stderr)
+    print("unable to import tcp_bridge_conf", file=sys.stderr)
     tcp_bridge_conf = None
 
-HOST = '127.0.0.1'
+HOST = "127.0.0.1"
 PORT = 4243
 
 # metrics
-m_namespace = 'tcollector.tcp_bridge.'
+m_namespace = "tcollector.tcp_bridge."
 m_lines = 0
 m_connections = 0
 m_delay = 15
@@ -44,27 +44,28 @@ m_last = 0
 m_ptime = 0
 
 # buffered stdout seems to break metrics
-out = os.fdopen(sys.stdout.fileno(), 'w', 0)
+out = os.fdopen(sys.stdout.fileno(), "w", 0)
+
 
 def main():
     if not (tcp_bridge_conf and tcp_bridge_conf.enabled()):
-        print('not enabled, or tcp_bridge_conf unavilable', file=sys.stderr)
+        print("not enabled, or tcp_bridge_conf unavilable", file=sys.stderr)
         sys.exit(13)
     utils.drop_privileges()
 
     def printm(string, time, value):
-        out.write(m_namespace+string+' '+str(time)+' '+str(value)+'\n')
+        out.write(m_namespace + string + " " + str(time) + " " + str(value) + "\n")
 
     def printmetrics():
         global m_delay
         global m_last
 
         ts = int(time.time())
-        if ts > m_last+m_delay:
-            printm('lines_read', ts, m_lines)
-            printm('connections_processed', ts, m_connections)
-            printm('processing_time', ts, m_ptime)
-            printm('active', ts, 1)
+        if ts > m_last + m_delay:
+            printm("lines_read", ts, m_lines)
+            printm("connections_processed", ts, m_connections)
+            printm("processing_time", ts, m_ptime)
+            printm("active", ts, 1)
             m_last = ts
 
     def clientthread(connection):
@@ -88,12 +89,12 @@ def main():
         connection.close()
 
         end = time.time()
-        m_ptime += (end - start)
+        m_ptime += end - start
         m_connections += 1
         printmetrics()
 
     def removePut(line):
-        if line.startswith('put '):
+        if line.startswith("put "):
             return line[4:]
         else:
             return line
@@ -110,7 +111,7 @@ def main():
         sock.listen(1)
 
     except socket.error as msg:
-        utils.err('could not open socket: %s' % msg)
+        utils.err("could not open socket: %s" % msg)
         sys.exit(1)
 
     try:
@@ -129,6 +130,7 @@ def main():
 
     finally:
         sock.close()
+
 
 if __name__ == "__main__":
     main()

@@ -26,46 +26,60 @@ from collectors.lib import utils
 
 interval = 15  # seconds
 
-STATS = ("ip_conntrack_buckets", "ip_conntrack_checksum", "ip_conntrack_count", 
-         "ip_conntrack_generic_timeout", "ip_conntrack_icmp_timeout", 
-         "ip_conntrack_log_invalid", "ip_conntrack_max", "ip_conntrack_tcp_be_liberal", 
-         "ip_conntrack_tcp_loose", "ip_conntrack_tcp_max_retrans", 
-         "ip_conntrack_tcp_timeout_close", "ip_conntrack_tcp_timeout_close_wait", 
-         "ip_conntrack_tcp_timeout_established", "ip_conntrack_tcp_timeout_fin_wait", 
-         "ip_conntrack_tcp_timeout_last_ack", "ip_conntrack_tcp_timeout_max_retrans", 
-         "ip_conntrack_tcp_timeout_syn_recv", "ip_conntrack_tcp_timeout_syn_sent", 
-         "ip_conntrack_tcp_timeout_time_wait", "ip_conntrack_udp_timeout", 
-         "ip_conntrack_udp_timeout_stream") 
+STATS = (
+    "ip_conntrack_buckets",
+    "ip_conntrack_checksum",
+    "ip_conntrack_count",
+    "ip_conntrack_generic_timeout",
+    "ip_conntrack_icmp_timeout",
+    "ip_conntrack_log_invalid",
+    "ip_conntrack_max",
+    "ip_conntrack_tcp_be_liberal",
+    "ip_conntrack_tcp_loose",
+    "ip_conntrack_tcp_max_retrans",
+    "ip_conntrack_tcp_timeout_close",
+    "ip_conntrack_tcp_timeout_close_wait",
+    "ip_conntrack_tcp_timeout_established",
+    "ip_conntrack_tcp_timeout_fin_wait",
+    "ip_conntrack_tcp_timeout_last_ack",
+    "ip_conntrack_tcp_timeout_max_retrans",
+    "ip_conntrack_tcp_timeout_syn_recv",
+    "ip_conntrack_tcp_timeout_syn_sent",
+    "ip_conntrack_tcp_timeout_time_wait",
+    "ip_conntrack_udp_timeout",
+    "ip_conntrack_udp_timeout_stream",
+)
 
 basedir = "/proc/sys/net/ipv4/netfilter"
+
 
 def main():
     """netfilter main loop"""
 
     utils.drop_privileges()
 
-    if (os.path.isdir(basedir)): 
+    if os.path.isdir(basedir):
         while True:
             ts = int(time.time())
-        
-            for s in STATS: 
-                try: 
-                   f = open(basedir + "/" + s, 'r')
-                   value = f.readline().rstrip()
-                   print("proc.sys.net.ipv4.netfilter.%s %d %s" % (s, ts, value))
-                   f.close() 
+
+            for s in STATS:
+                try:
+                    f = open(basedir + "/" + s, "r")
+                    value = f.readline().rstrip()
+                    print("proc.sys.net.ipv4.netfilter.%s %d %s" % (s, ts, value))
+                    f.close()
                 except:
-                   # brute'ish, but should keep the collector reasonably future 
-                   # proof if some of the stats disappear between kernel module 
-                   # versions
-                   continue
+                    # brute'ish, but should keep the collector reasonably future
+                    # proof if some of the stats disappear between kernel module
+                    # versions
+                    continue
 
             sys.stdout.flush()
             time.sleep(interval)
-    else: 
-        print ("%s does not exist - ip_conntrack probably missing")
-        sys.exit(13) # we signal tcollector to not run us
-        
+    else:
+        print("%s does not exist - ip_conntrack probably missing")
+        sys.exit(13)  # we signal tcollector to not run us
+
 
 if __name__ == "__main__":
     sys.exit(main())

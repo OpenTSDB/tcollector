@@ -42,19 +42,19 @@ import collections
 PY3 = sys.version_info[0] > 2
 if PY3:
     import importlib
-    from queue import Queue, Empty, Full # pylint: disable=import-error
-    from urllib.request import Request, urlopen # pylint: disable=maybe-no-member,no-name-in-module,import-error
-    from urllib.error import HTTPError # pylint: disable=maybe-no-member,no-name-in-module,import-error
+    from queue import Queue, Empty, Full  # pylint: disable=import-error
+    from urllib.request import Request, urlopen  # pylint: disable=maybe-no-member,no-name-in-module,import-error
+    from urllib.error import HTTPError  # pylint: disable=maybe-no-member,no-name-in-module,import-error
 
 else:
-    from Queue import Queue, Empty, Full # pylint: disable=maybe-no-member,no-name-in-module,import-error
-    from urllib2 import Request, urlopen, HTTPError # pylint: disable=maybe-no-member,no-name-in-module,import-error
+    from Queue import Queue, Empty, Full  # pylint: disable=maybe-no-member,no-name-in-module,import-error
+    from urllib2 import Request, urlopen, HTTPError  # pylint: disable=maybe-no-member,no-name-in-module,import-error
 
 # global variables.
 COLLECTORS = {}
 GENERATION = 0
-DEFAULT_LOG = '/var/log/tcollector.log'
-LOG = logging.getLogger('tcollector')
+DEFAULT_LOG = "/var/log/tcollector.log"
+LOG = logging.getLogger("tcollector")
 ALIVE = True
 # If the SenderThread catches more than this many consecutive uncaught
 # exceptions, something is not right and tcollector will shutdown.
@@ -78,8 +78,7 @@ def register_collector(collector):
     if collector.name in COLLECTORS:
         col = COLLECTORS[collector.name]
         if col.proc is not None:
-            LOG.error('%s still has a process (pid=%d) and is being reset,'
-                      ' terminating', col.name, col.proc.pid)
+            LOG.error("%s still has a process (pid=%d) and is being reset," " terminating", col.name, col.proc.pid)
             col.shutdown()
 
     COLLECTORS[collector.name] = collector
@@ -148,15 +147,14 @@ class Collector(object):
         try:
             out = self.proc.stderr.read()
             if out:
-                LOG.debug('reading %s got %d bytes on stderr',
-                          self.name, len(out))
+                LOG.debug("reading %s got %d bytes on stderr", self.name, len(out))
                 for line in out.splitlines():
-                    LOG.warning('%s: %s', self.name, line)
+                    LOG.warning("%s: %s", self.name, line)
         except IOError as exc:
             if exc.errno != errno.EAGAIN:
                 raise
         except:
-            LOG.exception('uncaught exception in stderr read')
+            LOG.exception("uncaught exception in stderr read")
 
         # we have to use a buffer because sometimes the collectors will write
         # out a bunch of data points at one time and we get some weird sized
@@ -164,22 +162,21 @@ class Collector(object):
         try:
             self.buffer += self.proc.stdout.read()
             if len(self.buffer):
-                LOG.debug('reading %s, buffer now %d bytes',
-                          self.name, len(self.buffer))
+                LOG.debug("reading %s, buffer now %d bytes", self.name, len(self.buffer))
         except IOError as exc:
             if exc.errno != errno.EAGAIN:
                 raise
         except AttributeError:
             # sometimes the process goes away in another thread and we don't
             # have it anymore, so log an error and bail
-            LOG.exception('caught exception, collector process went away while reading stdout')
+            LOG.exception("caught exception, collector process went away while reading stdout")
         except:
-            LOG.exception('uncaught exception in stdout read')
+            LOG.exception("uncaught exception in stdout read")
             return
 
         # iterate for each line we have
         while self.buffer:
-            idx = self.buffer.find('\n')
+            idx = self.buffer.find("\n")
             if idx == -1:
                 break
 
@@ -188,7 +185,7 @@ class Collector(object):
             if line:
                 self.datalines.append(line)
                 self.last_datapoint = int(time.time())
-            self.buffer = self.buffer[idx+1:]
+            self.buffer = self.buffer[idx + 1 :]
 
     def collect(self):
         """Reads input from the collector and returns the lines up to whomever
@@ -213,14 +210,13 @@ class Collector(object):
                 for attempt in range(5):
                     if self.proc.poll() is not None:
                         return
-                    LOG.info('Waiting %ds for PID %d (%s) to exit...'
-                             % (5 - attempt, self.proc.pid, self.name))
+                    LOG.info("Waiting %ds for PID %d (%s) to exit..." % (5 - attempt, self.proc.pid, self.name))
                     time.sleep(1)
                 kill(self.proc, signal.SIGKILL)
                 self.proc.wait()
         except:
             # we really don't want to die as we're trying to exit gracefully
-            LOG.exception('ignoring uncaught exception while shutting down')
+            LOG.exception("ignoring uncaught exception while shutting down")
 
     def evict_old_keys(self, cut_off):
         """Remove old entries from the cache used to detect duplicate values.
@@ -242,7 +238,7 @@ class StdinCollector(Collector):
        will be blocking."""
 
     def __init__(self):
-        super(StdinCollector, self).__init__('stdin', 0, '<stdin>')
+        super(StdinCollector, self).__init__("stdin", 0, "<stdin>")
 
         # hack to make this work.  nobody else will rely on self.proc
         # except as a test in the stdin mode.
@@ -260,7 +256,6 @@ class StdinCollector(Collector):
             self.datalines.append(line.rstrip())
         else:
             ALIVE = False
-
 
     def shutdown(self):
 
@@ -287,8 +282,7 @@ class ReaderThread(threading.Thread):
                 Invariant: evictinterval > dedupinterval
               deduponlyzero: do the above only for 0 values.
         """
-        assert evictinterval > dedupinterval, "%r <= %r" % (evictinterval,
-                                                            dedupinterval)
+        assert evictinterval > dedupinterval, "%r <= %r" % (evictinterval, dedupinterval)
         super(ReaderThread, self).__init__()
 
         self.readerq = ReaderQueue(MAX_READQ_SIZE)
@@ -334,20 +328,16 @@ class ReaderThread(threading.Thread):
         self.lines_collected += 1
         # If the line contains more than a whitespace between
         # parameters, it won't be interpeted.
-        line = ' '.join(line.split())
+        line = " ".join(line.split())
 
         col.lines_received += 1
         if len(line) >= 1024:  # Limit in net.opentsdb.tsd.PipelineFactory
-            LOG.warning('%s line too long: %s', col.name, line)
+            LOG.warning("%s line too long: %s", col.name, line)
             col.lines_invalid += 1
             return
-        parsed = re.match('^([-_./a-zA-Z0-9]+)\s+' # Metric name.
-                          '(\d+\.?\d+)\s+'               # Timestamp.
-                          '(\S+?)'                 # Value (int or float).
-                          '((?:\s+[-_./a-zA-Z0-9]+=[-_./a-zA-Z0-9]+)*)$', # Tags
-                          line)
+        parsed = re.match("^([-_./a-zA-Z0-9]+)\s+" "(\d+\.?\d+)\s+" "(\S+?)" "((?:\s+[-_./a-zA-Z0-9]+=[-_./a-zA-Z0-9]+)*)$", line)  # Metric name.  # Timestamp.  # Value (int or float).  # Tags
         if parsed is None:
-            LOG.warning('%s sent invalid data: %s', col.name, line)
+            LOG.warning("%s sent invalid data: %s", col.name, line)
             col.lines_invalid += 1
             return
         metric, timestamp, value, tags = parsed.groups()
@@ -374,17 +364,11 @@ class ReaderThread(threading.Thread):
             if key in col.values:
                 # if the timestamp isn't > than the previous one, ignore this value
                 if timestamp <= col.values[key][3]:
-                    LOG.error("Timestamp out of order: metric=%s%s,"
-                              " old_ts=%d >= new_ts=%d - ignoring data point"
-                              " (value=%r, collector=%s)", metric, tags,
-                              col.values[key][3], timestamp, value, col.name)
+                    LOG.error("Timestamp out of order: metric=%s%s," " old_ts=%d >= new_ts=%d - ignoring data point" " (value=%r, collector=%s)", metric, tags, col.values[key][3], timestamp, value, col.name)
                     col.lines_invalid += 1
                     return
                 elif timestamp >= max_timestamp:
-                    LOG.error("Timestamp is too far out in the future: metric=%s%s"
-                              " old_ts=%d, new_ts=%d - ignoring data point"
-                              " (value=%r, collector=%s)", metric, tags,
-                              col.values[key][3], timestamp, value, col.name)
+                    LOG.error("Timestamp is too far out in the future: metric=%s%s" " old_ts=%d, new_ts=%d - ignoring data point" " (value=%r, collector=%s)", metric, tags, col.values[key][3], timestamp, value, col.name)
                     return
 
                 # if this data point is repeated, store it but don't send.
@@ -392,9 +376,7 @@ class ReaderThread(threading.Thread):
                 # we send the timestamp when this metric first became the current
                 # value instead of the last.  Fall through if we reach
                 # the dedup interval so we can print the value.
-                if ((not self.deduponlyzero or (self.deduponlyzero and float(value) == 0.0)) and
-                    col.values[key][0] == value and
-                    (timestamp - col.values[key][3] < self.dedupinterval)):
+                if (not self.deduponlyzero or (self.deduponlyzero and float(value) == 0.0)) and col.values[key][0] == value and (timestamp - col.values[key][3] < self.dedupinterval):
                     col.values[key] = (value, True, line, col.values[key][3])
                     return
 
@@ -402,9 +384,7 @@ class ReaderThread(threading.Thread):
                 # for a while and we've skipped one or more values.  we need to
                 # replay the last value we skipped (if changed) so the jumps in
                 # our graph are accurate,
-                if ((col.values[key][1] or
-                    (timestamp - col.values[key][3] >= self.dedupinterval))
-                    and col.values[key][0] != value):
+                if (col.values[key][1] or (timestamp - col.values[key][3] >= self.dedupinterval)) and col.values[key][0] != value:
                     col.lines_sent += 1
                     if not self.readerq.nput(col.values[key][2]):
                         self.lines_dropped += 1
@@ -430,9 +410,7 @@ class SenderThread(threading.Thread):
        buffering we might need to do if we can't establish a connection
        and we need to spool to disk.  That isn't implemented yet."""
 
-    def __init__(self, reader, dryrun, hosts, self_report_stats, tags,
-                 reconnectinterval=0, http=False, http_username=None,
-                 http_password=None, http_api_path=None, ssl=False, maxtags=8):
+    def __init__(self, reader, dryrun, hosts, self_report_stats, tags, reconnectinterval=0, http=False, http_username=None, http_password=None, http_api_path=None, ssl=False, maxtags=8):
         """Constructor.
 
         Args:
@@ -451,7 +429,7 @@ class SenderThread(threading.Thread):
 
         self.dryrun = dryrun
         self.reader = reader
-        self.tags = sorted(tags.items()) # dictionary transformed to list
+        self.tags = sorted(tags.items())  # dictionary transformed to list
         self.http = http
         self.http_api_path = http_api_path
         self.http_username = http_username
@@ -464,13 +442,13 @@ class SenderThread(threading.Thread):
         self.current_tsd = -1  # Index in self.hosts where we're at.
         self.host = None  # The current TSD host we've selected.
         self.port = None  # The port of the current TSD.
-        self.tsd = None   # The socket connected to the aforementioned TSD.
+        self.tsd = None  # The socket connected to the aforementioned TSD.
         self.last_verify = 0
-        self.reconnectinterval = reconnectinterval # in seconds.
+        self.reconnectinterval = reconnectinterval  # in seconds.
         self.time_reconnect = 0  # if reconnectinterval > 0, used to track the time.
         self.sendq = []
         self.self_report_stats = self_report_stats
-        self.maxtags = maxtags # The maximum number of tags TSD will accept.
+        self.maxtags = maxtags  # The maximum number of tags TSD will accept.
 
     def pick_connection(self):
         """Picks up a random host/port connection."""
@@ -483,13 +461,13 @@ class SenderThread(threading.Thread):
             if hostport not in self.blacklisted_hosts:
                 break
         else:
-            LOG.info('No more healthy hosts, retry with previously blacklisted')
+            LOG.info("No more healthy hosts, retry with previously blacklisted")
             random.shuffle(self.hosts)
             self.blacklisted_hosts.clear()
             self.current_tsd = 0
             hostport = self.hosts[self.current_tsd]
         self.host, self.port = hostport
-        LOG.info('Selected connection: %s:%d', self.host, self.port)
+        LOG.info("Selected connection: %s:%d", self.host, self.port)
 
     def blacklist_connection(self):
         """Marks the current TSD host we're trying to use as blacklisted.
@@ -497,7 +475,7 @@ class SenderThread(threading.Thread):
            Blacklisted hosts will get another chance to be elected once there
            will be no more healthy hosts."""
         # FIXME: Enhance this naive strategy.
-        LOG.info('Blacklisting %s:%s for a while', self.host, self.port)
+        LOG.info("Blacklisting %s:%s for a while", self.host, self.port)
         self.blacklisted_hosts.add((self.host, self.port))
 
     def run(self):
@@ -532,17 +510,16 @@ class SenderThread(threading.Thread):
                 if ALIVE:
                     self.send_data()
                 errors = 0  # We managed to do a successful iteration.
-            except (ArithmeticError, EOFError, EnvironmentError, LookupError,
-                    ValueError) as e:
+            except (ArithmeticError, EOFError, EnvironmentError, LookupError, ValueError) as e:
                 errors += 1
                 if errors > MAX_UNCAUGHT_EXCEPTIONS:
                     shutdown()
                     raise
-                LOG.exception('Uncaught exception in SenderThread, ignoring')
+                LOG.exception("Uncaught exception in SenderThread, ignoring")
                 time.sleep(1)
                 continue
             except:
-                LOG.exception('Uncaught exception in SenderThread, going to exit')
+                LOG.exception("Uncaught exception in SenderThread, going to exit")
                 shutdown()
                 raise
 
@@ -566,15 +543,15 @@ class SenderThread(threading.Thread):
             try:
                 self.tsd.close()
             except socket.error as msg:
-                pass    # not handling that
+                pass  # not handling that
             self.time_reconnect = time.time()
             return False
 
         # we use the version command as it is very low effort for the TSD
         # to respond
-        LOG.debug('verifying our TSD connection is alive')
+        LOG.debug("verifying our TSD connection is alive")
         try:
-            self.tsd.sendall('version\n')
+            self.tsd.sendall("version\n")
         except socket.error as msg:
             self.tsd = None
             self.blacklist_connection()
@@ -608,24 +585,15 @@ class SenderThread(threading.Thread):
             # helps to see what is going on with the tcollector.
             # TODO need to fix this for http
             if self.self_report_stats:
-                strs = [
-                        ('reader.lines_collected',
-                         '', self.reader.lines_collected),
-                        ('reader.lines_dropped',
-                         '', self.reader.lines_dropped)
-                       ]
+                strs = [("reader.lines_collected", "", self.reader.lines_collected), ("reader.lines_dropped", "", self.reader.lines_dropped)]
 
                 for col in all_living_collectors():
-                    strs.append(('collector.lines_sent', 'collector='
-                                 + col.name, col.lines_sent))
-                    strs.append(('collector.lines_received', 'collector='
-                                 + col.name, col.lines_received))
-                    strs.append(('collector.lines_invalid', 'collector='
-                                 + col.name, col.lines_invalid))
+                    strs.append(("collector.lines_sent", "collector=" + col.name, col.lines_sent))
+                    strs.append(("collector.lines_received", "collector=" + col.name, col.lines_received))
+                    strs.append(("collector.lines_invalid", "collector=" + col.name, col.lines_invalid))
 
                 ts = int(time.time())
-                strout = ["tcollector.%s %d %d %s"
-                          % (x[0], ts, x[2], x[1]) for x in strs]
+                strout = ["tcollector.%s %d %d %s" % (x[0], ts, x[2], x[1]) for x in strs]
                 for string in strout:
                     self.sendq.append(string)
 
@@ -657,20 +625,17 @@ class SenderThread(threading.Thread):
             try_delay *= 1 + random.random()
             if try_delay > 600:
                 try_delay *= 0.5
-            LOG.debug('SenderThread blocking %0.2f seconds', try_delay)
+            LOG.debug("SenderThread blocking %0.2f seconds", try_delay)
             time.sleep(try_delay)
 
             # Now actually try the connection.
             self.pick_connection()
             try:
-                addresses = socket.getaddrinfo(self.host, self.port,
-                                               socket.AF_UNSPEC,
-                                               socket.SOCK_STREAM, 0)
+                addresses = socket.getaddrinfo(self.host, self.port, socket.AF_UNSPEC, socket.SOCK_STREAM, 0)
             except socket.gaierror as e:
                 # Don't croak on transient DNS resolution issues.
-                if e[0] in (socket.EAI_AGAIN, socket.EAI_NONAME,
-                            socket.EAI_NODATA):
-                    LOG.debug('DNS resolution failure: %s: %s', self.host, e)
+                if e[0] in (socket.EAI_AGAIN, socket.EAI_NONAME, socket.EAI_NODATA):
+                    LOG.debug("DNS resolution failure: %s: %s", self.host, e)
                     continue
                 raise
             for family, socktype, proto, canonname, sockaddr in addresses:
@@ -679,21 +644,20 @@ class SenderThread(threading.Thread):
                     self.tsd.settimeout(15)
                     self.tsd.connect(sockaddr)
                     # if we get here it connected
-                    LOG.debug('Connection to %s was successful'%(str(sockaddr)))
+                    LOG.debug("Connection to %s was successful" % (str(sockaddr)))
                     break
                 except socket.error as msg:
-                    LOG.warning('Connection attempt failed to %s:%d: %s',
-                                self.host, self.port, msg)
+                    LOG.warning("Connection attempt failed to %s:%d: %s", self.host, self.port, msg)
                 self.tsd.close()
                 self.tsd = None
             if not self.tsd:
-                LOG.error('Failed to connect to %s:%d', self.host, self.port)
+                LOG.error("Failed to connect to %s:%d", self.host, self.port)
                 self.blacklist_connection()
 
     def add_tags_to_line(self, line):
         for tag, value in self.tags:
-            if ' %s=' % tag not in line:
-                line += ' %s=%s' % (tag, value)
+            if " %s=" % tag not in line:
+                line += " %s=%s" % (tag, value)
         return line
 
     def send_data(self):
@@ -702,19 +666,19 @@ class SenderThread(threading.Thread):
             return self.send_data_via_http()
 
         # construct the output string
-        out = ''
+        out = ""
 
         # in case of logging we use less efficient variant
         if LOG.level == logging.DEBUG:
             for line in self.sendq:
                 line = "put %s" % self.add_tags_to_line(line)
                 out += line + "\n"
-                LOG.debug('SENDING: %s', line)
+                LOG.debug("SENDING: %s", line)
         else:
             out = "".join("put %s\n" % self.add_tags_to_line(line) for line in self.sendq)
 
         if not out:
-            LOG.debug('send_data no data?')
+            LOG.debug("send_data no data?")
             return
 
         # try sending our data.  if an exception occurs, just error and
@@ -726,7 +690,7 @@ class SenderThread(threading.Thread):
                 self.tsd.sendall(out)
             self.sendq = []
         except socket.error as msg:
-            LOG.error('failed to send data: %s', msg)
+            LOG.error("failed to send data: %s", msg)
             try:
                 self.tsd.close()
             except socket.error:
@@ -742,9 +706,9 @@ class SenderThread(threading.Thread):
             protocol = "https"
         else:
             protocol = "http"
-        details=""
+        details = ""
         if LOG.level == logging.DEBUG:
-            details="?details"
+            details = "?details"
         return "%s://%s:%s/%s%s" % (protocol, self.host, self.port, self.http_api_path, details)
 
     def send_data_via_http(self):
@@ -755,10 +719,10 @@ class SenderThread(threading.Thread):
             parts = line.split(None, 3)
             # not all metrics have metric-specific tags
             if len(parts) == 4:
-              (metric, timestamp, value, raw_tags) = parts
+                (metric, timestamp, value, raw_tags) = parts
             else:
-              (metric, timestamp, value) = parts
-              raw_tags = ""
+                (metric, timestamp, value) = parts
+                raw_tags = ""
             # process the tags
             metric_tags = {}
             for tag in raw_tags.strip().split():
@@ -770,33 +734,29 @@ class SenderThread(threading.Thread):
             metric_entry["value"] = float(value)
             metric_entry["tags"] = dict(self.tags).copy()
             if len(metric_tags) + len(metric_entry["tags"]) > self.maxtags:
-              metric_tags_orig = set(metric_tags)
-              subset_metric_keys = frozenset(metric_tags[:len(metric_tags[:self.maxtags-len(metric_entry["tags"])])])
-              metric_tags = dict((k, v) for k, v in metric_tags.items() if k in subset_metric_keys)
-              LOG.error("Exceeding maximum permitted metric tags - removing %s for metric %s",
-                        str(metric_tags_orig - set(metric_tags)), metric)
+                metric_tags_orig = set(metric_tags)
+                subset_metric_keys = frozenset(metric_tags[: len(metric_tags[: self.maxtags - len(metric_entry["tags"])])])
+                metric_tags = dict((k, v) for k, v in metric_tags.items() if k in subset_metric_keys)
+                LOG.error("Exceeding maximum permitted metric tags - removing %s for metric %s", str(metric_tags_orig - set(metric_tags)), metric)
             metric_entry["tags"].update(metric_tags)
             metrics.append(metric_entry)
 
         if self.dryrun:
-            print("Would have sent:\n%s" % json.dumps(metrics,
-                                                      sort_keys=True,
-                                                      indent=4))
+            print("Would have sent:\n%s" % json.dumps(metrics, sort_keys=True, indent=4))
             return
 
-        if((self.current_tsd == -1) or (len(self.hosts) > 1)):
+        if (self.current_tsd == -1) or (len(self.hosts) > 1):
             self.pick_connection()
 
         url = self.build_http_url()
         LOG.debug("Sending metrics to url: %s", url)
         req = Request(url)
         if self.http_username and self.http_password:
-          req.add_header("Authorization", "Basic %s"
-                         % base64.b64encode("%s:%s" % (self.http_username, self.http_password)))
+            req.add_header("Authorization", "Basic %s" % base64.b64encode("%s:%s" % (self.http_username, self.http_password)))
         req.add_header("Content-Type", "application/json")
         try:
             response = urlopen(req, json.dumps(metrics))
-            LOG.debug("Received response %s %s", response.getcode(), response.read().rstrip('\n'))
+            LOG.debug("Received response %s %s", response.getcode(), response.read().rstrip("\n"))
             # clear out the sendq
             self.sendq = []
             # print "Got response code: %s" % response.getcode()
@@ -805,7 +765,7 @@ class SenderThread(threading.Thread):
             #     print line,
             #     print
         except HTTPError as e:
-            LOG.error("Got error %s %s", e, e.read().rstrip('\n'))
+            LOG.error("Got error %s %s", e, e.read().rstrip("\n"))
             # for line in http_error:
             #   print line,
 
@@ -817,12 +777,11 @@ def setup_logging(logfile=DEFAULT_LOG, max_bytes=None, backup_count=None):
     if backup_count is not None and max_bytes is not None:
         assert backup_count > 0
         assert max_bytes > 0
-        ch = RotatingFileHandler(logfile, 'a', max_bytes, backup_count)
+        ch = RotatingFileHandler(logfile, "a", max_bytes, backup_count)
     else:  # Setup stream handler.
         ch = logging.StreamHandler(sys.stdout)
 
-    ch.setFormatter(logging.Formatter('%(asctime)s %(name)s[%(process)d] '
-                                      '%(levelname)s: %(message)s'))
+    ch.setFormatter(logging.Formatter("%(asctime)s %(name)s[%(process)d] " "%(levelname)s: %(message)s"))
     LOG.addHandler(ch)
 
 
@@ -831,139 +790,78 @@ def parse_cmdline(argv):
 
     try:
         from collectors.etc import config
+
         defaults = config.get_defaults()
     except ImportError:
         sys.stderr.write("ImportError: Could not load defaults from configuration. Using hardcoded values")
-        default_cdir = os.path.join(os.path.dirname(os.path.realpath(sys.argv[0])), 'collectors')
+        default_cdir = os.path.join(os.path.dirname(os.path.realpath(sys.argv[0])), "collectors")
         defaults = {
-            'verbose': False,
-            'no_tcollector_stats': False,
-            'evictinterval': 6000,
-            'dedupinterval': 300,
-            'deduponlyzero': False,
-            'allowed_inactivity_time': 600,
-            'dryrun': False,
-            'maxtags': 8,
-            'max_bytes': 64 * 1024 * 1024,
-            'http_password': False,
-            'reconnectinterval': 0,
-            'http_username': False,
-            'port': 4242,
-            'pidfile': '/var/run/tcollector.pid',
-            'http': False,
-            'http_api_path': "api/put",
-            'tags': [],
-            'remove_inactive_collectors': False,
-            'host': 'localhost',
-            'backup_count': 1,
-            'logfile': '/var/log/tcollector.log',
-            'cdir': default_cdir,
-            'ssl': False,
-            'stdin': False,
-            'daemonize': False,
-            'hosts': False
+            "verbose": False,
+            "no_tcollector_stats": False,
+            "evictinterval": 6000,
+            "dedupinterval": 300,
+            "deduponlyzero": False,
+            "allowed_inactivity_time": 600,
+            "dryrun": False,
+            "maxtags": 8,
+            "max_bytes": 64 * 1024 * 1024,
+            "http_password": False,
+            "reconnectinterval": 0,
+            "http_username": False,
+            "port": 4242,
+            "pidfile": "/var/run/tcollector.pid",
+            "http": False,
+            "http_api_path": "api/put",
+            "tags": [],
+            "remove_inactive_collectors": False,
+            "host": "localhost",
+            "backup_count": 1,
+            "logfile": "/var/log/tcollector.log",
+            "cdir": default_cdir,
+            "ssl": False,
+            "stdin": False,
+            "daemonize": False,
+            "hosts": False,
         }
     except:
         sys.stderr.write("Unexpected error: %s" % sys.exc_info()[0])
         raise
 
     # get arguments
-    parser = OptionParser(description='Manages collectors which gather '
-                                       'data and report back.')
-    parser.add_option('-c', '--collector-dir', dest='cdir', metavar='DIR',
-                        default=defaults['cdir'],
-                        help='Directory where the collectors are located.')
-    parser.add_option('-d', '--dry-run', dest='dryrun', action='store_true',
-                        default=defaults['dryrun'],
-                        help='Don\'t actually send anything to the TSD, '
-                           'just print the datapoints.')
-    parser.add_option('-D', '--daemonize', dest='daemonize', action='store_true',
-                        default=defaults['daemonize'],
-                        help='Run as a background daemon.')
-    parser.add_option('-H', '--host', dest='host',
-                        metavar='HOST',
-                        default=defaults['host'],
-                        help='Hostname to use to connect to the TSD.')
-    parser.add_option('-L', '--hosts-list', dest='hosts',
-                        metavar='HOSTS',
-                        default=defaults['hosts'],
-                        help='List of host:port to connect to tsd\'s (comma separated).')
-    parser.add_option('--no-tcollector-stats', dest='no_tcollector_stats',
-                        action='store_true',
-                        default=defaults['no_tcollector_stats'],
-                        help='Prevent tcollector from reporting its own stats to TSD')
-    parser.add_option('-s', '--stdin', dest='stdin', action='store_true',
-                        default=defaults['stdin'],
-                        help='Run once, read and dedup data points from stdin.')
-    parser.add_option('-p', '--port', dest='port', type='int',
-                        default=defaults['port'], metavar='PORT',
-                        help='Port to connect to the TSD instance on. '
-                        'default=%default')
-    parser.add_option('-v', dest='verbose', action='store_true',
-                        default=defaults['verbose'],
-                        help='Verbose mode (log debug messages).')
-    parser.add_option('-t', '--tag', dest='tags', action='append',
-                        default=defaults['tags'], metavar='TAG',
-                        help='Tags to append to all timeseries we send, '
-                            'e.g.: -t TAG=VALUE -t TAG2=VALUE')
-    parser.add_option('-P', '--pidfile', dest='pidfile',
-                        default=defaults['pidfile'],
-                        metavar='FILE', help='Write our pidfile')
-    parser.add_option('--dedup-interval', dest='dedupinterval', type='int',
-                        default=defaults['dedupinterval'], metavar='DEDUPINTERVAL',
-                        help='Number of seconds in which successive duplicate '
-                           'datapoints are suppressed before sending to the TSD. '
-                           'Use zero to disable. '
-                           'default=%default')
-    parser.add_option('--dedup-only-zero', dest='deduponlyzero', action='store_true',
-                        default=defaults['deduponlyzero'],
-                        help='Only dedup 0 values.')
-    parser.add_option('--evict-interval', dest='evictinterval', type='int',
-                        default=defaults['evictinterval'], metavar='EVICTINTERVAL',
-                        help='Number of seconds after which to remove cached '
-                           'values of old data points to save memory. '
-                           'default=%default')
-    parser.add_option('--allowed-inactivity-time', dest='allowed_inactivity_time', type='int',
-                        default=ALLOWED_INACTIVITY_TIME, metavar='ALLOWEDINACTIVITYTIME',
-                            help='How long to wait for datapoints before assuming '
-                                'a collector is dead and restart it. '
-                                'default=%default')
-    parser.add_option('--remove-inactive-collectors', dest='remove_inactive_collectors', action='store_true',
-                        default=defaults['remove_inactive_collectors'], help='Remove collectors not sending data '
-                                          'in the max allowed inactivity interval')
-    parser.add_option('--max-bytes', dest='max_bytes', type='int',
-                        default=defaults['max_bytes'],
-                        help='Maximum bytes per a logfile.')
-    parser.add_option('--backup-count', dest='backup_count', type='int',
-                        default=defaults['backup_count'], help='Maximum number of logfiles to backup.')
-    parser.add_option('--logfile', dest='logfile', type='str',
-                        default=DEFAULT_LOG,
-                        help='Filename where logs are written to.')
-    parser.add_option('--reconnect-interval',dest='reconnectinterval', type='int',
-                        default=defaults['reconnectinterval'], metavar='RECONNECTINTERVAL',
-                        help='Number of seconds after which the connection to'
-                           'the TSD hostname reconnects itself. This is useful'
-                           'when the hostname is a multiple A record (RRDNS).')
-    parser.add_option('--max-tags', dest='maxtags', type=int, default=defaults['maxtags'],
-                        help='The maximum number of tags to send to our TSD Instances')
-    parser.add_option('--http', dest='http', action='store_true', default=defaults['http'],
-                        help='Send the data via the http interface')
-    parser.add_option('--http-api-path', dest='http_api_path', type='str',
-                      default=defaults['http_api_path'], help='URL path to use for HTTP requests to TSD.')
-    parser.add_option('--http-username', dest='http_username', default=defaults['http_username'],
-                      help='Username to use for HTTP Basic Auth when sending the data via HTTP')
-    parser.add_option('--http-password', dest='http_password', default=defaults['http_password'],
-                      help='Password to use for HTTP Basic Auth when sending the data via HTTP')
-    parser.add_option('--ssl', dest='ssl', action='store_true', default=defaults['ssl'],
-                      help='Enable SSL - used in conjunction with http')
+    parser = OptionParser(description="Manages collectors which gather " "data and report back.")
+    parser.add_option("-c", "--collector-dir", dest="cdir", metavar="DIR", default=defaults["cdir"], help="Directory where the collectors are located.")
+    parser.add_option("-d", "--dry-run", dest="dryrun", action="store_true", default=defaults["dryrun"], help="Don't actually send anything to the TSD, " "just print the datapoints.")
+    parser.add_option("-D", "--daemonize", dest="daemonize", action="store_true", default=defaults["daemonize"], help="Run as a background daemon.")
+    parser.add_option("-H", "--host", dest="host", metavar="HOST", default=defaults["host"], help="Hostname to use to connect to the TSD.")
+    parser.add_option("-L", "--hosts-list", dest="hosts", metavar="HOSTS", default=defaults["hosts"], help="List of host:port to connect to tsd's (comma separated).")
+    parser.add_option("--no-tcollector-stats", dest="no_tcollector_stats", action="store_true", default=defaults["no_tcollector_stats"], help="Prevent tcollector from reporting its own stats to TSD")
+    parser.add_option("-s", "--stdin", dest="stdin", action="store_true", default=defaults["stdin"], help="Run once, read and dedup data points from stdin.")
+    parser.add_option("-p", "--port", dest="port", type="int", default=defaults["port"], metavar="PORT", help="Port to connect to the TSD instance on. " "default=%default")
+    parser.add_option("-v", dest="verbose", action="store_true", default=defaults["verbose"], help="Verbose mode (log debug messages).")
+    parser.add_option("-t", "--tag", dest="tags", action="append", default=defaults["tags"], metavar="TAG", help="Tags to append to all timeseries we send, " "e.g.: -t TAG=VALUE -t TAG2=VALUE")
+    parser.add_option("-P", "--pidfile", dest="pidfile", default=defaults["pidfile"], metavar="FILE", help="Write our pidfile")
+    parser.add_option("--dedup-interval", dest="dedupinterval", type="int", default=defaults["dedupinterval"], metavar="DEDUPINTERVAL", help="Number of seconds in which successive duplicate " "datapoints are suppressed before sending to the TSD. " "Use zero to disable. " "default=%default")
+    parser.add_option("--dedup-only-zero", dest="deduponlyzero", action="store_true", default=defaults["deduponlyzero"], help="Only dedup 0 values.")
+    parser.add_option("--evict-interval", dest="evictinterval", type="int", default=defaults["evictinterval"], metavar="EVICTINTERVAL", help="Number of seconds after which to remove cached " "values of old data points to save memory. " "default=%default")
+    parser.add_option("--allowed-inactivity-time", dest="allowed_inactivity_time", type="int", default=ALLOWED_INACTIVITY_TIME, metavar="ALLOWEDINACTIVITYTIME", help="How long to wait for datapoints before assuming " "a collector is dead and restart it. " "default=%default")
+    parser.add_option("--remove-inactive-collectors", dest="remove_inactive_collectors", action="store_true", default=defaults["remove_inactive_collectors"], help="Remove collectors not sending data " "in the max allowed inactivity interval")
+    parser.add_option("--max-bytes", dest="max_bytes", type="int", default=defaults["max_bytes"], help="Maximum bytes per a logfile.")
+    parser.add_option("--backup-count", dest="backup_count", type="int", default=defaults["backup_count"], help="Maximum number of logfiles to backup.")
+    parser.add_option("--logfile", dest="logfile", type="str", default=DEFAULT_LOG, help="Filename where logs are written to.")
+    parser.add_option("--reconnect-interval", dest="reconnectinterval", type="int", default=defaults["reconnectinterval"], metavar="RECONNECTINTERVAL", help="Number of seconds after which the connection to" "the TSD hostname reconnects itself. This is useful" "when the hostname is a multiple A record (RRDNS).")
+    parser.add_option("--max-tags", dest="maxtags", type=int, default=defaults["maxtags"], help="The maximum number of tags to send to our TSD Instances")
+    parser.add_option("--http", dest="http", action="store_true", default=defaults["http"], help="Send the data via the http interface")
+    parser.add_option("--http-api-path", dest="http_api_path", type="str", default=defaults["http_api_path"], help="URL path to use for HTTP requests to TSD.")
+    parser.add_option("--http-username", dest="http_username", default=defaults["http_username"], help="Username to use for HTTP Basic Auth when sending the data via HTTP")
+    parser.add_option("--http-password", dest="http_password", default=defaults["http_password"], help="Password to use for HTTP Basic Auth when sending the data via HTTP")
+    parser.add_option("--ssl", dest="ssl", action="store_true", default=defaults["ssl"], help="Enable SSL - used in conjunction with http")
     (options, args) = parser.parse_args(args=argv[1:])
     if options.dedupinterval < 0:
-        parser.error('--dedup-interval must be at least 0 seconds')
+        parser.error("--dedup-interval must be at least 0 seconds")
     if options.evictinterval <= options.dedupinterval:
-        parser.error('--evict-interval must be strictly greater than '
-                     '--dedup-interval')
+        parser.error("--evict-interval must be strictly greater than " "--dedup-interval")
     if options.reconnectinterval < 0:
-        parser.error('--reconnect-interval must be at least 0 seconds')
+        parser.error("--reconnect-interval must be at least 0 seconds")
     # We cannot write to stdout when we're a daemon.
     if (options.daemonize or options.max_bytes) and not options.backup_count:
         options.backup_count = 1
@@ -981,7 +879,7 @@ def daemonize():
     if os.fork():
         os._exit(0)
     stdin = open(os.devnull)
-    stdout = open(os.devnull, 'w')
+    stdout = open(os.devnull, "w")
     os.dup2(stdin.fileno(), 0)
     os.dup2(stdout.fileno(), 1)
     os.dup2(stdout.fileno(), 2)
@@ -992,21 +890,21 @@ def daemonize():
         try:
             os.close(fd)
         except OSError:  # This FD wasn't opened...
-            pass         # ... ignore the exception.
+            pass  # ... ignore the exception.
 
 
 def setup_python_path(collector_dir):
     """Sets up PYTHONPATH so that collectors can easily import common code."""
     mydir = os.path.dirname(collector_dir)
-    libdir = os.path.join(mydir, 'collectors', 'lib')
+    libdir = os.path.join(mydir, "collectors", "lib")
     if not os.path.isdir(libdir):
         return
-    pythonpath = os.environ.get('PYTHONPATH', '')
+    pythonpath = os.environ.get("PYTHONPATH", "")
     if pythonpath:
-        pythonpath += ':'
+        pythonpath += ":"
     pythonpath += mydir
-    os.environ['PYTHONPATH'] = pythonpath
-    LOG.debug('Set PYTHONPATH to %r', pythonpath)
+    os.environ["PYTHONPATH"] = pythonpath
+    LOG.debug("Set PYTHONPATH to %r", pythonpath)
 
 
 def main(argv):
@@ -1020,8 +918,7 @@ def main(argv):
 
     if options.daemonize:
         daemonize()
-    setup_logging(options.logfile, options.max_bytes or None,
-                  options.backup_count or None)
+    setup_logging(options.logfile, options.max_bytes or None, options.backup_count or None)
 
     if options.verbose:
         LOG.setLevel(logging.DEBUG)  # up our level
@@ -1032,20 +929,20 @@ def main(argv):
     # validate everything
     tags = {}
     for tag in options.tags:
-        if re.match('^[-_.a-z0-9]+=\S+$', tag, re.IGNORECASE) is None:
+        if re.match("^[-_.a-z0-9]+=\S+$", tag, re.IGNORECASE) is None:
             assert False, 'Tag string "%s" is invalid.' % tag
-        k, v = tag.split('=', 1)
+        k, v = tag.split("=", 1)
         if k in tags:
             assert False, 'Tag "%s" already declared.' % k
         tags[k] = v
 
-    if not 'host' in tags and not options.stdin:
-        tags['host'] = socket.gethostname()
-        LOG.warning('Tag "host" not specified, defaulting to %s.', tags['host'])
+    if not "host" in tags and not options.stdin:
+        tags["host"] = socket.gethostname()
+        LOG.warning('Tag "host" not specified, defaulting to %s.', tags["host"])
 
     options.cdir = os.path.realpath(options.cdir)
     if not os.path.isdir(options.cdir):
-        LOG.fatal('No such directory: %s', options.cdir)
+        LOG.fatal("No such directory: %s", options.cdir)
         return 1
     modules = load_etc_dir(options, tags)
 
@@ -1065,6 +962,7 @@ def main(argv):
     if not options.hosts:
         options.hosts = [(options.host, options.port)]
     else:
+
         def splitHost(hostport):
             if ":" in hostport:
                 # Check if we have an IPv6 address.
@@ -1075,17 +973,15 @@ def main(argv):
                     host, port = hostport.split(":")
                 return (host, int(port))
             return (hostport, DEFAULT_PORT)
+
         options.hosts = [splitHost(host) for host in options.hosts.split(",")]
         if options.host != "localhost" or options.port != DEFAULT_PORT:
             options.hosts.append((options.host, options.port))
 
     # and setup the sender to start writing out to the tsd
-    sender = SenderThread(reader, options.dryrun, options.hosts,
-                          not options.no_tcollector_stats, tags, options.reconnectinterval,
-                          options.http, options.http_username,
-                          options.http_password, options.http_api_path, options.ssl, options.maxtags)
+    sender = SenderThread(reader, options.dryrun, options.hosts, not options.no_tcollector_stats, tags, options.reconnectinterval, options.http, options.http_username, options.http_password, options.http_api_path, options.ssl, options.maxtags)
     sender.start()
-    LOG.info('SenderThread startup complete')
+    LOG.info("SenderThread startup complete")
 
     # if we're in stdin mode, build a stdin collector and just join on the
     # reader thread since there's nothing else for us to do here
@@ -1098,11 +994,12 @@ def main(argv):
 
     # We're exiting, make sure we don't leave any collector behind.
     for col in all_living_collectors():
-      col.shutdown()
-    LOG.debug('Shutting down -- joining the reader thread.')
+        col.shutdown()
+    LOG.debug("Shutting down -- joining the reader thread.")
     reader.join()
-    LOG.debug('Shutting down -- joining the sender thread.')
+    LOG.debug("Shutting down -- joining the sender thread.")
     sender.join()
+
 
 def stdin_loop(options, modules, sender, tags):
     """The main loop of the program that runs when we are in stdin mode."""
@@ -1114,9 +1011,9 @@ def stdin_loop(options, modules, sender, tags):
         reload_changed_config_modules(modules, options, sender, tags)
         now = int(time.time())
         if now >= next_heartbeat:
-            LOG.info('Heartbeat (%d collectors running)'
-                     % sum(1 for col in all_living_collectors()))
+            LOG.info("Heartbeat (%d collectors running)" % sum(1 for col in all_living_collectors()))
             next_heartbeat = now + 600
+
 
 def main_loop(options, modules, sender, tags):
     """The main loop of the program that runs when we're not in stdin mode."""
@@ -1131,8 +1028,7 @@ def main_loop(options, modules, sender, tags):
         time.sleep(15)
         now = int(time.time())
         if now >= next_heartbeat:
-            LOG.info('Heartbeat (%d collectors running)'
-                     % sum(1 for col in all_living_collectors()))
+            LOG.info("Heartbeat (%d collectors running)" % sum(1 for col in all_living_collectors()))
             next_heartbeat = now + 600
 
 
@@ -1140,9 +1036,7 @@ def list_config_modules(etcdir):
     """Returns an iterator that yields the name of all the config modules."""
     if not os.path.isdir(etcdir):
         return iter(())  # Empty iterator.
-    return (name for name in os.listdir(etcdir)
-            if (name.endswith('.py')
-                and os.path.isfile(os.path.join(etcdir, name))))
+    return (name for name in os.listdir(etcdir) if (name.endswith(".py") and os.path.isfile(os.path.join(etcdir, name))))
 
 
 def load_etc_dir(options, tags):
@@ -1151,7 +1045,7 @@ def load_etc_dir(options, tags):
     Returns: A dict of path -> (module, timestamp).
     """
 
-    etcdir = os.path.join(options.cdir, 'etc')
+    etcdir = os.path.join(options.cdir, "etc")
     sys.path.append(etcdir)  # So we can import modules from the etc dir.
     modules = {}  # path -> (module, timestamp)
     for name in list_config_modules(etcdir):
@@ -1173,21 +1067,21 @@ def load_config_module(name, options, tags):
     """
 
     if isinstance(name, str):
-      LOG.info('Loading %s', name)
-      d = {}
-      # Strip the trailing .py
-      module = __import__(name[:-3], d, d)
+        LOG.info("Loading %s", name)
+        d = {}
+        # Strip the trailing .py
+        module = __import__(name[:-3], d, d)
     else:
         if PY3:
-            module = importlib.reload(name) # pylint: disable=no-member,undefined-variable
+            module = importlib.reload(name)  # pylint: disable=no-member,undefined-variable
         else:
-            module = reload(name) # pylint: disable=undefined-variable
-    onload = module.__dict__.get('onload')
+            module = reload(name)  # pylint: disable=undefined-variable
+    onload = module.__dict__.get("onload")
     if isinstance(onload, collections.Callable):
         try:
             onload(options, tags)
         except:
-            LOG.fatal('Exception while loading %s', name)
+            LOG.fatal("Exception while loading %s", name)
             raise
     return module
 
@@ -1201,10 +1095,9 @@ def reload_changed_config_modules(modules, options, sender, tags):
     Returns: whether or not anything has changed.
     """
 
-    etcdir = os.path.join(options.cdir, 'etc')
+    etcdir = os.path.join(options.cdir, "etc")
     current_modules = set(list_config_modules(etcdir))
-    current_paths = set(os.path.join(etcdir, name)
-                        for name in current_modules)
+    current_paths = set(os.path.join(etcdir, name) for name in current_modules)
     changed = False
 
     # Reload any module that has changed.
@@ -1213,14 +1106,14 @@ def reload_changed_config_modules(modules, options, sender, tags):
             continue
         mtime = os.path.getmtime(path)
         if mtime > timestamp:
-            LOG.info('Reloading %s, file has changed', path)
+            LOG.info("Reloading %s, file has changed", path)
             module = load_config_module(module, options, tags)
             modules[path] = (module, mtime)
             changed = True
 
     # Remove any module that has been removed.
     for path in set(modules).difference(current_paths):
-        LOG.info('%s has been removed, tcollector should be restarted', path)
+        LOG.info("%s has been removed, tcollector should be restarted", path)
         del modules[path]
         changed = True
 
@@ -1278,10 +1171,10 @@ def shutdown_signal(signum, frame):
 
 
 def kill(proc, signum=signal.SIGTERM):
-  try:
-    os.killpg(proc.pid, signum)
-  except: # pylint: disable=bare-except
-    LOG.info('already killed: %s', proc.pid)
+    try:
+        os.killpg(proc.pid, signum)
+    except:  # pylint: disable=bare-except
+        LOG.info("already killed: %s", proc.pid)
 
 
 def shutdown():
@@ -1295,13 +1188,13 @@ def shutdown():
     # notify threads of program termination
     ALIVE = False
 
-    LOG.info('shutting down children')
+    LOG.info("shutting down children")
 
     # tell everyone to die
     for col in all_living_collectors():
         col.shutdown()
 
-    LOG.info('exiting')
+    LOG.info("exiting")
     sys.exit(1)
 
 
@@ -1323,17 +1216,14 @@ def reap_children():
         # is used to indicate that we don't want to restart this collector.
         # any other status code is an error and is logged.
         if status == 13:
-            LOG.info('removing %s from the list of collectors (by request)',
-                      col.name)
+            LOG.info("removing %s from the list of collectors (by request)", col.name)
             col.dead = True
         elif status != 0:
-            LOG.warning('collector %s terminated after %d seconds with '
-                        'status code %d, marking dead',
-                        col.name, now - col.lastspawn, status)
+            LOG.warning("collector %s terminated after %d seconds with " "status code %d, marking dead", col.name, now - col.lastspawn, status)
             col.dead = True
         else:
-            register_collector(Collector(col.name, col.interval, col.filename,
-                                         col.mtime, col.lastspawn))
+            register_collector(Collector(col.name, col.interval, col.filename, col.mtime, col.lastspawn))
+
 
 def check_children(options):
     """When a child process hasn't received a datapoint in a while,
@@ -1342,14 +1232,12 @@ def check_children(options):
     for col in all_living_collectors():
         now = int(time.time())
 
-        if ((col.interval == 0) and (col.last_datapoint < (now - options.allowed_inactivity_time))):
+        if (col.interval == 0) and (col.last_datapoint < (now - options.allowed_inactivity_time)):
             # It's too old, kill it
-            LOG.warning('Terminating collector %s after %d seconds of inactivity',
-                        col.name, now - col.last_datapoint)
+            LOG.warning("Terminating collector %s after %d seconds of inactivity", col.name, now - col.last_datapoint)
             col.shutdown()
             if not options.remove_inactive_collectors:
-                register_collector(Collector(col.name, col.interval, col.filename,
-                                             col.mtime, col.lastspawn))
+                register_collector(Collector(col.name, col.interval, col.filename, col.mtime, col.lastspawn))
 
 
 def set_nonblocking(fd):
@@ -1361,34 +1249,31 @@ def set_nonblocking(fd):
 def spawn_collector(col):
     """Takes a Collector object and creates a process for it."""
 
-    LOG.info('%s (interval=%d) needs to be spawned', col.name, col.interval)
+    LOG.info("%s (interval=%d) needs to be spawned", col.name, col.interval)
 
     # FIXME: do custom integration of Python scripts into memory/threads
     # if re.search('\.py$', col.name) is not None:
     #     ... load the py module directly instead of using a subprocess ...
     try:
-        col.proc = subprocess.Popen(col.filename, stdout=subprocess.PIPE,
-                                    stderr=subprocess.PIPE,
-                                    close_fds=True,
-                                    preexec_fn=os.setsid)
+        col.proc = subprocess.Popen(col.filename, stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True, preexec_fn=os.setsid)
     except OSError as e:
-        LOG.error('Failed to spawn collector %s: %s' % (col.filename, e))
+        LOG.error("Failed to spawn collector %s: %s" % (col.filename, e))
         return
     # The following line needs to move below this line because it is used in
     # other logic and it makes no sense to update the last spawn time if the
     # collector didn't actually start.
     col.lastspawn = int(time.time())
-    # Without setting last_datapoint here, a long running check (>15s) will be 
+    # Without setting last_datapoint here, a long running check (>15s) will be
     # killed by check_children() the first time check_children is called.
     col.last_datapoint = col.lastspawn
     set_nonblocking(col.proc.stdout.fileno())
     set_nonblocking(col.proc.stderr.fileno())
     if col.proc.pid > 0:
         col.dead = False
-        LOG.info('spawned %s (pid=%d)', col.name, col.proc.pid)
+        LOG.info("spawned %s (pid=%d)", col.name, col.proc.pid)
         return
     # FIXME: handle errors better
-    LOG.error('failed to spawn collector: %s', col.filename)
+    LOG.error("failed to spawn collector: %s", col.filename)
 
 
 def spawn_children():
@@ -1416,23 +1301,17 @@ def spawn_children():
             if col.nextkill > now:
                 continue
             if col.killstate == 0:
-                LOG.warning('warning: %s (interval=%d, pid=%d) overstayed '
-                            'its welcome, SIGTERM sent',
-                            col.name, col.interval, col.proc.pid)
+                LOG.warning("warning: %s (interval=%d, pid=%d) overstayed " "its welcome, SIGTERM sent", col.name, col.interval, col.proc.pid)
                 kill(col.proc)
                 col.nextkill = now + 5
                 col.killstate = 1
             elif col.killstate == 1:
-                LOG.error('error: %s (interval=%d, pid=%d) still not dead, '
-                           'SIGKILL sent',
-                           col.name, col.interval, col.proc.pid)
+                LOG.error("error: %s (interval=%d, pid=%d) still not dead, " "SIGKILL sent", col.name, col.interval, col.proc.pid)
                 kill(col.proc, signal.SIGKILL)
                 col.nextkill = now + 5
                 col.killstate = 2
             else:
-                LOG.error('error: %s (interval=%d, pid=%d) needs manual '
-                           'intervention to kill it',
-                           col.name, col.interval, col.proc.pid)
+                LOG.error("error: %s (interval=%d, pid=%d) needs manual " "intervention to kill it", col.name, col.interval, col.proc.pid)
                 col.nextkill = now + 300
 
 
@@ -1453,11 +1332,11 @@ def populate_collectors(coldir):
             continue
         interval = int(interval)
 
-        for colname in os.listdir('%s/%d' % (coldir, interval)):
-            if colname.startswith('.'):
+        for colname in os.listdir("%s/%d" % (coldir, interval)):
+            if colname.startswith("."):
                 continue
 
-            filename = '%s/%d/%s' % (coldir, interval, colname)
+            filename = "%s/%d/%s" % (coldir, interval, colname)
             if os.path.isfile(filename) and os.access(filename, os.X_OK):
                 mtime = os.path.getmtime(filename)
 
@@ -1472,37 +1351,32 @@ def populate_collectors(coldir):
                     # add now.  there is probably a more robust way of doing
                     # this...
                     if col.interval != interval:
-                        LOG.error('two collectors with the same name %s and '
-                                   'different intervals %d and %d',
-                                   colname, interval, col.interval)
+                        LOG.error("two collectors with the same name %s and " "different intervals %d and %d", colname, interval, col.interval)
                         continue
 
                     # we have to increase the generation or we will kill
                     # this script again
                     col.generation = GENERATION
                     if col.mtime < mtime:
-                        LOG.info('%s has been updated on disk', col.name)
+                        LOG.info("%s has been updated on disk", col.name)
                         col.mtime = mtime
                         if not col.interval:
                             col.shutdown()
-                            LOG.info('Respawning %s', col.name)
-                            register_collector(Collector(colname, interval,
-                                                         filename, mtime))
+                            LOG.info("Respawning %s", col.name)
+                            register_collector(Collector(colname, interval, filename, mtime))
                 else:
-                    register_collector(Collector(colname, interval, filename,
-                                                 mtime))
+                    register_collector(Collector(colname, interval, filename, mtime))
 
     # now iterate over everybody and look for old generations
     to_delete = []
     for col in all_collectors():
         if col.generation < GENERATION:
-            LOG.info('collector %s removed from the filesystem, forgetting',
-                      col.name)
+            LOG.info("collector %s removed from the filesystem, forgetting", col.name)
             col.shutdown()
             to_delete.append(col.name)
     for name in to_delete:
         del COLLECTORS[name]
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main(sys.argv))

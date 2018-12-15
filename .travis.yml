@@ -1,3 +1,4 @@
+---
 language: python
 python:
   - "2.7"
@@ -5,7 +6,10 @@ python:
   - "3.5"
   - "3.6"
 install:
-  - pip install pylint pylint_runner ordereddict mysqlclient requests feedparser prometheus_client
+  - pip install -r test-requirements.txt
+  - if [[ $TRAVIS_PYTHON_VERSION == 3.6 ]]; then pip install "black>=18.*,<19.*"; fi
 script:
   - pylint_runner --rcfile .pylintrc
+  - if [[ $TRAVIS_PYTHON_VERSION == 3.6 ]]; then black -l 400 --check *.py eos collectors; fi
+  - yamllint .yamllint $(find ./ -name "*.y*ml")
   - ./tests.py

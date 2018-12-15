@@ -21,7 +21,7 @@ from collectors.lib.docker_engine.docker_metrics import DockerMetrics
 
 CONFIG = docker_engine_conf.get_config()
 ENABLED = docker_engine_conf.enabled()
-METRICS_PATH = CONFIG['metrics_path']
+METRICS_PATH = CONFIG["metrics_path"]
 
 
 def main():

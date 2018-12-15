@@ -24,10 +24,7 @@ from collectors.lib import utils
 from collectors.lib.hadoop_http import HadoopHttp
 
 
-REPLACEMENTS = {
-    "rpcdetailedactivityforport": ["rpc_activity"],
-    "rpcactivityforport": ["rpc_activity"]
-}
+REPLACEMENTS = {"rpcdetailedactivityforport": ["rpc_activity"], "rpcactivityforport": ["rpc_activity"]}
 
 
 class HadoopNameNode(HadoopHttp):
@@ -39,7 +36,7 @@ class HadoopNameNode(HadoopHttp):
     """
 
     def __init__(self):
-        super(HadoopNameNode, self).__init__('hadoop', 'namenode', 'localhost', 50070)
+        super(HadoopNameNode, self).__init__("hadoop", "namenode", "localhost", 50070)
 
     def emit(self):
         current_time = int(time.time())
@@ -65,4 +62,3 @@ def main(args):
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv))
-

@@ -53,27 +53,27 @@ except ImportError:
     from urllib2 import urlopen
 
 MAP = {
-    'vnode_gets_total': ('vnode.requests', 'type=get'),
-    'vnode_puts_total': ('vnode.requests', 'type=put'),
-    'node_gets_total': ('node.requests', 'type=get'),
-    'node_puts_total': ('node.requests', 'type=put'),
-    'node_get_fsm_time_mean': ('node.latency.mean', 'type=get'),
-    'node_get_fsm_time_median': ('node.latency.median', 'type=get'),
-    'node_get_fsm_time_95': ('node.latency.95th', 'type=get'),
-    'node_get_fsm_time_99': ('node.latency.99th', 'type=get'),
-    'node_get_fsm_time_100': ('node.latency.100th', 'type=get'),
-    'node_put_fsm_time_mean': ('node.latency.mean', 'type=put'),
-    'node_put_fsm_time_median': ('node.latency.median', 'type=put'),
-    'node_put_fsm_time_95': ('node.latency.95th', 'type=put'),
-    'node_put_fsm_time_99': ('node.latency.99th', 'type=put'),
-    'node_put_fsm_time_100': ('node.latency.100th', 'type=put'),
-    'pbc_connects_total': ('connections', ''),
-    'read_repairs_total': ('read_repairs', ''),
-    'sys_process_count': ('sys_process_count', ''),
-    'executing_mappers': ('executing_mappers', ''),
-    'mem_allocated': ('memory.allocated', ''),
-    'mem_total': ('memory.total', ''),
-    #connected_nodes is calculated
+    "vnode_gets_total": ("vnode.requests", "type=get"),
+    "vnode_puts_total": ("vnode.requests", "type=put"),
+    "node_gets_total": ("node.requests", "type=get"),
+    "node_puts_total": ("node.requests", "type=put"),
+    "node_get_fsm_time_mean": ("node.latency.mean", "type=get"),
+    "node_get_fsm_time_median": ("node.latency.median", "type=get"),
+    "node_get_fsm_time_95": ("node.latency.95th", "type=get"),
+    "node_get_fsm_time_99": ("node.latency.99th", "type=get"),
+    "node_get_fsm_time_100": ("node.latency.100th", "type=get"),
+    "node_put_fsm_time_mean": ("node.latency.mean", "type=put"),
+    "node_put_fsm_time_median": ("node.latency.median", "type=put"),
+    "node_put_fsm_time_95": ("node.latency.95th", "type=put"),
+    "node_put_fsm_time_99": ("node.latency.99th", "type=put"),
+    "node_put_fsm_time_100": ("node.latency.100th", "type=put"),
+    "pbc_connects_total": ("connections", ""),
+    "read_repairs_total": ("read_repairs", ""),
+    "sys_process_count": ("sys_process_count", ""),
+    "executing_mappers": ("executing_mappers", ""),
+    "mem_allocated": ("memory.allocated", ""),
+    "mem_total": ("memory.total", ""),
+    # connected_nodes is calculated
 }
 
 
@@ -104,11 +104,11 @@ def main():
                     continue
                 # this is a hack, but Riak reports latencies in microseconds.  they're fairly useless
                 # to our human operators, so we're going to convert them to seconds.
-                if 'latency' in MAP[key][0]:
+                if "latency" in MAP[key][0]:
                     obj[key] = obj[key] / 1000000.0
                 print_stat(MAP[key][0], obj[key], MAP[key][1])
-            if 'connected_nodes' in obj:
-                print_stat('connected_nodes', len(obj['connected_nodes']), '')
+            if "connected_nodes" in obj:
+                print_stat("connected_nodes", len(obj["connected_nodes"]), "")
         req.close()
 
         sys.stdout.flush()
