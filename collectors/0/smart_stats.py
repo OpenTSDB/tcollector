@@ -15,6 +15,8 @@
 #
 """SMART disk stats for TSDB"""
 
+from __future__ import print_function
+
 import glob
 import os
 import signal
@@ -91,8 +93,8 @@ class Alarm(RuntimeError):
 
 
 def alarm_handler(signum, frame):
-  print >>sys.stderr, ("Program took too long to run, "
-                       "consider increasing its timeout.")
+  print("Program took too long to run, "
+                       "consider increasing its timeout.", file=sys.stderr)
   raise Alarm()
 
 
@@ -126,31 +128,31 @@ def is_adaptec_driver_broken():
     if arcconf.returncode == 127:
       # arcconf doesn't even work on this system, so assume we're safe
       return False
-    print >>sys.stderr, ("arcconf unexpected error %s" % arcconf.returncode)
+    print("arcconf unexpected error %s" % arcconf.returncode, file=sys.stderr)
     return True
   for line in arcconf_output.split("\n"):
     fields = [x for x in line.split(" ") if x]
     if fields[0] == "Driver" and fields[2] in BROKEN_DRIVER_VERSIONS:
-      print >>sys.stderr, ("arcconf indicates broken driver version %s"
-                           % fields[2])
+      print("arcconf indicates broken driver version %s"
+                           % fields[2], file=sys.stderr)
       return True
   return False
 
 def is_3ware_driver_broken(drives):
   # Apparently 3ware controllers can't report SMART stats from SAS drives. WTF.
   # See also http://sourceforge.net/apps/trac/smartmontools/ticket/161
-  for i in reversed(xrange(len(drives))):
+  for i in reversed(range(len(drives))):
     drive = drives[i]
     signal.alarm(COMMAND_TIMEOUT)
     smart_ctl = subprocess.Popen(SMART_CTL + " -i /dev/" + drive,
                                  shell=True, stdout=subprocess.PIPE)
     smart_output = smart_ctl.communicate()[0]
     if "supports SMART and is Disabled" in smart_output:
-      print >>sys.stderr, "SMART is disabled for %s" % drive
+      print("SMART is disabled for %s" % drive, file=sys.stderr)
       del drives[i]  # We're iterating from the end of the list so this is OK.
     signal.alarm(0)
   if not drives:
-    print >>sys.stderr, "None of the drives support SMART. Are they SAS drives?"
+    print("None of the drives support SMART. Are they SAS drives?", file=sys.stderr)
     return True
   return False
 
@@ -174,17 +176,17 @@ def process_output(drive, smart_output):
       if len(fields) > 2 and field in ATTRIBUTE_MAP:
         metric = ATTRIBUTE_MAP[field]
         value = fields[9].split()[0]
-        print ("smart.%s %d %s disk=%s" % (metric, ts, value, drive))
+        print("smart.%s %d %s disk=%s" % (metric, ts, value, drive))
         if is_seagate and metric in ("seek_error_rate", "raw_read_error_rate"):
           # It appears that some Seagate drives (and possibly some Western
           # Digital ones too) use the first 16 bits to store error counts,
           # and the low 32 bits to store operation counts, out of these 48
           # bit values.  So try to be helpful and extract these here.
           value = int(value)
-          print ("smart.%s %d %d disk=%s"
+          print("smart.%s %d %d disk=%s"
                  % (metric.replace("error_rate", "count"), ts,
                     value & 0xFFFFFFFF, drive))
-          print ("smart.%s %d %d disk=%s"
+          print("smart.%s %d %d disk=%s"
                  % (metric.replace("error_rate", "errors"), ts,
                     (value & 0xFFFF00000000) >> 32, drive))
     elif line.startswith("ID#"):
@@ -230,7 +232,7 @@ def main():
         if smart_ctl.returncode == 127:
           sys.exit(13)
         else:
-          print >>sys.stderr, "Command exited with: %d" % smart_ctl.returncode
+          print("Command exited with: %d" % smart_ctl.returncode, file=sys.stderr)
       process_output(drive, smart_output)
 
     sys.stdout.flush()

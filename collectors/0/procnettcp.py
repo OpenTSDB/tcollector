@@ -48,6 +48,8 @@
 # opened/handled the connection.  For connections in time_wait, for
 # example, they will always show user=root.
 
+from __future__ import print_function
+
 import os
 import pwd
 import sys
@@ -103,7 +105,7 @@ PORTS = {
     60020: "hregionserver",
     }
 
-SERVICES = tuple(set(PORTS.itervalues()))
+SERVICES = tuple(set(PORTS.values()))
 
 TCPSTATES = {
     "01": "established",
@@ -145,8 +147,8 @@ def main(unused_args):
     """procnettcp main loop"""
     try:           # On some Linux kernel versions, with lots of connections
       os.nice(19)  # this collector can be very CPU intensive.  So be nicer.
-    except OSError, e:
-      print >>sys.stderr, "warning: failed to self-renice:", e
+    except OSError as e:
+      print("warning: failed to self-renice:", e, file=sys.stderr)
 
     interval = 60
 
@@ -165,13 +167,13 @@ def main(unused_args):
         # address size
         try:
             tcp6 = open("/proc/net/tcp6")
-        except IOError, (errno, msg):
-            if errno == 2:  # No such file => IPv6 is disabled.
+        except IOError as exc:
+            if exc.errno == 2:  # No such file => IPv6 is disabled.
                 tcp6 = None
             else:
                 raise
-    except IOError, e:
-        print >>sys.stderr, "Failed to open input file: %s" % (e,)
+    except IOError as e:
+        print("Failed to open input file: %s" % (e,), file=sys.stderr)
         return 13  # Ask tcollector to not re-start us immediately.
 
     utils.drop_privileges()
@@ -224,9 +226,9 @@ def main(unused_args):
                         key = ("state=%s endpoint=%s service=%s user=%s"
                                % (TCPSTATES[state], endpoint, service, user))
                         if key in counter:
-                            print "proc.net.tcp", ts, counter[key], key
+                            print("proc.net.tcp", ts, counter[key], key)
                         else:
-                            print "proc.net.tcp", ts, "0", key
+                            print("proc.net.tcp", ts, "0", key)
 
         sys.stdout.flush()
         time.sleep(interval)

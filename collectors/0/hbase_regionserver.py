@@ -30,10 +30,10 @@ REGION_METRIC_PATTERN = re.compile(r"[N|n]amespace_(.*)_table_(.*)_region_(.*)_m
 
 class HBaseRegionserver(HadoopHttp):
     def __init__(self):
-        super(HBaseRegionserver, self).__init__("hbase", "regionserver", "localhost", 60030)
+        super(HBaseRegionserver, self).__init__("hbase", "regionserver", "localhost", 16030)
 
     def emit_region_metric(self, context, current_time, full_metric_name, value):
-	match = REGION_METRIC_PATTERN.match(full_metric_name)
+        match = REGION_METRIC_PATTERN.match(full_metric_name)
         if not match:
             utils.err("Error splitting %s" % full_metric_name)
             return
@@ -44,7 +44,7 @@ class HBaseRegionserver(HadoopHttp):
         metric_name = match.group(4)
         tag_dict = {"namespace": namespace, "table": table, "region": region}
 
-        if any( not v for k,v in tag_dict.iteritems()):
+        if any( not v for k,v in tag_dict.items()):
             utils.err("Error splitting %s" % full_metric_name)
         else:
             self.emit_metric(context, current_time, metric_name, value, tag_dict)
@@ -61,7 +61,7 @@ class HBaseRegionserver(HadoopHttp):
             if any( c in EXCLUDED_CONTEXTS for c in context):
                 continue
 
-            if any(c == "regions" for c in context):
+            if any(c == "regions" for c in context) and '_region_' in metric_name:
                 if EMIT_REGION:
                     self.emit_region_metric(context, current_time, metric_name, value)
             else:
@@ -74,11 +74,10 @@ def main(args):
         utils.err("This collector requires the `json' Python module.")
         return 13  # Ask tcollector not to respawn us
     hbase_service = HBaseRegionserver()
+
     while True:
         hbase_service.emit()
         time.sleep(15)
-    return 0
-
 
 if __name__ == "__main__":
     import sys

@@ -47,6 +47,10 @@ import platform
 
 from collectors.lib import utils
 
+PY3 = sys.version_info[0] > 2
+if PY3:
+    long = int
+
 try:
     from collectors.etc import sysload_conf
 except ImportError:
@@ -114,7 +118,7 @@ def main():
                     ["mpstat", str(collection_interval)],
                     stdout=subprocess.PIPE,
                 )
-    except OSError, e:
+    except OSError as e:
         if e.errno == errno.ENOENT:
             # it makes no sense to run this collector here
             sys.exit(13) # we signal tcollector to not run us
@@ -125,7 +129,7 @@ def main():
     while signal_received is None:
         try:
             line = p_top.stdout.readline()
-        except (IOError, OSError), e:
+        except (IOError, OSError) as e:
             if e.errno in (errno.EINTR, errno.EAGAIN):
                 break
             raise
@@ -153,17 +157,17 @@ def main():
             cpusystem=fields[4]
             cpuinterrupt=fields[6]
             cpuidle=fields[-1]
-            print ("cpu.usr %s %s cpu=%s" % (timestamp, float(cpuuser), cpuid))
-            print ("cpu.nice %s %s cpu=%s" % (timestamp, float(cpunice), cpuid))
-            print ("cpu.sys %s %s cpu=%s" % (timestamp, float(cpusystem), cpuid))
-            print ("cpu.irq %s %s cpu=%s" % (timestamp, float(cpuinterrupt), cpuid))
-            print ("cpu.idle %s %s cpu=%s" % (timestamp, float(cpuidle), cpuid))
+            print("cpu.usr %s %s cpu=%s" % (timestamp, float(cpuuser), cpuid))
+            print("cpu.nice %s %s cpu=%s" % (timestamp, float(cpunice), cpuid))
+            print("cpu.sys %s %s cpu=%s" % (timestamp, float(cpusystem), cpuid))
+            print("cpu.irq %s %s cpu=%s" % (timestamp, float(cpuinterrupt), cpuid))
+            print("cpu.idle %s %s cpu=%s" % (timestamp, float(cpuidle), cpuid))
         
         elif(fields[0] == "averages:"):
             timestamp = int(time.time())
-            print ("load.1m %s %s" % (timestamp, fields[1]))
-            print ("load.5m %s %s" % (timestamp, fields[2]))
-            print ("load.15m %s %s" % (timestamp, fields[3]))
+            print("load.1m %s %s" % (timestamp, fields[1]))
+            print("load.5m %s %s" % (timestamp, fields[2]))
+            print("load.15m %s %s" % (timestamp, fields[3]))
 
         elif (re.match("[0-9]+ processes:",line)):
             starting=0
@@ -188,14 +192,14 @@ def main():
                     waiting=fields[i-1]
                 if(fields[i] == "lock"):
                     lock=fields[i-1]
-            print ("ps.all %s %s" % (timestamp, fields[0]))
-            print ("ps.start %s %s" % (timestamp, starting))
-            print ("ps.run %s %s" % (timestamp, running))
-            print ("ps.sleep %s %s" % (timestamp, sleeping))
-            print ("ps.stop %s %s" % (timestamp, stopped))
-            print ("ps.zomb %s %s" % (timestamp, zombie))
-            print ("ps.wait %s %s" % (timestamp, waiting))
-            print ("ps.lock %s %s" % (timestamp, lock))
+            print("ps.all %s %s" % (timestamp, fields[0]))
+            print("ps.start %s %s" % (timestamp, starting))
+            print("ps.run %s %s" % (timestamp, running))
+            print("ps.sleep %s %s" % (timestamp, sleeping))
+            print("ps.stop %s %s" % (timestamp, stopped))
+            print("ps.zomb %s %s" % (timestamp, zombie))
+            print("ps.wait %s %s" % (timestamp, waiting))
+            print("ps.lock %s %s" % (timestamp, lock))
 
         elif(fields[0] == "Mem:"):
             active=0
@@ -217,12 +221,12 @@ def main():
                     buf=convert_to_bytes(fields[i-1])
                 if(fields[i] == "Free"):
                     free=convert_to_bytes(fields[i-1])
-            print ("mem.active %s %s" % (timestamp, active))
-            print ("mem.inact %s %s" % (timestamp, inact))
-            print ("mem.wired %s %s" % (timestamp, wired))
-            print ("mem.cache %s %s" % (timestamp, cache))
-            print ("mem.buf %s %s" % (timestamp, buf))
-            print ("mem.free %s %s" % (timestamp, free))
+            print("mem.active %s %s" % (timestamp, active))
+            print("mem.inact %s %s" % (timestamp, inact))
+            print("mem.wired %s %s" % (timestamp, wired))
+            print("mem.cache %s %s" % (timestamp, cache))
+            print("mem.buf %s %s" % (timestamp, buf))
+            print("mem.free %s %s" % (timestamp, free))
 
         elif(fields[0] == "ARC:"):
             total=0
@@ -244,12 +248,12 @@ def main():
                     header=convert_to_bytes(fields[i-1])
                 if(fields[i] == "Other"):
                     other=convert_to_bytes(fields[i-1])
-            print ("arc.total %s %s" % (timestamp, total))
-            print ("arc.mru %s %s" % (timestamp, mru))
-            print ("arc.mfu %s %s" % (timestamp, mfu))
-            print ("arc.anon %s %s" % (timestamp, anon))
-            print ("arc.header %s %s" % (timestamp, header))
-            print ("arc.other %s %s" % (timestamp, other))
+            print("arc.total %s %s" % (timestamp, total))
+            print("arc.mru %s %s" % (timestamp, mru))
+            print("arc.mfu %s %s" % (timestamp, mfu))
+            print("arc.anon %s %s" % (timestamp, anon))
+            print("arc.header %s %s" % (timestamp, header))
+            print("arc.other %s %s" % (timestamp, other))
 
         elif(fields[0] == "Swap:"):
             total=0
@@ -271,12 +275,12 @@ def main():
                     inps=convert_to_bytes(fields[i-1])/collection_interval
                 if(fields[i] == "Out"):
                     outps=convert_to_bytes(fields[i-1])/collection_interval
-            print ("swap.total %s %s" % (timestamp, total))
-            print ("swap.used %s %s" % (timestamp, used))
-            print ("swap.free %s %s" % (timestamp, free))
-            print ("swap.inuse %s %s" % (timestamp, inuse))
-            print ("swap.inps %s %s" % (timestamp, inps))
-            print ("swap.outps %s %s" % (timestamp, outps))
+            print("swap.total %s %s" % (timestamp, total))
+            print("swap.used %s %s" % (timestamp, used))
+            print("swap.free %s %s" % (timestamp, free))
+            print("swap.inuse %s %s" % (timestamp, inuse))
+            print("swap.inps %s %s" % (timestamp, inps))
+            print("swap.outps %s %s" % (timestamp, outps))
 
         sys.stdout.flush()
 

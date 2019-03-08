@@ -64,181 +64,220 @@
 # when you have to handle mapping of /dev/mapper to dm-N, pulling out
 # swap partitions from /proc/swaps, etc.
 
+from __future__ import print_function
 
-import sys
-import time
+import copy
 import os
 import re
-import copy
+import sys
+import time
 
 from collectors.lib import utils
 
+PY3 = sys.version_info[0] > 2
 COLLECTION_INTERVAL = 60  # seconds
 
 # Docs come from the Linux kernel's Documentation/iostats.txt
 FIELDS_DISK = (
-    "read_requests",        # Total number of reads completed successfully.
-    "read_merged",          # Adjacent read requests merged in a single req.
-    "read_sectors",         # Total number of sectors read successfully.
-    "msec_read",            # Total number of ms spent by all reads.
-    "write_requests",       # total number of writes completed successfully.
-    "write_merged",         # Adjacent write requests merged in a single req.
-    "write_sectors",        # total number of sectors written successfully.
-    "msec_write",           # Total number of ms spent by all writes.
-    "ios_in_progress",      # Number of actual I/O requests currently in flight.
-    "msec_total",           # Amount of time during which ios_in_progress >= 1.
-    "msec_weighted_total",  # Measure of recent I/O completion time and backlog.
+  "read_requests",  # Total number of reads completed successfully.
+  "read_merged",  # Adjacent read requests merged in a single req.
+  "read_sectors",  # Total number of sectors read successfully.
+  "msec_read",  # Total number of ms spent by all reads.
+  "write_requests",  # total number of writes completed successfully.
+  "write_merged",  # Adjacent write requests merged in a single req.
+  "write_sectors",  # total number of sectors written successfully.
+  "msec_write",  # Total number of ms spent by all writes.
+  "ios_in_progress",  # Number of actual I/O requests currently in flight.
+  "msec_total",  # Amount of time during which ios_in_progress >= 1.
+  "msec_weighted_total",  # Measure of recent I/O completion time and backlog.
 )
 
 FIELDS_PART = (
-    "read_issued",
-    "read_sectors",
-    "write_issued",
-    "write_sectors",
+  "read_issued",
+  "read_sectors",
+  "write_issued",
+  "write_sectors",
 )
 
-prev_times = (0,0)
-def read_uptime():
-    global prev_times
-    try:
-        f_uptime = open("/proc/uptime")
-        line = f_uptime.readline()
+prev_times = (0, 0)
 
-        curr_times = line.split(None)
-        delta_times = (float(curr_times[0]) - float(prev_times[0]),  float(curr_times[1]) - float(prev_times[1]))
-        prev_times = curr_times
-        return delta_times
-    finally:
-        f_uptime.close();
+
+def read_uptime():
+  global prev_times
+  try:
+    f_uptime = open("/proc/uptime")
+    line = f_uptime.readline()
+
+    curr_times = line.split(None)
+    delta_times = (float(curr_times[0]) - float(prev_times[0]), float(curr_times[1]) - float(prev_times[1]))
+    prev_times = curr_times
+    return delta_times
+  finally:
+    f_uptime.close();
 
 
 def get_system_hz():
-    """Return system hz use SC_CLK_TCK."""
-    ticks = os.sysconf(os.sysconf_names['SC_CLK_TCK'])
+  """Return system hz use SC_CLK_TCK."""
+  ticks = os.sysconf(os.sysconf_names['SC_CLK_TCK'])
 
-    if ticks == -1:
-        return 100
-    else:
-        return ticks
+  if ticks == -1:
+    return 100
+  else:
+    return ticks
 
 
 def is_device(device_name, allow_virtual):
-    """Test whether given name is a device or a partition, using sysfs."""
-    device_name = re.sub('/', '!', device_name)
+  """Test whether given name is a device or a partition, using sysfs."""
+  device_name = re.sub('/', '!', device_name)
 
-    if allow_virtual:
-        devicename = "/sys/block/" + device_name + "/device"
+  if allow_virtual:
+    devicename = "/sys/block/" + device_name + "/device"
+  else:
+    devicename = "/sys/block/" + device_name
+
+  return os.access(devicename, os.F_OK)
+
+
+cached_device_sector_size = {}
+
+
+def get_device_sector_size(device_name):
+  if device_name not in cached_device_sector_size:
+    filename = "/sys/block/" + device_name + "sda/queue/hw_sector_size"
+
+    if os.path.exists(filename):
+      with open(filename, "r") as f:
+        sector_size = int(f.readline())
     else:
-        devicename = "/sys/block/" + device_name
-
-    return os.access(devicename, os.F_OK)
+      # hmmm?
+      sector_size = 512;  # best guess
+    cached_device_sector_size[device_name] = sector_size
+  return cached_device_sector_size[device_name]
 
 
 def main():
-    """iostats main loop."""
-    init_stats = {
-        "read_requests": 0,
-        "read_merged": 0,
-        "read_sectors": 0,
-        "msec_read": 0,
-        "write_requests": 0,
-        "write_merged": 0,
-        "write_sectors": 0,
-        "msec_write": 0,
-        "ios_in_progress": 0,
-        "msec_total": 0,
-        "msec_weighted_total": 0,
-    }
-    prev_stats = dict()
-    f_diskstats = open("/proc/diskstats")
-    HZ = get_system_hz()
-    itv = 1.0
-    utils.drop_privileges()
+  """iostats main loop."""
+  init_stats = {
+    "read_requests": 0,
+    "read_merged": 0,
+    "read_sectors": 0,
+    "msec_read": 0,
+    "write_requests": 0,
+    "write_merged": 0,
+    "write_sectors": 0,
+    "msec_write": 0,
+    "ios_in_progress": 0,
+    "msec_total": 0,
+    "msec_weighted_total": 0,
+  }
+  prev_stats = dict()
+  f_diskstats = open("/proc/diskstats")
+  HZ = get_system_hz()
+  itv = 1.0
+  utils.drop_privileges()
 
-    while True:
-        f_diskstats.seek(0)
-        ts = int(time.time())
-        itv = read_uptime()[0]
-        for line in f_diskstats:
-            # maj, min, devicename, [list of stats, see above]
-            values = line.split(None)
-            # shortcut the deduper and just skip disks that
-            # haven't done a single read.  This eliminates a bunch
-            # of loopback, ramdisk, and cdrom devices but still
-            # lets us report on the rare case that we actually use
-            # a ramdisk.
-            if values[3] == "0":
-                continue
+  while True:
+    f_diskstats.seek(0)
+    ts = int(time.time())
+    itv = read_uptime()[0]
+    for line in f_diskstats:
+      # maj, min, devicename, [list of stats, see above]
+      values = line.split(None)
+      # shortcut the deduper and just skip disks that
+      # haven't done a single read.  This eliminates a bunch
+      # of loopback, ramdisk, and cdrom devices but still
+      # lets us report on the rare case that we actually use
+      # a ramdisk.
+      if values[3] == "0":
+        continue
 
-            if int(values[1]) % 16 == 0 and int(values[0]) > 1:
-                metric = "iostat.disk."
+      if int(values[1]) % 16 == 0 and int(values[0]) > 1:
+        metric = "iostat.disk."
+      else:
+        metric = "iostat.part."
+
+      device = values[2]
+      if len(values) == 14:
+        # full stats line
+        for i in range(11):
+          print("%s%s %d %s dev=%s"
+                % (metric, FIELDS_DISK[i], ts, values[i + 3], device))
+          if FIELDS_DISK[i] == "read_sectors":
+            if PY3:
+              v = int(values[i + 3]) * get_device_sector_size(device)
             else:
-                metric = "iostat.part."
-
-            device = values[2]
-            if len(values) == 14:
-                # full stats line
-                for i in range(11):
-                    print("%s%s %d %s dev=%s"
-                          % (metric, FIELDS_DISK[i], ts, values[i+3], device))
-
-                ret = is_device(device, 0)
-                # if a device or a partition, calculate the svctm/await/util
-                if ret:
-                    stats = dict(zip(FIELDS_DISK, values[3:]))
-                    if not device in prev_stats:
-                        prev_stats[device] = init_stats
-                    rd_ios = float(stats.get("read_requests"))
-                    wr_ios = float(stats.get("write_requests"))
-                    nr_ios = rd_ios + wr_ios
-                    prev_rd_ios = float(prev_stats[device].get("read_requests"))
-                    prev_wr_ios = float(prev_stats[device].get("write_requests"))
-                    prev_nr_ios = prev_rd_ios + prev_wr_ios
-                    tput = ((nr_ios - prev_nr_ios) * float(HZ) / float(itv))
-                    util = ((float(stats.get("msec_total")) - float(prev_stats[device].get("msec_total"))) * float(HZ) / float(itv))
-                    svctm = 0.0
-                    await = 0.0
-                    r_await = 0.0
-                    w_await = 0.0
-
-                    if tput:
-                        svctm = util / tput
-
-                    rd_ticks = stats.get("msec_read")
-                    wr_ticks = stats.get("msec_write")
-                    prev_rd_ticks = prev_stats[device].get("msec_read")
-                    prev_wr_ticks = prev_stats[device].get("msec_write")
-                    if rd_ios != prev_rd_ios:
-                        r_await = (float(rd_ticks) - float(prev_rd_ticks) ) / float(rd_ios - prev_rd_ios)
-                    if wr_ios != prev_wr_ios:
-                        w_await = (float(wr_ticks) - float(prev_wr_ticks) ) / float(wr_ios - prev_wr_ios)
-                    if nr_ios != prev_nr_ios:
-                        await = (float(rd_ticks) + float(wr_ticks) - float(prev_rd_ticks) - float(prev_wr_ticks)) / float(nr_ios - prev_nr_ios)
-                    print("%s%s %d %.2f dev=%s"
-                          % (metric, "svctm", ts, svctm, device))
-                    print("%s%s %d %.2f dev=%s"
-                          % (metric, "r_await", ts, r_await, device))
-                    print("%s%s %d %.2f dev=%s"
-                          % (metric, "w_await", ts, w_await, device))
-                    print("%s%s %d %.2f dev=%s"
-                          % (metric, "await", ts, await, device))
-                    print("%s%s %d %.2f dev=%s"
-                          % (metric, "util", ts, float(util/1000.0), device))
-
-                    prev_stats[device] = copy.deepcopy(stats)
-
-            elif len(values) == 7:
-                # partial stats line
-                for i in range(4):
-                    print("%s%s %d %s dev=%s"
-                          % (metric, FIELDS_PART[i], ts, values[i+3], device))
+              # noinspection PyCompatibility
+              v = long(values[i + 3]) * get_device_sector_size(device)  # pylint:disable=undefined-variable
+            print("%s%s %d %s dev=%s"
+                  % (metric, "read_bytes", ts, v, device))
+          if FIELDS_DISK[i] == "write_sectors":
+            if PY3:
+              v = int(values[i + 3]) * get_device_sector_size(device)
             else:
-                print >> sys.stderr, "Cannot parse /proc/diskstats line: ", line
-                continue
+              # noinspection PyCompatibility
+              v = long(values[i + 3]) * get_device_sector_size(device)  # pylint:disable=undefined-variable
+            print("%s%s %d %s dev=%s"
+                  % (metric, "write_bytes", ts, v, device))
 
-        sys.stdout.flush()
-        time.sleep(COLLECTION_INTERVAL)
+        ret = is_device(device, 0)
+        # if a device or a partition, calculate the svctm/await/util
+        if ret:
+          stats = dict(zip(FIELDS_DISK, values[3:]))
+          if not device in prev_stats:
+            prev_stats[device] = init_stats
+          rd_ios = float(stats.get("read_requests"))
+          wr_ios = float(stats.get("write_requests"))
+          nr_ios = rd_ios + wr_ios
+          prev_rd_ios = float(prev_stats[device].get("read_requests"))
+          prev_wr_ios = float(prev_stats[device].get("write_requests"))
+          prev_nr_ios = prev_rd_ios + prev_wr_ios
+          tput = ((nr_ios - prev_nr_ios) * float(HZ) / float(itv))
+          util = (
+            (float(stats.get("msec_total")) - float(prev_stats[device].get("msec_total"))) * float(HZ) / float(itv))
+          svctm = 0.0
+          await_ = 0.0
+          r_await = 0.0
+          w_await = 0.0
+
+          if tput:
+            svctm = util / tput
+
+          rd_ticks = stats.get("msec_read")
+          wr_ticks = stats.get("msec_write")
+          prev_rd_ticks = prev_stats[device].get("msec_read")
+          prev_wr_ticks = prev_stats[device].get("msec_write")
+          if rd_ios != prev_rd_ios:
+            r_await = (float(rd_ticks) - float(prev_rd_ticks)) / float(rd_ios - prev_rd_ios)
+          if wr_ios != prev_wr_ios:
+            w_await = (float(wr_ticks) - float(prev_wr_ticks)) / float(wr_ios - prev_wr_ios)
+          if nr_ios != prev_nr_ios:
+            await_ = (float(rd_ticks) + float(wr_ticks) - float(prev_rd_ticks) - float(prev_wr_ticks)) / float(
+              nr_ios - prev_nr_ios)
+          print("%s%s %d %.2f dev=%s"
+                % (metric, "svctm", ts, svctm, device))
+          print("%s%s %d %.2f dev=%s"
+                % (metric, "r_await", ts, r_await, device))
+          print("%s%s %d %.2f dev=%s"
+                % (metric, "w_await", ts, w_await, device))
+          print("%s%s %d %.2f dev=%s"
+                % (metric, "await", ts, await_, device))
+          print("%s%s %d %.2f dev=%s"
+                % (metric, "util", ts, float(util / 1000.0), device))
+
+          prev_stats[device] = copy.deepcopy(stats)
+
+      elif len(values) == 7:
+        # partial stats line
+        for i in range(4):
+          print("%s%s %d %s dev=%s"
+                % (metric, FIELDS_PART[i], ts, values[i + 3], device))
+      else:
+        print("Cannot parse /proc/diskstats line: ", line, file=sys.stderr)
+        continue
+
+    sys.stdout.flush()
+    time.sleep(COLLECTION_INTERVAL)
 
 
 if __name__ == "__main__":
-    main()
+  main()

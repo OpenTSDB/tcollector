@@ -20,6 +20,16 @@ import unittest
 import mocks
 import tcollector
 
+PY3 = sys.version_info[0] > 2
+
+
+def return_none(x):
+    return None
+
+
+def always_true():
+    return True
+
 
 class CollectorsTests(unittest.TestCase):
 
@@ -36,7 +46,11 @@ class CollectorsTests(unittest.TestCase):
                     check_access_rights(pathname)
                 elif S_ISREG(mode):
                     # file, check permissions
-                    self.assertEqual("0100775", oct(os.stat(pathname)[ST_MODE]))
+                    permissions = oct(os.stat(pathname)[ST_MODE])
+                    if PY3:
+                        self.assertEqual("0o100775", permissions)
+                    else:
+                        self.assertEqual("0100775", permissions)
                 else:
                     # unknown file type
                     pass
@@ -54,14 +68,14 @@ class TSDBlacklistingTests(unittest.TestCase):
 
     def setUp(self):
         # Stub out the randomness
-        self.random_shuffle = tcollector.random.shuffle
-        tcollector.random.shuffle = lambda x: x
+        self.random_shuffle = tcollector.random.shuffle # pylint: disable=maybe-no-member
+        tcollector.random.shuffle = lambda x: x # pylint: disable=maybe-no-member
 
     def tearDown(self):
-        tcollector.random.shuffle = self.random_shuffle
+        tcollector.random.shuffle = self.random_shuffle # pylint: disable=maybe-no-member
 
     def mkSenderThread(self, tsds):
-        return tcollector.SenderThread(None, True, tsds, False, {}, reconnectinterval=5)
+        return tcollector.SenderThread(None, True, tsds, False, {}, reconnectinterval=5) # pylint: disable=maybe-no-member
 
     def test_blacklistOneConnection(self):
         tsd = ("localhost", 4242)
@@ -107,24 +121,26 @@ class TSDBlacklistingTests(unittest.TestCase):
 class UDPCollectorTests(unittest.TestCase):
 
     def setUp(self):
-        if ('udp_bridge.py' not in tcollector.COLLECTORS):
+        if ('udp_bridge.py' not in tcollector.COLLECTORS): # pylint: disable=maybe-no-member
             return
 
         self.saved_exit = sys.exit
         self.saved_stderr = sys.stderr
         self.saved_stdout = sys.stdout
-        self.udp_bridge = tcollector.COLLECTORS['udp_bridge.py']
+        self.udp_bridge = tcollector.COLLECTORS['udp_bridge.py'] # pylint: disable=maybe-no-member
         self.udp_globals = {}
 
-        sys.exit = lambda x: None
+        sys.exit = return_none
+        bridge_file = open(self.udp_bridge.filename)
         try:
-            execfile(self.udp_bridge.filename, self.udp_globals)
+            exec(compile(bridge_file.read(), self.udp_bridge.filename, 'exec'), self.udp_globals)
         finally:
+            bridge_file.close()
             sys.exit = self.saved_exit
 
         self.udp_globals['socket'] = mocks.Socket()
         self.udp_globals['sys'] = mocks.Sys()
-        self.udp_globals['udp_bridge_conf'].enabled = lambda: True
+        self.udp_globals['udp_bridge_conf'].enabled = always_true
         self.udp_globals['utils'] = mocks.Utils()
 
     def run_bridge_test(self, udpInputLines, stdoutLines, stderrLines):
@@ -146,9 +162,10 @@ class UDPCollectorTests(unittest.TestCase):
             sys.stdout = self.saved_stdout
 
     def test_populated(self):
-        self.assertIsInstance(self.udp_bridge, tcollector.Collector)
-        self.assertIsNone(self.udp_bridge.proc)
-        self.assertIn('main', self.udp_globals)
+        # assertIsInstance, assertIn, assertIsNone do not exist in Python 2.6
+        self.assertTrue(isinstance(self.udp_bridge, tcollector.Collector), msg="self.udp_bridge not instance of tcollector.Collector") # pylint: disable=maybe-no-member
+        self.assertEqual(self.udp_bridge.proc, None)
+        self.assertTrue('main' in self.udp_globals, msg="'main' not in self.udp_globals")
 
     def test_single_line_no_put(self):
         inputLines = [
@@ -159,8 +176,8 @@ class UDPCollectorTests(unittest.TestCase):
         stdout = []
         self.run_bridge_test(inputLines, stdout, stderr)
 
-        self.assertEquals(''.join(stdout), expected)
-        self.assertListEqual(stderr, [])
+        self.assertEqual(''.join(stdout), expected)
+        self.assertEqual(stderr, [])
 
     def test_single_line_put(self):
         inputLines = [
@@ -173,8 +190,8 @@ class UDPCollectorTests(unittest.TestCase):
         stdout = []
 
         self.run_bridge_test(inputLines, stdout, stderr)
-        self.assertEquals(''.join(stdout), expected)
-        self.assertListEqual(stderr, [])
+        self.assertEqual(''.join(stdout), expected)
+        self.assertEqual(stderr, [])
 
     def test_multi_line_no_put(self):
         inputLines = [
@@ -186,8 +203,8 @@ class UDPCollectorTests(unittest.TestCase):
         stdout = []
 
         self.run_bridge_test(inputLines, stdout, stderr)
-        self.assertEquals(''.join(stdout), expected)
-        self.assertListEqual(stderr, [])
+        self.assertEqual(''.join(stdout), expected)
+        self.assertEqual(stderr, [])
 
     def test_multi_line_put(self):
         inputLines = [
@@ -202,8 +219,8 @@ class UDPCollectorTests(unittest.TestCase):
         stdout = []
 
         self.run_bridge_test(inputLines, stdout, stderr)
-        self.assertEquals(''.join(stdout), expected)
-        self.assertListEqual(stderr, [])
+        self.assertEqual(''.join(stdout), expected)
+        self.assertEqual(stderr, [])
 
     def test_multi_line_mixed_put(self):
         inputLines = [
@@ -220,8 +237,8 @@ class UDPCollectorTests(unittest.TestCase):
         stdout = []
 
         self.run_bridge_test(inputLines, stdout, stderr)
-        self.assertEquals(''.join(stdout), expected)
-        self.assertListEqual(stderr, [])
+        self.assertEqual(''.join(stdout), expected)
+        self.assertEqual(stderr, [])
 
     def test_multi_line_no_put_cond(self):
         inputLines = [
@@ -232,8 +249,8 @@ class UDPCollectorTests(unittest.TestCase):
         stdout = []
 
         self.run_bridge_test(inputLines, stdout, stderr)
-        self.assertEquals(''.join(stdout), expected)
-        self.assertListEqual(stderr, [])
+        self.assertEqual(''.join(stdout), expected)
+        self.assertEqual(stderr, [])
 
     def test_multi_line_put_cond(self):
         inputLines = [
@@ -247,8 +264,8 @@ class UDPCollectorTests(unittest.TestCase):
         stdout = []
 
         self.run_bridge_test(inputLines, stdout, stderr)
-        self.assertEquals(''.join(stdout), expected)
-        self.assertListEqual(stderr, [])
+        self.assertEqual(''.join(stdout), expected)
+        self.assertEqual(stderr, [])
 
     def test_multi_empty_line_no_put(self):
         inputLines = [
@@ -261,8 +278,8 @@ class UDPCollectorTests(unittest.TestCase):
         stdout = []
 
         self.run_bridge_test(inputLines, stdout, stderr)
-        self.assertEquals(''.join(stdout), expected)
-        self.assertListEqual(stderr, ['invalid data\n'])
+        self.assertEqual(''.join(stdout), expected)
+        self.assertEqual(stderr, ['invalid data\n'])
 
     def test_multi_empty_line_put(self):
         inputLines = [
@@ -275,8 +292,8 @@ class UDPCollectorTests(unittest.TestCase):
         stdout = []
 
         self.run_bridge_test(inputLines, stdout, stderr)
-        self.assertEquals(''.join(stdout), expected)
-        self.assertListEqual(stderr, ['invalid data\n'])
+        self.assertEqual(''.join(stdout), expected)
+        self.assertEqual(stderr, ['invalid data\n'])
 
     def test_multi_empty_line_no_put_cond(self):
         inputLines = [
@@ -287,8 +304,8 @@ class UDPCollectorTests(unittest.TestCase):
         stdout = []
 
         self.run_bridge_test(inputLines, stdout, stderr)
-        self.assertEquals(''.join(stdout), expected)
-        self.assertListEqual(stderr, [])
+        self.assertEqual(''.join(stdout), expected)
+        self.assertEqual(stderr, [])
 
     def test_multi_empty_line_put_cond(self):
         inputLines = [
@@ -303,12 +320,12 @@ class UDPCollectorTests(unittest.TestCase):
         stdout = []
 
         self.run_bridge_test(inputLines, stdout, stderr)
-        self.assertEquals(''.join(stdout), expected)
-        self.assertListEqual(stderr, [])
+        self.assertEqual(''.join(stdout), expected)
+        self.assertEqual(stderr, [])
 
 if __name__ == '__main__':
     cdir = os.path.join(os.path.dirname(os.path.realpath(sys.argv[0])),
                         'collectors')
-    tcollector.setup_python_path(cdir)
-    tcollector.populate_collectors(cdir)
+    tcollector.setup_python_path(cdir) # pylint: disable=maybe-no-member
+    tcollector.populate_collectors(cdir) # pylint: disable=maybe-no-member
     sys.exit(unittest.main())

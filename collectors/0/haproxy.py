@@ -93,7 +93,7 @@ METRIC_NAMES = {
 def haproxy_pid():
   """Finds out the pid of haproxy process"""
   try:
-     pid = subprocess.check_output(["pidof", "haproxy"])
+     pid = subprocess.check_output(["pidof", "-s", "haproxy"])
   except subprocess.CalledProcessError:
      return None
   return pid.rstrip()
@@ -102,7 +102,7 @@ def find_conf_file(pid):
   """Returns the conf file of haproxy."""
   try:
      output = subprocess.check_output(["ps", "--no-headers", "-o", "cmd", pid])
-  except subprocess.CalledProcessError, e:
+  except subprocess.CalledProcessError as e:
      utils.err("HAProxy (pid %s) went away? %s" % (pid, e))
      return None
   return output.split("-f")[1].split()[0]
@@ -111,7 +111,7 @@ def find_sock_file(conf_file):
   """Returns the unix socket file of haproxy."""
   try:
     fd = open(conf_file)
-  except IOError, e:
+  except IOError as e:
     utils.err("Error: %s. Config file path is relative: %s" % (e, conf_file))
     return None
   try:
@@ -182,7 +182,7 @@ def print_metric(line, metric, timestamp):
     value = line[metric]
     if not value:
         value = 0
-    print ("haproxy.%s %i %s source=%s cluster=%s"
+    print("haproxy.%s %i %s source=%s cluster=%s"
            % (METRIC_NAMES[metric],
               timestamp,
               value,

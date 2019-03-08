@@ -14,6 +14,8 @@
 # of the GNU Lesser General Public License along with this program.  If not,
 # see <http://www.gnu.org/licenses/>.
 
+from __future__ import print_function
+
 import sys
 import time
 import os
@@ -191,7 +193,7 @@ def runServerStatus(c):
                 cur = cur[m]
         except KeyError:
             continue
-        print 'mongo.%s %d %s' % (metric, ts, cur)
+        print('mongo.%s %d %s' % (metric, ts, cur))
 
     for metric in CONFIG_LOCKS_METRICS:
         cur = res
@@ -201,7 +203,7 @@ def runServerStatus(c):
         except KeyError:
             continue
         for k, v in cur.items():
-            print 'mongo.%s %d %s mode=%s' % (metric, ts, v, k)
+            print('mongo.%s %d %s mode=%s' % (metric, ts, v, k))
 
 def runDbStats(c):
     for db_name in DB_NAMES:
@@ -215,7 +217,7 @@ def runDbStats(c):
                     cur = cur[m]
             except KeyError:
                 continue
-            print 'mongo.db.%s %d %s db=%s' % (metric, ts, cur, db_name)
+            print('mongo.db.%s %d %s db=%s' % (metric, ts, cur, db_name))
 
         raw_metrics = res['raw']
         for key, value in raw_metrics.items():
@@ -229,7 +231,7 @@ def runDbStats(c):
                         cur = cur[m]
                 except KeyError:
                     continue
-                print 'mongo.rs.%s %d %s replica=%s db=%s' % (metric, ts, cur, replica_name, db_name)
+                print('mongo.rs.%s %d %s replica=%s db=%s' % (metric, ts, cur, replica_name, db_name))
 
 def runReplSetGetStatus(c):
     res = c.admin.command('replSetGetStatus')
@@ -254,7 +256,7 @@ def runReplSetGetStatus(c):
                     cur = cur[m]
             except KeyError:
                 continue
-            print 'mongo.replica.%s %d %s replica_set=%s replica=%s replica_state=%s replica_health=%s' % (metric, ts, cur, replica_set_name, replica_name, replica_state, replica_health)
+            print('mongo.replica.%s %d %s replica_set=%s replica=%s replica_state=%s replica_health=%s' % (metric, ts, cur, replica_set_name, replica_name, replica_state, replica_health))
 
 def loadEnv():
     global USER, PASS, INTERVAL, DB_NAMES, CONFIG_CONN, MONGOS_CONN, REPLICA_CONN
@@ -284,7 +286,7 @@ def main():
 
     utils.drop_privileges()
     if pymongo is None:
-        print >>sys.stderr, "error: Python module `pymongo' is missing"
+        print("error: Python module `pymongo' is missing", file=sys.stderr)
         return 13
 
     for index, item in enumerate(CONFIG_CONN, start=0):

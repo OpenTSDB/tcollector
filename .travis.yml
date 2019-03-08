@@ -1,8 +1,11 @@
 language: python
 python:
   - "2.7"
+  - "3.4"
+  - "3.5"
+  - "3.6"
 install:
-  - pip install pylint ordereddict mysqlclient
+  - pip install pylint pylint_runner ordereddict mysqlclient requests feedparser prometheus_client
 script:
-  - ./pylint-runner.py -s
+  - pylint_runner --rcfile .pylintrc
   - ./tests.py

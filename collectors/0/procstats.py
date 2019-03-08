@@ -30,8 +30,8 @@ def find_sysfs_numa_stats():
     """Returns a possibly empty list of NUMA stat file names."""
     try:
         nodes = os.listdir(NUMADIR)
-    except OSError, (errno, msg):
-        if errno == 2:  # No such file or directory
+    except OSError as exc:
+        if exc.errno == 2:  # No such file or directory
             return []   # We don't have NUMA stats.
         raise
 
@@ -40,8 +40,8 @@ def find_sysfs_numa_stats():
     for node in nodes:
         try:
             numastats.append(os.path.join(NUMADIR, node, "numastat"))
-        except OSError, (errno, msg):
-            if errno == 2:  # No such file or directory
+        except OSError as exc:
+            if exc.errno == 2:  # No such file or directory
                 continue
             raise
     return numastats
@@ -59,23 +59,23 @@ def print_numa_stats(numafiles):
                           # miss: process wanted another node and got it from
                           # this one instead.
                           ("numa_miss", "miss")):
-            print ("sys.numa.zoneallocs %d %s node=%d type=%s"
+            print("sys.numa.zoneallocs %d %s node=%d type=%s"
                    % (ts, stats[stat], node_id, tag))
         # Count this one as a separate metric because we can't sum up hit +
         # miss + foreign, this would result in double-counting of all misses.
         # See `zone_statistics' in the code of the kernel.
         # foreign: process wanted memory from this node but got it from
         # another node.  So maybe this node is out of free pages.
-        print ("sys.numa.foreign_allocs %d %s node=%d"
+        print("sys.numa.foreign_allocs %d %s node=%d"
                % (ts, stats["numa_foreign"], node_id))
         # When is memory allocated to a node that's local or remote to where
         # the process is running.
         for stat, tag in (("local_node", "local"),
                           ("other_node", "remote")):
-            print ("sys.numa.allocation %d %s node=%d type=%s"
+            print("sys.numa.allocation %d %s node=%d type=%s"
                    % (ts, stats[stat], node_id, tag))
         # Pages successfully allocated with the interleave policy.
-        print ("sys.numa.interleave %d %s node=%d type=hit"
+        print("sys.numa.interleave %d %s node=%d type=hit"
                % (ts, stats["interleave_hit"], node_id))
         numafile.close()
 
@@ -116,8 +116,8 @@ def main():
         for line in f_uptime:
             m = re.match("(\S+)\s+(\S+)", line)
             if m:
-                print "proc.uptime.total %d %s" % (ts, m.group(1))
-                print "proc.uptime.now %d %s" % (ts, m.group(2))
+                print("proc.uptime.total %d %s" % (ts, m.group(1)))
+                print("proc.uptime.now %d %s" % (ts, m.group(2)))
 
         # proc.meminfo
         f_meminfo.seek(0)
@@ -131,7 +131,7 @@ def main():
                 else:
                     value = m.group(2)
                 name = re.sub("\W", "_", m.group(1)).lower().strip("_")
-                print ("proc.meminfo.%s %d %s"
+                print("proc.meminfo.%s %d %s"
                         % (name, ts, value))
 
         # proc.vmstat
@@ -143,7 +143,7 @@ def main():
                 continue
             if m.group(1) in ("pgpgin", "pgpgout", "pswpin",
                               "pswpout", "pgfault", "pgmajfault"):
-                print "proc.vmstat.%s %d %s" % (m.group(1), ts, m.group(2))
+                print("proc.vmstat.%s %d %s" % (m.group(1), ts, m.group(2)))
 
         # proc.stat
         f_stat.seek(0)
@@ -166,17 +166,17 @@ def main():
 
                 # We use zip to ignore fields that don't exist.
                 for value, field_name in zip(fields, cpu_types):
-                    print "proc.stat.cpu%s %d %s type=%s%s" % (metric_percpu,
-                        ts, value, field_name, tags)
+                    print("proc.stat.cpu%s %d %s type=%s%s" % (metric_percpu,
+                        ts, value, field_name, tags))
             elif m.group(1) == "intr":
-                print ("proc.stat.intr %d %s"
-                        % (ts, m.group(2).split()[0]))
+                print(("proc.stat.intr %d %s"
+                        % (ts, m.group(2).split()[0])))
             elif m.group(1) == "ctxt":
-                print "proc.stat.ctxt %d %s" % (ts, m.group(2))
+                print("proc.stat.ctxt %d %s" % (ts, m.group(2)))
             elif m.group(1) == "processes":
-                print "proc.stat.processes %d %s" % (ts, m.group(2))
+                print("proc.stat.processes %d %s" % (ts, m.group(2)))
             elif m.group(1) == "procs_blocked":
-                print "proc.stat.procs_blocked %d %s" % (ts, m.group(2))
+                print("proc.stat.procs_blocked %d %s" % (ts, m.group(2)))
 
         f_loadavg.seek(0)
         ts = int(time.time())
@@ -184,16 +184,16 @@ def main():
             m = re.match("(\S+)\s+(\S+)\s+(\S+)\s+(\d+)/(\d+)\s+", line)
             if not m:
                 continue
-            print "proc.loadavg.1min %d %s" % (ts, m.group(1))
-            print "proc.loadavg.5min %d %s" % (ts, m.group(2))
-            print "proc.loadavg.15min %d %s" % (ts, m.group(3))
-            print "proc.loadavg.runnable %d %s" % (ts, m.group(4))
-            print "proc.loadavg.total_threads %d %s" % (ts, m.group(5))
+            print("proc.loadavg.1min %d %s" % (ts, m.group(1)))
+            print("proc.loadavg.5min %d %s" % (ts, m.group(2)))
+            print("proc.loadavg.15min %d %s" % (ts, m.group(3)))
+            print("proc.loadavg.runnable %d %s" % (ts, m.group(4)))
+            print("proc.loadavg.total_threads %d %s" % (ts, m.group(5)))
 
         f_entropy_avail.seek(0)
         ts = int(time.time())
         for line in f_entropy_avail:
-            print "proc.kernel.entropy_avail %d %s" % (ts, line.strip())
+            print("proc.kernel.entropy_avail %d %s" % (ts, line.strip()))
 
         f_interrupts.seek(0)
         ts = int(time.time())
@@ -219,7 +219,7 @@ def main():
                         sys.stderr.write("Unexpected interrupts value %r in"
                                          " %r: " % (val, cols))
                         break
-                    print ("proc.interrupts %s %s type=%s cpu=%s"
+                    print("proc.interrupts %s %s type=%s cpu=%s"
                            % (ts, val, irq_type, i))
 
         f_softirqs.seek(0)
@@ -240,7 +240,7 @@ def main():
                     sys.stderr.write("Unexpected softirq value %r in"
                                      " %r: " % (val, cols))
                     break
-                print ("proc.softirqs %s %s type=%s cpu=%s"
+                print("proc.softirqs %s %s type=%s cpu=%s"
                        % (ts, val, irq_type, i))
 
         print_numa_stats(numastats)
@@ -251,19 +251,19 @@ def main():
             f = f_scaling_min[cpu_no]
             f.seek(0)
             for line in f:
-                print "proc.scaling.min %d %s cpu=%s" % (ts, line.rstrip('\n'), cpu_no)
+                print("proc.scaling.min %d %s cpu=%s" % (ts, line.rstrip('\n'), cpu_no))
         ts = int(time.time())
         for cpu_no in f_scaling_max.keys():
             f = f_scaling_max[cpu_no]
             f.seek(0)
             for line in f:
-                print "proc.scaling.max %d %s cpu=%s" % (ts, line.rstrip('\n'), cpu_no)
+                print("proc.scaling.max %d %s cpu=%s" % (ts, line.rstrip('\n'), cpu_no))
         ts = int(time.time())
         for cpu_no in f_scaling_cur.keys():
             f = f_scaling_cur[cpu_no]
             f.seek(0)
             for line in f:
-                print "proc.scaling.cur %d %s cpu=%s" % (ts, line.rstrip('\n'), cpu_no)
+                print("proc.scaling.cur %d %s cpu=%s" % (ts, line.rstrip('\n'), cpu_no))
 
         sys.stdout.flush()
         time.sleep(COLLECTION_INTERVAL)

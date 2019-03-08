@@ -98,19 +98,19 @@ class JolokiaCollector():
         """ Take a dict of attributes and print out numerical metric strings
         Recurse if necessary
         """
-        for k, v in d.iteritems():
+        for k, v in d.items():
             # Tack on the name of the attribute
             attribute, more_tags = self.parse_attribute(k.lower(), not_tags)
             metric_name = '.'.join([metric_prefix, attribute])
             my_tags = tags + more_tags
             # If numerical
             if utils.is_numeric(v):
-                print "%s %d %s %s" % (metric_name, timestamp, str(v),
-                                        ' '.join(my_tags))
+                print("%s %d %s %s" % (metric_name, timestamp, str(v),
+                                        ' '.join(my_tags)))
             # If a bool, True=1, False=0
             elif type(v) is bool:
-                print "%s %d %s %s" % (metric_name, timestamp, str(int(v)),
-                                        ' '.join(my_tags))
+                print("%s %d %s %s" % (metric_name, timestamp, str(int(v)),
+                                        ' '.join(my_tags)))
             # Or a dict of more attributes, call ourselves again
             elif type(v) is dict:
                 self.print_metrics(v, metric_name, timestamp, my_tags, not_tags)

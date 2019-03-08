@@ -34,14 +34,21 @@ import sys
 import threading
 import time
 import json
-import urllib2
 import base64
 from logging.handlers import RotatingFileHandler
-from Queue import Queue
-from Queue import Empty
-from Queue import Full
 from optparse import OptionParser
+import collections
 
+PY3 = sys.version_info[0] > 2
+if PY3:
+    import importlib
+    from queue import Queue, Empty, Full # pylint: disable=import-error
+    from urllib.request import Request, urlopen # pylint: disable=maybe-no-member,no-name-in-module,import-error
+    from urllib.error import HTTPError # pylint: disable=maybe-no-member,no-name-in-module,import-error
+
+else:
+    from Queue import Queue, Empty, Full # pylint: disable=maybe-no-member,no-name-in-module,import-error
+    from urllib2 import Request, urlopen, HTTPError # pylint: disable=maybe-no-member,no-name-in-module,import-error
 
 # global variables.
 COLLECTORS = {}
@@ -54,7 +61,7 @@ ALIVE = True
 # Hopefully some kind of supervising daemon will then restart it.
 MAX_UNCAUGHT_EXCEPTIONS = 100
 DEFAULT_PORT = 4242
-MAX_REASONABLE_TIMESTAMP = 1600000000  # Good until September 2020 :)
+MAX_REASONABLE_TIMESTAMP = 2209212000  # Good until Tue  3 Jan 14:00:00 GMT 2040
 # How long to wait for datapoints before assuming
 # a collector is dead and restarting it
 ALLOWED_INACTIVITY_TIME = 600  # seconds
@@ -145,8 +152,8 @@ class Collector(object):
                           self.name, len(out))
                 for line in out.splitlines():
                     LOG.warning('%s: %s', self.name, line)
-        except IOError, (err, msg):
-            if err != errno.EAGAIN:
+        except IOError as exc:
+            if exc.errno != errno.EAGAIN:
                 raise
         except:
             LOG.exception('uncaught exception in stderr read')
@@ -159,8 +166,8 @@ class Collector(object):
             if len(self.buffer):
                 LOG.debug('reading %s, buffer now %d bytes',
                           self.name, len(self.buffer))
-        except IOError, (err, msg):
-            if err != errno.EAGAIN:
+        except IOError as exc:
+            if exc.errno != errno.EAGAIN:
                 raise
         except AttributeError:
             # sometimes the process goes away in another thread and we don't
@@ -327,8 +334,7 @@ class ReaderThread(threading.Thread):
         self.lines_collected += 1
         # If the line contains more than a whitespace between
         # parameters, it won't be interpeted.
-        while '  ' in line:
-            line = line.replace('  ', ' ')
+        line = ' '.join(line.split())
 
         col.lines_received += 1
         if len(line) >= 1024:  # Limit in net.opentsdb.tsd.PipelineFactory
@@ -345,13 +351,14 @@ class ReaderThread(threading.Thread):
             col.lines_invalid += 1
             return
         metric, timestamp, value, tags = parsed.groups()
-        timestamp = int(timestamp)
 
         # If there are more than 11 digits we're dealing with a timestamp
         # with millisecond precision
-        if len(str(timestamp)) > 11:
-            global MAX_REASONABLE_TIMESTAMP
-            MAX_REASONABLE_TIMESTAMP = MAX_REASONABLE_TIMESTAMP * 1000
+        max_timestamp = MAX_REASONABLE_TIMESTAMP
+        if len(timestamp) > 11:
+            max_timestamp = MAX_REASONABLE_TIMESTAMP * 1000
+
+        timestamp = int(timestamp)
 
         # De-dupe detection...  To reduce the number of points we send to the
         # TSD, we suppress sending values of metrics that don't change to
@@ -373,7 +380,7 @@ class ReaderThread(threading.Thread):
                               col.values[key][3], timestamp, value, col.name)
                     col.lines_invalid += 1
                     return
-                elif timestamp >= MAX_REASONABLE_TIMESTAMP:
+                elif timestamp >= max_timestamp:
                     LOG.error("Timestamp is too far out in the future: metric=%s%s"
                               " old_ts=%d, new_ts=%d - ignoring data point"
                               " (value=%r, collector=%s)", metric, tags,
@@ -471,7 +478,7 @@ class SenderThread(threading.Thread):
         # isn't in the blacklist, or until we run out of hosts (i.e. they
         # are all blacklisted, which typically happens when we lost our
         # connectivity to the outside world).
-        for self.current_tsd in xrange(self.current_tsd + 1, len(self.hosts)):
+        for self.current_tsd in range(self.current_tsd + 1, len(self.hosts)):
             hostport = self.hosts[self.current_tsd]
             if hostport not in self.blacklisted_hosts:
                 break
@@ -526,7 +533,7 @@ class SenderThread(threading.Thread):
                     self.send_data()
                 errors = 0  # We managed to do a successful iteration.
             except (ArithmeticError, EOFError, EnvironmentError, LookupError,
-                    ValueError), e:
+                    ValueError) as e:
                 errors += 1
                 if errors > MAX_UNCAUGHT_EXCEPTIONS:
                     shutdown()
@@ -558,7 +565,7 @@ class SenderThread(threading.Thread):
             # closing the connection and indicating that we need to reconnect.
             try:
                 self.tsd.close()
-            except socket.error, msg:
+            except socket.error as msg:
                 pass    # not handling that
             self.time_reconnect = time.time()
             return False
@@ -568,7 +575,7 @@ class SenderThread(threading.Thread):
         LOG.debug('verifying our TSD connection is alive')
         try:
             self.tsd.sendall('version\n')
-        except socket.error, msg:
+        except socket.error as msg:
             self.tsd = None
             self.blacklist_connection()
             return False
@@ -580,7 +587,7 @@ class SenderThread(threading.Thread):
             # connection
             try:
                 buf = self.tsd.recv(bufsize)
-            except socket.error, msg:
+            except socket.error as msg:
                 self.tsd = None
                 self.blacklist_connection()
                 return False
@@ -659,7 +666,7 @@ class SenderThread(threading.Thread):
                 addresses = socket.getaddrinfo(self.host, self.port,
                                                socket.AF_UNSPEC,
                                                socket.SOCK_STREAM, 0)
-            except socket.gaierror, e:
+            except socket.gaierror as e:
                 # Don't croak on transient DNS resolution issues.
                 if e[0] in (socket.EAI_AGAIN, socket.EAI_NONAME,
                             socket.EAI_NODATA):
@@ -674,7 +681,7 @@ class SenderThread(threading.Thread):
                     # if we get here it connected
                     LOG.debug('Connection to %s was successful'%(str(sockaddr)))
                     break
-                except socket.error, msg:
+                except socket.error as msg:
                     LOG.warning('Connection attempt failed to %s:%d: %s',
                                 self.host, self.port, msg)
                 self.tsd.close()
@@ -714,11 +721,11 @@ class SenderThread(threading.Thread):
         # try sending again next time.
         try:
             if self.dryrun:
-                print out
+                print(out)
             else:
                 self.tsd.sendall(out)
             self.sendq = []
-        except socket.error, msg:
+        except socket.error as msg:
             LOG.error('failed to send data: %s', msg)
             try:
                 self.tsd.close()
@@ -759,36 +766,36 @@ class SenderThread(threading.Thread):
                 metric_tags[tag_key] = tag_value
             metric_entry = {}
             metric_entry["metric"] = metric
-            metric_entry["timestamp"] = long(timestamp)
+            metric_entry["timestamp"] = int(timestamp)
             metric_entry["value"] = float(value)
             metric_entry["tags"] = dict(self.tags).copy()
             if len(metric_tags) + len(metric_entry["tags"]) > self.maxtags:
               metric_tags_orig = set(metric_tags)
               subset_metric_keys = frozenset(metric_tags[:len(metric_tags[:self.maxtags-len(metric_entry["tags"])])])
-              metric_tags = dict((k, v) for k, v in metric_tags.iteritems() if k in subset_metric_keys)
+              metric_tags = dict((k, v) for k, v in metric_tags.items() if k in subset_metric_keys)
               LOG.error("Exceeding maximum permitted metric tags - removing %s for metric %s",
                         str(metric_tags_orig - set(metric_tags)), metric)
             metric_entry["tags"].update(metric_tags)
             metrics.append(metric_entry)
 
         if self.dryrun:
-            print "Would have sent:\n%s" % json.dumps(metrics,
+            print("Would have sent:\n%s" % json.dumps(metrics,
                                                       sort_keys=True,
-                                                      indent=4)
+                                                      indent=4))
             return
 
         if((self.current_tsd == -1) or (len(self.hosts) > 1)):
             self.pick_connection()
 
         url = self.build_http_url()
-        LOG.debug("Sending metrics to url", url)
-        req = urllib2.Request(url)
+        LOG.debug("Sending metrics to url: %s", url)
+        req = Request(url)
         if self.http_username and self.http_password:
           req.add_header("Authorization", "Basic %s"
                          % base64.b64encode("%s:%s" % (self.http_username, self.http_password)))
         req.add_header("Content-Type", "application/json")
         try:
-            response = urllib2.urlopen(req, json.dumps(metrics))
+            response = urlopen(req, json.dumps(metrics))
             LOG.debug("Received response %s %s", response.getcode(), response.read().rstrip('\n'))
             # clear out the sendq
             self.sendq = []
@@ -797,7 +804,7 @@ class SenderThread(threading.Thread):
             # for line in response:
             #     print line,
             #     print
-        except urllib2.HTTPError, e:
+        except HTTPError as e:
             LOG.error("Got error %s %s", e, e.read().rstrip('\n'))
             # for line in http_error:
             #   print line,
@@ -968,7 +975,7 @@ def daemonize():
     if os.fork():
         os._exit(0)
     os.chdir("/")
-    os.umask(022)
+    os.umask(0o22)
     os.setsid()
     os.umask(0)
     if os.fork():
@@ -980,8 +987,8 @@ def daemonize():
     os.dup2(stdout.fileno(), 2)
     stdin.close()
     stdout.close()
-    os.umask(022)
-    for fd in xrange(3, 1024):
+    os.umask(0o22)
+    for fd in range(3, 1024):
         try:
             os.close(fd)
         except OSError:  # This FD wasn't opened...
@@ -1171,9 +1178,12 @@ def load_config_module(name, options, tags):
       # Strip the trailing .py
       module = __import__(name[:-3], d, d)
     else:
-      module = reload(name)
+        if PY3:
+            module = importlib.reload(name) # pylint: disable=no-member,undefined-variable
+        else:
+            module = reload(name) # pylint: disable=undefined-variable
     onload = module.__dict__.get('onload')
-    if callable(onload):
+    if isinstance(onload, collections.Callable):
         try:
             onload(options, tags)
         except:
@@ -1198,7 +1208,7 @@ def reload_changed_config_modules(modules, options, sender, tags):
     changed = False
 
     # Reload any module that has changed.
-    for path, (module, timestamp) in modules.iteritems():
+    for path, (module, timestamp) in modules.items():
         if path not in current_paths:  # Module was removed.
             continue
         mtime = os.path.getmtime(path)
@@ -1236,8 +1246,7 @@ def write_pid(pidfile):
 
 def all_collectors():
     """Generator to return all collectors."""
-
-    return COLLECTORS.itervalues()
+    return COLLECTORS.values()
 
 
 # collectors that are not marked dead
@@ -1269,7 +1278,10 @@ def shutdown_signal(signum, frame):
 
 
 def kill(proc, signum=signal.SIGTERM):
-  os.killpg(proc.pid, signum)
+  try:
+    os.killpg(proc.pid, signum)
+  except: # pylint: disable=bare-except
+    LOG.info('already killed: %s', proc.pid)
 
 
 def shutdown():
@@ -1359,7 +1371,7 @@ def spawn_collector(col):
                                     stderr=subprocess.PIPE,
                                     close_fds=True,
                                     preexec_fn=os.setsid)
-    except OSError, e:
+    except OSError as e:
         LOG.error('Failed to spawn collector %s: %s' % (col.filename, e))
         return
     # The following line needs to move below this line because it is used in

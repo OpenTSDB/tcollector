@@ -14,6 +14,8 @@
 #
 """Imports NFS stats from /proc."""
 
+from __future__ import print_function
+
 import sys
 import time
 
@@ -49,8 +51,8 @@ def main():
 
     try:
         f_nfs = open("/proc/net/rpc/nfs")
-    except IOError, e:
-        print >>sys.stderr, "Failed to open input file: %s" % (e,)
+    except IOError as e:
+        print("Failed to open input file: %s" % (e,), file=sys.stderr)
         return 13  # Ask tcollector to not re-start us immediately.
 
     utils.drop_privileges()
@@ -67,19 +69,19 @@ def main():
                     % (int(fields[1]), len(fields[2:])))
                 for idx, val in enumerate(fields[2:]):
                     try:
-                        print ("nfs.client.rpc %d %s op=%s version=%s"
+                        print("nfs.client.rpc %d %s op=%s version=%s"
                                % (ts, int(val), nfs_client_proc_names[fields[0]][idx], fields[0][4:]))
                     except IndexError:
-                        print >> sys.stderr, ("Warning: name lookup failed"
-                                              " at position %d" % idx)
+                        print("Warning: name lookup failed"
+                                              " at position %d" % idx, file=sys.stderr)
             elif fields[0] == "rpc":
                 # RPC
                 calls = int(fields[1])
                 retrans = int(fields[2])
                 authrefrsh = int(fields[3])
-                print "nfs.client.rpc.stats %d %d type=calls" % (ts, calls)
-                print "nfs.client.rpc.stats %d %d type=retrans" % (ts, retrans)
-                print ("nfs.client.rpc.stats %d %d type=authrefrsh"
+                print("nfs.client.rpc.stats %d %d type=calls" % (ts, calls))
+                print("nfs.client.rpc.stats %d %d type=retrans" % (ts, retrans))
+                print("nfs.client.rpc.stats %d %d type=authrefrsh"
                        % (ts, authrefrsh))
 
         sys.stdout.flush()

@@ -18,7 +18,7 @@ import sys
 import threading
 import traceback
 
-import eossdk
+import eossdk # pylint: disable=import-error
 
 tracer = eossdk.Tracer("tcollectorAgent")
 warn = tracer.trace0
@@ -200,7 +200,7 @@ class TcollectorAgent(eossdk.AgentHandler,
          self.get_agent_mgr().status_set("has_tcollector_py", "True")
          self.module_.LOG = SdkLogger("tcollector")
          self.module_.setup_logging()
-      except IOError, e:
+      except IOError as e:
          import errno
          if e.errno != errno.ENOENT:
             raise
@@ -225,12 +225,12 @@ class TcollectorAgent(eossdk.AgentHandler,
    def _socket_at(self, family, socktype, proto):
       vrf = self.get_agent_mgr().agent_option("vrf") or ""
       fd = self.vrf_mgr_.socket_at(family, socktype, proto, vrf)
-      return socket._socketobject(_sock=socket.fromfd(fd, family, socktype, proto))
+      return socket._socketobject(_sock=socket.fromfd(fd, family, socktype, proto)) # pylint: disable=no-member
 
    def on_hostname(self, hostname):
       debug("Hostname changed to", hostname)
       self.tags_["host"] = hostname
-      self.sender_thread_.tags = sorted(self.tags_.iteritems())
+      self.sender_thread_.tags = sorted(self.tags_.items())
 
    def start(self):
       tcollector = self.module_

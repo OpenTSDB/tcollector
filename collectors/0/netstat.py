@@ -57,6 +57,8 @@ Metrics from /proc/net/netstat (`netstat -s' command):
   - net.stat.tcp.syncookies: SYN cookies (both sent & received).
 """
 
+from __future__ import print_function
+
 import re
 import resource
 import sys
@@ -76,8 +78,8 @@ def main():
         sockstat = open("/proc/net/sockstat")
         netstat = open("/proc/net/netstat")
         snmp = open("/proc/net/snmp")
-    except IOError, e:
-        print >>sys.stderr, "open failed: %s" % e
+    except IOError as e:
+        print("open failed: %s" % e, file=sys.stderr)
         return 13  # Ask tcollector to not re-start us.
     utils.drop_privileges()
 
@@ -101,7 +103,7 @@ def main():
 
     def print_sockstat(metric, value, tags=""):  # Note: tags must start with ' '
         if value is not None:
-            print "net.sockstat.%s %d %s%s" % (metric, ts, value, tags)
+            print("net.sockstat.%s %d %s%s" % (metric, ts, value, tags))
 
 
     # If a line in /proc/net/{netstat,snmp} doesn't start with a word in that
@@ -255,8 +257,8 @@ def main():
             space = " "
         else:
             tags = space = ""
-        print "net.stat.%s.%s %d %s%s%s" % (statstype, metric, ts, value,
-                                            space, tags)
+        print("net.stat.%s.%s %d %s%s%s" % (statstype, metric, ts, value,
+                                            space, tags))
 
     def parse_stats(stats, filename):
         statsdikt = {}
@@ -278,20 +280,20 @@ def main():
             assert header[0] == data[0], repr((header, data))
             assert len(header) == len(data), repr((header, data))
             if header[0] not in known_statstypes:
-                print >>sys.stderr, ("Unrecoginized line in %s:"
-                                     " %r (file=%r)" % (filename, header, stats))
+                print("Unrecoginized line in %s:"
+                                     " %r (file=%r)" % (filename, header, stats), file=sys.stderr)
                 continue
             statstype = header.pop(0)
             data.pop(0)
             stats = dict(zip(header, data))
             statsdikt.setdefault(known_statstypes[statstype], {}).update(stats)
-        for statstype, stats in statsdikt.iteritems():
+        for statstype, stats in statsdikt.items():
             # Undo the kernel's double counting
             if "ListenDrops" in stats:
                 stats["ListenDrops"] = int(stats["ListenDrops"]) - int(stats.get("ListenOverflows", 0))
             elif "RcvbufErrors" in stats:
                 stats["InErrors"] = int(stats.get("InErrors", 0)) - int(stats["RcvbufErrors"])
-            for stat, (metric, tags) in known_stats[statstype].iteritems():
+            for stat, (metric, tags) in known_stats[statstype].items():
                 value = stats.get(stat)
                 if value is not None:
                     print_netstat(statstype, metric, value, tags)
@@ -306,7 +308,7 @@ def main():
         snmpstats = snmp.read()
         m = re.match(regexp, data)
         if not m:
-            print >>sys.stderr, "Cannot parse sockstat: %r" % data
+            print("Cannot parse sockstat: %r" % data, file=sys.stderr)
             return 13
 
         # The difference between the first two values is the number of
