@@ -22,6 +22,13 @@ import glob
 
 from collectors.lib import utils
 
+INTERRUPTS_INTVL_MULT = 4 # query softirqs every SOFTIRQS_INT_MULT * COLLECTION_INTERVAL seconds
+SOFTIRQS_INTVL_MULT = 4 # query softirqs every SOFTIRQS_INT_MULT * COLLECTION_INTERVAL seconds
+#RHEL 7
+CPUSET_PATH = "/sys/fs/cgroup/cpuset"
+if os.path.isdir("/dev/cpuset"):
+    #RHEL 6
+    CPUSET_PATH = "/dev/cpuset"
 COLLECTION_INTERVAL = 15  # seconds
 NUMADIR = "/sys/devices/system/node"
 
@@ -79,6 +86,58 @@ def print_numa_stats(numafiles):
                % (ts, stats["interleave_hit"], node_id))
         numafile.close()
 
+def expand_numlist(s):
+    """return a list of numbers from a list with ranges,
+       e.g. 4,5-10,14-16"""
+    r = []
+    for i in s.split(','):
+        if '-' not in i:
+            r.append(int(i))
+        else:
+            l,h = map(int, i.split('-'))
+            r+= range(l,h+1)
+    return r
+
+def cpus_csets(cpuset_path):
+    """Return a hash of cpu_id_as_string->cset_name"""
+    try:
+        csets = os.listdir(cpuset_path)
+    except OSError (errno, msg):
+        if errno == 2: # No such file or directory
+           return {}   # We don't have csets
+        raise
+
+    csets = [cset for cset in csets if os.path.isdir(os.path.join(cpuset_path, cset))]
+
+    cpu2cset = {}
+    for cset in csets:
+       cpuspath = os.path.join(cpuset_path, cset, 'cpuset.cpus')
+       if not os.path.isfile(cpuspath):
+          cpuspath = os.path.join(cpuset_path, cset, 'cpus')
+       if not os.path.isfile(cpuspath):
+          # No such file?? Ignore csets
+          sys.stderr.write("No 'cpuset.cpus' or 'cpus' file in %s!" % os.path.join(cpuset_path, cset))
+          continue
+
+       try:
+           f_cpus = open(cpuspath)
+       except:
+           # Ignore that one and continue
+           sys.stderr.write("Could not open %s!" % cpuspath)
+           continue
+
+       format_errors = 0
+       for line in f_cpus:
+           m = re.match('^[-0-9,]+$', line)
+           if m:
+               for c in expand_numlist(line):
+                   cpu2cset[str(c)] = cset
+           else:
+               format_errors += 1
+       if format_errors > 0:
+           sys.stderr.write("%d line(s) of %s were not in the expected format" % (format_errors, cpuspath))
+
+    return cpu2cset
 
 def main():
     """procstats main loop"""
@@ -109,7 +168,9 @@ def main():
     numastats = find_sysfs_numa_stats()
     utils.drop_privileges()
 
+    iteration = -1
     while True:
+        iteration += 1
         # proc.uptime
         f_uptime.seek(0)
         ts = int(time.time())
@@ -148,6 +209,7 @@ def main():
         # proc.stat
         f_stat.seek(0)
         ts = int(time.time())
+        cpu2cset = cpus_csets(CPUSET_PATH)
         for line in f_stat:
             m = re.match("(\w+)\s+(.*)", line)
             if not m:
@@ -156,7 +218,11 @@ def main():
                 cpu_m = re.match("cpu(\d+)", m.group(1))
                 if cpu_m:
                     metric_percpu = '.percpu'
-                    tags = ' cpu=%s' % cpu_m.group(1)
+                    cpu_i = cpu_m.group(1)
+                    if cpu_i in cpu2cset:
+                        tags = ' cpu=%s cpuset=%s' % (cpu_i, cpu2cset[cpu_i])
+                    else:
+                        tags = ' cpu=%s cpuset=none' % cpu_m.group(1)
                 else:
                     metric_percpu = ''
                     tags = ''
@@ -195,33 +261,49 @@ def main():
         for line in f_entropy_avail:
             print("proc.kernel.entropy_avail %d %s" % (ts, line.strip()))
 
-        f_interrupts.seek(0)
-        ts = int(time.time())
-        # Get number of CPUs from description line.
-        num_cpus = len(f_interrupts.readline().split())
-        for line in f_interrupts:
-            cols = line.split()
+        # Only get softirqs stats every INTERRUPTS_INT_MULT iterations
+        if iteration % INTERRUPTS_INTVL_MULT == 0:
+            f_interrupts.seek(0)
+            ts = int(time.time())
+            # Get number of CPUs from description line.
+            num_cpus = len(f_interrupts.readline().split())
 
-            irq_type = cols[0].rstrip(":")
-            if irq_type.isalnum():
-                if irq_type.isdigit():
-                    if cols[-2] == "PCI-MSI-edge" and "eth" in cols[-1]:
-                        irq_type = cols[-1]
-                    else:
-                        continue  # Interrupt type is just a number, ignore.
-                for i, val in enumerate(cols[1:]):
-                    if i >= num_cpus:
-                        # All values read, remaining cols contain textual
-                        # description
-                        break
-                    if not val.isdigit():
-                        # something is weird, there should only be digit values
-                        sys.stderr.write("Unexpected interrupts value %r in"
-                                         " %r: " % (val, cols))
-                        break
-                    print("proc.interrupts %s %s type=%s cpu=%s"
-                           % (ts, val, irq_type, i))
+            interrupt_dict = {}
+            for line in f_interrupts:
+                cols = line.split()
 
+                irq_type = cols[0].rstrip(":")
+                if irq_type.isalnum():
+                    if irq_type.isdigit():
+                        if cols[-2] == "PCI-MSI-edge" and "eth" in cols[-1]:
+                            irq_type = cols[-1]
+                        else:
+                            continue  # Interrupt type is just a number, ignore.
+                    # Strip the thread number from the irq_type, e.g. eth8-8 -> eth8
+                    m = re.match('^(.*)-\d+$', irq_type)
+                    if m:
+                        irq_type = m.group(1)
+
+                    for i, val in enumerate(cols[1:]):
+                        if i >= num_cpus:
+                            # All values read, remaining cols contain textual
+                            # description
+                            break
+                        if not val.isdigit():
+                            # something is weird, there should only be digit values
+                            sys.stderr.write("Unexpected interrupts value %r in"
+                                             " %r: " % (val, cols))
+                            break
+                        k = "type=%s cpu=%s" % (irq_type, i)
+                        if k in interrupt_dict:
+                            interrupt_dict[k] += int(val)
+                        else:
+                            interrupt_dict[k] = int(val)
+
+            for k in interrupt_dict:
+                print ("proc.interrupts %s %d %s" % (ts, interrupt_dict[k], k))
+
+        # Only get softirqs stats every SOFTIRQS_INT_MULT iterations
         f_softirqs.seek(0)
         ts = int(time.time())
         # Get number of CPUs from description line.
@@ -230,18 +312,18 @@ def main():
             cols = line.split()
 
             irq_type = cols[0].rstrip(":")
-            for i, val in enumerate(cols[1:]):
-                if i >= num_cpus:
-                    # All values read, remaining cols contain textual
-                    # description
-                    break
-                if not val.isdigit():
-                    # something is weird, there should only be digit values
-                    sys.stderr.write("Unexpected softirq value %r in"
-                                     " %r: " % (val, cols))
-                    break
-                print("proc.softirqs %s %s type=%s cpu=%s"
-                       % (ts, val, irq_type, i))
+        for i, val in enumerate(cols[1:]):
+            if i >= num_cpus:
+                # All values read, remaining cols contain textual
+                # description
+                break
+            if not val.isdigit():
+                # something is weird, there should only be digit values
+                sys.stderr.write("Unexpected softirq value %r in"
+                                    " %r: " % (val, cols))
+                break
+            print ("proc.softirqs %s %s type=%s cpu=%s"
+                    % (ts, val, irq_type, i))
 
         print_numa_stats(numastats)
 

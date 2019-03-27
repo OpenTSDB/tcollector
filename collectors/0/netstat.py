@@ -221,6 +221,10 @@ def main():
         # We received something but had to drop it because the socket's
         # receive queue was full.
         "TCPBacklogDrop": ("receive.queue.full", None),
+        # The number of TCP segments sent containing the RST flag
+        "OutRsts": ("resets", "direction=out"),
+        # The total number of segments received in error (for example, bad TCP checksums).
+        "InErrs": ("errors", "direction=in"),
     }
     known_stats = {
         "tcp": tcp_stats,
@@ -281,7 +285,7 @@ def main():
             assert len(header) == len(data), repr((header, data))
             if header[0] not in known_statstypes:
                 print("Unrecoginized line in %s:"
-                                     " %r (file=%r)" % (filename, header, stats), file=sys.stderr)
+                      " %r (file=%r)" % (filename, header, stats), file=sys.stderr)
                 continue
             statstype = header.pop(0)
             data.pop(0)
@@ -324,8 +328,8 @@ def main():
         print_sockstat("memory", int(m.group("tcp_pages")) * page_size,
                        " type=tcp")
         if m.group("udp_pages") is not None:
-          print_sockstat("memory", int(m.group("udp_pages")) * page_size,
-                         " type=udp")
+            print_sockstat("memory", int(m.group("udp_pages")) * page_size,
+                           " type=udp")
         print_sockstat("memory", m.group("ip_frag_mem"), " type=ipfrag")
         print_sockstat("ipfragqueues", m.group("ip_frag_nqueues"))
 

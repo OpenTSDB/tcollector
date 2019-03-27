@@ -23,7 +23,7 @@
 TSD_HOST=tsd
 TSD_PORT=4242
 THIS_HOST=`hostname`
-TCOLLECTOR=${TCOLLECTOR-HOMEDIR/tcollector.py}
+TCOLLECTOR=${TCOLLECTOR-/usr/local/tcollector/tcollector.py}
 PIDFILE=${PIDFILE-/var/run/tcollector.pid}
 LOGFILE=${LOGFILE-/var/log/tcollector.log}
 LOGFILE_MAX_BYTES=${LOGFILE_MAX_BYTES-67108864}

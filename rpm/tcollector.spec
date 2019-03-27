@@ -28,6 +28,7 @@ package will install the tcollector.py along with
 
 %install
 mkdir -p %{buildroot}/%{collectorsdir}/0/
+mkdir -p %{buildroot}/%{collectorsdir}/300/
 mkdir -p %{buildroot}/etc/init.d/
 
 # set homedir in init script
@@ -45,6 +46,7 @@ mkdir -p %{buildroot}%{tcollectordir}/collectors/etc/
 
 # Install Collectors
 %{__install} -m 0755 -D %{srccollectors}/0/* %{buildroot}%{collectorsdir}/0/
+%{__install} -m 0755 -D %{srccollectors}/300/* %{buildroot}%{collectorsdir}/300/
 
 # Install EOS files
 %{__install} -m 0755 -D %{eosdir}/collectors/agent*.sh %{buildroot}/%{collectorsdir}/0/
@@ -66,6 +68,7 @@ mkdir -p %{buildroot}/%{py2_sitelib}/
 %dir %{tcollectordir}/collectors/etc/
 %{tcollectordir}/collectors/etc/__init__.py
 %{tcollectordir}/collectors/etc/config.py
+%{tcollectordir}/collectors/etc/elasticsearch_conf.py
 %{tcollectordir}/collectors/etc/flume_conf.py
 %{tcollectordir}/collectors/etc/g1gc_conf.py
 %{tcollectordir}/collectors/etc/graphite_bridge_conf.py

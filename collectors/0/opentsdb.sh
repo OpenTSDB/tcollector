@@ -14,11 +14,18 @@
 
 # Collects OpenTSDB's own stats.
 
+# This must be started as "nobody" (e.g. via the wrapper script) as an InfoSec requirement.
+[[ $(whoami) != "nobody" ]] && exit 13
+
 TSD_HOST=localhost
 TSD_PORT=4242
 COLLECTION_INTERVAL=15
 
-nc -z $TSD_HOST $TSD_PORT >/dev/null || exit 13
+if [ -e /usr/bin/ncat ] ; then
+    ncat --send-only $TSD_HOST $TSD_PORT < /dev/null &> /dev/null || exit 13
+else
+    nc -z $TSD_HOST $TSD_PORT >/dev/null || exit 13
+fi
 
 while :; do
   echo stats || exit
