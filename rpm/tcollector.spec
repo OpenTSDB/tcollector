@@ -28,6 +28,7 @@ package will install the tcollector.py along with
 
 %install
 mkdir -p %{buildroot}/%{collectorsdir}/0/
+mkdir -p %{buildroot}/%{collectorsdir}/300/
 mkdir -p %{buildroot}/etc/init.d/
 
 # set homedir in init script
@@ -45,6 +46,7 @@ mkdir -p %{buildroot}%{tcollectordir}/collectors/etc/
 
 # Install Collectors
 %{__install} -m 0755 -D %{srccollectors}/0/* %{buildroot}%{collectorsdir}/0/
+%{__install} -m 0755 -D %{srccollectors}/300/* %{buildroot}%{collectorsdir}/300/
 
 # Install EOS files
 %{__install} -m 0755 -D %{eosdir}/collectors/agent*.sh %{buildroot}/%{collectorsdir}/0/
