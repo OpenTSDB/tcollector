@@ -27,6 +27,7 @@ from collectors.lib.mysql_utils import (
     is_yes,
     now,
     print_metric,
+    get_role_status,
 )
 
 COLLECTION_INTERVAL = 15  # seconds
