@@ -22,6 +22,7 @@ import time
 import yaml
 
 import MySQLdb
+import commands
 
 from collectors.etc import mysqlconf
 from collectors.lib import utils
@@ -275,6 +276,19 @@ def now():
 def is_yes(s):
     if s.lower() == "yes":
         return 1
+    return 0
+
+
+def get_role_status():
+    ms_checker_host = "localhost:3300"
+    command_is_salve = "curl " + ms_checker_host + "/checkSlave"
+    s, o = commands.getstatusoutput(command_is_salve)
+    if o == "" or s != 0:
+        print "Error checking mysql role"
+    elif s == 0:
+        if "not" not in o.lower():
+            return 1
+
     return 0
 
 

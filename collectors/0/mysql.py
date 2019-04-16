@@ -145,6 +145,8 @@ def collect(db):
                      is_yes(db.slave_status["slave_io_running"]))
         print_metric(db, ts, "slave.thread_sql_running",
                      is_yes(db.slave_status["slave_sql_running"]))
+        print_metric(db, ts, "slave.is_repl_slave",
+                     get_role_status())
 
     # Ouput InnoDB related metrics
     has_innodb = False
