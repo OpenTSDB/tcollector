@@ -284,8 +284,9 @@ def get_role_status():
     command_is_salve = "curl " + ms_checker_host + "/checkSlave"
     s, o = commands.getstatusoutput(command_is_salve)
     if o == "" or s != 0:
-        print "Error checking mysql role"
+        utils.err("Error checking mysql role, status %s" % s)
     elif s == 0:
+        utils.err("INFO: status msg: %s" % o)
         if "not" not in o.lower():
             return 1
 
