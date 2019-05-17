@@ -147,7 +147,7 @@ def collect_tcollect_stats(processes):
 
         # if <collector> is executed with "python <collector.py>",
         # ensure <collector.py> is used as name
-        if p.comm == "python":
+        if p.comm == "python" and p.cmdline is not None:
             comm = p.cmdline[1].split('/')[-1]
         else:
             comm = p.comm

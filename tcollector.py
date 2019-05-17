@@ -351,14 +351,20 @@ class ReaderThread(threading.Thread):
             col.lines_invalid += 1
             return
         metric, timestamp, value, tags = parsed.groups()
+        try:
+            # The regex above is fairly open, and would leave values like 'True' through
+            testvalue = float(value)
+        except:
+            LOG.warning('%s sent invalid value: %s', col.name, line)
+            col.lines_invalid += 1
+            return
+        timestamp = int(timestamp)
 
         # If there are more than 11 digits we're dealing with a timestamp
         # with millisecond precision
         max_timestamp = MAX_REASONABLE_TIMESTAMP
         if len(timestamp) > 11:
             max_timestamp = MAX_REASONABLE_TIMESTAMP * 1000
-
-        timestamp = int(timestamp)
 
         # De-dupe detection...  To reduce the number of points we send to the
         # TSD, we suppress sending values of metrics that don't change to
