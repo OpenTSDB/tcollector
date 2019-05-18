@@ -304,26 +304,28 @@ def main():
                 print ("proc.interrupts %s %d %s" % (ts, interrupt_dict[k], k))
 
         # Only get softirqs stats every SOFTIRQS_INT_MULT iterations
-        f_softirqs.seek(0)
-        ts = int(time.time())
-        # Get number of CPUs from description line.
-        num_cpus = len(f_softirqs.readline().split())
-        for line in f_softirqs:
-            cols = line.split()
+        if iteration % SOFTIRQS_INTVL_MULT == 0:
+            f_softirqs.seek(0)
+            ts = int(time.time())
+            # Get number of CPUs from description line.
+            num_cpus = len(f_softirqs.readline().split())
+            for line in f_softirqs:
+                cols = line.split()
 
-            irq_type = cols[0].rstrip(":")
-        for i, val in enumerate(cols[1:]):
-            if i >= num_cpus:
-                # All values read, remaining cols contain textual
-                # description
-                break
-            if not val.isdigit():
-                # something is weird, there should only be digit values
-                sys.stderr.write("Unexpected softirq value %r in"
-                                    " %r: " % (val, cols))
-                break
-            print ("proc.softirqs %s %s type=%s cpu=%s"
-                    % (ts, val, irq_type, i))
+                irq_type = cols[0].rstrip(":")
+
+		for i, val in enumerate(cols[1:]):
+		    if i >= num_cpus:
+		        # All values read, remaining cols contain textual
+		        # description
+		        break
+		    if not val.isdigit():
+		        # something is weird, there should only be digit values
+		        sys.stderr.write("Unexpected softirq value %r in"
+		                            " %r: " % (val, cols))
+		        break
+		    print ("proc.softirqs %s %s type=%s cpu=%s"
+		            % (ts, val, irq_type, i))
 
         print_numa_stats(numastats)
 
