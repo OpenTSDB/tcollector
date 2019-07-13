@@ -18,7 +18,11 @@ TSD_HOST=localhost
 TSD_PORT=4242
 COLLECTION_INTERVAL=15
 
-nc -z $TSD_HOST $TSD_PORT >/dev/null || exit 13
+if [ -e /usr/bin/ncat ] ; then
+    ncat --send-only $TSD_HOST $TSD_PORT < /dev/null &> /dev/null || exit 13
+else
+    nc -z $TSD_HOST $TSD_PORT >/dev/null || exit 13
+fi
 
 while :; do
   echo stats || exit
