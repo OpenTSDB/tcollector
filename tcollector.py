@@ -234,6 +234,15 @@ class Collector(object):
             if time < cut_off:
                 del self.values[key]
 
+    def to_json(self):
+        """Expose collector information in JSON-serializable format."""
+        result = {}
+        for attr in ["name", "mtime", "lastspawn", "killstate", "nextkill",
+                     "lines_sent", "lines_received", "lines_invalid",
+                     "last_datapoint", "dead"]:
+            result[attr] = getattr(self, attr)
+        return result
+
 
 class StdinCollector(Collector):
     """A StdinCollector simply reads from STDIN and provides the

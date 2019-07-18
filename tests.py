@@ -59,6 +59,26 @@ class CollectorsTests(unittest.TestCase):
             "/collectors/0"
         check_access_rights(collectors_path)
 
+    def test_json(self):
+        """A collector can be serialized to JSON."""
+        collector = tcollector.Collector("myname", 17, "myname.py", mtime=23, lastspawn=15)
+        collector.nextkill += 8
+        collector.killstate += 2
+        collector.lines_sent += 10
+        collector.lines_received += 65
+        collector.lines_invalid += 7
+        self.assertEqual(collector.to_json(),
+                         {"name": "myname",
+                          "mtime": 23,
+                          "lastspawn": 15,
+                          "killstate": 2,
+                          "nextkill": 8,
+                          "lines_sent": 10,
+                          "lines_received": 65,
+                          "lines_invalid": 7,
+                          "last_datapoint": collector.last_datapoint,
+                          "dead": False})
+
 
 class TSDBlacklistingTests(unittest.TestCase):
     """
