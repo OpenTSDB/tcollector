@@ -45,10 +45,11 @@ if PY3:
     from queue import Queue, Empty, Full # pylint: disable=import-error
     from urllib.request import Request, urlopen # pylint: disable=maybe-no-member,no-name-in-module,import-error
     from urllib.error import HTTPError # pylint: disable=maybe-no-member,no-name-in-module,import-error
-
+    from http.server import HTTPServer, BaseHTTPRequestHandler # pylint: disable=maybe-no-member,no-name-in-module,import-error
 else:
     from Queue import Queue, Empty, Full # pylint: disable=maybe-no-member,no-name-in-module,import-error
     from urllib2 import Request, urlopen, HTTPError # pylint: disable=maybe-no-member,no-name-in-module,import-error
+    from BaseHTTPServer import HTTPServer, BaseHTTPRequestHandler # pylint: disable=maybe-no-member,no-name-in-module,import-error
 
 # global variables.
 COLLECTORS = {}
@@ -244,6 +245,39 @@ class Collector(object):
         return result
 
 
+class StatusRequestHandler(BaseHTTPRequestHandler):
+    """Serves status of collectors as JSON."""
+
+    def do_GET(self):
+        # This happens in different thread than the one updating collectors.
+        # However, all the attributes we're getting can't be corrupted by
+        # another thread changing them midway (it's integers and strings and
+        # the like), so worst case it's a tiny bit internally inconsistent.
+        # Which is fine for monitoring.
+        result = json.dumps([c.to_json() for c in self.server.collectors.values()])
+        self.send_response(200)
+        self.send_header("content-type", "text/json")
+        self.send_header("content-length", str(len(result)))
+        self.end_headers()
+        if PY3:
+            result = result.encode("utf-8")
+        self.wfile.write(result)
+
+
+class StatusServer(HTTPServer):
+    """Serves status of collectors over HTTP."""
+
+    def __init__(self, interface, port, collectors):
+        """
+        interface: the interface to listen on, e.g. "127.0.0.1".
+        port: the port to listen on, e.g. 8080.
+        collectors: a dictionary mapping names to Collectors, typically the
+                    global COLLECTORS.
+        """
+        self.collectors = collectors
+        HTTPServer.__init__(self, (interface, port), StatusRequestHandler)
+
+
 class StdinCollector(Collector):
     """A StdinCollector simply reads from STDIN and provides the
        data.  This collector presents a uniform interface for the
@@ -274,6 +308,8 @@ class StdinCollector(Collector):
     def shutdown(self):
 
         pass
+
+
 
 
 class ReaderThread(threading.Thread):
@@ -870,7 +906,9 @@ def parse_cmdline(argv):
             'ssl': False,
             'stdin': False,
             'daemonize': False,
-            'hosts': False
+            'hosts': False,
+            "listen_interface": None,
+            "listen_port": 13280,
         }
     except:
         sys.stderr.write("Unexpected error: %s" % sys.exc_info()[0])
@@ -965,6 +1003,12 @@ def parse_cmdline(argv):
                       help='Password to use for HTTP Basic Auth when sending the data via HTTP')
     parser.add_option('--ssl', dest='ssl', action='store_true', default=defaults['ssl'],
                       help='Enable SSL - used in conjunction with http')
+    parser.add_option('--listen-interface', dest='listen_host', action='store', default=defaults["listen_interface"],
+                      help="Interface for status API to listen on " +
+                           "(e.g. '127.0.0.1, 0.0.0.0). " +
+                           "Disabled by default.")
+    parser.add_option('--listen-port', dest='listen_port', action='store', default=defaults["listen_port"],
+                      help="Port for status API to listen on.")
     (options, args) = parser.parse_args(args=argv[1:])
     if options.dedupinterval < 0:
         parser.error('--dedup-interval must be at least 0 seconds')
