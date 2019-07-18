@@ -910,8 +910,8 @@ def parse_cmdline(argv):
             "listen_interface": None,
             "listen_port": 13280,
         }
-    except:
-        sys.stderr.write("Unexpected error: %s" % sys.exc_info()[0])
+    except Exception as e:
+        sys.stderr.write("Unexpected error: %s\n" % e)
         raise
 
     # get arguments
@@ -1003,11 +1003,14 @@ def parse_cmdline(argv):
                       help='Password to use for HTTP Basic Auth when sending the data via HTTP')
     parser.add_option('--ssl', dest='ssl', action='store_true', default=defaults['ssl'],
                       help='Enable SSL - used in conjunction with http')
-    parser.add_option('--listen-interface', dest='listen_host', action='store', default=defaults["listen_interface"],
+    parser.add_option('--listen-interface', dest='listen_interface', action='store',
+                      # Old installs may not have this config option:
+                      default=defaults.get("listen_interface", None),
                       help="Interface for status API to listen on " +
                            "(e.g. '127.0.0.1, 0.0.0.0). " +
                            "Disabled by default.")
-    parser.add_option('--listen-port', dest='listen_port', action='store', default=defaults["listen_port"],
+    parser.add_option('--listen-port', dest='listen_port', action='store',
+                      default=defaults.get("listen_port", 13280),
                       help="Port for status API to listen on.")
     (options, args) = parser.parse_args(args=argv[1:])
     if options.dedupinterval < 0:
@@ -1069,7 +1072,7 @@ def main(argv):
         options, args = parse_cmdline(argv)
     except:
         sys.stderr.write("Unexpected error: %s" % sys.exc_info()[0])
-        return 1
+        raise#return 1
 
     if options.daemonize:
         daemonize()
@@ -1108,6 +1111,13 @@ def main(argv):
     atexit.register(shutdown)
     for sig in (signal.SIGTERM, signal.SIGINT):
         signal.signal(sig, shutdown_signal)
+
+    # Status server, if it's configured:
+    if options.listen_interface is not None:
+        status_server = StatusServer(options.listen_interface, options.listen_port, COLLECTORS)
+        thread = threading.Thread(target=status_server.serve_forever)
+        thread.setDaemon(True)  # keep thread from preventing shutdown
+        thread.start()
 
     # at this point we're ready to start processing, so start the ReaderThread
     # so we can have it running and pulling in data for us
