@@ -188,6 +188,11 @@ def get_houzz_db_name():
         if m:
             return m.group(2)
         else:
+            # handle new host name for ubuntu upgrade
+            m = re.match(r'mysql-([^-]+)-.+', hostname.split('.')[0])
+            if m:
+                return m.group(1)
+            
             return "main"
     return "default"
 
