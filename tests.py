@@ -19,6 +19,8 @@ import unittest
 
 import mocks
 import tcollector
+import json
+import threading
 
 PY3 = sys.version_info[0] > 2
 
@@ -58,6 +60,45 @@ class CollectorsTests(unittest.TestCase):
         collectors_path = os.path.dirname(os.path.abspath(__file__)) + \
             "/collectors/0"
         check_access_rights(collectors_path)
+
+    def test_json(self):
+        """A collector can be serialized to JSON."""
+        collector = tcollector.Collector("myname", 17, "myname.py", mtime=23, lastspawn=15)
+        collector.nextkill += 8
+        collector.killstate += 2
+        collector.lines_sent += 10
+        collector.lines_received += 65
+        collector.lines_invalid += 7
+        self.assertEqual(collector.to_json(),
+                         {"name": "myname",
+                          "mtime": 23,
+                          "lastspawn": 15,
+                          "killstate": 2,
+                          "nextkill": 8,
+                          "lines_sent": 10,
+                          "lines_received": 65,
+                          "lines_invalid": 7,
+                          "last_datapoint": collector.last_datapoint,
+                          "dead": False})
+
+
+class StatusServerTests(unittest.TestCase):
+    """Tests for StatusServer."""
+
+    def test_endtoend(self):
+        """We can get JSON status of collectors from StatusServer."""
+        collectors = {
+            "a": tcollector.Collector("mycollector", 5, "a.py"),
+            "b": tcollector.Collector("second", 3, "b.py"),
+        }
+        server = tcollector.StatusServer("127.0.0.1", 32025, collectors)
+        # runs in background until test suite exits :( but it works.
+        thread = threading.Thread(target=server.serve_forever)
+        thread.setDaemon(True)
+        thread.start()
+
+        r = tcollector.urlopen("http://127.0.0.1:32025").read()
+        self.assertEqual(json.loads(r), [c.to_json() for c in collectors.values()])
 
 
 class TSDBlacklistingTests(unittest.TestCase):
@@ -122,7 +163,7 @@ class UDPCollectorTests(unittest.TestCase):
 
     def setUp(self):
         if ('udp_bridge.py' not in tcollector.COLLECTORS): # pylint: disable=maybe-no-member
-            return
+            raise unittest.SkipTest("udp_bridge unavailable")
 
         self.saved_exit = sys.exit
         self.saved_stderr = sys.stderr
