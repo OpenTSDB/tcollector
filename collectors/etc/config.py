@@ -74,8 +74,8 @@ def get_defaults():
         'stdin': False,
         'daemonize': False,
         'hosts': False,
-        "listen_interface": None,
-        "listen_port": 13280,
+        "monitoring_interface": None,
+        "monitoring_port": 13280,
     }
 
     return defaults

@@ -907,8 +907,8 @@ def parse_cmdline(argv):
             'stdin': False,
             'daemonize': False,
             'hosts': False,
-            "listen_interface": None,
-            "listen_port": 13280,
+            "monitoring_interface": None,
+            "monitoring_port": 13280,
         }
     except Exception as e:
         sys.stderr.write("Unexpected error: %s\n" % e)
@@ -1003,14 +1003,14 @@ def parse_cmdline(argv):
                       help='Password to use for HTTP Basic Auth when sending the data via HTTP')
     parser.add_option('--ssl', dest='ssl', action='store_true', default=defaults['ssl'],
                       help='Enable SSL - used in conjunction with http')
-    parser.add_option('--listen-interface', dest='listen_interface', action='store',
+    parser.add_option('--monitoring-interface', dest='monitoring_interface', action='store',
                       # Old installs may not have this config option:
-                      default=defaults.get("listen_interface", None),
+                      default=defaults.get("monitoring_interface", None),
                       help="Interface for status API to listen on " +
                            "(e.g. '127.0.0.1, 0.0.0.0). " +
                            "Disabled by default.")
-    parser.add_option('--listen-port', dest='listen_port', action='store',
-                      default=defaults.get("listen_port", 13280),
+    parser.add_option('--monitoring-port', dest='monitoring_port', action='store',
+                      default=defaults.get("monitoring_port", 13280),
                       help="Port for status API to listen on.")
     (options, args) = parser.parse_args(args=argv[1:])
     if options.dedupinterval < 0:
@@ -1115,8 +1115,8 @@ def main(argv):
         signal.signal(sig, shutdown_signal)
 
     # Status server, if it's configured:
-    if options.listen_interface is not None:
-        status_server = StatusServer(options.listen_interface, options.listen_port, COLLECTORS)
+    if options.monitoring_interface is not None:
+        status_server = StatusServer(options.monitoring_interface, options.monitoring_port, COLLECTORS)
         thread = threading.Thread(target=status_server.serve_forever)
         thread.setDaemon(True)  # keep thread from preventing shutdown
         thread.start()
