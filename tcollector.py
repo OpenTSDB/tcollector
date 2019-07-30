@@ -1070,9 +1070,11 @@ def main(argv):
 
     try:
         options, args = parse_cmdline(argv)
+    except SystemExit:
+        raise
     except:
         sys.stderr.write("Unexpected error: %s" % sys.exc_info()[0])
-        raise#return 1
+        return 1
 
     if options.daemonize:
         daemonize()
