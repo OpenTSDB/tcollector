@@ -103,13 +103,15 @@ class JolokiaCollector():
             attribute, more_tags = self.parse_attribute(k.lower(), not_tags)
             metric_name = '.'.join([metric_prefix, attribute])
             my_tags = tags + more_tags
-            # If numerical
-            if utils.is_numeric(v):
-                print("%s %d %s %s" % (metric_name, timestamp, str(v),
-                                        ' '.join(my_tags)))
-            # If a bool, True=1, False=0
-            elif type(v) is bool:
+            # If a bool, True=1, False=0. 
+            # This check needs to run before utils.is_numeric(), as bool is a
+            # subclass of int and would match that check.
+            if type(v) is bool:
                 print("%s %d %s %s" % (metric_name, timestamp, str(int(v)),
+                                        ' '.join(my_tags)))
+            # If numerical
+            elif utils.is_numeric(v):
+                print("%s %d %s %s" % (metric_name, timestamp, str(v),
                                         ' '.join(my_tags)))
             # Or a dict of more attributes, call ourselves again
             elif type(v) is dict:
