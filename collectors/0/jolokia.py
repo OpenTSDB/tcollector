@@ -158,7 +158,10 @@ class JolokiaCollector():
             tag_name, _, attrname = p.rpartition('=')
             tag_name = tag_name.split(':')[-1]
             # Swap out bad chars
-            attrname = attrname.replace('.', '_').replace('/', '').replace(' ', '_')
+            attrname = attrname.replace('.', '_')
+            attrname = attrname.replace('/', '')
+            attrname = attrname.replace(' ', '_')
+            attrname = attrname.replace('\'', '')
             pruned[tag_name] = attrname
 
         attr_list = []
