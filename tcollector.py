@@ -1434,7 +1434,7 @@ def spawn_collector(col):
     try:
         col.proc = subprocess.Popen(col.filename, stdout=subprocess.PIPE,
                                     stderr=subprocess.PIPE,
-                                    close_fds=True,
+                                    close_fds=False,
                                     preexec_fn=os.setsid)
     except OSError as e:
         LOG.error('Failed to spawn collector %s: %s' % (col.filename, e))
