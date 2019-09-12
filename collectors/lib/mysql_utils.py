@@ -192,8 +192,11 @@ def get_houzz_db_name():
             m = re.match(r'mysql-([^-]+)-.+', hostname.split('.')[0])
             if m:
                 return m.group(1)
-            
             return "main"
+
+    elif hostname.startswith('pay-'):
+        return "payment"
+
     return "default"
 
 
