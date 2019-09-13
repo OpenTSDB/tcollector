@@ -73,7 +73,9 @@ def get_defaults():
         'ssl': False,
         'stdin': False,
         'daemonize': False,
-        'hosts': False
+        'hosts': False,
+        "monitoring_interface": None,
+        "monitoring_port": 13280,
     }
 
     return defaults

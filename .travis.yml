@@ -1,10 +1,12 @@
 language: python
 sudo: true
+dist: "xenial"
 python:
   - "2.7"
   - "3.4"
   - "3.5"
   - "3.6"
+  - "3.7"
 install:
   - sudo apt-get update && sudo apt-get install -y rpm
   - pip install pylint pylint_runner ordereddict mysqlclient requests feedparser prometheus_client
