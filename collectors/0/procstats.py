@@ -14,6 +14,7 @@
 #
 """import various /proc stats from /proc into TSDB"""
 
+import errno
 import os
 import re
 import sys
@@ -102,8 +103,8 @@ def cpus_csets(cpuset_path):
     """Return a hash of cpu_id_as_string->cset_name"""
     try:
         csets = os.listdir(cpuset_path)
-    except OSError (errno, msg):
-        if errno == 2: # No such file or directory
+    except OSError as e:
+        if e.errno == errno.ENOENT: # No such file or directory
            return {}   # We don't have csets
         raise
 
