@@ -24,10 +24,10 @@ from collectors.lib import utils
 
 INTERRUPTS_INTVL_MULT = 4 # query softirqs every SOFTIRQS_INT_MULT * COLLECTION_INTERVAL seconds
 SOFTIRQS_INTVL_MULT = 4 # query softirqs every SOFTIRQS_INT_MULT * COLLECTION_INTERVAL seconds
-#RHEL 7
+# Modern Linux:
 CPUSET_PATH = "/sys/fs/cgroup/cpuset"
 if os.path.isdir("/dev/cpuset"):
-    #RHEL 6
+    # Older Linux:
     CPUSET_PATH = "/dev/cpuset"
 COLLECTION_INTERVAL = 15  # seconds
 NUMADIR = "/sys/devices/system/node"
@@ -263,69 +263,11 @@ def main():
 
         # Only get softirqs stats every INTERRUPTS_INT_MULT iterations
         if iteration % INTERRUPTS_INTVL_MULT == 0:
-            f_interrupts.seek(0)
-            ts = int(time.time())
-            # Get number of CPUs from description line.
-            num_cpus = len(f_interrupts.readline().split())
-
-            interrupt_dict = {}
-            for line in f_interrupts:
-                cols = line.split()
-
-                irq_type = cols[0].rstrip(":")
-                if irq_type.isalnum():
-                    if irq_type.isdigit():
-                        if cols[-2] == "PCI-MSI-edge" and "eth" in cols[-1]:
-                            irq_type = cols[-1]
-                        else:
-                            continue  # Interrupt type is just a number, ignore.
-                    # Strip the thread number from the irq_type, e.g. eth8-8 -> eth8
-                    m = re.match('^(.*)-\d+$', irq_type)
-                    if m:
-                        irq_type = m.group(1)
-
-                    for i, val in enumerate(cols[1:]):
-                        if i >= num_cpus:
-                            # All values read, remaining cols contain textual
-                            # description
-                            break
-                        if not val.isdigit():
-                            # something is weird, there should only be digit values
-                            sys.stderr.write("Unexpected interrupts value %r in"
-                                             " %r: " % (val, cols))
-                            break
-                        k = "type=%s cpu=%s" % (irq_type, i)
-                        if k in interrupt_dict:
-                            interrupt_dict[k] += int(val)
-                        else:
-                            interrupt_dict[k] = int(val)
-
-            for k in interrupt_dict:
-                print ("proc.interrupts %s %d %s" % (ts, interrupt_dict[k], k))
+            print_interrupts(f_interrupts)
 
         # Only get softirqs stats every SOFTIRQS_INT_MULT iterations
         if iteration % SOFTIRQS_INTVL_MULT == 0:
-            f_softirqs.seek(0)
-            ts = int(time.time())
-            # Get number of CPUs from description line.
-            num_cpus = len(f_softirqs.readline().split())
-            for line in f_softirqs:
-                cols = line.split()
-
-                irq_type = cols[0].rstrip(":")
-
-		for i, val in enumerate(cols[1:]):
-		    if i >= num_cpus:
-		        # All values read, remaining cols contain textual
-		        # description
-		        break
-		    if not val.isdigit():
-		        # something is weird, there should only be digit values
-		        sys.stderr.write("Unexpected softirq value %r in"
-		                            " %r: " % (val, cols))
-		        break
-		    print ("proc.softirqs %s %s type=%s cpu=%s"
-		            % (ts, val, irq_type, i))
+            print_irqs(f_softirqs)
 
         print_numa_stats(numastats)
 
@@ -351,6 +293,73 @@ def main():
 
         sys.stdout.flush()
         time.sleep(COLLECTION_INTERVAL)
+
+
+def print_interrupts(f_interrupts):
+    f_interrupts.seek(0)
+    ts = int(time.time())
+    # Get number of CPUs from description line.
+    num_cpus = len(f_interrupts.readline().split())
+
+    interrupt_dict = {}
+    for line in f_interrupts:
+        cols = line.split()
+
+        irq_type = cols[0].rstrip(":")
+        if irq_type.isalnum():
+            if irq_type.isdigit():
+                if cols[-2] == "PCI-MSI-edge" and "eth" in cols[-1]:
+                    irq_type = cols[-1]
+                else:
+                    continue  # Interrupt type is just a number, ignore.
+            # Strip the thread number from the irq_type, e.g. eth8-8 -> eth8
+            m = re.match('^(.*)-\d+$', irq_type)
+            if m:
+                irq_type = m.group(1)
+
+            for i, val in enumerate(cols[1:]):
+                if i >= num_cpus:
+                    # All values read, remaining cols contain textual
+                    # description
+                    break
+                if not val.isdigit():
+                    # something is weird, there should only be digit values
+                    sys.stderr.write("Unexpected interrupts value %r in"
+                                     " %r: " % (val, cols))
+                    break
+                k = "type=%s cpu=%s" % (irq_type, i)
+                if k in interrupt_dict:
+                    interrupt_dict[k] += int(val)
+                else:
+                    interrupt_dict[k] = int(val)
+
+    for k in interrupt_dict:
+        print ("proc.interrupts %s %d %s" % (ts, interrupt_dict[k], k))
+
+
+def print_irqs(f_softirqs):
+    f_softirqs.seek(0)
+    ts = int(time.time())
+    # Get number of CPUs from description line.
+    num_cpus = len(f_softirqs.readline().split())
+    for line in f_softirqs:
+        cols = line.split()
+
+        irq_type = cols[0].rstrip(":")
+
+        for i, val in enumerate(cols[1:]):
+            if i >= num_cpus:
+                # All values read, remaining cols contain textual
+                # description
+                break
+            if not val.isdigit():
+                # something is weird, there should only be digit values
+                sys.stderr.write("Unexpected softirq value %r in"
+                                    " %r: " % (val, cols))
+                break
+            print ("proc.softirqs %s %s type=%s cpu=%s"
+                    % (ts, val, irq_type, i))
+
 
 if __name__ == "__main__":
     main()
