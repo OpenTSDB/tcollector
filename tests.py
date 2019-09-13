@@ -16,6 +16,9 @@ import os
 import sys
 from stat import S_ISDIR, S_ISREG, ST_MODE
 import unittest
+import subprocess
+import time
+import signal
 
 import mocks
 import tcollector
@@ -322,6 +325,27 @@ class UDPCollectorTests(unittest.TestCase):
         self.run_bridge_test(inputLines, stdout, stderr)
         self.assertEqual(''.join(stdout), expected)
         self.assertEqual(stderr, [])
+
+
+class CollectorSanityCheckTests(unittest.TestCase):
+    """Just make sure you can run a collector without it blowing up."""
+
+    def test_procstats(self):
+        env = os.environ.copy()
+        if env.get("PYTHONPATH"):
+            env["PYTHONPATH"] += ":."
+        else:
+            env["PYTHONPATH"] = "."
+        p = subprocess.Popen(["collectors/0/procstats.py"], env=env,
+                             stdout=subprocess.PIPE)
+        time.sleep(5)
+        p.terminate()
+        time.sleep(1)
+        if p.poll() is None:
+            p.kill()
+        self.assertEqual(p.poll(), -signal.SIGTERM)
+        self.assertIn(b"proc.", p.stdout.read())
+
 
 if __name__ == '__main__':
     cdir = os.path.join(os.path.dirname(os.path.realpath(sys.argv[0])),
