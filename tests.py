@@ -31,6 +31,35 @@ def always_true():
     return True
 
 
+class ReaderThreadTests(unittest.TestCase):
+
+    def test_bad_float(self):
+        """Values that aren't ints/floats aren't sent to OpenTSDB.
+
+        This can happen if a specific collector is buggy.
+        """
+        thread = tcollector.ReaderThread(1, 10, True)
+        collector = tcollector.Collector("c", 1, "c")
+        for line in ["xxx", "mymetric 123 True a=b"]:
+            thread.process_line(collector, line)
+        self.assertEqual(thread.readerq.qsize(), 0)
+        self.assertEqual(collector.lines_received, 2)
+        self.assertEqual(collector.lines_invalid, 2)
+
+    def test_ok_lines(self):
+        """Good lines are passed on to OpenTSDB."""
+        thread = tcollector.ReaderThread(1, 10, True)
+        collector = tcollector.Collector("c", 1, "c")
+        for line in ["mymetric 123.24 12 a=b",
+                     "mymetric 124 12.7 a=b",
+                     "mymetric 125 12.7"]:
+            thread.process_line(collector, line)
+            self.assertEqual(thread.readerq.qsize(), 1, line)
+            self.assertEqual(thread.readerq.get(), line)
+        self.assertEqual(collector.lines_received, 3)
+        self.assertEqual(collector.lines_invalid, 0)
+
+
 class CollectorsTests(unittest.TestCase):
 
     def test_collectorsAccessRights(self):
