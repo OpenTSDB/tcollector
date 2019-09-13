@@ -38,9 +38,11 @@ mkdir -p %{buildroot}/etc/init.d/
 
 # Install Base files
 mkdir -p %{buildroot}%{tcollectordir}/collectors/lib/
+mkdir -p %{buildroot}%{tcollectordir}/collectors/lib/docker_engine/
 mkdir -p %{buildroot}%{tcollectordir}/collectors/etc/
 %{__install} -m 0755 -D %{srccollectors}/__init__.py %{buildroot}%{tcollectordir}/collectors/
-%{__install} -m 0755 -D %{srccollectors}/lib/* %{buildroot}%{tcollectordir}/collectors/lib/
+%{__install} -m 0755 -D %{srccollectors}/lib/*.* %{buildroot}%{tcollectordir}/collectors/lib/
+%{__install} -m 0755 -D %{srccollectors}/lib/docker_engine/* %{buildroot}%{tcollectordir}/collectors/lib/docker_engine/
 %{__install} -m 0755 -D %{srccollectors}/etc/* %{buildroot}%{tcollectordir}/collectors/etc/
 %{__install} -m 0755 -D %{rootdir}/tcollector.py %{buildroot}%{tcollectordir}/
 
@@ -56,6 +58,16 @@ mkdir -p %{buildroot}/usr/bin/
 mkdir -p %{buildroot}/%{py2_sitelib}/
 %{__install} -m 0755 -D %{eosdir}/tcollector_agent.py %{buildroot}/%{py2_sitelib}/
 
+
+# Modern rpmbuild wants either python2 or python3
+%{__perl} -pe "s|/usr/bin/env python|/usr/bin/env python2|;" -i %{buildroot}%{tcollectordir}/*.py
+%{__perl} -pe "s|/usr/bin/env python|/usr/bin/env python2|;" -i %{eosdir}/tcollector_agent.py %{buildroot}/%{py2_sitelib}/*.py
+%{__perl} -pe "s|/usr/bin/env python|/usr/bin/env python2|;" -i %{buildroot}%{tcollectordir}/collectors/etc/*.py
+%{__perl} -pe "s|/usr/bin/env python|/usr/bin/env python2|;" -i %{buildroot}%{tcollectordir}/collectors/0/*.py
+%{__perl} -pe "s|/usr/bin/env python|/usr/bin/env python2|;" -i %{buildroot}%{tcollectordir}/collectors/300/*.py
+%{__perl} -pe "s|/usr/bin/env python|/usr/bin/env python2|;" -i %{buildroot}%{tcollectordir}/collectors/lib/*.py
+%{__perl} -pe "s|/usr/bin/env python|/usr/bin/env python2|;" -i %{buildroot}%{tcollectordir}/collectors/lib/docker_engine/*.py
+%{__perl} -pe "s|/usr/bin/env python|/usr/bin/env python2|;" -i %{buildroot}/usr/bin/tcollector
 
 %files
 %dir %{tcollectordir}
