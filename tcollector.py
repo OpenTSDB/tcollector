@@ -477,7 +477,8 @@ class SenderThread(threading.Thread):
 
     def __init__(self, reader, dryrun, hosts, self_report_stats, tags,
                  reconnectinterval=0, http=False, http_username=None,
-                 http_password=None, http_api_path=None, ssl=False, maxtags=8):
+                 http_password=None, http_api_path=None, ssl=False, maxtags=8,
+                 ns_prefix=None):
         """Constructor.
 
         Args:
@@ -516,6 +517,7 @@ class SenderThread(threading.Thread):
         self.sendq = []
         self.self_report_stats = self_report_stats
         self.maxtags = maxtags # The maximum number of tags TSD will accept.
+        self.ns_prefix = ns_prefix or ''
 
     def pick_connection(self):
         """Picks up a random host/port connection."""
@@ -576,6 +578,7 @@ class SenderThread(threading.Thread):
 
                 if ALIVE:
                     self.send_data()
+
                 errors = 0  # We managed to do a successful iteration.
             except (ArithmeticError, EOFError, EnvironmentError, LookupError,
                     ValueError) as e:
@@ -752,11 +755,11 @@ class SenderThread(threading.Thread):
         # in case of logging we use less efficient variant
         if LOG.level == logging.DEBUG:
             for line in self.sendq:
-                line = "put %s" % self.add_tags_to_line(line)
+                line = "put %s%s" % (self.ns_prefix, self.add_tags_to_line(line))
                 out += line + "\n"
                 LOG.debug('SENDING: %s', line)
         else:
-            out = "".join("put %s\n" % self.add_tags_to_line(line) for line in self.sendq)
+            out = "".join("put %s%s\n" % (self.ns_prefix, (self.add_tags_to_line(line) for line in self.sendq)))
 
         if not out:
             LOG.debug('send_data no data?')
@@ -810,7 +813,7 @@ class SenderThread(threading.Thread):
                 (tag_key, tag_value) = tag.split("=", 1)
                 metric_tags[tag_key] = tag_value
             metric_entry = {}
-            metric_entry["metric"] = metric
+            metric_entry["metric"] = self.ns_prefix+metric
             metric_entry["timestamp"] = int(timestamp)
             metric_entry["value"] = float(value)
             metric_entry["tags"] = dict(self.tags).copy()
@@ -842,6 +845,7 @@ class SenderThread(threading.Thread):
         try:
             response = urlopen(req, json.dumps(metrics))
             LOG.debug("Received response %s %s", response.getcode(), response.read().rstrip('\n'))
+
             # clear out the sendq
             self.sendq = []
             # print "Got response code: %s" % response.getcode()
@@ -1003,6 +1007,8 @@ def parse_cmdline(argv):
                       help='Password to use for HTTP Basic Auth when sending the data via HTTP')
     parser.add_option('--ssl', dest='ssl', action='store_true', default=defaults['ssl'],
                       help='Enable SSL - used in conjunction with http')
+    parser.add_option('--namespace-prefix', dest='namespace_prefix', default=None,
+                      help='Prefix to prepend to all metric names collected', type=str)
     parser.add_option('--monitoring-interface', dest='monitoring_interface', action='store',
                       # Old installs may not have this config option:
                       default=defaults.get("monitoring_interface", None),
@@ -1012,6 +1018,7 @@ def parse_cmdline(argv):
     parser.add_option('--monitoring-port', dest='monitoring_port', action='store',
                       default=defaults.get("monitoring_port", 13280),
                       help="Port for status API to listen on.")
+
     (options, args) = parser.parse_args(args=argv[1:])
     if options.dedupinterval < 0:
         parser.error('--dedup-interval must be at least 0 seconds')
@@ -1023,8 +1030,13 @@ def parse_cmdline(argv):
     # We cannot write to stdout when we're a daemon.
     if (options.daemonize or options.max_bytes) and not options.backup_count:
         options.backup_count = 1
-    return (options, args)
 
+    prefix = options.namespace_prefix
+    if prefix and not prefix.endswith('.'):
+        prefix += '.'
+        options.namespace_prefix = prefix
+
+    return (options, args)
 
 def daemonize():
     """Performs the necessary dance to become a background daemon."""
@@ -1148,7 +1160,8 @@ def main(argv):
     sender = SenderThread(reader, options.dryrun, options.hosts,
                           not options.no_tcollector_stats, tags, options.reconnectinterval,
                           options.http, options.http_username,
-                          options.http_password, options.http_api_path, options.ssl, options.maxtags)
+                          options.http_password, options.http_api_path, options.ssl, options.maxtags,
+                          ns_prefix=options.namespace_prefix)
     sender.start()
     LOG.info('SenderThread startup complete')
 
@@ -1443,7 +1456,7 @@ def spawn_collector(col):
     # other logic and it makes no sense to update the last spawn time if the
     # collector didn't actually start.
     col.lastspawn = int(time.time())
-    # Without setting last_datapoint here, a long running check (>15s) will be 
+    # Without setting last_datapoint here, a long running check (>15s) will be
     # killed by check_children() the first time check_children is called.
     col.last_datapoint = col.lastspawn
     set_nonblocking(col.proc.stdout.fileno())
