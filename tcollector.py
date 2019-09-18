@@ -916,7 +916,7 @@ def parse_cmdline(argv):
             'hosts': False,
             "monitoring_interface": None,
             "monitoring_port": 13280,
-            "namespace_prefix": None,
+            "namespace_prefix": "",
         }
     except Exception as e:
         sys.stderr.write("Unexpected error: %s\n" % e)
