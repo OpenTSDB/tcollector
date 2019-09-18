@@ -318,7 +318,7 @@ class ReaderThread(threading.Thread):
        All data read is put into the self.readerq Queue, which is
        consumed by the SenderThread."""
 
-    def __init__(self, dedupinterval, evictinterval, deduponlyzero):
+    def __init__(self, dedupinterval, evictinterval, deduponlyzero, ns_prefix=""):
         """Constructor.
             Args:
               dedupinterval: If a metric sends the same value over successive
@@ -331,6 +331,7 @@ class ReaderThread(threading.Thread):
                 evictinterval will be removed from the cache to save RAM.
                 Invariant: evictinterval > dedupinterval
               deduponlyzero: do the above only for 0 values.
+              ns_prefix: Prefix to add to metric tags.
         """
         assert evictinterval > dedupinterval, "%r <= %r" % (evictinterval,
                                                             dedupinterval)
@@ -342,6 +343,7 @@ class ReaderThread(threading.Thread):
         self.dedupinterval = dedupinterval
         self.evictinterval = evictinterval
         self.deduponlyzero = deduponlyzero
+        self.ns_prefix = ns_prefix
 
     def run(self):
         """Main loop for this thread.  Just reads from collectors,
@@ -386,6 +388,9 @@ class ReaderThread(threading.Thread):
             LOG.warning('%s line too long: %s', col.name, line)
             col.lines_invalid += 1
             return
+
+        line = self.ns_prefix + line
+
         parsed = re.match('^([-_./a-zA-Z0-9]+)\s+' # Metric name.
                           '(\d+\.?\d+)\s+'               # Timestamp.
                           '(\S+?)'                 # Value (int or float).
@@ -477,8 +482,7 @@ class SenderThread(threading.Thread):
 
     def __init__(self, reader, dryrun, hosts, self_report_stats, tags,
                  reconnectinterval=0, http=False, http_username=None,
-                 http_password=None, http_api_path=None, ssl=False, maxtags=8,
-                 ns_prefix=None):
+                 http_password=None, http_api_path=None, ssl=False, maxtags=8):
         """Constructor.
 
         Args:
@@ -517,7 +521,6 @@ class SenderThread(threading.Thread):
         self.sendq = []
         self.self_report_stats = self_report_stats
         self.maxtags = maxtags # The maximum number of tags TSD will accept.
-        self.ns_prefix = ns_prefix or ''
 
     def pick_connection(self):
         """Picks up a random host/port connection."""
@@ -755,11 +758,11 @@ class SenderThread(threading.Thread):
         # in case of logging we use less efficient variant
         if LOG.level == logging.DEBUG:
             for line in self.sendq:
-                line = "put %s%s" % (self.ns_prefix, self.add_tags_to_line(line))
+                line = "put %s" % self.add_tags_to_line(line)
                 out += line + "\n"
                 LOG.debug('SENDING: %s', line)
         else:
-            out = "".join("put %s%s\n" % (self.ns_prefix, (self.add_tags_to_line(line) for line in self.sendq)))
+            out = "".join("put %s\n" % self.add_tags_to_line(line) for line in self.sendq)
 
         if not out:
             LOG.debug('send_data no data?')
@@ -813,7 +816,7 @@ class SenderThread(threading.Thread):
                 (tag_key, tag_value) = tag.split("=", 1)
                 metric_tags[tag_key] = tag_value
             metric_entry = {}
-            metric_entry["metric"] = self.ns_prefix+metric
+            metric_entry["metric"] = metric
             metric_entry["timestamp"] = int(timestamp)
             metric_entry["value"] = float(value)
             metric_entry["tags"] = dict(self.tags).copy()
@@ -1136,7 +1139,7 @@ def main(argv):
 
     # at this point we're ready to start processing, so start the ReaderThread
     # so we can have it running and pulling in data for us
-    reader = ReaderThread(options.dedupinterval, options.evictinterval, options.deduponlyzero)
+    reader = ReaderThread(options.dedupinterval, options.evictinterval, options.deduponlyzero, options.namespace_prefix)
     reader.start()
 
     # prepare list of (host, port) of TSDs given on CLI
@@ -1161,8 +1164,7 @@ def main(argv):
     sender = SenderThread(reader, options.dryrun, options.hosts,
                           not options.no_tcollector_stats, tags, options.reconnectinterval,
                           options.http, options.http_username,
-                          options.http_password, options.http_api_path, options.ssl, options.maxtags,
-                          ns_prefix=options.namespace_prefix)
+                          options.http_password, options.http_api_path, options.ssl, options.maxtags)
     sender.start()
     LOG.info('SenderThread startup complete')
 
