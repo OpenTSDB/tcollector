@@ -913,6 +913,7 @@ def parse_cmdline(argv):
             'hosts': False,
             "monitoring_interface": None,
             "monitoring_port": 13280,
+            "namespace_prefix": None,
         }
     except Exception as e:
         sys.stderr.write("Unexpected error: %s\n" % e)
@@ -1007,7 +1008,7 @@ def parse_cmdline(argv):
                       help='Password to use for HTTP Basic Auth when sending the data via HTTP')
     parser.add_option('--ssl', dest='ssl', action='store_true', default=defaults['ssl'],
                       help='Enable SSL - used in conjunction with http')
-    parser.add_option('--namespace-prefix', dest='namespace_prefix', default=None,
+    parser.add_option('--namespace-prefix', dest='namespace_prefix', default=defaults["namespace_prefix"],
                       help='Prefix to prepend to all metric names collected', type=str)
     parser.add_option('--monitoring-interface', dest='monitoring_interface', action='store',
                       # Old installs may not have this config option:

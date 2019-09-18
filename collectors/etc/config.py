@@ -76,6 +76,7 @@ def get_defaults():
         'hosts': False,
         "monitoring_interface": None,
         "monitoring_port": 13280,
+        "namespace_prefix": None,
     }
 
     return defaults
