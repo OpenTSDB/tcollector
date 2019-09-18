@@ -6,6 +6,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Improvements
 - An optional status monitoring API, serving JSON over HTTP
+- Command-line options can be configured using an optional `/etc/tcollector.json` configuration file.
 
 ## [1.3.1](https://github.com/OpenTSDB/tcollector/issues?utf8=%E2%9C%93&q=milestone%3A1.3.1+)
 ### Collectors Added
