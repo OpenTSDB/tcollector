@@ -16,8 +16,8 @@ DEFAULT_LOG_PREFIX = 'impala_lineage_log'
 START_TIME = "timestamp"
 END_TIME = "endTime"
 QUERY_TEXT = "queryText"
-DURATION_METRIC = "tcollector.impala.query.duration %d %d query_type=%s"  # metric timestamp duration
-DEFAULT_REFRESH_INTERVAL = 300  # refresh interval to rescan latest log file
+DURATION_METRIC = "impala.query.duration %d %d query_type=%s"  # metric timestamp duration
+DEFAULT_REFRESH_INTERVAL = 180  # refresh interval to rescan latest log file
 
 
 def tail_file(input_file):
@@ -47,12 +47,11 @@ def read_impala_log():
     for line in log_lines:
         try:
             json_dict = json.loads(line)
-            query_start_time = int(json_dict[START_TIME])
-            query_end_time = int(json_dict[END_TIME])
-            dur = query_end_time - query_start_time
+            dur = int(json_dict[END_TIME]) - int(json_dict[START_TIME])
             query_type = str(json_dict[QUERY_TEXT].split(" ")[0]).lower()
             if query_type.isalpha():
-                print(DURATION_METRIC % (query_start_time, dur, query_type))
+                time.sleep(1)  # sleep 1 second to handle tcollector log error
+                print(DURATION_METRIC % (int(time.time() - 1), dur, query_type))
         except ValueError:  # ignore parsing errors
             pass
         finally:
