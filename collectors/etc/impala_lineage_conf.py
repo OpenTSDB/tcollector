@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 def get_settings():
     return {
         'log_dir': '/var/log/impalad/lineage/',
