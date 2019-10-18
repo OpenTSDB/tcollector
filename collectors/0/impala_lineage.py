@@ -2,6 +2,7 @@
 import glob
 import time
 import os
+import re
 import sys
 
 try:
@@ -18,6 +19,8 @@ END_TIME = "endTime"
 QUERY_TEXT = "queryText"
 DURATION_METRIC = "impala.query.duration %d %d query_type=%s"  # metric timestamp duration
 DEFAULT_REFRESH_INTERVAL = 180  # refresh interval to rescan latest log file
+sql_commands = {'create', 'alter', 'drop', 'rename', 'truncate', 'comment', 'select', 'insert', 'update', 'delete',
+                'merge', 'call', 'explain', 'lock', 'grant', 'revoke'}
 
 
 def tail_file(input_file):
@@ -35,6 +38,24 @@ def tail_file(input_file):
         yield line
 
 
+def get_query_type(sql_str):
+    """
+    parse query text to extract the sql command type, otherwise return others
+    :param sql_str:
+    :return:
+    """
+    sql_str = sql_str.lower()
+    # remove the special characters like /* */, --, # comments
+    q = re.sub(r"/\*[^*]*\*+(?:[^*/][^*]*\*+)*/", "", sql_str)
+    lines = [line for line in q.splitlines() if not re.match("^\s*(--|#)", line)]
+    q = " ".join([re.split("--|#", line)[0] for line in lines])
+    tokens = re.split(r"[\s();]+", q)
+    for token in tokens:
+        if token in sql_commands:
+            return token
+    return 'others'
+
+
 def read_impala_log():
     settings = impala_lineage_conf.get_settings()
     log_dir = settings.get('log_dir', DEFAULT_LOG_DIR)
@@ -48,10 +69,9 @@ def read_impala_log():
         try:
             json_dict = json.loads(line)
             dur = int(json_dict[END_TIME]) - int(json_dict[START_TIME])
-            query_type = str(json_dict[QUERY_TEXT].split(" ")[0]).lower()
-            if query_type.isalpha():
-                time.sleep(1)  # sleep 1 second to handle tcollector log error
-                print(DURATION_METRIC % (int(time.time() - 1), dur, query_type))
+            query_type = get_query_type(str(json_dict[QUERY_TEXT]))
+            time.sleep(1)  # sleep 1 second to handle tcollector log error
+            print(DURATION_METRIC % (int(time.time() - 1), dur, query_type))
         except ValueError:  # ignore parsing errors
             pass
         finally:
