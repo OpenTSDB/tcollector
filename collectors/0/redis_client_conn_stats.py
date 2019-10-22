@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # It statistics the client number of each redis intance
 import os
 import sys
