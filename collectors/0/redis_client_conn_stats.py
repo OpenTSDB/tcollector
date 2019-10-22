@@ -53,7 +53,7 @@ def save_redis_conn_info(conn_info):
     for key, cnt in conn_info[0].items():
         data = {
             'metric': 'redis.connected_client.ip',
-            'timestamp': time.time() * 1000,
+            'timestamp': int(time.time()),
             'value': cnt,
             'tags': {
                 'redis_host': host,
@@ -67,7 +67,7 @@ def save_redis_conn_info(conn_info):
     for key, cnt in conn_info[1].items():
         data = {
             'metric': 'redis.connected_client.host',
-            'timestamp': time.time() * 1000,
+            'timestamp': int(time.time()),
             'value': cnt,
             'tags': {
                 'redis_host': host,
@@ -81,7 +81,7 @@ def save_redis_conn_info(conn_info):
     for key, cnt in conn_info[2].items():
         data = {
             'metric': 'redis.connected_client.role',
-            'timestamp': time.time() * 1000,
+            'timestamp': int(time.time()),
             'value': cnt,
             'tags': {
                 'redis_host': host,
@@ -168,7 +168,7 @@ def main():
             map_add(info[1], conn_info[1])
             map_add(info[2], conn_info[2])
             info[3] += conn_info[3]
-            save_redis_conn_info(info)
+        save_redis_conn_info(info)
         time.sleep(60)
 
 
