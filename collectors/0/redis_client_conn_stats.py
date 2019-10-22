@@ -170,7 +170,7 @@ def main():
             map_add(info[2], conn_info[2])
             info[3] += conn_info[3]
         save_redis_conn_info(info)
-        time.sleep(60)
+        time.sleep(1)
 
 
 if __name__ == '__main__':
