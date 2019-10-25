@@ -12,7 +12,7 @@ RUNNING_STATE = "RUNNING"
 SUCCEEDED_STATE = "SUCCEEDED"
 FAILED_STATE = "FAILED"
 DURATION_METRIC = "cloudera.job.duration %d %d job_type=%s succeed=%s"
-JOB_METRIC = "cloudera.job.count %d %d job_type=%s job_state=%s"
+JOB_METRIC = "cloudera.job.headcount %d %d job_type=%s job_state=%s"
 SLEEP_INTERVAL = 15
 
 
@@ -61,7 +61,8 @@ def collect_job_metrics():
                     mr_failed_count += 1
                 dur = (mr_app.endTime - mr_app.startTime).seconds
                 succeed = 'true' if mr_app.state == SUCCEEDED_STATE else 'false'
-                print(DURATION_METRIC % (int(time.time()), dur, MAP_REDUCE_TYPE, succeed))
+                time.sleep(1)  # sleep 1 second to handle tcollector log error
+                print(DURATION_METRIC % (int(time.time()-1), dur, MAP_REDUCE_TYPE, succeed))
         for spark_app in spark_apps:
             if spark_app.state == RUNNING_STATE:
                 spark_running_count += 1
@@ -72,14 +73,15 @@ def collect_job_metrics():
                     spark_failed_count += 1
                 dur = (spark_app.endTime - spark_app.startTime).seconds
                 succeed = 'true' if spark_app.state == SUCCEEDED_STATE else 'false'
-                print(DURATION_METRIC % (int(time.time()), dur, SPARK_TYPE, succeed))
+                time.sleep(1)  # sleep 1 second to handle tcollector log error
+                print(DURATION_METRIC % (int(time.time()-1), dur, SPARK_TYPE, succeed))
         # Job count results
-        print(JOB_METRIC % (int(time.time()), mr_succeed_count, MAP_REDUCE_TYPE, SUCCEEDED_STATE))
-        print(JOB_METRIC % (int(time.time()), mr_failed_count, MAP_REDUCE_TYPE, FAILED_STATE))
-        print(JOB_METRIC % (int(time.time()), mr_running_count, MAP_REDUCE_TYPE, RUNNING_STATE))
-        print(JOB_METRIC % (int(time.time()), spark_succeed_count, SPARK_TYPE, SUCCEEDED_STATE))
-        print(JOB_METRIC % (int(time.time()), spark_failed_count, SPARK_TYPE, FAILED_STATE))
-        print(JOB_METRIC % (int(time.time()), spark_running_count, SPARK_TYPE, RUNNING_STATE))
+        print(JOB_METRIC % (int(time.time()-1), mr_succeed_count, MAP_REDUCE_TYPE, SUCCEEDED_STATE))
+        print(JOB_METRIC % (int(time.time()-1), mr_failed_count, MAP_REDUCE_TYPE, FAILED_STATE))
+        print(JOB_METRIC % (int(time.time()-1), mr_running_count, MAP_REDUCE_TYPE, RUNNING_STATE))
+        print(JOB_METRIC % (int(time.time()-1), spark_succeed_count, SPARK_TYPE, SUCCEEDED_STATE))
+        print(JOB_METRIC % (int(time.time()-1), spark_failed_count, SPARK_TYPE, FAILED_STATE))
+        print(JOB_METRIC % (int(time.time()-1), spark_running_count, SPARK_TYPE, RUNNING_STATE))
 
 
 def main():
