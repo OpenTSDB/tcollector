@@ -12,8 +12,8 @@ except ImportError:
 from collectors.etc import impala_lineage_conf
 from collectors.lib import utils
 
-DEFAULT_LOG_DIR = '/var/log/impalad/lineage/'
-DEFAULT_LOG_PREFIX = 'impala_lineage_log'
+DEFAULT_LOG_DIR = "/var/log/impalad/lineage/"
+DEFAULT_LOG_PREFIX = "impala_lineage_log"
 START_TIME = "timestamp"
 END_TIME = "endTime"
 QUERY_TEXT = "queryText"
@@ -53,16 +53,16 @@ def get_query_type(sql_str):
     for token in tokens:
         if token in sql_commands:
             return token
-    return 'others'
+    return "others"
 
 
 def read_impala_log():
     settings = impala_lineage_conf.get_settings()
-    log_dir = settings.get('log_dir', DEFAULT_LOG_DIR)
-    log_prefix = settings.get('log_prefix', DEFAULT_LOG_PREFIX)
-    refresh_interval = int(settings.get('refresh_interval', DEFAULT_REFRESH_INTERVAL))
+    log_dir = settings.get("log_dir", DEFAULT_LOG_DIR)
+    log_prefix = settings.get("log_prefix", DEFAULT_LOG_PREFIX)
+    refresh_interval = int(settings.get("refresh_interval", DEFAULT_REFRESH_INTERVAL))
     orig_time = time.time()
-    latest_log = max(filter(lambda f: log_prefix in f, glob.glob('%s*' % log_dir)), key=os.path.getctime)
+    latest_log = max(filter(lambda f: log_prefix in f, glob.glob("%s*" % log_dir)), key=os.path.getctime)
     logfile = open(latest_log, "r")
     log_lines = tail_file(logfile)
     for line in log_lines:
@@ -82,7 +82,7 @@ def read_impala_log():
 
 def main():
     if json is None:
-        utils.err("This collector requires the `json' Python module.")
+        utils.err("This collector requires the 'json' Python module.")
         return 13
     while True:
         read_impala_log()
