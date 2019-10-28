@@ -65,20 +65,6 @@ def save_redis_conn_info(conn_info):
             data['metric'], str(data['timestamp']), str(data['value']), build_tag_str(data['tags']))
         print output
 
-    for key, cnt in conn_info[1].items():
-        data = {
-            'metric': 'redis.connected_client.host',
-            'timestamp': int(time.time()),
-            'value': cnt,
-            'tags': {
-                'redis_host': host,
-                'client_host': key,
-            }
-        }
-        output = "%s %s %s %s" % (
-            data['metric'], str(data['timestamp']), str(data['value']), build_tag_str(data['tags']))
-        print output
-
     for key, cnt in conn_info[2].items():
         data = {
             'metric': 'redis.connected_client.role',
