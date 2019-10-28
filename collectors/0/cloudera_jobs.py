@@ -11,8 +11,11 @@ SPARK_TYPE = "SPARK"
 RUNNING_STATE = "RUNNING"
 SUCCEEDED_STATE = "SUCCEEDED"
 FAILED_STATE = "FAILED"
+FINISHED_STATE = "FINISHED"
+EXCEPTION_STATE = "EXCEPTION"
 DURATION_METRIC = "cloudera.job.duration %d %d job_type=%s succeed=%s"
 JOB_METRIC = "cloudera.job.headcount %d %d job_type=%s job_state=%s"
+IMPALA_METRIC = "cloudera.impala.query.headcount %d %d query_state=%s"
 JOB_LIMIT = 500
 SLEEP_INTERVAL = 15
 
@@ -32,12 +35,15 @@ def collect_job_metrics():
             cdh5 = c
     services = cdh5.get_all_services()
     yarn = None
+    imapla = None
     for s in services:
         if s.type == "YARN":
             yarn = s
+        elif s.type == "IMPALA":
+            impala = s
+    from_time = datetime.datetime.fromtimestamp(time.time() - SLEEP_INTERVAL)
+    to_time = datetime.datetime.fromtimestamp(time.time())
     if yarn:
-        from_time = datetime.datetime.fromtimestamp(time.time() - SLEEP_INTERVAL)
-        to_time = datetime.datetime.fromtimestamp(time.time())
         mr_apps = yarn.get_yarn_applications(start_time=from_time,
                                              end_time=to_time,
                                              filter_str="application_type=MAPREDUCE and (state=SUCCEEDED OR "
@@ -84,6 +90,21 @@ def collect_job_metrics():
         print(JOB_METRIC % (curr_time, spark_succeed_count, SPARK_TYPE, SUCCEEDED_STATE))
         print(JOB_METRIC % (curr_time, spark_failed_count, SPARK_TYPE, FAILED_STATE))
         print(JOB_METRIC % (curr_time, spark_running_count, SPARK_TYPE, RUNNING_STATE))
+
+    if impala:
+        impala_queries = impala.get_impala_queries(from_time, to_time)
+        run_count, finish_count, error_count = 0, 0, 0
+        for query in impala_queries.queries:
+            if query.queryState == RUNNING_STATE:
+                run_count += 1
+            elif query.queryState == FINISHED_STATE:
+                finish_count += 1
+            elif query.queryState == EXCEPTION_STATE:
+                error_count += 1
+        curr_time = int(time.time() - 1)
+        print(IMPALA_METRIC % (curr_time, run_count, RUNNING_STATE))
+        print(IMPALA_METRIC % (curr_time, finish_count, FINISHED_STATE))
+        print(IMPALA_METRIC % (curr_time, error_count, EXCEPTION_STATE))
 
 
 def main():
