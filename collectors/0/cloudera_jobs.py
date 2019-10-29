@@ -50,14 +50,15 @@ def collect_job_metrics():
                                                         "state=FAILED "
                                                         "OR state=RUNNING)",
                                              limit=JOB_LIMIT).applications
+        # spark use FINISHED state to indicate job is succeeded
         spark_apps = yarn.get_yarn_applications(start_time=from_time,
                                                 end_time=to_time,
-                                                filter_str="application_type=SPARK and (state=SUCCEEDED OR "
+                                                filter_str="application_type=SPARK and (state=FINISHED OR "
                                                            "state=FAILED "
                                                            "OR state=RUNNING)",
                                                 limit=JOB_LIMIT).applications
         mr_succeed_count, mr_failed_count, mr_running_count = 0, 0, 0
-        spark_succeed_count, spark_failed_count, spark_running_count = 0, 0, 0
+        spark_finish_count, spark_failed_count, spark_running_count = 0, 0, 0
         for mr_app in mr_apps:
             if mr_app.state == RUNNING_STATE:
                 mr_running_count += 1
@@ -74,12 +75,12 @@ def collect_job_metrics():
             if spark_app.state == RUNNING_STATE:
                 spark_running_count += 1
             else:
-                if spark_app.state == SUCCEEDED_STATE:
-                    spark_succeed_count += 1
+                if spark_app.state == FINISHED_STATE:
+                    spark_finish_count += 1
                 elif spark_app.state == FAILED_STATE:
                     spark_failed_count += 1
                 dur = (spark_app.endTime - spark_app.startTime).seconds
-                succeed = "true" if spark_app.state == SUCCEEDED_STATE else "false"
+                succeed = "true" if spark_app.state == FINISHED_STATE else "false"
                 time.sleep(1)  # sleep 1 second to handle tcollector log error
                 print(DURATION_METRIC % (int(time.time()-1), dur, SPARK_TYPE, succeed))
         # Job count results
@@ -87,7 +88,7 @@ def collect_job_metrics():
         print(JOB_METRIC % (curr_time, mr_succeed_count, MAP_REDUCE_TYPE, SUCCEEDED_STATE))
         print(JOB_METRIC % (curr_time, mr_failed_count, MAP_REDUCE_TYPE, FAILED_STATE))
         print(JOB_METRIC % (curr_time, mr_running_count, MAP_REDUCE_TYPE, RUNNING_STATE))
-        print(JOB_METRIC % (curr_time, spark_succeed_count, SPARK_TYPE, SUCCEEDED_STATE))
+        print(JOB_METRIC % (curr_time, spark_finish_count, SPARK_TYPE, FINISHED_STATE))
         print(JOB_METRIC % (curr_time, spark_failed_count, SPARK_TYPE, FAILED_STATE))
         print(JOB_METRIC % (curr_time, spark_running_count, SPARK_TYPE, RUNNING_STATE))
 
