@@ -116,7 +116,7 @@ def main():
             pass
         finally:
             sys.stdout.flush()
-        time.sleep(SLEEP_INTERVAL)
+            time.sleep(SLEEP_INTERVAL)
 
 
 if __name__ == "__main__":
