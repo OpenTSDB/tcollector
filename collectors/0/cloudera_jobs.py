@@ -110,8 +110,12 @@ def collect_job_metrics():
 
 def main():
     while True:
-        collect_job_metrics()
-        sys.stdout.flush()
+        try:
+            collect_job_metrics()
+        except cm_api.api_client.ApiException:  # ignore cloudera server issue
+            pass
+        finally:
+            sys.stdout.flush()
         time.sleep(SLEEP_INTERVAL)
 
 
