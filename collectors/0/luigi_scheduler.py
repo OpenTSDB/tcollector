@@ -5,6 +5,7 @@ import time
 import urllib2
 
 TASK_LIST_URL = 'http://{host}:{port}/api/task_list?data={data}'
+WORKER_LIST_URL = 'http://{host}:{port}/api/worker_list'
 LUIGI_HOST = 'luigi.data.houzz.net'
 LUIGI_PORT = 8082
 
@@ -22,6 +23,8 @@ PRIORITY_TAG = {
 TASK_STATE_METRIC = 'luigi.task.headcount %d %d task_state=%s'
 RUN_TASK_COUNT_METRIC = 'luigi.task.running.count %d %d priority=%s'
 RUN_TASK_DUR_METRIC = 'luigi.task.running.avgDur %d %d priority=%s'
+WORKER_COUNT_METRIC = 'luigi.worker.headcount %d %d'
+WORKER_TASK_COUNT_METRIC = 'luigi.worker.task.headcount %d %d task_state=%s'
 SLEEP_INTERVAL = 15
 
 
@@ -91,10 +94,27 @@ def print_task_count():
             print(TASK_STATE_METRIC % (curr_time, 1, task_state))
 
 
+def print_worker_metric():
+    curr_time = int(time.time()) - 1
+    target_url = WORKER_LIST_URL.format(host=LUIGI_HOST, port=LUIGI_PORT)
+    response = urllib2.urlopen(target_url)
+    workers = json.load(response)['response']
+    pending, running, unique = 0, 0, 0
+    for worker in workers:
+        pending += worker['num_pending']
+        running += worker['num_running']
+        unique += worker['num_uniques']
+    print(WORKER_COUNT_METRIC % (curr_time, len(workers)))
+    print(WORKER_TASK_COUNT_METRIC % (curr_time, pending, 'num_pending'))
+    print(WORKER_TASK_COUNT_METRIC % (curr_time, running, 'num_running'))
+    print(WORKER_TASK_COUNT_METRIC % (curr_time, unique, 'num_uniques'))
+
+
 def main():
     while True:
         print_task_count()
         print_running_task()
+        print_worker_metric()
         sys.stdout.flush()
         time.sleep(SLEEP_INTERVAL)
 
