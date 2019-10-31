@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from cm_api.api_client import ApiResource
+from cm_api.api_client import ApiResource, ApiException
 import time
 import ConfigParser
 import datetime
@@ -112,7 +112,7 @@ def main():
     while True:
         try:
             collect_job_metrics()
-        except cm_api.api_client.ApiException:  # ignore cloudera server issue
+        except ApiException:  # ignore cloudera server issue
             pass
         finally:
             sys.stdout.flush()
