@@ -23,9 +23,9 @@ PRIORITY_TAG = {
 TASK_STATE_METRIC = 'luigi.task.headcount %d %d task_state=%s'
 RUN_TASK_COUNT_METRIC = 'luigi.task.running.count %d %d priority=%s'
 RUN_TASK_DUR_METRIC = 'luigi.task.running.avgDur %d %d priority=%s'
-WORKER_COUNT_METRIC = 'luigi.worker.headcount %d %d'
-WORKER_TASK_COUNT_METRIC = 'luigi.worker.task.headcount %d %d task_state=%s'
-SLEEP_INTERVAL = 15
+WORKER_COUNT_METRIC = 'luigi.worker.headcount %d %d state=active'
+WORKER_TASK_COUNT_METRIC = 'luigi.worker.taskcount %d %d state=%s'
+SLEEP_INTERVAL = 30
 
 
 def fetch_data(data_params):
@@ -105,9 +105,9 @@ def print_worker_metric():
         running += worker['num_running']
         unique += worker['num_uniques']
     print(WORKER_COUNT_METRIC % (curr_time, len(workers)))
-    print(WORKER_TASK_COUNT_METRIC % (curr_time, pending, 'num_pending'))
     print(WORKER_TASK_COUNT_METRIC % (curr_time, running, 'num_running'))
-    print(WORKER_TASK_COUNT_METRIC % (curr_time, unique, 'num_uniques'))
+    # print(WORKER_TASK_COUNT_METRIC % (curr_time, pending, 'num_pending'))
+    # print(WORKER_TASK_COUNT_METRIC % (curr_time, unique, 'num_uniques'))
 
 
 def main():
