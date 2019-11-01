@@ -17,7 +17,7 @@ DURATION_METRIC = "cloudera.job.duration %d %d job_type=%s succeed=%s"
 JOB_METRIC = "cloudera.job.headcount %d %d job_type=%s job_state=%s"
 IMPALA_METRIC = "cloudera.impala.query.headcount %d %d query_state=%s"
 JOB_LIMIT = 500
-SLEEP_INTERVAL = 15
+SLEEP_INTERVAL = 30
 
 
 def collect_job_metrics():
