@@ -6,12 +6,13 @@ import urllib2
 
 TASK_LIST_URL = 'http://{host}:{port}/api/task_list?data={data}'
 WORKER_LIST_URL = 'http://{host}:{port}/api/worker_list'
+RESOURCE_URL = 'http://{host}:{port}/api/resources'
 LUIGI_HOST = 'luigi.data.houzz.net'
 LUIGI_PORT = 8082
 
 MAX_SHOWN_TASKS = 10**7
 TASK_STATES = ('RUNNING', 'FAILED', 'PENDING')
-TASK_ENGINES = ('impala', 'hive', 'hadoop', 'spark')
+TASK_ENGINES = ('impala', 'hive', 'hadoop_job', 'spark')
 NUM_TASKS = 'num_tasks'
 PRIORITY_TAG = {
     'low': 'LS_AND_EQ_10',
@@ -25,6 +26,8 @@ RUN_TASK_COUNT_METRIC = 'luigi.task.running.count %d %d priority=%s'
 RUN_TASK_DUR_METRIC = 'luigi.task.running.avgDur %d %d priority=%s'
 WORKER_COUNT_METRIC = 'luigi.worker.headcount %d %d state=active'
 WORKER_TASK_COUNT_METRIC = 'luigi.worker.taskcount %d %d state=%s'
+RESOURCE_COUNT_METRIC = 'luigi.resource.count %d %d type=%s state=%s'
+RESOURCE_THRESHOLD = 15
 SLEEP_INTERVAL = 30
 
 
@@ -35,10 +38,6 @@ def fetch_data(data_params):
 
 
 def print_running_task():
-    """
-    print running task metrics
-    :return:
-    """
     curr_time = int(time.time()) - 1
     data_params = {
         'status': 'RUNNING',
@@ -73,10 +72,6 @@ def print_running_task():
 
 
 def print_task_count():
-    """
-    Get the number of tasks based on state
-    :return:
-    """
     curr_time = int(time.time()) - 1
     for task_state in TASK_STATES:
         # hard code max_show_tasks to 1 to only fetch number of tasks and avoid fetching task detail
@@ -110,11 +105,23 @@ def print_worker_metric():
     # print(WORKER_TASK_COUNT_METRIC % (curr_time, unique, 'num_uniques'))
 
 
+def print_resource_metric():
+    curr_time = int(time.time() - 1)
+    target_url = RESOURCE_URL.format(host=LUIGI_HOST, port=LUIGI_PORT)
+    response = urllib2.urlopen(target_url)
+    resources = json.load(response)['response']
+    for key, value in resources.items():
+        if value['total'] >= RESOURCE_THRESHOLD and key in TASK_ENGINES:
+            print(RESOURCE_COUNT_METRIC % (curr_time, value['total'], key, 'total'))
+            print(RESOURCE_COUNT_METRIC % (curr_time, value['used'], key, 'used'))
+
+
 def main():
     while True:
         print_task_count()
         print_running_task()
         print_worker_metric()
+        print_resource_metric()
         sys.stdout.flush()
         time.sleep(SLEEP_INTERVAL)
 
