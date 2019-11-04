@@ -13,7 +13,7 @@ SUCCEEDED_STATE = "SUCCEEDED"
 FAILED_STATE = "FAILED"
 FINISHED_STATE = "FINISHED"
 EXCEPTION_STATE = "EXCEPTION"
-DURATION_METRIC = "cloudera.job.duration %d %d job_type=%s succeed=%s"
+DURATION_METRIC = "cloudera.job.duration %d %d job_type=%s"
 JOB_METRIC = "cloudera.job.headcount %d %d job_type=%s job_state=%s"
 IMPALA_METRIC = "cloudera.impala.query.headcount %d %d query_state=%s"
 JOB_LIMIT = 500
@@ -59,39 +59,36 @@ def collect_job_metrics():
                                                 limit=JOB_LIMIT).applications
         mr_succeed_count, mr_failed_count, mr_running_count = 0, 0, 0
         spark_finish_count, spark_failed_count, spark_running_count = 0, 0, 0
+        mr_running_dur, spark_running_dur = 0, 0
         for mr_app in mr_apps:
             if mr_app.state == RUNNING_STATE:
                 mr_running_count += 1
-            else:
-                if mr_app.state == SUCCEEDED_STATE:
-                    mr_succeed_count += 1
-                elif mr_app.state == FAILED_STATE:
-                    mr_failed_count += 1
-                dur = (mr_app.endTime - mr_app.startTime).seconds
-                succeed = "true" if mr_app.state == SUCCEEDED_STATE else "false"
-                time.sleep(1)  # sleep 1 second to handle tcollector log error
-                print(DURATION_METRIC % (int(time.time()-1), dur, MAP_REDUCE_TYPE, succeed))
+            elif mr_app.state == SUCCEEDED_STATE:
+                mr_succeed_count += 1
+                mr_running_dur += (mr_app.endTime - mr_app.startTime).seconds
+            elif mr_app.state == FAILED_STATE:
+                mr_failed_count += 1
         for spark_app in spark_apps:
             if spark_app.state == RUNNING_STATE:
                 spark_running_count += 1
-            else:
-                if spark_app.state == FINISHED_STATE:
-                    spark_finish_count += 1
-                elif spark_app.state == FAILED_STATE:
-                    spark_failed_count += 1
-                dur = (spark_app.endTime - spark_app.startTime).seconds
-                succeed = "true" if spark_app.state == FINISHED_STATE else "false"
-                time.sleep(1)  # sleep 1 second to handle tcollector log error
-                print(DURATION_METRIC % (int(time.time()-1), dur, SPARK_TYPE, succeed))
-        # Job count results
+            elif spark_app.state == FINISHED_STATE:
+                spark_finish_count += 1
+                spark_running_dur += (spark_app.endTime - spark_app.startTime).seconds
+            elif spark_app.state == FAILED_STATE:
+                spark_failed_count += 1
+        mr_avg_dur = 0 if mr_succeed_count == 0 else round(mr_running_dur/mr_succeed_count)
+        spark_avg_dur = 0 if spark_finish_count == 0 else round(spark_running_dur/spark_finish_count)
         curr_time = int(time.time() - 1)
+        # Duration metrics
+        print(DURATION_METRIC % (curr_time, mr_avg_dur, MAP_REDUCE_TYPE))
+        print(DURATION_METRIC % (curr_time, spark_avg_dur, SPARK_TYPE))
+        # Job count results
         print(JOB_METRIC % (curr_time, mr_succeed_count, MAP_REDUCE_TYPE, SUCCEEDED_STATE))
         print(JOB_METRIC % (curr_time, mr_failed_count, MAP_REDUCE_TYPE, FAILED_STATE))
         print(JOB_METRIC % (curr_time, mr_running_count, MAP_REDUCE_TYPE, RUNNING_STATE))
         print(JOB_METRIC % (curr_time, spark_finish_count, SPARK_TYPE, FINISHED_STATE))
         print(JOB_METRIC % (curr_time, spark_failed_count, SPARK_TYPE, FAILED_STATE))
         print(JOB_METRIC % (curr_time, spark_running_count, SPARK_TYPE, RUNNING_STATE))
-
     if impala:
         impala_queries = impala.get_impala_queries(from_time, to_time)
         run_count, finish_count, error_count = 0, 0, 0
