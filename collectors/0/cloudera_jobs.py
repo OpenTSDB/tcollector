@@ -8,6 +8,7 @@ import sys
 CONFIG_PATH = "/etc/luigi/luigi.cfg"
 MAP_REDUCE_TYPE = "MAPREDUCE"
 SPARK_TYPE = "SPARK"
+IMPALA_TYPE = "IMPALA"
 RUNNING_STATE = "RUNNING"
 SUCCEEDED_STATE = "SUCCEEDED"
 FAILED_STATE = "FAILED"
@@ -59,13 +60,13 @@ def collect_job_metrics():
                                                 limit=JOB_LIMIT).applications
         mr_succeed_count, mr_failed_count, mr_running_count = 0, 0, 0
         spark_finish_count, spark_failed_count, spark_running_count = 0, 0, 0
-        mr_running_dur, spark_running_dur = 0, 0
+        mr_total_dur, spark_total_dur = 0, 0
         for mr_app in mr_apps:
             if mr_app.state == RUNNING_STATE:
                 mr_running_count += 1
             elif mr_app.state == SUCCEEDED_STATE:
                 mr_succeed_count += 1
-                mr_running_dur += (mr_app.endTime - mr_app.startTime).seconds
+                mr_total_dur += (mr_app.endTime - mr_app.startTime).seconds
             elif mr_app.state == FAILED_STATE:
                 mr_failed_count += 1
         for spark_app in spark_apps:
@@ -73,11 +74,11 @@ def collect_job_metrics():
                 spark_running_count += 1
             elif spark_app.state == FINISHED_STATE:
                 spark_finish_count += 1
-                spark_running_dur += (spark_app.endTime - spark_app.startTime).seconds
+                spark_total_dur += (spark_app.endTime - spark_app.startTime).seconds
             elif spark_app.state == FAILED_STATE:
                 spark_failed_count += 1
-        mr_avg_dur = 0 if mr_succeed_count == 0 else round(mr_running_dur/mr_succeed_count)
-        spark_avg_dur = 0 if spark_finish_count == 0 else round(spark_running_dur/spark_finish_count)
+        mr_avg_dur = 0 if mr_succeed_count == 0 else round(mr_total_dur/mr_succeed_count)
+        spark_avg_dur = 0 if spark_finish_count == 0 else round(spark_total_dur/spark_finish_count)
         curr_time = int(time.time() - 1)
         # Duration metrics
         print(DURATION_METRIC % (curr_time, mr_avg_dur, MAP_REDUCE_TYPE))
@@ -91,18 +92,22 @@ def collect_job_metrics():
         print(JOB_METRIC % (curr_time, spark_running_count, SPARK_TYPE, RUNNING_STATE))
     if impala:
         impala_queries = impala.get_impala_queries(from_time, to_time)
-        run_count, finish_count, error_count = 0, 0, 0
+        impala_run_count, impala_finish_count, impala_error_count = 0, 0, 0
+        impala_total_dur = 0
         for query in impala_queries.queries:
             if query.queryState == RUNNING_STATE:
-                run_count += 1
+                impala_run_count += 1
             elif query.queryState == FINISHED_STATE:
-                finish_count += 1
+                impala_finish_count += 1
+                impala_total_dur += (query.endTime - query.startTime).seconds
             elif query.queryState == EXCEPTION_STATE:
-                error_count += 1
+                impala_error_count += 1
+        impala_avg_dur = 0 if impala_finish_count == 0 else round(impala_total_dur/impala_finish_count)
         curr_time = int(time.time() - 1)
-        print(IMPALA_METRIC % (curr_time, run_count, RUNNING_STATE))
-        print(IMPALA_METRIC % (curr_time, finish_count, FINISHED_STATE))
-        print(IMPALA_METRIC % (curr_time, error_count, EXCEPTION_STATE))
+        print(DURATION_METRIC % (curr_time, impala_avg_dur, IMPALA_TYPE))
+        print(IMPALA_METRIC % (curr_time, impala_run_count, RUNNING_STATE))
+        print(IMPALA_METRIC % (curr_time, impala_finish_count, FINISHED_STATE))
+        print(IMPALA_METRIC % (curr_time, impala_error_count, EXCEPTION_STATE))
 
 
 def main():
