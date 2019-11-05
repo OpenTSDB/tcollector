@@ -13,6 +13,9 @@ LUIGI_PORT = 8082
 MAX_SHOWN_TASKS = 10**7
 TASK_STATES = ('RUNNING', 'FAILED', 'PENDING')
 TASK_ENGINES = ('impala', 'hive', 'hadoop_job', 'spark')
+TASK_ENGINES_TAG = {  # handle underscore issue with TSDB tagging
+    'hadoop_job': 'hadoopJob'
+}
 NUM_TASKS = 'num_tasks'
 PRIORITY_TAG = {
     'low': 'LS_AND_EQ_10',
@@ -27,7 +30,6 @@ RUN_TASK_DUR_METRIC = 'luigi.task.running.avgDur %d %d priority=%s'
 WORKER_COUNT_METRIC = 'luigi.worker.headcount %d %d state=active'
 WORKER_TASK_COUNT_METRIC = 'luigi.worker.taskcount %d %d state=%s'
 RESOURCE_COUNT_METRIC = 'luigi.resource.count %d %d type=%s state=%s'
-RESOURCE_THRESHOLD = 15
 SLEEP_INTERVAL = 30
 
 
@@ -111,9 +113,10 @@ def print_resource_metric():
     response = urllib2.urlopen(target_url)
     resources = json.load(response)['response']
     for key, value in resources.items():
-        if value['total'] >= RESOURCE_THRESHOLD and key in TASK_ENGINES:
-            print(RESOURCE_COUNT_METRIC % (curr_time, value['total'], key, 'total'))
-            print(RESOURCE_COUNT_METRIC % (curr_time, value['used'], key, 'used'))
+        if key in TASK_ENGINES:
+            key_tag = TASK_ENGINES_TAG.get(key, key)
+            print(RESOURCE_COUNT_METRIC % (curr_time, value['total'], key_tag, 'total'))
+            print(RESOURCE_COUNT_METRIC % (curr_time, value['used'], key_tag, 'used'))
 
 
 def main():
