@@ -93,7 +93,7 @@ def print_pending_task():
     data = json.load(response)['response'].values()
     for task_engine in TASK_ENGINES:
         task_count = sum(1 for details in data if has_engine(details, task_engine))
-        print(PENDING_TASK_COUNT_METRIC % (curr_time, task_count, task_engine))
+        print(PENDING_TASK_COUNT_METRIC % (curr_time, task_count, TASK_ENGINES_TAG.get(task_engine, task_engine)))
 
 
 def print_task_count():
