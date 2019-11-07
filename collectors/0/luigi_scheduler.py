@@ -3,6 +3,7 @@ import json
 import sys
 import time
 import urllib2
+import re
 
 TASK_LIST_URL = 'http://{host}:{port}/api/task_list?data={data}'
 WORKER_LIST_URL = 'http://{host}:{port}/api/worker_list'
@@ -10,7 +11,7 @@ RESOURCE_URL = 'http://{host}:{port}/api/resources'
 LUIGI_HOST = 'luigi.data.houzz.net'
 LUIGI_PORT = 8082
 
-MAX_SHOWN_TASKS = 10**7
+MAX_SHOWN_TASKS = 10 ** 7
 TASK_STATES = ('RUNNING', 'FAILED', 'PENDING')
 TASK_ENGINES = ('impala', 'hive', 'hadoop_job', 'spark')
 TASK_ENGINES_TAG = {  # handle underscore issue with TSDB tagging
@@ -27,6 +28,7 @@ PRIORITY_TAG = {
 TASK_STATE_METRIC = 'luigi.task.headcount %d %d task_state=%s'
 RUN_TASK_COUNT_METRIC = 'luigi.task.running.count %d %d priority=%s'
 RUN_TASK_DUR_METRIC = 'luigi.task.running.avgDur %d %d priority=%s'
+PENDING_TASK_COUNT_METRIC = 'luigi.task.pending.count %d %d engine=%s'
 WORKER_COUNT_METRIC = 'luigi.worker.headcount %d %d state=active'
 WORKER_TASK_COUNT_METRIC = 'luigi.worker.taskcount %d %d state=%s'
 RESOURCE_COUNT_METRIC = 'luigi.resource.count %d %d type=%s state=%s'
@@ -37,6 +39,13 @@ def fetch_data(data_params):
     url_data = urllib2.quote(json.dumps(data_params, separators=',:'))
     target_url = TASK_LIST_URL.format(host=LUIGI_HOST, port=LUIGI_PORT, data=url_data)
     return urllib2.urlopen(target_url)
+
+
+def has_engine(details, task_engine):
+    for key in details.get('resources').iterkeys():
+        if re.match(task_engine + ".*", key):
+            return True
+    return False
 
 
 def print_running_task():
@@ -71,6 +80,20 @@ def print_running_task():
         print(RUN_TASK_COUNT_METRIC % (curr_time, priority_count[k], v))
     for k, v in PRIORITY_TAG.items():
         print(RUN_TASK_DUR_METRIC % (curr_time, priority_avg_dur[k], v))
+
+
+def print_pending_task():
+    curr_time = int(time.time()) - 1
+    data_params = {
+        'status': 'PENDING',
+        'upstream_status': '',
+        'max_shown_tasks': MAX_SHOWN_TASKS,
+    }
+    response = fetch_data(data_params)
+    data = json.load(response)['response'].values()
+    for task_engine in TASK_ENGINES:
+        task_count = sum(1 for details in data if has_engine(details, task_engine))
+        print(PENDING_TASK_COUNT_METRIC % (curr_time, task_count, task_engine))
 
 
 def print_task_count():
@@ -123,6 +146,7 @@ def main():
     while True:
         print_task_count()
         print_running_task()
+        print_pending_task()
         print_worker_metric()
         print_resource_metric()
         sys.stdout.flush()
