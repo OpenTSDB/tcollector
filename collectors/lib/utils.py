@@ -62,6 +62,7 @@ def is_numeric_by_unicode(s):
 
 if PY3:
     def is_numeric(value):
+        
         return isinstance(value, (int, float))
 else:
     def is_numeric(value):
@@ -73,7 +74,7 @@ else:
 
         try:
             import unicodedata
-            unicodedata.numeric(s)
+            unicodedata.numeric(value)
             return True
         except (TypeError, ValueError):
             pass

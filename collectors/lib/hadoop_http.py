@@ -23,7 +23,6 @@ try:
 except ImportError:
     from ordereddict import OrderedDict  # Can be easy_install'ed for <= 2.6
 from collectors.lib.utils import is_numeric
-from collectors.lib.utils import is_numeric_by_unicode
 
 try:
     from http.client import HTTPConnection
