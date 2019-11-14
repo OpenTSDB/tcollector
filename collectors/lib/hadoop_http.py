@@ -79,10 +79,7 @@ class HadoopHttp(object):
             for key, value in bean.items():
                 if key in EXCLUDED_KEYS:
                     continue
-                if isinstance(value, unicode):
-                    if not is_numeric_by_unicode(value):
-                        continue
-                elif not is_numeric(value):
+                if not is_numeric(value):
                     continue
                 kept.append((context, key, value))
         return kept
