@@ -57,6 +57,21 @@ def is_sockfile(path):
 def err(msg):
     print(msg, file=sys.stderr)
 
+def is_numeric_by_unicode(s):
+    try:
+      float(str(s))
+      return True
+    except ValueError:
+      pass
+
+    try:
+      import unicodedata
+      unicodedata.numeric(s)
+      return True
+    except (TypeError, ValueError):
+      pass
+
+    return False
 
 if PY3:
     def is_numeric(value):

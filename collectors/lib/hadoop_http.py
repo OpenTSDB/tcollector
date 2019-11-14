@@ -23,6 +23,7 @@ try:
 except ImportError:
     from ordereddict import OrderedDict  # Can be easy_install'ed for <= 2.6
 from collectors.lib.utils import is_numeric
+from collectors.lib.utils import is_numeric_by_unicode
 
 try:
     from http.client import HTTPConnection
@@ -78,7 +79,10 @@ class HadoopHttp(object):
             for key, value in bean.items():
                 if key in EXCLUDED_KEYS:
                     continue
-                if not is_numeric(value):
+                if isinstance(value, unicode):
+                    if not is_numeric_by_unicode(value):
+                        continue
+                elif not is_numeric(value):
                     continue
                 kept.append((context, key, value))
         return kept
