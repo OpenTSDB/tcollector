@@ -109,7 +109,8 @@ def print_pending_task():
                 else:
                     priority_count['very_high'] += 1
         for k, v in PRIORITY_TAG.items():
-            print(PENDING_TASK_DETAIL_COUNT_METRIC % (curr_time, priority_count[k], task_engine, v))
+            print(PENDING_TASK_DETAIL_COUNT_METRIC % (
+            curr_time, priority_count[k], TASK_ENGINES_TAG.get(task_engine, task_engine), v))
 
 
 def print_task_count():
