@@ -29,6 +29,7 @@ TASK_STATE_METRIC = 'luigi.task.headcount %d %d task_state=%s'
 RUN_TASK_COUNT_METRIC = 'luigi.task.running.count %d %d priority=%s'
 RUN_TASK_DUR_METRIC = 'luigi.task.running.avgDur %d %d priority=%s'
 PENDING_TASK_COUNT_METRIC = 'luigi.task.pending.count %d %d engine=%s'
+PENDING_TASK_DETAIL_COUNT_METRIC = 'luigi.task.pending.detailcount %d %d engine=%s priority=%s'
 WORKER_COUNT_METRIC = 'luigi.worker.headcount %d %d state=active'
 WORKER_TASK_COUNT_METRIC = 'luigi.worker.taskcount %d %d state=%s'
 RESOURCE_COUNT_METRIC = 'luigi.resource.count %d %d type=%s state=%s'
@@ -94,6 +95,21 @@ def print_pending_task():
     for task_engine in TASK_ENGINES:
         task_count = sum(1 for details in data if has_engine(details, task_engine))
         print(PENDING_TASK_COUNT_METRIC % (curr_time, task_count, TASK_ENGINES_TAG.get(task_engine, task_engine)))
+    for task_engine in TASK_ENGINES:
+        priority_count = {k: 0 for k in PRIORITY_TAG.keys()}
+        for detail in data:
+            if has_engine(detail, task_engine):
+                priority = detail['priority']
+                if priority <= 10:
+                    priority_count['low'] += 1
+                elif 11 <= priority <= 99:
+                    priority_count['mid'] += 1
+                elif 100 <= priority <= 150:
+                    priority_count['high'] += 1
+                else:
+                    priority_count['very_high'] += 1
+        for k, v in PRIORITY_TAG.items():
+            print(PENDING_TASK_DETAIL_COUNT_METRIC % (curr_time, priority_count[k], task_engine, v))
 
 
 def print_task_count():
