@@ -19,8 +19,8 @@ TASK_ENGINES_TAG = {  # handle underscore issue with TSDB tagging
 }
 NUM_TASKS = 'num_tasks'
 PRIORITY_TAG = {
-    'low': 'LS_AND_EQ_10',
-    'mid': 'BT_11_AND_99',
+    'low': 'LS_10',
+    'mid': 'BT_10_AND_99',
     'high': 'BT_100_AND_150',
     'very_high': 'GT_150'
 }
@@ -63,10 +63,10 @@ def print_running_task():
     for detail in data:
         dur = round((time.time() - detail['time_running']) / 60)  # minutes
         priority = detail['priority']
-        if priority <= 10:
+        if priority < 10:
             priority_count['low'] += 1
             priority_dur['low'] += dur
-        elif 11 <= priority <= 99:
+        elif 10 <= priority <= 99:
             priority_count['mid'] += 1
             priority_dur['mid'] += dur
         elif 100 <= priority <= 150:
@@ -100,9 +100,9 @@ def print_pending_task():
         for detail in data:
             if has_engine(detail, task_engine):
                 priority = detail['priority']
-                if priority <= 10:
+                if priority < 10:
                     priority_count['low'] += 1
-                elif 11 <= priority <= 99:
+                elif 10 <= priority <= 99:
                     priority_count['mid'] += 1
                 elif 100 <= priority <= 150:
                     priority_count['high'] += 1
