@@ -36,7 +36,7 @@ def collect_job_metrics():
             cdh5 = c
     services = cdh5.get_all_services()
     yarn = None
-    imapla = None
+    impala = None
     for s in services:
         if s.type == "YARN":
             yarn = s

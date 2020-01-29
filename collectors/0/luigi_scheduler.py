@@ -12,7 +12,7 @@ LUIGI_HOST = 'luigi.data.houzz.net'
 LUIGI_PORT = 8082
 
 MAX_SHOWN_TASKS = 10 ** 7
-TASK_STATES = ('RUNNING', 'FAILED', 'PENDING')
+TASK_STATES = ('RUNNING', 'FAILED')
 TASK_ENGINES = ('impala', 'hive', 'hadoop_job', 'spark')
 TASK_ENGINES_TAG = {  # handle underscore issue with TSDB tagging
     'hadoop_job': 'hadoopJob'
@@ -84,14 +84,24 @@ def print_running_task():
 
 
 def print_pending_task():
+    # Based on luigi source code(luigi/luigi/static/visualiser/js/visualiserApp.js),
+    # pending tasks rpc call also includes upstream disabled and upstream failed, so need to filter those
     curr_time = int(time.time()) - 1
     data_params = {
         'status': 'PENDING',
         'upstream_status': '',
         'max_shown_tasks': MAX_SHOWN_TASKS,
     }
-    response = fetch_data(data_params)
-    data = json.load(response)['response'].values()
+    data = json.load(fetch_data(data_params))['response'].values()
+    data_params['upstream_status'] = 'UPSTREAM_DISABLED'
+    disabled_data = json.load(fetch_data(data_params))['response'].values()
+    data_params['upstream_status'] = 'UPSTREAM_FAILED'
+    failed_data = json.load(fetch_data(data_params))['response'].values()
+    filtered_tasks = set([d['display_name'] for d in data]) - \
+                     set([d['display_name'] for d in disabled_data]) - \
+                     set([d['display_name'] for d in failed_data])
+    data = [d for d in data if d['display_name'] in filtered_tasks]
+    print(TASK_STATE_METRIC % (curr_time, len(data), 'PENDING'))  # get accurate pending count
     for task_engine in TASK_ENGINES:
         task_count = sum(1 for details in data if has_engine(details, task_engine))
         print(PENDING_TASK_COUNT_METRIC % (curr_time, task_count, TASK_ENGINES_TAG.get(task_engine, task_engine)))
@@ -110,7 +120,7 @@ def print_pending_task():
                     priority_count['very_high'] += 1
         for k, v in PRIORITY_TAG.items():
             print(PENDING_TASK_DETAIL_COUNT_METRIC % (
-            curr_time, priority_count[k], TASK_ENGINES_TAG.get(task_engine, task_engine), v))
+                curr_time, priority_count[k], TASK_ENGINES_TAG.get(task_engine, task_engine), v))
 
 
 def print_task_count():
