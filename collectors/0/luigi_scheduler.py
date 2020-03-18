@@ -100,14 +100,14 @@ def print_pending_task():
     filtered_tasks = set([d['display_name'] for d in data]) - \
                      set([d['display_name'] for d in disabled_data]) - \
                      set([d['display_name'] for d in failed_data])
-    data = [d for d in data if d['display_name'] in filtered_tasks]
-    print(TASK_STATE_METRIC % (curr_time, len(data), 'PENDING'))  # get accurate pending count
+    filtered_data = [d for d in data if d['display_name'] in filtered_tasks]
+    print(TASK_STATE_METRIC % (curr_time, len(filtered_data), 'PENDING'))  # get accurate pending count
     for task_engine in TASK_ENGINES:
-        task_count = sum(1 for details in data if has_engine(details, task_engine))
+        task_count = sum(1 for details in filtered_data if has_engine(details, task_engine))
         print(PENDING_TASK_COUNT_METRIC % (curr_time, task_count, TASK_ENGINES_TAG.get(task_engine, task_engine)))
     for task_engine in TASK_ENGINES:
         priority_count = {k: 0 for k in PRIORITY_TAG.keys()}
-        for detail in data:
+        for detail in filtered_data:
             if has_engine(detail, task_engine):
                 priority = detail['priority']
                 if priority < 10:
