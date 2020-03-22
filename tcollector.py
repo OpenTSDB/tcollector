@@ -400,8 +400,10 @@ class ReaderThread(threading.Thread):
         # If there are more than 11 digits we're dealing with a timestamp
         # with millisecond precision
         max_timestamp = MAX_REASONABLE_TIMESTAMP
+        local_dedupinterval = self.dedupinterval
         if len(timestamp) > 11:
             max_timestamp = MAX_REASONABLE_TIMESTAMP * 1000
+            local_dedupinterval = self.dedupinterval * 1000
 
         timestamp = int(timestamp)
 
@@ -439,7 +441,7 @@ class ReaderThread(threading.Thread):
                 # the dedup interval so we can print the value.
                 if ((not self.deduponlyzero or (self.deduponlyzero and float(value) == 0.0)) and
                     col.values[key][0] == value and
-                    (timestamp - col.values[key][3] < self.dedupinterval)):
+                    (timestamp - col.values[key][3] < local_dedupinterval)):
                     col.values[key] = (value, True, line, col.values[key][3])
                     return
 
@@ -448,7 +450,7 @@ class ReaderThread(threading.Thread):
                 # replay the last value we skipped (if changed) so the jumps in
                 # our graph are accurate,
                 if ((col.values[key][1] or
-                    (timestamp - col.values[key][3] >= self.dedupinterval))
+                    (timestamp - col.values[key][3] >= local_dedupinterval))
                     and col.values[key][0] != value):
                     col.lines_sent += 1
                     if not self.readerq.nput(col.values[key][2]):
