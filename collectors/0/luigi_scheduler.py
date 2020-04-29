@@ -36,9 +36,9 @@ WORKER_COUNT_METRIC = 'luigi.worker.headcount %d %d state=active'
 WORKER_TASK_COUNT_METRIC = 'luigi.worker.taskcount %d %d state=%s'
 RESOURCE_COUNT_METRIC = 'luigi.resource.count %d %d type=%s state=%s'
 SLEEP_INTERVAL = 30
-# dw hierarchy configurations
-DW_HIERARCHY_PATH = "../etc/dw_hierarchy.json"
-TARGET_CLASS_PATH = "../etc/target_class.json"
+# dw hierarchy configurations, need to hardcode path due to tcollector issue
+DW_HIERARCHY_PATH = "/usr/lib/tcollector/collectors/etc/dw_hierarchy.json"
+TARGET_CLASS_PATH = "/usr/lib/tcollector/collectors/etc/target_class.json"
 ROOT = 'root'
 
 
@@ -226,10 +226,7 @@ class ClassAggregator:
 
 def main():
     # bootstrap the aggregator
-    curr_dir = os.path.dirname(os.path.realpath('__file__'))
-    dw_path = os.path.join(curr_dir, DW_HIERARCHY_PATH)
-    target_path = os.path.join(curr_dir, TARGET_CLASS_PATH)
-    dw_agg = ClassAggregator(dw_path, target_path)
+    dw_agg = ClassAggregator(DW_HIERARCHY_PATH , TARGET_CLASS_PATH)
     while True:
         print_task_count()
         print_running_task()
