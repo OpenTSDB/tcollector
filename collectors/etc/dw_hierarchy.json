@@ -1,0 +1,629 @@
+[
+  {
+    "Comment": "Simplified version of class edges. Modified class that has >=2 parents to have single parent"
+  },
+  {
+    "name": "RemoteTableTask",
+    "parent": "RemoteTableTask"
+  },
+  {
+    "name": "HouzzOutputTask",
+    "parent": "HouzzOutputTask"
+  },
+  {
+    "name": "CompressMRCleanup",
+    "parent": "CompressMRCleanup"
+  },
+  {
+    "name": "TableTask",
+    "parent": "TableTask"
+  },
+  {
+    "name": "ReportTableTime",
+    "parent": "ReportTableTime"
+  },
+  {
+    "name": "KafkaLogs",
+    "parent": "KafkaLogs"
+  },
+  {
+    "name": "ArchiveTableTask",
+    "parent": "ArchiveTableTask"
+  },
+  {
+    "name": "SqoopBase",
+    "parent": "SqoopBase"
+  },
+  {
+    "name": "HadoopTimeJobPurge",
+    "parent": "HadoopTimeJobPurge"
+  },
+  {
+    "name": "RqJob",
+    "parent": "RqJob"
+  },
+  {
+    "name": "PySparkTask",
+    "parent": "PySparkTask"
+  },
+  {
+    "name": "ReportEmailTime",
+    "parent": "ReportEmailTime"
+  },
+  {
+    "name": "HouzzExternalTask",
+    "parent": "HouzzExternalTask"
+  },
+  {
+    "name": "ExternalTask",
+    "parent": "ExternalTask"
+  },
+  {
+    "name": "HourlyRemoteTableTask",
+    "parent": "RemoteTableTask"
+  },
+  {
+    "name": "DailyRemoteTableTask",
+    "parent": "RemoteTableTask"
+  },
+  {
+    "name": "QuarterdailyRemoteTableTask",
+    "parent": "RemoteTableTask"
+  },
+  {
+    "name": "WeeklyRemoteTableTask",
+    "parent": "RemoteTableTask"
+  },
+  {
+    "name": "MonthlyRemoteTableTask",
+    "parent": "RemoteTableTask"
+  },
+  {
+    "name": "QuarterlyRemoteTableTask",
+    "parent": "RemoteTableTask"
+  },
+  {
+    "name": "YearlyRemoteTableTask",
+    "parent": "RemoteTableTask"
+  },
+  {
+    "name": "DistCpToS3Task",
+    "parent": "HouzzOutputTask"
+  },
+  {
+    "name": "ReportTransferTask",
+    "parent": "HouzzOutputTask"
+  },
+  {
+    "name": "TransferTask",
+    "parent": "HouzzOutputTask"
+  },
+  {
+    "name": "CompressedTable",
+    "parent": "TableTask"
+  },
+  {
+    "name": "BingDownloadReport",
+    "parent": "HouzzOutputTask"
+  },
+  {
+    "name": "AdwordsDownloadReport",
+    "parent": "HouzzOutputTask"
+  },
+  {
+    "name": "CmdlineTask",
+    "parent": "HouzzOutputTask"
+  },
+  {
+    "name": "HouzzHadoopTask",
+    "parent": "HouzzOutputTask"
+  },
+  {
+    "name": "FbAdsApiJobBase",
+    "parent": "HouzzOutputTask"
+  },
+  {
+    "name": "ImpalaTableTime",
+    "parent": "TableTask"
+  },
+  {
+    "name": "ImpalaTableRefresh",
+    "parent": "TableTask"
+  },
+  {
+    "name": "ReportTableHour",
+    "parent": "ReportTableTime"
+  },
+  {
+    "name": "ReportTableQuarterday",
+    "parent": "ReportTableTime"
+  },
+  {
+    "name": "ReportTableDay",
+    "parent": "ReportTableTime"
+  },
+  {
+    "name": "ReportTableWeek",
+    "parent": "ReportTableTime"
+  },
+  {
+    "name": "ReportTableHour",
+    "parent": "ReportTableBiWeek"
+  },
+  {
+    "name": "KafkaLogsValidate",
+    "parent": "KafkaLogs"
+  },
+  {
+    "name": "KafkaLogsReady",
+    "parent": "KafkaLogs"
+  },
+  {
+    "name": "KafkaLogsProcess",
+    "parent": "KafkaLogs"
+  },
+  {
+    "name": "KafkaLogsDone",
+    "parent": "KafkaLogs"
+  },
+  {
+    "name": "HourlyArchiveTableTask",
+    "parent": "ArchiveTableTask"
+  },
+  {
+    "name": "DailyArchiveTableTask",
+    "parent": "ArchiveTableTask"
+  },
+  {
+    "name": "QuarterdailyArchiveTableTask",
+    "parent": "ArchiveTableTask"
+  },
+  {
+    "name": "WeeklyArchiveTableTask",
+    "parent": "ArchiveTableTask"
+  },
+  {
+    "name": "MonthlyArchiveTableTask",
+    "parent": "ArchiveTableTask"
+  },
+  {
+    "name": "QuarterlyArchiveTableTask",
+    "parent": "ArchiveTableTask"
+  },
+  {
+    "name": "YearlyArchiveTableTask",
+    "parent": "ArchiveTableTask"
+  },
+  {
+    "name": "SqoopTimeJob",
+    "parent": "SqoopBase"
+  },
+  {
+    "name": "SqoopToMysqlTimeJob",
+    "parent": "SqoopBase"
+  },
+  {
+    "name": "HadoopHourlyJobPurge",
+    "parent": "HadoopTimeJobPurge"
+  },
+  {
+    "name": "HadoopQuarterdailyJobPurge",
+    "parent": "HadoopTimeJobPurge"
+  },
+  {
+    "name": "HadoopDailyJobPurge",
+    "parent": "HadoopTimeJobPurge"
+  },
+  {
+    "name": "HadoopWeeklyJobPurge",
+    "parent": "HadoopTimeJobPurge"
+  },
+  {
+    "name": "HadoopMonthlyJobPurge",
+    "parent": "HadoopTimeJobPurge"
+  },
+  {
+    "name": "MonthlyRqJob",
+    "parent": "RqJob"
+  },
+  {
+    "name": "WeeklyRqJob",
+    "parent": "RqJob"
+  },
+  {
+    "name": "DailyRqJob",
+    "parent": "RqJob"
+  },
+  {
+    "name": "QuarterdailyRqJob",
+    "parent": "RqJob"
+  },
+  {
+    "name": "HourlyRqJob",
+    "parent": "RqJob"
+  },
+  {
+    "name": "HouzzPySparkTask",
+    "parent": "PySparkTask"
+  },
+  {
+    "name": "ReportEmailHour",
+    "parent": "ReportEmailTime"
+  },
+  {
+    "name": "ReportEmailQuarterday",
+    "parent": "ReportEmailTime"
+  },
+  {
+    "name": "ReportEmailDay",
+    "parent": "ReportEmailTime"
+  },
+  {
+    "name": "ReportEmailWeek",
+    "parent": "ReportEmailTime"
+  },
+  {
+    "name": "ReportEmailBiWeek",
+    "parent": "ReportEmailTime"
+  },
+  {
+    "name": "ScpRemoteTask",
+    "parent": "HouzzExternalTask"
+  },
+  {
+    "name": "ExternalDayTask",
+    "parent": "HouzzExternalTask"
+  },
+  {
+    "name": "FtpRemoteTask",
+    "parent": "HouzzExternalTask"
+  },
+  {
+    "name": "CassandraS3Data",
+    "parent": "HouzzExternalTask"
+  },
+  {
+    "name": "S3DistcpDoneTask",
+    "parent": "ExternalTask"
+  },
+  {
+    "name": "HiveToS3Task",
+    "parent": "DistCpToS3Task"
+  },
+  {
+    "name": "DailyDistCpFromS3Task",
+    "parent": "DistCpToS3Task"
+  },
+  {
+    "name": "QuarterdailyDistCpFromS3Task",
+    "parent": "DistCpToS3Task"
+  },
+  {
+    "name": "HourlyDistCpFromS3Task",
+    "parent": "DistCpToS3Task"
+  },
+  {
+    "name": "WeeklyDistCpFromS3Task",
+    "parent": "DistCpToS3Task"
+  },
+  {
+    "name": "ReportToS3",
+    "parent": "ReportTransferTask"
+  },
+  {
+    "name": "ScpTask",
+    "parent": "TransferTask"
+  },
+  {
+    "name": "S3UploadTask",
+    "parent": "TransferTask"
+  },
+  {
+    "name": "BingDownloadReportDaily",
+    "parent": "BingDownloadReport"
+  },
+  {
+    "name": "BingDownloadReportHourly",
+    "parent": "BingDownloadReport"
+  },
+  {
+    "name": "AdwordsDownloadReportDaily",
+    "parent": "AdwordsDownloadReport"
+  },
+  {
+    "name": "AdwordsDownloadReportWeekly",
+    "parent": "AdwordsDownloadReport"
+  },
+  {
+    "name": "DailyCmdlineTask",
+    "parent": "CmdlineTask"
+  },
+  {
+    "name": "DailyCmdlineTask",
+    "parent": "CmdlineTask"
+  },
+  {
+    "name": "HouzzHadoopJarTask",
+    "parent": "HouzzHadoopTask"
+  },
+  {
+    "name": "HouzzScaldingTask",
+    "parent": "HouzzHadoopTask"
+  },
+  {
+    "name": "FbAdsApiDateRangeJob",
+    "parent": "FbAdsApiJobBase"
+  },
+  {
+    "name": "FbAdsApiDailyJob",
+    "parent": "FbAdsApiJobBase"
+  },
+  {
+    "name": "FbAdsApiHourlyJob",
+    "parent": "FbAdsApiJobBase"
+  },
+  {
+    "name": "ImpalaTableHour",
+    "parent": "ImpalaTableTime"
+  },
+  {
+    "name": "ImpalaTableQuarterday",
+    "parent": "ImpalaTableTime"
+  },
+  {
+    "name": "ImpalaTableDay",
+    "parent": "ImpalaTableTime"
+  },
+  {
+    "name": "ImpalaTableWeek",
+    "parent": "ImpalaTableTime"
+  },
+  {
+    "name": "ImpalaTableMonth",
+    "parent": "ImpalaTableTime"
+  },
+  {
+    "name": "ImpalaTableQuarter",
+    "parent": "ImpalaTableTime"
+  },
+  {
+    "name": "ImpalaTableYear",
+    "parent": "ImpalaTableTime"
+  },
+  {
+    "name": "ImpalaTableHourRefresh",
+    "parent": "ImpalaTableRefresh"
+  },
+  {
+    "name": "ImpalaTableQuarterdayRefresh",
+    "parent": "ImpalaTableRefresh"
+  },
+  {
+    "name": "ImpalaTableDayRefresh",
+    "parent": "ImpalaTableRefresh"
+  },
+  {
+    "name": "ImpalaTableWeekRefresh",
+    "parent": "ImpalaTableRefresh"
+  },
+  {
+    "name": "ImpalaTableMonthRefresh",
+    "parent": "ImpalaTableRefresh"
+  },
+  {
+    "name": "ImpalaTableQuarterRefresh",
+    "parent": "ImpalaTableRefresh"
+  },
+  {
+    "name": "ImpalaTableYearRefresh",
+    "parent": "ImpalaTableRefresh"
+  },
+  {
+    "name": "CompressedTableHour",
+    "parent": "CompressedTable"
+  },
+  {
+    "name": "CompressedTableDay",
+    "parent": "CompressedTable"
+  },
+  {
+    "name": "CompressedTableQuarterday",
+    "parent": "CompressedTable"
+  },
+  {
+    "name": "CompressedTableWeek",
+    "parent": "CompressedTable"
+  },
+  {
+    "name": "SqoopJob",
+    "parent": "SqoopTimeJob"
+  },
+  {
+    "name": "SqoopHourJob",
+    "parent": "SqoopTimeJob"
+  },
+  {
+    "name": "SqoopToMysqlJob",
+    "parent": "SqoopToMysqlTimeJob"
+  },
+  {
+    "name": "SqoopToMysqlHourJob",
+    "parent": "SqoopToMysqlTimeJob"
+  },
+  {
+    "name": "PySparkHourlyJob",
+    "parent": "HouzzPySparkTask"
+  },
+  {
+    "name": "PySparkDailyJob",
+    "parent": "HouzzPySparkTask"
+  },
+  {
+    "name": "PySparkWeeklyJob",
+    "parent": "HouzzPySparkTask"
+  },
+  {
+    "name": "HouzzPySparkHourlyTask",
+    "parent": "HouzzPySparkTask"
+  },
+  {
+    "name": "ReportEmailMonth",
+    "parent": "ReportEmailDay"
+  },
+  {
+    "name": "ReportEmailQuarter",
+    "parent": "ReportEmailDay"
+  },
+  {
+    "name": "ReportEmailYear",
+    "parent": "ReportEmailDay"
+  },
+  {
+    "name": "HourlyS3DistcpDoneTask",
+    "parent": "S3DistcpDoneTask"
+  },
+  {
+    "name": "DailyS3DistcpDoneTask",
+    "parent": "S3DistcpDoneTask"
+  },
+  {
+    "name": "HourlyHiveToS3Task",
+    "parent": "HiveToS3Task"
+  },
+  {
+    "name": "DailyHiveToS3Task",
+    "parent": "HiveToS3Task"
+  },
+  {
+    "name": "QuarterdailyHiveToS3Task",
+    "parent": "HiveToS3Task"
+  },
+  {
+    "name": "WeeklyHiveToS3Task",
+    "parent": "HiveToS3Task"
+  },
+  {
+    "name": "MonthlyHiveToS3Task",
+    "parent": "HiveToS3Task"
+  },
+  {
+    "name": "QuarterlyHiveToS3Task",
+    "parent": "HiveToS3Task"
+  },
+  {
+    "name": "YearlyHiveToS3Task",
+    "parent": "HiveToS3Task"
+  },
+  {
+    "name": "HourlyReportToS3",
+    "parent": "ReportToS3"
+  },
+  {
+    "name": "DailyReportToS3",
+    "parent": "ReportToS3"
+  },
+  {
+    "name": "QuarterdailyReportToS3",
+    "parent": "ReportToS3"
+  },
+  {
+    "name": "WeeklyReportToS3",
+    "parent": "ReportToS3"
+  },
+  {
+    "name": "MonthlyReportToS3",
+    "parent": "ReportToS3"
+  },
+  {
+    "name": "HourlyS3UploadTask",
+    "parent": "S3UploadTask"
+  },
+  {
+    "name": "QuarterdailyS3UploadTask",
+    "parent": "S3UploadTask"
+  },
+  {
+    "name": "DailyS3UploadTask",
+    "parent": "S3UploadTask"
+  },
+  {
+    "name": "WeeklyS3UploadTask",
+    "parent": "S3UploadTask"
+  },
+  {
+    "name": "CompressMR",
+    "parent": "HouzzHadoopJarTask"
+  },
+  {
+    "name": "HadoopTimeJob",
+    "parent": "HouzzHadoopJarTask"
+  },
+  {
+    "name": "ScaldingHourlyJob",
+    "parent": "HouzzScaldingTask"
+  },
+  {
+    "name": "ScaldingDailyJob",
+    "parent": "HouzzScaldingTask"
+  },
+  {
+    "name": "BucketBalanceCheckJob",
+    "parent": "PySparkHourlyJob"
+  },
+  {
+    "name": "MultiTouchLtvBase",
+    "parent": "PySparkDailyJob"
+  },
+  {
+    "name": "CompressMRHour",
+    "parent": "CompressMR"
+  },
+  {
+    "name": "CompressMRDay",
+    "parent": "CompressMR"
+  },
+  {
+    "name": "CompressMRQuarterDay",
+    "parent": "CompressMR"
+  },
+  {
+    "name": "CompressMRWeek",
+    "parent": "CompressMR"
+  },
+  {
+    "name": "CompressMRMonth",
+    "parent": "CompressMR"
+  },
+  {
+    "name": "CompressMRQuarter",
+    "parent": "CompressMR"
+  },
+  {
+    "name": "CompressMRYear",
+    "parent": "CompressMR"
+  },
+  {
+    "name": "HadoopHourlyJob",
+    "parent": "HadoopTimeJob"
+  },
+  {
+    "name": "HadoopQuarterdailyJob",
+    "parent": "HadoopTimeJob"
+  },
+  {
+    "name": "HadoopDailyJob",
+    "parent": "HadoopTimeJob"
+  },
+  {
+    "name": "HadoopWeeklyJob",
+    "parent": "HadoopTimeJob"
+  },
+  {
+    "name": "MultiTouchLtvRevTask",
+    "parent": "MultiTouchLtvBase"
+  },
+  {
+    "name": "MultiTouchLtvSignupTask",
+    "parent": "MultiTouchLtvBase"
+  }
+]

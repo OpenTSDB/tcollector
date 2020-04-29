@@ -1,0 +1,26 @@
+{
+  "Comment": "Target class to display",
+  "classes": [
+    "RemoteTableTask",
+    "DistCpToS3Task",
+    "ReportToS3",
+    "S3UploadTask",
+    "CompressMR",
+    "HadoopTimeJob",
+    "HouzzScaldingTask",
+    "ImpalaTableTime",
+    "ImpalaTableRefresh",
+    "CompressedTable",
+    "ReportTableTime",
+    "KafkaLogs",
+    "ArchiveTableTask",
+    "SqoopBase",
+    "RqJob",
+    "PySparkTask",
+    "ReportEmailTime",
+    "HouzzExternalTask",
+    "S3DistcpDoneTask",
+    "CompressMRCleanup",
+    "HadoopTimeJobPurge"
+  ]
+}

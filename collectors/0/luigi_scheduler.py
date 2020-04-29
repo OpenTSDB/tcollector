@@ -4,6 +4,7 @@ import sys
 import time
 import urllib2
 import re
+import os
 
 TASK_LIST_URL = 'http://{host}:{port}/api/task_list?data={data}'
 WORKER_LIST_URL = 'http://{host}:{port}/api/worker_list'
@@ -30,10 +31,15 @@ RUN_TASK_COUNT_METRIC = 'luigi.task.running.count %d %d priority=%s'
 RUN_TASK_DUR_METRIC = 'luigi.task.running.avgDur %d %d priority=%s'
 PENDING_TASK_COUNT_METRIC = 'luigi.task.pending.count %d %d engine=%s'
 PENDING_TASK_DETAIL_COUNT_METRIC = 'luigi.task.pending.detailcount %d %d engine=%s priority=%s'
+PENDING_TASK_CLASS_BREAKDOWN_METRIC = 'luigi.task.pending.classBreakdownCount %d %d class=%s'
 WORKER_COUNT_METRIC = 'luigi.worker.headcount %d %d state=active'
 WORKER_TASK_COUNT_METRIC = 'luigi.worker.taskcount %d %d state=%s'
 RESOURCE_COUNT_METRIC = 'luigi.resource.count %d %d type=%s state=%s'
 SLEEP_INTERVAL = 30
+# dw hierarchy configurations
+DW_HIERARCHY_PATH = "../etc/dw_hierarchy.json"
+TARGET_CLASS_PATH = "../etc/target_class.json"
+ROOT = 'root'
 
 
 def fetch_data(data_params):
@@ -83,7 +89,7 @@ def print_running_task():
         print(RUN_TASK_DUR_METRIC % (curr_time, priority_avg_dur[k], v))
 
 
-def print_pending_task():
+def print_pending_task(agg=None):
     # Based on luigi source code(luigi/luigi/static/visualiser/js/visualiserApp.js),
     # pending tasks rpc call also includes upstream disabled and upstream failed, so need to filter those
     curr_time = int(time.time()) - 1
@@ -124,6 +130,10 @@ def print_pending_task():
         for k, v in PRIORITY_TAG.items():
             print(PENDING_TASK_DETAIL_COUNT_METRIC % (
                 curr_time, priority_count[k], TASK_ENGINES_TAG.get(task_engine, task_engine), v))
+    # Get pending task breakdown from class dimension
+    if agg:
+        jobs = [str(d['name']) for d in filtered_data]
+        agg.generate_metrics(jobs, curr_time)
 
 
 def print_task_count():
@@ -172,11 +182,58 @@ def print_resource_metric():
             print(RESOURCE_COUNT_METRIC % (curr_time, value['used'], key_tag, 'used'))
 
 
+class ClassAggregator:
+    def __init__(self, in_file, target_file):
+        self.graph = {}  # generate class graph that points from child node to parent node
+        self.targets = set()
+        data = None
+        if os.path.isfile(in_file):
+            with open(in_file, 'r') as data_file:
+                data = json.loads(data_file.read())
+        if os.path.isfile(target_file):
+            with open(target_file, 'r') as target_file:
+                self.targets = set(map(lambda s: str(s), json.loads(target_file.read())['classes']))
+        # Construct child to parent directed graphs for classes
+        for node in data:
+            if 'name' in node:
+                node_name = str(node['name'])
+                if node_name not in self.graph:
+                    if 'parent' in node:
+                        if node_name == node['parent']:
+                            self.graph[node_name] = ROOT
+                        else:
+                            self.graph[node_name] = str(node['parent'])
+
+    def find_parent(self, node):
+        if node not in self.graph:
+            return "Others"
+        if self.graph[node] == ROOT or node in self.targets:
+            return node
+        return self.find_parent(self.graph[node])
+
+    def generate_metrics(self, jobs, curr_time):
+        res = {"Others": 0}  # aggregrete classes
+        for job in jobs:
+            p = self.find_parent(job)
+            if p not in self.targets:
+                res["Others"] += 1
+            else:
+                res[p] = res.get(p, 0) + 1
+        # sort
+        for k, v in sorted(res.items(), key=lambda x: -x[1]):
+            print(PENDING_TASK_CLASS_BREAKDOWN_METRIC % (curr_time, v, k))
+
+
 def main():
+    # bootstrap the aggregator
+    curr_dir = os.path.dirname(os.path.realpath('__file__'))
+    dw_path = os.path.join(curr_dir, DW_HIERARCHY_PATH)
+    target_path = os.path.join(curr_dir, TARGET_CLASS_PATH)
+    dw_agg = ClassAggregator(dw_path, target_path)
     while True:
         print_task_count()
         print_running_task()
-        print_pending_task()
+        print_pending_task(agg=dw_agg)
         print_worker_metric()
         print_resource_metric()
         sys.stdout.flush()
