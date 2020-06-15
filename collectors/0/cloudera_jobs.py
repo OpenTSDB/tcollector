@@ -14,9 +14,14 @@ SUCCEEDED_STATE = "SUCCEEDED"
 FAILED_STATE = "FAILED"
 FINISHED_STATE = "FINISHED"
 EXCEPTION_STATE = "EXCEPTION"
+DDL_TYPE = "DDL"
+DML_TYPE = "DML"
+QUERY_TYPE = "QUERY"
+UNKNOWN_TYPE = "UNKNOWN"
 DURATION_METRIC = "cloudera.job.duration %d %d job_type=%s"
 JOB_METRIC = "cloudera.job.headcount %d %d job_type=%s job_state=%s"
 IMPALA_METRIC = "cloudera.impala.query.headcount %d %d query_state=%s"
+IMPALA_TYPE_METRIC = "cloudera.impala.query.types %d %d query_type=%s"
 JOB_LIMIT = 500
 SLEEP_INTERVAL = 30
 
@@ -93,8 +98,10 @@ def collect_job_metrics():
     if impala:
         impala_queries = impala.get_impala_queries(from_time, to_time)
         impala_run_count, impala_finish_count, impala_error_count = 0, 0, 0
+        impala_dml_count, impala_ddl_count, impala_query_count, impala_unknown_count = 0, 0, 0, 0
         impala_total_dur = 0
         for query in impala_queries.queries:
+            # query states
             if query.queryState == RUNNING_STATE:
                 impala_run_count += 1
             elif query.queryState == FINISHED_STATE:
@@ -102,12 +109,25 @@ def collect_job_metrics():
                 impala_total_dur += (query.endTime - query.startTime).seconds
             elif query.queryState == EXCEPTION_STATE:
                 impala_error_count += 1
+            # query types
+            if query.queryType == DML_TYPE:
+                impala_dml_count += 1
+            elif query.queryType == DDL_TYPE:
+                impala_ddl_count += 1
+            elif query.queryType == QUERY_TYPE:
+                impala_query_count += 1
+            elif query.queryType == UNKNOWN_TYPE:
+                impala_unknown_count += 1
         impala_avg_dur = 0 if impala_finish_count == 0 else round(impala_total_dur/impala_finish_count)
         curr_time = int(time.time() - 1)
         print(DURATION_METRIC % (curr_time, impala_avg_dur, IMPALA_TYPE))
         print(IMPALA_METRIC % (curr_time, impala_run_count, RUNNING_STATE))
         print(IMPALA_METRIC % (curr_time, impala_finish_count, FINISHED_STATE))
         print(IMPALA_METRIC % (curr_time, impala_error_count, EXCEPTION_STATE))
+        print(IMPALA_TYPE_METRIC % (curr_time, impala_dml_count, DML_TYPE))
+        print(IMPALA_TYPE_METRIC % (curr_time, impala_ddl_count, DDL_TYPE))
+        print(IMPALA_TYPE_METRIC % (curr_time, impala_query_count, QUERY_TYPE))
+        print(IMPALA_TYPE_METRIC % (curr_time, impala_unknown_count, UNKNOWN_TYPE))
 
 
 def main():
