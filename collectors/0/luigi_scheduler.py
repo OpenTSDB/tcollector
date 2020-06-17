@@ -30,8 +30,11 @@ TASK_STATE_METRIC = 'luigi.task.headcount %d %d task_state=%s'
 RUN_TASK_COUNT_METRIC = 'luigi.task.running.count %d %d priority=%s'
 RUN_TASK_DUR_METRIC = 'luigi.task.running.avgDur %d %d priority=%s'
 PENDING_TASK_COUNT_METRIC = 'luigi.task.pending.count %d %d engine=%s'
+FAILED_TASK_COUNT_METRIC = 'luigi.task.failed.count %d %d engine=%s'
 PENDING_TASK_DETAIL_COUNT_METRIC = 'luigi.task.pending.detailcount %d %d engine=%s priority=%s'
+FAILED_TASK_DETAIL_COUNT_METRIC = 'luigi.task.failed.detailcount %d %d engine=%s priority=%s'
 PENDING_TASK_CLASS_BREAKDOWN_METRIC = 'luigi.task.pending.classBreakdownCount %d %d class=%s'
+FAILED_TASK_CLASS_BREAKDOWN_METRIC = 'luigi.task.failed.classBreakdownCount %d %d class=%s'
 WORKER_COUNT_METRIC = 'luigi.worker.headcount %d %d state=active'
 WORKER_TASK_COUNT_METRIC = 'luigi.worker.taskcount %d %d state=%s'
 RESOURCE_COUNT_METRIC = 'luigi.resource.count %d %d type=%s state=%s'
@@ -133,7 +136,44 @@ def print_pending_task(agg=None):
     # Get pending task breakdown from class dimension
     if agg:
         jobs = [str(d['name']) for d in filtered_data]
-        agg.generate_metrics(jobs, curr_time)
+        agg.generate_metrics(jobs, curr_time, PENDING_TASK_CLASS_BREAKDOWN_METRIC)
+
+
+def print_failed_task(agg=None):
+    curr_time = int(time.time()) - 1
+    data_params = {
+        'status': 'FAILED',
+        'upstream_status': '',
+        'max_shown_tasks': MAX_SHOWN_TASKS,
+    }
+    data = json.load(fetch_data(data_params))['response'].values()
+    print(TASK_STATE_METRIC % (curr_time, len(data), 'FAILED'))
+    for task_engine in TASK_ENGINES:
+        task_count = 0
+        for details in data:
+            if has_engine(details, task_engine):
+                task_count += 1
+        print(FAILED_TASK_COUNT_METRIC % (curr_time, task_count, TASK_ENGINES_TAG.get(task_engine, task_engine)))
+    for task_engine in TASK_ENGINES:
+        priority_count = {k: 0 for k in PRIORITY_TAG.keys()}
+        for detail in data:
+            if has_engine(detail, task_engine):
+                priority = detail['priority']
+                if priority < 10:
+                    priority_count['low'] += 1
+                elif 10 <= priority <= 99:
+                    priority_count['mid'] += 1
+                elif 100 <= priority <= 150:
+                    priority_count['high'] += 1
+                else:
+                    priority_count['very_high'] += 1
+        for k, v in PRIORITY_TAG.items():
+            print(FAILED_TASK_DETAIL_COUNT_METRIC % (
+                curr_time, priority_count[k], TASK_ENGINES_TAG.get(task_engine, task_engine), v))
+    # Get failed task breakdown from class dimension
+    if agg:
+        jobs = [str(d['name']) for d in data]
+        agg.generate_metrics(jobs, curr_time, FAILED_TASK_CLASS_BREAKDOWN_METRIC)
 
 
 def print_task_count():
@@ -211,7 +251,7 @@ class ClassAggregator:
             return node
         return self.find_parent(self.graph[node])
 
-    def generate_metrics(self, jobs, curr_time):
+    def generate_metrics(self, jobs, curr_time, print_format):
         res = {"Others": 0}  # aggregrete classes
         for job in jobs:
             p = self.find_parent(job)
@@ -221,7 +261,7 @@ class ClassAggregator:
                 res[p] = res.get(p, 0) + 1
         # sort
         for k, v in sorted(res.items(), key=lambda x: -x[1]):
-            print(PENDING_TASK_CLASS_BREAKDOWN_METRIC % (curr_time, v, k))
+            print(print_format % (curr_time, v, k))
 
 
 def main():
@@ -231,6 +271,7 @@ def main():
         print_task_count()
         print_running_task()
         print_pending_task(agg=dw_agg)
+        print_failed_task(agg=dw_agg)
         print_worker_metric()
         print_resource_metric()
         sys.stdout.flush()
