@@ -252,7 +252,8 @@ class ClassAggregator:
         return self.find_parent(self.graph[node])
 
     def generate_metrics(self, jobs, curr_time, print_format):
-        res = {"Others": 0}  # aggregrete classes
+        res = dict.fromkeys(self.targets, 0)
+        res['Others'] = 0
         for job in jobs:
             p = self.find_parent(job)
             if p not in self.targets:
