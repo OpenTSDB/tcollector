@@ -14,6 +14,7 @@ SUCCEEDED_STATE = "SUCCEEDED"
 FAILED_STATE = "FAILED"
 FINISHED_STATE = "FINISHED"
 EXCEPTION_STATE = "EXCEPTION"
+ALL_TYPE = "ALL"
 DDL_TYPE = "DDL"
 DML_TYPE = "DML"
 QUERY_TYPE = "QUERY"
@@ -105,7 +106,7 @@ def collect_job_metrics():
         impala_finish_type_dur = dict.fromkeys(IMPALA_ALL_QUERY_TYPES, 0)
         impala_running_type_count = dict.fromkeys(IMPALA_ALL_QUERY_TYPES, 0)
         impala_running_type_dur = dict.fromkeys(IMPALA_ALL_QUERY_TYPES, 0)
-        impala_total_dur = 0
+        impala_total_dur, impala_run_total_dur = 0, 0
         for query in impala_queries.queries:
             # query states
             if query.queryState == RUNNING_STATE:
@@ -114,19 +115,22 @@ def collect_job_metrics():
                     impala_running_type_count[query.queryType] += 1
                     impala_running_type_dur[query.queryType] += \
                         (datetime.datetime.utcfromtimestamp(curr_timestamp) - query.startTime).seconds
-                # running count
+                # running count and total duration
                 impala_run_count += 1
+                impala_run_total_dur += \
+                    (datetime.datetime.utcfromtimestamp(curr_timestamp) - query.startTime).seconds
             elif query.queryState == FINISHED_STATE:
                 # finished query duration
                 if query.queryType in IMPALA_ALL_QUERY_TYPES:
                     impala_finish_type_count[query.queryType] += 1
                     impala_finish_type_dur[query.queryType] += (query.endTime - query.startTime).seconds
-                # finished query count and totoal duration
+                # finished query count and total duration
                 impala_finish_count += 1
                 impala_total_dur += (query.endTime - query.startTime).seconds
             elif query.queryState == EXCEPTION_STATE:
                 impala_error_count += 1
         impala_avg_dur = 0 if impala_finish_count == 0 else round(impala_total_dur/impala_finish_count)
+        impala_run_avg_dur = 0 if impala_run_count == 0 else round(impala_run_total_dur / impala_run_count)
         curr_time = int(time.time() - 1)
         for query_type in IMPALA_ALL_QUERY_TYPES:
             # running query types
@@ -139,7 +143,11 @@ def collect_job_metrics():
             impala_running_avg_type_dur = 0 if impala_running_type_count[query_type] == 0 else \
                 round(impala_running_type_dur[query_type] / impala_running_type_count[query_type])
             print(IMPALA_DURATION_METRIC % (curr_time, impala_running_avg_type_dur, query_type, RUNNING_STATE))
+        # total finished query duration
         print(DURATION_METRIC % (curr_time, impala_avg_dur, IMPALA_TYPE))
+        # total running query duration
+        print(IMPALA_DURATION_METRIC % (curr_time, impala_run_avg_dur, ALL_TYPE, RUNNING_STATE))
+        # impala query states
         print(IMPALA_METRIC % (curr_time, impala_run_count, RUNNING_STATE))
         print(IMPALA_METRIC % (curr_time, impala_finish_count, FINISHED_STATE))
         print(IMPALA_METRIC % (curr_time, impala_error_count, EXCEPTION_STATE))
