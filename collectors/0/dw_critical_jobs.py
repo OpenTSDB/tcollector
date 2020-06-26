@@ -31,7 +31,7 @@ CRITICAL_TASKS_TO_ALERT_HOUR = {
     "l2.session_analytics": 8,
     "daily_session_processor_job": 6,
 }
-CRITICAL_TASK_DELAY_METRIC = 'luigi.task.delay.time %d %d task=%s'
+CRITICAL_TASK_DELAY_METRIC = 'luigi.task.delay %d %d task=%s'
 
 
 def get_mysql_connection(attemps=3):
