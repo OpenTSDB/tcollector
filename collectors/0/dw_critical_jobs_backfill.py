@@ -22,7 +22,7 @@ CRITICAL_TASKS_TO_ALERT_HOUR = {
     "l2.session_analytics": 8,
     "daily_session_processor_job": 6,
 }
-CRITICAL_TASK_DELAY_METRIC = 'luigi.task.delay.time %d %d task=%s'
+CRITICAL_TASK_DELAY_METRIC = 'luigi.task.delay %d %d task=%s'
 
 
 def get_mysql_connection(attemps=3):
@@ -71,19 +71,19 @@ def query_task_finish_time(task, data_time, alert_hours):
 
 
 def main():
-    dt_now = datetime.datetime.now()
     dt_backfill_start = datetime.datetime(2018, 1, 1, 23, 0, 0)
+    dt_backfill_end = (datetime.datetime.now() - datetime.timedelta(days=1))\
+        .replace(hour=23, minute=0, second=0, microsecond=0)
     try:
         for task, alert_hours in CRITICAL_TASKS_TO_ALERT_HOUR.items():
-            check_task_data_time = (dt_now - datetime.timedelta(days=1))\
-            .replace(hour=23, minute=0, second=0, microsecond=0)
-            while check_task_data_time >= dt_backfill_start:
+            check_task_data_time = dt_backfill_start
+            while check_task_data_time <= dt_backfill_end:
                 query_task_finish_time(
                     task,
                     check_task_data_time,
                     alert_hours
                 )
-                check_task_data_time -= datetime.timedelta(days=1)
+                check_task_data_time += datetime.timedelta(days=1)
     except Exception as ex:
         print(ex)
     finally:
