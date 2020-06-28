@@ -17,9 +17,9 @@ WHERE task = "%(task)s"
     AND data_hour = (
         SELECT MAX(data_hour) 
         FROM %(db)s.%(table_name)s 
-        WHERE task = "%(task)s" AND success = "1"
+        WHERE task = "%(task)s" AND success = "1" AND job_type = "%(job_type)s"
     )
-    AND success = "1"
+    AND success = "1" AND job_type = "%(job_type)s"
 ORDER BY id ASC
 """
 
@@ -27,11 +27,15 @@ DB = "luigi"
 TABLE = "houzz_task_run_times"
 DB_PORT = 3306
 
-CRITICAL_TASKS_TO_ALERT_HOUR = {
-    "l2.session_analytics": 8,
-    "daily_session_processor_job": 6,
-}
 CRITICAL_TASK_DELAY_METRIC = 'luigi.task.delay %d %d task=%s'
+
+CRITICAL_TASKS_TO_TYPE_AND_ALERT_HOUR = {
+    "l2.session_analytics": ("ReportTableDay", 8),
+    "daily_session_processor_job": ("HadoopDailyJob", 6),
+    "daily_mobile_session_processor_job": ("HadoopDailyJob", 7),
+    "l2.mobile_client_event_daily": ("ImpalaTableDay", 7),
+    "l2.mobile_client_event_parsed_daily": ("ImpalaTableDay", 7),
+}
 
 
 def get_mysql_connection(attemps=3):
@@ -56,13 +60,14 @@ def get_mysql_connection(attemps=3):
     return conn
 
 
-def query_task_finish_time(task, alert_hours):
+def query_task_finish_time(task, alert_hours, job_type):
     columns = ["data_hour", "run_end"]
     params = {
         'column': ', '.join(columns),
         'db': DB,
         'table_name': TABLE,
         'task': task,
+        'job_type': job_type
     }
     conn = get_mysql_connection()
     with conn:
@@ -83,8 +88,8 @@ def query_task_finish_time(task, alert_hours):
 def main():
     while True:
         try:
-            for task, alert_hours in CRITICAL_TASKS_TO_ALERT_HOUR.items():
-                query_task_finish_time(task, alert_hours)
+            for task, (job_type, alert_hours) in CRITICAL_TASKS_TO_TYPE_AND_ALERT_HOUR.items():
+                query_task_finish_time(task, alert_hours, job_type)
         except Exception as ex:
             print(ex)
         finally:
