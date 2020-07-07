@@ -28,6 +28,7 @@ from collectors.lib.mysql_utils import (
     now,
     print_metric,
     get_role_status,
+    get_disk_stats,
 )
 
 COLLECTION_INTERVAL = 15  # seconds
@@ -148,6 +149,10 @@ def collect(db):
                      is_yes(db.slave_status["slave_sql_running"]))
         print_metric(db, ts, "slave.is_repl_slave",
                      get_role_status())
+        disk_stats = get_disk_stats()
+        for path, size in disk_stats:
+            print_metric(db, ts, "slave.path_size",
+                         size, "path={}".format(path))
 
     # Ouput InnoDB related metrics
     has_innodb = False

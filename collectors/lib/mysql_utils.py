@@ -301,6 +301,25 @@ def get_role_status():
     return 0
 
 
+def get_disk_stats():
+    path = '/data/mysql'
+    min = '1048576'
+    command_get_disk = "du -a %s |awk \"\$1 > %s {print}\"" % (path, min)
+    s, o = commands.getstatusoutput(command_get_disk)
+    if o == "" or s != 0:
+        utils.err("Error checking mysql server disk status %s" % s)
+    elif s == 0:
+        # results = reduce(list.__add__, list(map(lambda x: x.split("\n"), o)))
+        # stripped = list(map(lambda x: x.strip(), splittedEnter))
+        # metrics = list(filter(lambda x: x.startswith(metricsPrefix), stripped))
+        results = o.split("\n")
+        disk_stats = {}
+        for path_stats in results:
+            path_stats_split = path_stats.split("\t")
+            disk_stats[path_stats_split[1]] = path_stats_split[0]
+        return disk_stats
+
+
 def print_metric(db, ts, metric, value, tags=""):
     master_slave_tag = ' is_master=%s is_slave=%s is_dump_server=%s ' % (db.is_master, db.is_slave, db.is_dump_server)
     tags = '%s%s' % (master_slave_tag, tags)
