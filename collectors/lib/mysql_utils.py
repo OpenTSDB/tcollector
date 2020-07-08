@@ -316,7 +316,10 @@ def get_disk_stats():
         disk_stats = {}
         for path_stats in results:
             path_stats_split = path_stats.split("\t")
-            disk_stats[path_stats_split[1]] = path_stats_split[0]
+            try:
+                disk_stats[path_stats_split[1]] = path_stats_split[0]
+            except:
+                pass
         return disk_stats
 
 
