@@ -31,6 +31,7 @@ MAX_DB_QUERY_RETRY = 3
 CONNECT_TIMEOUT = 2  # seconds
 # How frequently we try to find new databases.
 DB_REFRESH_INTERVAL = 60  # seconds
+DISK_STATS_INTERVAL = 600 # seconds
 # Usual locations where to find the default socket file.
 DEFAULT_SOCKFILES = set([
     "/tmp/mysql.sock",                  # MySQL's own default.
@@ -309,9 +310,6 @@ def get_disk_stats():
     if o == "" or s != 0:
         utils.err("Error checking mysql server disk status %s" % s)
     elif s == 0:
-        # results = reduce(list.__add__, list(map(lambda x: x.split("\n"), o)))
-        # stripped = list(map(lambda x: x.strip(), splittedEnter))
-        # metrics = list(filter(lambda x: x.startswith(metricsPrefix), stripped))
         results = o.split("\n")
         disk_stats = {}
         for path_stats in results:
@@ -321,6 +319,24 @@ def get_disk_stats():
             except:
                 pass
         return disk_stats
+
+
+def collect_disk_stats(db):
+    ts = now()
+
+    disk_stats = get_disk_stats()
+    for path, size in disk_stats.items():
+        try:
+            """
+            get same metric name with different path as tag 
+            print_metric(db, ts, "slave.path_size",
+                         size, "path={}".format(path))
+            """
+
+            print_metric(db, ts, "slave.path_size.{}".format(path),
+                         size)
+        except:
+            pass
 
 
 def print_metric(db, ts, metric, value, tags=""):
@@ -339,6 +355,7 @@ def collect_loop(collect_func, collect_interval, args):
 
     last_db_refresh = now()
     dbs = find_databases()
+    last = 0
     while True:
         ts = now()
         if ts - last_db_refresh >= DB_REFRESH_INTERVAL:
@@ -357,6 +374,10 @@ def collect_loop(collect_func, collect_interval, args):
                     return 2
                 utils.err("error: failed to collect data from %s: %s" % (db, e))
                 errs.append(dbname)
+
+            if now() - DISK_STATS_INTERVAL > last:
+                collect_disk_stats(db)
+                last = now()
 
         for dbname in errs:
             del dbs[dbname]
