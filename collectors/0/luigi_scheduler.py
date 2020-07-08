@@ -3,6 +3,7 @@ import json
 import sys
 import time
 import urllib2
+import datetime
 import re
 import os
 
@@ -25,6 +26,15 @@ PRIORITY_TAG = {
     'high': 'BT_100_AND_150',
     'very_high': 'GT_150'
 }
+MIN_PRIORITY = 10
+NUM_DAYS = 1
+TIME_FORMATS = [
+    '%Y-%m-%dT%H',  # hourly
+    '%Y-%m-%d',  # daily
+    '%YW%W',  # weekly
+    '%Y-%m',  # monthly
+    '%Y',  # yearly
+]
 
 TASK_STATE_METRIC = 'luigi.task.headcount %d %d task_state=%s'
 RUN_TASK_COUNT_METRIC = 'luigi.task.running.count %d %d priority=%s'
@@ -92,34 +102,38 @@ def print_running_task():
         print(RUN_TASK_DUR_METRIC % (curr_time, priority_avg_dur[k], v))
 
 
+def _formatted_times():
+    now = datetime.datetime.now()
+    hours = [now - datetime.timedelta(hours=h + 1) for h in range(24 * NUM_DAYS)]
+    return {hour.strftime(fmt) for hour in hours for fmt in TIME_FORMATS}
+
+
 def print_pending_task(agg=None):
-    # Based on luigi source code(luigi/luigi/static/visualiser/js/visualiserApp.js),
-    # pending tasks rpc call also includes upstream disabled and upstream failed, so need to filter those
     curr_time = int(time.time()) - 1
     data_params = {
         'status': 'PENDING',
         'upstream_status': '',
         'max_shown_tasks': MAX_SHOWN_TASKS,
     }
-    data = json.load(fetch_data(data_params))['response'].values()
-    data_params['upstream_status'] = 'UPSTREAM_DISABLED'
-    disabled_data = json.load(fetch_data(data_params))['response'].values()
-    data_params['upstream_status'] = 'UPSTREAM_FAILED'
-    failed_data = json.load(fetch_data(data_params))['response'].values()
-    filtered_tasks = set([d['display_name'] for d in data]) - \
-                     set([d['display_name'] for d in disabled_data]) - \
-                     set([d['display_name'] for d in failed_data])
-    filtered_data = [d for d in data if d['display_name'] in filtered_tasks]
-    print(TASK_STATE_METRIC % (curr_time, len(filtered_data), 'PENDING'))  # get accurate pending count
+    pending_data = json.load(fetch_data(data_params))['response'].values()
+    data_params['status'] = 'RUNNABLE'
+    runnable_data = json.load(fetch_data(data_params))['response'].values()
+    data = pending_data + runnable_data
+    times = _formatted_times()
+    # calculate the number of pending tasks that priority >= 10 and runs for the 24hrs
+    pending_num = sum(1 for details in data
+                      if details.get('priority', -1) >= MIN_PRIORITY
+                      and details['params'].get('time') in times)
+    print(TASK_STATE_METRIC % (curr_time, pending_num, 'PENDING'))
     for task_engine in TASK_ENGINES:
         task_count = 0
-        for details in filtered_data:
+        for details in data:
             if has_engine(details, task_engine):
                 task_count += 1
         print(PENDING_TASK_COUNT_METRIC % (curr_time, task_count, TASK_ENGINES_TAG.get(task_engine, task_engine)))
     for task_engine in TASK_ENGINES:
         priority_count = {k: 0 for k in PRIORITY_TAG.keys()}
-        for detail in filtered_data:
+        for detail in data:
             if has_engine(detail, task_engine):
                 priority = detail['priority']
                 if priority < 10:
@@ -135,7 +149,7 @@ def print_pending_task(agg=None):
                 curr_time, priority_count[k], TASK_ENGINES_TAG.get(task_engine, task_engine), v))
     # Get pending task breakdown from class dimension
     if agg:
-        jobs = [str(d['name']) for d in filtered_data]
+        jobs = [str(d['name']) for d in data]
         agg.generate_metrics(jobs, curr_time, PENDING_TASK_CLASS_BREAKDOWN_METRIC)
 
 
