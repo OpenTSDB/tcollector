@@ -31,7 +31,7 @@ MAX_DB_QUERY_RETRY = 3
 CONNECT_TIMEOUT = 2  # seconds
 # How frequently we try to find new databases.
 DB_REFRESH_INTERVAL = 60  # seconds
-DISK_STATS_INTERVAL = 600 # seconds
+DISK_STATS_INTERVAL = 60 # seconds
 # Usual locations where to find the default socket file.
 DEFAULT_SOCKFILES = set([
     "/tmp/mysql.sock",                  # MySQL's own default.
@@ -327,14 +327,12 @@ def collect_disk_stats(db):
     disk_stats = get_disk_stats()
     for path, size in disk_stats.items():
         try:
-            """
-            get same metric name with different path as tag 
+            # get same metric name with different path as tag
             print_metric(db, ts, "slave.path_size",
                          size, "path={}".format(path))
-            """
 
-            print_metric(db, ts, "slave.path_size.{}".format(path),
-                         size)
+            # print_metric(db, ts, "slave.path_size.{}".format(path),
+            #              size)
         except:
             pass
 
