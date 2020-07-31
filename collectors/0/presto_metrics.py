@@ -54,7 +54,7 @@ def query_manager_time():
 
         curr_time = int(time.time() - 1)
         # Duration metrics
-        print(DURATION_METRIC % (curr_time, execution_avg, "Failed_Query_Duration"))
+        print(DURATION_METRIC % (curr_time, execution_avg, "Execution_Query_Duration"))
         print(DURATION_METRIC % (curr_time, completed_avg, "Completed_Query_Duration"))
         print(DURATION_METRIC % (curr_time, peak_avg, "Peak_Avg_Duration"))
 
