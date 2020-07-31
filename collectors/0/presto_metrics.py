@@ -39,7 +39,7 @@ def query_manager_time():
     conn = get_presto_connection()
     cur = conn.cursor()
     query = QUERY % params
-    print(query)
+    # print(query)
     cur.execute(query)
     row = cur.fetchone()
     if row:
