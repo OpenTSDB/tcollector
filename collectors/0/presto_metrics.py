@@ -1,52 +1,75 @@
 #!/usr/bin/env python
 from pyhive import presto
+import time
+import sys
 
-SLEEP_INTERVAL = 900   # 15 mins
-EXECUTION_QUERY = """
+SLEEP_INTERVAL = 900  # 15 mins
+QUERY = """
     SELECT 
         %(column)s
     FROM 
-        %(db)s.%(table_name)s  
+        %(table_name)s  
 """
 
-DB = "luigi"
-TABLE = """jmx.current.\"com.facebook.presto.memory:*type=ClusterMemoryPool*\" """
+MEM_TABLE = """jmx.current.\"com.facebook.presto.memory:*type=ClusterMemoryPool*\" """
+QUERY_TABLE = """jmx.current.\"com.facebook.presto.execution:*name=querymanager*\" """
 HOST = "presto-alpha-backend.data.houzz.net"
 DB_PORT = 8086
 
+DURATION_METRIC = "presto.duration %d %d job_type=%s"
+COUNT_METRIC = "presto.count %d %d job_type=%s"
+
 
 def get_presto_connection(attemps=3):
-    return presto.connect(host=host, port=DB_PORT)
+    return presto.connect(host=HOST, port=DB_PORT)
 
 
-def query_task_finish_time(task, alert_hours):
+def query_manager_time():
     columns = ["\"failedqueries.fifteenminute.count\"",
-                "\"executiontime.fifteenminutes.avg\"", "\"executiontime.fifteenminutes.count\"",
-                "\"executiontime.fifteenminutes.p90\"", "\"insufficientresourcesfailures.fifteenminute.count\"",
-                "\"completedqueries.fifteenminute.count\"", "\"consumedinputbytes.fifteenminute.count\"",
-                "\"executiontime.fifteenminutes.avg\"", "\"internalfailures.fifteenminute.count\"",
-                "\"queuedqueries\"", "\"runningqueries\""]
+               "\"executiontime.fifteenminutes.avg\"", "\"executiontime.fifteenminutes.count\"",
+               "\"insufficientresourcesfailures.fifteenminute.count\"",
+               "\"completedqueries.fifteenminute.count\"", "\"completedqueries.fifteenminute.rate\"",
+               "\"peakrunningtasksstat.fifteenminutes.avg\"",
+               # "\"internalfailures.fifteenminute.count\"",
+               "\"runningqueries\""]
+    params = {
+        'column': ', '.join(columns),
+        'table_name': QUERY_TABLE,
+    }
     conn = get_presto_connection()
-    with conn:
-        cur = conn.cursor()
-        cur.execute(TASK_FIRST_FINISH_QUERY % params)
-        row = cur.fetchone()
-        if row:
-            data_time = row[0]
-            finish_time = row[1]
-            deadline = data_time + datetime.timedelta(hours=alert_hours)
-            delay_time = time.mktime(finish_time.timetuple()) - time.mktime(deadline.timetuple())
-            print(
-                CRITICAL_TASK_DELAY_METRIC %
-                (time.mktime(data_time.timetuple()), delay_time, task)
-            )
+    cur = conn.cursor()
+    query = QUERY % params
+    print(query)
+    cur.execute(query)
+    row = cur.fetchone()
+    if row:
+        failed_query_count = row[0]
+        execution_avg = row[1]
+        execution_count = row[2]
+        insufficient_count = row[3]
+        completed_avg = row[4]
+        completed_count = row[5]
+        peak_avg = row[6]
+        running_queries = row[7]
+
+        curr_time = int(time.time() - 1)
+        # Duration metrics
+        print(DURATION_METRIC % (curr_time, execution_avg, "Failed_Query_Duration"))
+        print(DURATION_METRIC % (curr_time, completed_avg, "Completed_Query_Duration"))
+        print(DURATION_METRIC % (curr_time, peak_avg, "Peak_Avg_Duration"))
+
+        # Count metrics
+        print(COUNT_METRIC % (curr_time, failed_query_count, "Failed_Query_Count"))
+        print(COUNT_METRIC % (curr_time, execution_count, "Execution_Query_Count"))
+        print(COUNT_METRIC % (curr_time, insufficient_count, "Insufficient_Resources_Query_Count"))
+        print(COUNT_METRIC % (curr_time, completed_count, "Completed_Query_Count"))
+        print(COUNT_METRIC % (curr_time, running_queries, "Running_Query_Count"))
 
 
 def main():
     while True:
         try:
-            for task, (job_type, alert_hours) in CRITICAL_TASKS_TO_TYPE_AND_ALERT_HOUR.items():
-                query_task_finish_time(task, alert_hours, job_type)
+            query_manager_time()
         except Exception as ex:
             print(ex)
         finally:
