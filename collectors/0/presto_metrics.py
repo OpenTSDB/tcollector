@@ -26,9 +26,10 @@ def get_presto_connection(attemps=3):
 
 def query_manager_time():
     columns = ["\"failedqueries.fifteenminute.count\"",
-               "\"executiontime.fifteenminutes.avg\"", "\"executiontime.fifteenminutes.count\"",
+               "\"executiontime.fifteenminutes.avg\"",
+               "\"executiontime.fifteenminutes.count\"",
                "\"insufficientresourcesfailures.fifteenminute.count\"",
-               "\"completedqueries.fifteenminute.count\"", "\"completedqueries.fifteenminute.rate\"",
+               "\"completedqueries.fifteenminute.count\"",
                "\"peakrunningtasksstat.fifteenminutes.avg\"",
                # "\"internalfailures.fifteenminute.count\"",
                "\"runningqueries\""]
@@ -47,15 +48,13 @@ def query_manager_time():
         execution_avg = row[1]
         execution_count = row[2]
         insufficient_count = row[3]
-        completed_avg = row[4]
-        completed_count = row[5]
-        peak_avg = row[6]
-        running_queries = row[7]
+        completed_count = row[4]
+        peak_avg = row[5]
+        running_queries = row[6]
 
         curr_time = int(time.time() - 1)
         # Duration metrics
         print(DURATION_METRIC % (curr_time, execution_avg, "Execution_Query_Duration"))
-        print(DURATION_METRIC % (curr_time, completed_avg, "Completed_Query_Duration"))
         print(DURATION_METRIC % (curr_time, peak_avg, "Peak_Avg_Duration"))
 
         # Count metrics
