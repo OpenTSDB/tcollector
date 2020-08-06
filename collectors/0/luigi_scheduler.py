@@ -126,10 +126,10 @@ def print_pending_task(agg=None):
                       and details['params'].get('time') in times)
     print(TASK_STATE_METRIC % (curr_time, pending_num, 'PENDING'))
     for task_engine in TASK_ENGINES:
-        task_count = 0
-        for details in data:
-            if has_engine(details, task_engine):
-                task_count += 1
+        task_count = sum(1 for details in data
+                         if details.get('priority', -1) >= MIN_PRIORITY
+                         and details['params'].get('time') in times
+                         and has_engine(details, task_engine))
         print(PENDING_TASK_COUNT_METRIC % (curr_time, task_count, TASK_ENGINES_TAG.get(task_engine, task_engine)))
     for task_engine in TASK_ENGINES:
         priority_count = {k: 0 for k in PRIORITY_TAG.keys()}
