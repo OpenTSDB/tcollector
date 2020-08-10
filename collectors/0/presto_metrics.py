@@ -3,7 +3,7 @@ from pyhive import presto
 import time
 import sys
 
-SLEEP_INTERVAL = 900  # 15 mins
+SLEEP_INTERVAL = 60  # 1 mins
 QUERY = """
     SELECT 
         %(column)s
@@ -19,18 +19,20 @@ DB_PORT = 8086
 DURATION_METRIC = "presto.duration %d %d job_type=%s"
 COUNT_METRIC = "presto.count %d %d job_type=%s"
 
+MILLISECONDS_TO_SECONDS = 1000
+
 
 def get_presto_connection(attemps=3):
     return presto.connect(host=HOST, port=DB_PORT)
 
 
 def query_manager_time():
-    columns = ["\"failedqueries.fifteenminute.count\"",
-               "\"executiontime.fifteenminutes.avg\"",
-               "\"executiontime.fifteenminutes.count\"",
-               "\"insufficientresourcesfailures.fifteenminute.count\"",
-               "\"completedqueries.fifteenminute.count\"",
-               "\"peakrunningtasksstat.fifteenminutes.avg\"",
+    columns = ["\"failedqueries.oneminute.count\"",
+               "\"executiontime.oneminute.avg\"",
+               "\"executiontime.oneminute.count\"",
+               "\"insufficientresourcesfailures.oneminute.count\"",
+               "\"completedqueries.oneminute.count\"",
+               # "\"peakrunningtasksstat.fifteenminutes.avg\"",
                # "\"internalfailures.fifteenminute.count\"",
                "\"runningqueries\""]
     params = {
@@ -49,13 +51,13 @@ def query_manager_time():
         execution_count = row[2]
         insufficient_count = row[3]
         completed_count = row[4]
-        peak_avg = row[5]
-        running_queries = row[6]
+        # peak_avg = row[5]
+        running_queries = row[5]
 
         curr_time = int(time.time() - 1)
         # Duration metrics
-        print(DURATION_METRIC % (curr_time, execution_avg, "Execution_Query_Duration"))
-        print(DURATION_METRIC % (curr_time, peak_avg, "Peak_Avg_Duration"))
+        print(DURATION_METRIC % (curr_time, execution_avg//MILLISECONDS_TO_SECONDS, "Execution_Query_Duration"))
+        # print(DURATION_METRIC % (curr_time, peak_avg, "Peak_Avg_Duration"))
 
         # Count metrics
         print(COUNT_METRIC % (curr_time, failed_query_count, "Failed_Query_Count"))
