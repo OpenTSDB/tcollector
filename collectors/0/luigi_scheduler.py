@@ -27,7 +27,7 @@ PRIORITY_TAG = {
     'very_high': 'GT_150'
 }
 MIN_PRIORITY = 10
-NUM_DAYS = 1
+NUM_DAYS = 2
 TIME_FORMATS = [
     '%Y-%m-%dT%H',  # hourly
     '%Y-%m-%d',  # daily
@@ -102,9 +102,9 @@ def print_running_task():
         print(RUN_TASK_DUR_METRIC % (curr_time, priority_avg_dur[k], v))
 
 
-def _formatted_times():
+def _formatted_times(days):
     now = datetime.datetime.now()
-    hours = [now - datetime.timedelta(hours=h + 1) for h in range(24 * NUM_DAYS)]
+    hours = [now - datetime.timedelta(hours=h + 1) for h in range(24 * days)]
     return {hour.strftime(fmt) for hour in hours for fmt in TIME_FORMATS}
 
 
@@ -119,7 +119,7 @@ def print_pending_task(agg=None):
     data_params['status'] = 'RUNNABLE'
     runnable_data = json.load(fetch_data(data_params))['response'].values()
     data = pending_data + runnable_data
-    times = _formatted_times()
+    times = _formatted_times(NUM_DAYS)
     # calculate the number of pending tasks that priority >= 10 and runs for the 24hrs
     pending_num = sum(1 for details in data
                       if details.get('priority', -1) >= MIN_PRIORITY
