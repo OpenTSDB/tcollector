@@ -11,15 +11,26 @@ QUERY = """
         %(table_name)s  
 """
 
-MEM_TABLE = """jmx.current.\"com.facebook.presto.memory:*type=ClusterMemoryPool*\" """
+QUERY_COND = """
+    SELECT 
+        %(column)s
+    FROM 
+        %(table_name)s  
+    WHERE
+        %(condition)s
+"""
+
+MEM_TABLE = """jmx.current.\"com.facebook.presto.memory:*name=general*\" """
 QUERY_TABLE = """jmx.current.\"com.facebook.presto.execution:*name=querymanager*\" """
 HOST = "presto-alpha-backend.data.houzz.net"
 DB_PORT = 8086
 
 DURATION_METRIC = "presto.duration %d %d job_type=%s"
 COUNT_METRIC = "presto.count %d %d job_type=%s"
+MEMORY_METRIC = "presto.memory %d %d job_type=%s"
 
-MILLISECONDS_TO_SECONDS = 1000
+SECONDS_TO_MILLISECONDS = 1000
+GB_TO_BYTES = 1073741824
 
 
 def get_presto_connection(attemps=3):
@@ -56,7 +67,7 @@ def query_manager_time():
 
         curr_time = int(time.time() - 1)
         # Duration metrics
-        print(DURATION_METRIC % (curr_time, execution_avg//MILLISECONDS_TO_SECONDS, "Execution_Query_Duration"))
+        print(DURATION_METRIC % (curr_time, execution_avg//SECONDS_TO_MILLISECONDS, "Execution_Query_Duration"))
         # print(DURATION_METRIC % (curr_time, peak_avg, "Peak_Avg_Duration"))
 
         # Count metrics
@@ -67,10 +78,41 @@ def query_manager_time():
         print(COUNT_METRIC % (curr_time, running_queries, "Running_Query_Count"))
 
 
+# This is based on
+# https://prestodb.io/blog/2019/08/19/memory-tracking#getting-visibility-into-the-memory-management-framework
+def query_memory():
+    columns = ["blockednodes",
+               "freedistributedbytes"]
+    conditions = ["blockednodes >= 0"]
+    params = {
+        'column': ', '.join(columns),
+        'table_name': MEM_TABLE,
+        'condition': ' and'.join(conditions)
+    }
+    conn = get_presto_connection()
+    cur = conn.cursor()
+    query = QUERY_COND % params
+    # print(query)
+    cur.execute(query)
+    row = cur.fetchone()
+    if row:
+        blocked_nodes = row[0]
+        general_pool_free_memory = row[1]
+
+        curr_time = int(time.time() - 1)
+
+        # Count metrics
+        print(COUNT_METRIC % (curr_time, blocked_nodes, "Blocked_Nodes_Count"))
+
+        # Memory metrics
+        print(MEMORY_METRIC % (curr_time, general_pool_free_memory//GB_TO_BYTES, "General_Pool_Free_Memory"))
+
+
 def main():
     while True:
         try:
             query_manager_time()
+            query_memory()
         except Exception as ex:
             print(ex)
         finally:
