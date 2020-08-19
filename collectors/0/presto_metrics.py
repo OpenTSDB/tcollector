@@ -37,7 +37,7 @@ def get_presto_connection(attemps=3):
     return presto.connect(host=HOST, port=DB_PORT)
 
 
-def query_manager_time():
+def query_manager_time(conn):
     columns = ["\"failedqueries.oneminute.count\"",
                "\"executiontime.oneminute.avg\"",
                "\"executiontime.oneminute.count\"",
@@ -50,7 +50,6 @@ def query_manager_time():
         'column': ', '.join(columns),
         'table_name': QUERY_TABLE,
     }
-    conn = get_presto_connection()
     cur = conn.cursor()
     query = QUERY % params
     # print(query)
@@ -80,7 +79,7 @@ def query_manager_time():
 
 # This is based on
 # https://prestodb.io/blog/2019/08/19/memory-tracking#getting-visibility-into-the-memory-management-framework
-def query_memory():
+def query_memory(conn):
     columns = ["blockednodes",
                "freedistributedbytes"]
     conditions = ["blockednodes >= 0"]
@@ -89,7 +88,6 @@ def query_memory():
         'table_name': MEM_TABLE,
         'condition': ' and'.join(conditions)
     }
-    conn = get_presto_connection()
     cur = conn.cursor()
     query = QUERY_COND % params
     # print(query)
@@ -111,8 +109,10 @@ def query_memory():
 def main():
     while True:
         try:
-            query_manager_time()
-            query_memory()
+            conn = get_presto_connection()
+            query_manager_time(conn)
+            query_memory(conn)
+            conn.close()
         except Exception as ex:
             print(ex)
         finally:
