@@ -14,6 +14,7 @@ SUCCEEDED_STATE = "SUCCEEDED"
 FAILED_STATE = "FAILED"
 FINISHED_STATE = "FINISHED"
 EXCEPTION_STATE = "EXCEPTION"
+
 ALL_TYPE = "ALL"
 DDL_TYPE = "DDL"
 DML_TYPE = "DML"
@@ -21,13 +22,25 @@ QUERY_TYPE = "QUERY"
 UNKNOWN_TYPE = "UNKNOWN"
 IMPALA_ALL_QUERY_TYPES = [DDL_TYPE, DML_TYPE, QUERY_TYPE, UNKNOWN_TYPE]
 
+HADOOP_USER = "hadoop"
+TABLEAU_USER = ""
+OTHER_USER = "other"
+IMPALA_ALL_QUERY_USERS = [HADOOP_USER, TABLEAU_USER, OTHER_USER]
+IMPALA_QUERY_USER_TO_TAG = {
+    HADOOP_USER: "pipeline(hadoop)",
+    TABLEAU_USER: "Tableau",
+    OTHER_USER: "Ad-hoc"
+}
+
 DURATION_METRIC = "cloudera.job.duration %d %d job_type=%s"
 JOB_METRIC = "cloudera.job.headcount %d %d job_type=%s job_state=%s"
 
 IMPALA_DURATION_METRIC = "cloudera.impala.duration %d %d query_type=%s query_state=%s cluster=%s"
 IMPALA_METRIC = "cloudera.impala.query.headcount %d %d query_state=%s cluster=%s"
 IMPALA_TYPE_METRIC = "cloudera.impala.query.types %d %d query_type=%s cluster=%s"
+IMPALA_QUERY_USER_METRIC = "cloudera.impala.query.users %d %d query_user=%s query_type=%s cluster=%s"
 JOB_LIMIT = 500
+QUERY_LIMIT = 1000
 SLEEP_INTERVAL = 30
 
 
@@ -88,13 +101,14 @@ def _print_spark_metrics(yarn, from_time, to_time):
 
 def _print_impala_metrics(impala, from_time, to_time, cluster_name):
     curr_timestamp = time.time()
-    impala_queries = impala.get_impala_queries(from_time, to_time)
+    impala_queries = impala.get_impala_queries(from_time, to_time, limit=QUERY_LIMIT)
     impala_run_count, impala_finish_count, impala_error_count = 0, 0, 0
     impala_finish_type_count = dict.fromkeys(IMPALA_ALL_QUERY_TYPES, 0)
     impala_finish_type_dur = dict.fromkeys(IMPALA_ALL_QUERY_TYPES, 0)
     impala_running_type_count = dict.fromkeys(IMPALA_ALL_QUERY_TYPES, 0)
     impala_running_type_dur = dict.fromkeys(IMPALA_ALL_QUERY_TYPES, 0)
     impala_total_type_count = dict.fromkeys(IMPALA_ALL_QUERY_TYPES, 0)
+    impala_user_count = dict.fromkeys(IMPALA_ALL_QUERY_USERS, dict.fromkeys(IMPALA_ALL_QUERY_TYPES, 0))
     impala_total_dur, impala_run_total_dur = 0, 0
     for query in impala_queries.queries:
         # query states
@@ -121,9 +135,16 @@ def _print_impala_metrics(impala, from_time, to_time, cluster_name):
         # total query types
         if query.queryType in IMPALA_ALL_QUERY_TYPES:
             impala_total_type_count[query.queryType] += 1
+            # user count
+            if query.user in IMPALA_ALL_QUERY_USERS:
+                impala_user_count[query.user][query.queryType] += 1
+            else:
+                impala_user_count[OTHER_USER][query.queryType] += 1
+
     impala_avg_dur = 0 if impala_finish_count == 0 else round(impala_total_dur / impala_finish_count)
     impala_run_avg_dur = 0 if impala_run_count == 0 else round(impala_run_total_dur / impala_run_count)
     curr_time = int(time.time() - 1)
+
     # impala query type
     for query_type in IMPALA_ALL_QUERY_TYPES:
         # running query types
@@ -136,6 +157,18 @@ def _print_impala_metrics(impala, from_time, to_time, cluster_name):
         impala_running_avg_type_dur = 0 if impala_running_type_count[query_type] == 0 else \
             round(impala_running_type_dur[query_type] / impala_running_type_count[query_type])
         print(IMPALA_DURATION_METRIC % (curr_time, impala_running_avg_type_dur, query_type, RUNNING_STATE, cluster_name))
+
+    # print user count
+    for query_user in IMPALA_ALL_QUERY_USERS:
+        for query_type in IMPALA_ALL_QUERY_TYPES:
+            print(IMPALA_QUERY_USER_METRIC % (
+                curr_time,
+                impala_user_count[query_user][query_type],
+                IMPALA_QUERY_USER_TO_TAG[query_user],
+                query_type, 
+                cluster_name
+            ))
+
     # total finished query duration
     print(IMPALA_DURATION_METRIC % (curr_time, impala_avg_dur, ALL_TYPE, FINISHED_STATE, cluster_name))
     # total running query duration
