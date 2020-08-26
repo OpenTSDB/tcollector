@@ -27,9 +27,9 @@ TABLEAU_USER = ""
 OTHER_USER = "other"
 IMPALA_ALL_QUERY_USERS = [HADOOP_USER, TABLEAU_USER, OTHER_USER]
 IMPALA_QUERY_USER_TO_TAG = {
-    HADOOP_USER: "pipeline(hadoop)",
+    HADOOP_USER: "Pipeline",
     TABLEAU_USER: "Tableau",
-    OTHER_USER: "Ad-hoc"
+    OTHER_USER: "AdHoc"
 }
 
 DURATION_METRIC = "cloudera.job.duration %d %d job_type=%s"
