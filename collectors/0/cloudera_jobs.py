@@ -108,7 +108,8 @@ def _print_impala_metrics(impala, from_time, to_time, cluster_name):
     impala_running_type_count = dict.fromkeys(IMPALA_ALL_QUERY_TYPES, 0)
     impala_running_type_dur = dict.fromkeys(IMPALA_ALL_QUERY_TYPES, 0)
     impala_total_type_count = dict.fromkeys(IMPALA_ALL_QUERY_TYPES, 0)
-    impala_user_count = dict.fromkeys(IMPALA_ALL_QUERY_USERS, dict.fromkeys(IMPALA_ALL_QUERY_TYPES, 0))
+    impala_query_type_user_count = \
+        {user: {query_type: 0 for query_type in IMPALA_ALL_QUERY_TYPES} for user in IMPALA_ALL_QUERY_USERS}
     impala_total_dur, impala_run_total_dur = 0, 0
     for query in impala_queries.queries:
         # query states
@@ -137,9 +138,9 @@ def _print_impala_metrics(impala, from_time, to_time, cluster_name):
             impala_total_type_count[query.queryType] += 1
             # user count
             if query.user in IMPALA_ALL_QUERY_USERS:
-                impala_user_count[query.user][query.queryType] += 1
+                impala_query_type_user_count[query.user][query.queryType] += 1
             else:
-                impala_user_count[OTHER_USER][query.queryType] += 1
+                impala_query_type_user_count[OTHER_USER][query.queryType] += 1
 
     impala_avg_dur = 0 if impala_finish_count == 0 else round(impala_total_dur / impala_finish_count)
     impala_run_avg_dur = 0 if impala_run_count == 0 else round(impala_run_total_dur / impala_run_count)
@@ -163,7 +164,7 @@ def _print_impala_metrics(impala, from_time, to_time, cluster_name):
         for query_type in IMPALA_ALL_QUERY_TYPES:
             print(IMPALA_QUERY_USER_METRIC % (
                 curr_time,
-                impala_user_count[query_user][query_type],
+                impala_query_type_user_count[query_user][query_type],
                 IMPALA_QUERY_USER_TO_TAG[query_user],
                 query_type, 
                 cluster_name
