@@ -193,14 +193,11 @@ def _get_cdh_api(name):
 
 def _get_service(api, service):
     clusters = api.get_all_clusters()
-    cdh = None
     for c in clusters:
         if c.version == "CDH5" or c.version == "CDH6":
-            cdh = c
-    services = cdh.get_all_services()
-    for s in services:
-        if s.type == service:
-            return s
+            for s in c.get_all_services():
+                if s.type == service:
+                    return s
     return None
 
 
