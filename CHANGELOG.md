@@ -7,6 +7,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Improvements
 - A namespace prefix can be added to all metrics.
 - An optional status monitoring API, serving JSON over HTTP
+- Command-line options can be configured using an optional `/etc/tcollector.json` configuration file.
 
 ### Bugfixes
 

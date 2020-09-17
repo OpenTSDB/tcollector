@@ -932,6 +932,10 @@ def parse_cmdline(argv):
         sys.stderr.write("Unexpected error: %s\n" % e)
         raise
 
+    if os.path.exists("/etc/tcollector.json"):
+        with open("/etc/tcollector.json") as f:
+            defaults.update(json.load(f))
+
     # get arguments
     parser = OptionParser(description='Manages collectors which gather '
                                        'data and report back.')
