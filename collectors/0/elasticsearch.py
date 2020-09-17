@@ -182,7 +182,10 @@ def _collect_server(server, version, lock):
   tags = {"cluster": cluster_name, "node": node_name}
   #tags.update(nstats["attributes"])
 
-  is_master = nodeid == cluster_master_node(server)
+  if nodeid == cluster_master_node(server):
+      is_master = 1
+  else:
+      is_master = 0
   with lock:
     printmetric(rootmetric + ".is_master", ts, is_master, tags)
   if is_master:
