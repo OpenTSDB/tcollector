@@ -83,7 +83,7 @@ def main():
       # startswith(tuple) avoided to preserve support of Python 2.4
       elif fs_file.startswith("/dev") or fs_file.startswith("/sys") or \
             fs_file.startswith("/proc") or fs_file.startswith("/lib") or \
-            fs_file.startswith("net:"):
+            fs_file.startswith("net:") or fs_file.startswith("/var/lib/kubelet"):
         continue
 
       # keep /dev/xxx device with shorter fs_file (remove mount binds)

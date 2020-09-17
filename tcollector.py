@@ -44,11 +44,12 @@ if PY3:
     import importlib
     from queue import Queue, Empty, Full # pylint: disable=import-error
     from urllib.request import Request, urlopen # pylint: disable=maybe-no-member,no-name-in-module,import-error
-    from urllib.error import HTTPError # pylint: disable=maybe-no-member,no-name-in-module,import-error
-
+    from urllib.error import HTTPError, URLError # pylint: disable=maybe-no-member,no-name-in-module,import-error
+    from http.server import HTTPServer, BaseHTTPRequestHandler # pylint: disable=maybe-no-member,no-name-in-module,import-error
 else:
     from Queue import Queue, Empty, Full # pylint: disable=maybe-no-member,no-name-in-module,import-error
-    from urllib2 import Request, urlopen, HTTPError # pylint: disable=maybe-no-member,no-name-in-module,import-error
+    from urllib2 import Request, urlopen, HTTPError, URLError # pylint: disable=maybe-no-member,no-name-in-module,import-error
+    from BaseHTTPServer import HTTPServer, BaseHTTPRequestHandler # pylint: disable=maybe-no-member,no-name-in-module,import-error
 
 # global variables.
 COLLECTORS = {}
@@ -234,6 +235,48 @@ class Collector(object):
             if time < cut_off:
                 del self.values[key]
 
+    def to_json(self):
+        """Expose collector information in JSON-serializable format."""
+        result = {}
+        for attr in ["name", "mtime", "lastspawn", "killstate", "nextkill",
+                     "lines_sent", "lines_received", "lines_invalid",
+                     "last_datapoint", "dead"]:
+            result[attr] = getattr(self, attr)
+        return result
+
+
+class StatusRequestHandler(BaseHTTPRequestHandler):
+    """Serves status of collectors as JSON."""
+
+    def do_GET(self):
+        # This happens in different thread than the one updating collectors.
+        # However, all the attributes we're getting can't be corrupted by
+        # another thread changing them midway (it's integers and strings and
+        # the like), so worst case it's a tiny bit internally inconsistent.
+        # Which is fine for monitoring.
+        result = json.dumps([c.to_json() for c in self.server.collectors.values()])
+        self.send_response(200)
+        self.send_header("content-type", "text/json")
+        self.send_header("content-length", str(len(result)))
+        self.end_headers()
+        if PY3:
+            result = result.encode("utf-8")
+        self.wfile.write(result)
+
+
+class StatusServer(HTTPServer):
+    """Serves status of collectors over HTTP."""
+
+    def __init__(self, interface, port, collectors):
+        """
+        interface: the interface to listen on, e.g. "127.0.0.1".
+        port: the port to listen on, e.g. 8080.
+        collectors: a dictionary mapping names to Collectors, typically the
+                    global COLLECTORS.
+        """
+        self.collectors = collectors
+        HTTPServer.__init__(self, (interface, port), StatusRequestHandler)
+
 
 class StdinCollector(Collector):
     """A StdinCollector simply reads from STDIN and provides the
@@ -267,13 +310,15 @@ class StdinCollector(Collector):
         pass
 
 
+
+
 class ReaderThread(threading.Thread):
     """The main ReaderThread is responsible for reading from the collectors
        and assuring that we always read from the input no matter what.
        All data read is put into the self.readerq Queue, which is
        consumed by the SenderThread."""
 
-    def __init__(self, dedupinterval, evictinterval, deduponlyzero):
+    def __init__(self, dedupinterval, evictinterval, deduponlyzero, ns_prefix=""):
         """Constructor.
             Args:
               dedupinterval: If a metric sends the same value over successive
@@ -286,6 +331,7 @@ class ReaderThread(threading.Thread):
                 evictinterval will be removed from the cache to save RAM.
                 Invariant: evictinterval > dedupinterval
               deduponlyzero: do the above only for 0 values.
+              ns_prefix: Prefix to add to metric tags.
         """
         assert evictinterval > dedupinterval, "%r <= %r" % (evictinterval,
                                                             dedupinterval)
@@ -297,6 +343,7 @@ class ReaderThread(threading.Thread):
         self.dedupinterval = dedupinterval
         self.evictinterval = evictinterval
         self.deduponlyzero = deduponlyzero
+        self.ns_prefix = ns_prefix
 
     def run(self):
         """Main loop for this thread.  Just reads from collectors,
@@ -341,6 +388,9 @@ class ReaderThread(threading.Thread):
             LOG.warning('%s line too long: %s', col.name, line)
             col.lines_invalid += 1
             return
+
+        line = self.ns_prefix + line
+
         parsed = re.match('^([-_./a-zA-Z0-9]+)\s+' # Metric name.
                           '(\d+\.?\d+)\s+'               # Timestamp.
                           '(\S+?)'                 # Value (int or float).
@@ -351,14 +401,20 @@ class ReaderThread(threading.Thread):
             col.lines_invalid += 1
             return
         metric, timestamp, value, tags = parsed.groups()
+        try:
+            # The regex above is fairly open, and would leave values like 'True' through
+            testvalue = float(value)
+        except:
+            LOG.warning('%s sent invalid value: %s', col.name, line)
+            col.lines_invalid += 1
+            return
 
         # If there are more than 11 digits we're dealing with a timestamp
         # with millisecond precision
         max_timestamp = MAX_REASONABLE_TIMESTAMP
         if len(timestamp) > 11:
             max_timestamp = MAX_REASONABLE_TIMESTAMP * 1000
-
-        timestamp = int(timestamp)
+        timestamp = float(timestamp)
 
         # De-dupe detection...  To reduce the number of points we send to the
         # TSD, we suppress sending values of metrics that don't change to
@@ -531,6 +587,7 @@ class SenderThread(threading.Thread):
 
                 if ALIVE:
                     self.send_data()
+
                 errors = 0  # We managed to do a successful iteration.
             except (ArithmeticError, EOFError, EnvironmentError, LookupError,
                     ValueError) as e:
@@ -795,8 +852,12 @@ class SenderThread(threading.Thread):
                          % base64.b64encode("%s:%s" % (self.http_username, self.http_password)))
         req.add_header("Content-Type", "application/json")
         try:
-            response = urlopen(req, json.dumps(metrics))
+            body = json.dumps(metrics)
+            if not isinstance(body, bytes):
+                body = body.encode("utf-8")
+            response = urlopen(req, body)
             LOG.debug("Received response %s %s", response.getcode(), response.read().rstrip('\n'))
+
             # clear out the sendq
             self.sendq = []
             # print "Got response code: %s" % response.getcode()
@@ -805,9 +866,16 @@ class SenderThread(threading.Thread):
             #     print line,
             #     print
         except HTTPError as e:
-            LOG.error("Got error %s %s", e, e.read().rstrip('\n'))
-            # for line in http_error:
-            #   print line,
+            if e.code == 400:
+                LOG.error("Some data was bad, so not going to resend it.")
+                # This means one or more of the data points were bad
+                # (http://opentsdb.net/docs/build/html/api_http/put.html#response).
+                # As such, there's no point resending them.
+                self.sendq = []
+
+            LOG.error("Got error %s %s", e, e.read())
+        except URLError as e:
+            LOG.error("Got error URL %s", e)
 
 
 def setup_logging(logfile=DEFAULT_LOG, max_bytes=None, backup_count=None):
@@ -861,11 +929,18 @@ def parse_cmdline(argv):
             'ssl': False,
             'stdin': False,
             'daemonize': False,
-            'hosts': False
+            'hosts': False,
+            "monitoring_interface": None,
+            "monitoring_port": 13280,
+            "namespace_prefix": "",
         }
-    except:
-        sys.stderr.write("Unexpected error: %s" % sys.exc_info()[0])
+    except Exception as e:
+        sys.stderr.write("Unexpected error: %s\n" % e)
         raise
+
+    if os.path.exists("/etc/tcollector.json"):
+        with open("/etc/tcollector.json") as f:
+            defaults.update(json.load(f))
 
     # get arguments
     parser = OptionParser(description='Manages collectors which gather '
@@ -956,6 +1031,18 @@ def parse_cmdline(argv):
                       help='Password to use for HTTP Basic Auth when sending the data via HTTP')
     parser.add_option('--ssl', dest='ssl', action='store_true', default=defaults['ssl'],
                       help='Enable SSL - used in conjunction with http')
+    parser.add_option('--namespace-prefix', dest='namespace_prefix', default=defaults["namespace_prefix"],
+                      help='Prefix to prepend to all metric names collected', type=str)
+    parser.add_option('--monitoring-interface', dest='monitoring_interface', action='store',
+                      # Old installs may not have this config option:
+                      default=defaults.get("monitoring_interface", None),
+                      help="Interface for status API to listen on " +
+                           "(e.g. '127.0.0.1, 0.0.0.0). " +
+                           "Disabled by default.")
+    parser.add_option('--monitoring-port', dest='monitoring_port', action='store',
+                      default=defaults.get("monitoring_port", 13280),
+                      help="Port for status API to listen on.")
+
     (options, args) = parser.parse_args(args=argv[1:])
     if options.dedupinterval < 0:
         parser.error('--dedup-interval must be at least 0 seconds')
@@ -967,8 +1054,13 @@ def parse_cmdline(argv):
     # We cannot write to stdout when we're a daemon.
     if (options.daemonize or options.max_bytes) and not options.backup_count:
         options.backup_count = 1
-    return (options, args)
 
+    prefix = options.namespace_prefix
+    if prefix and not prefix.endswith('.'):
+        prefix += '.'
+        options.namespace_prefix = prefix
+
+    return (options, args)
 
 def daemonize():
     """Performs the necessary dance to become a background daemon."""
@@ -1014,6 +1106,8 @@ def main(argv):
 
     try:
         options, args = parse_cmdline(argv)
+    except SystemExit:
+        raise
     except:
         sys.stderr.write("Unexpected error: %s" % sys.exc_info()[0])
         return 1
@@ -1056,9 +1150,16 @@ def main(argv):
     for sig in (signal.SIGTERM, signal.SIGINT):
         signal.signal(sig, shutdown_signal)
 
+    # Status server, if it's configured:
+    if options.monitoring_interface is not None:
+        status_server = StatusServer(options.monitoring_interface, options.monitoring_port, COLLECTORS)
+        thread = threading.Thread(target=status_server.serve_forever)
+        thread.setDaemon(True)  # keep thread from preventing shutdown
+        thread.start()
+
     # at this point we're ready to start processing, so start the ReaderThread
     # so we can have it running and pulling in data for us
-    reader = ReaderThread(options.dedupinterval, options.evictinterval, options.deduponlyzero)
+    reader = ReaderThread(options.dedupinterval, options.evictinterval, options.deduponlyzero, options.namespace_prefix)
     reader.start()
 
     # prepare list of (host, port) of TSDs given on CLI
@@ -1366,11 +1467,17 @@ def spawn_collector(col):
     # FIXME: do custom integration of Python scripts into memory/threads
     # if re.search('\.py$', col.name) is not None:
     #     ... load the py module directly instead of using a subprocess ...
+    kwargs = {
+        "stdout": subprocess.PIPE,
+        "stderr": subprocess.PIPE,
+        "close_fds": True,
+        "preexec_fn": os.setsid,
+    }
+    if PY3:
+        # Make sure we get back a string, not bytes
+        kwargs["encoding"] = "utf-8"
     try:
-        col.proc = subprocess.Popen(col.filename, stdout=subprocess.PIPE,
-                                    stderr=subprocess.PIPE,
-                                    close_fds=True,
-                                    preexec_fn=os.setsid)
+        col.proc = subprocess.Popen(col.filename, **kwargs)
     except OSError as e:
         LOG.error('Failed to spawn collector %s: %s' % (col.filename, e))
         return
@@ -1378,7 +1485,7 @@ def spawn_collector(col):
     # other logic and it makes no sense to update the last spawn time if the
     # collector didn't actually start.
     col.lastspawn = int(time.time())
-    # Without setting last_datapoint here, a long running check (>15s) will be 
+    # Without setting last_datapoint here, a long running check (>15s) will be
     # killed by check_children() the first time check_children is called.
     col.last_datapoint = col.lastspawn
     set_nonblocking(col.proc.stdout.fileno())
