@@ -14,13 +14,19 @@
 
 import os
 import sys
+import time
 from stat import S_ISDIR, S_ISREG, ST_MODE
 import unittest
+import subprocess
 
 import mocks
 import tcollector
 import json
 import threading
+try:
+    import flask
+except ImportError:
+    flask = None
 
 PY3 = sys.version_info[0] > 2
 
@@ -101,6 +107,54 @@ class StatusServerTests(unittest.TestCase):
         self.assertEqual(json.loads(r), [c.to_json() for c in collectors.values()])
 
 
+@unittest.skipUnless(flask, "Flask not installed")
+class SenderThreadHTTPTests(unittest.TestCase):
+    """Tests for HTTP sending."""
+
+    def run_fake_opentsdb(self, response_code):
+        env = os.environ.copy()
+        env["FLASK_APP"] = "fake_opentsdb.py"
+        env["FAKE_OPENTSDB_RESPONSE"] = str(response_code)
+        flask = subprocess.Popen(["flask", "run", "--port", "4242"], env=env)
+        time.sleep(1)  # wait for it to start
+        self.addCleanup(flask.terminate)
+
+    def send_query_with_response_code(self, response_code):
+        """
+        Send a HTTP query using SenderThread, with server that returns given
+        response code.
+        """
+        self.run_fake_opentsdb(response_code)
+        reader = tcollector.ReaderThread(1, 10, True)
+        sender = tcollector.SenderThread(
+            reader, False, [("localhost", 4242)], False, {},
+            http=True, http_api_path="api/put"
+        )
+        sender.sendq.append("mymetric 123 12 a=b")
+        sender.send_data()
+        return sender
+
+    def test_normal(self):
+        """If response is OK, sendq is cleared."""
+        sender = self.send_query_with_response_code(204)
+        self.assertEqual(len(sender.sendq), 0)
+
+    def test_error(self):
+        """
+        If response is unexpected, e.g. 500 error, sendq is not cleared so we
+        can retry.
+        """
+        sender = self.send_query_with_response_code(500)
+        self.assertEqual(len(sender.sendq), 1)
+
+    def test_bad_messages(self):
+        """
+        If response is 400, sendq is cleared since there's no point retrying
+        bad messages.
+        """
+        sender = self.send_query_with_response_code(400)
+        self.assertEqual(len(sender.sendq), 0)
+
 class NamespacePrefixTests(unittest.TestCase):
     """Tests for metric namespace prefix."""
 
@@ -113,7 +167,6 @@ class NamespacePrefixTests(unittest.TestCase):
         self.assertEqual(thread.readerq.get(), "my.namespace." + line)
         self.assertEqual(collector.lines_received, 1)
         self.assertEqual(collector.lines_invalid, 0)
-
 
 class TSDBlacklistingTests(unittest.TestCase):
     """
@@ -379,6 +432,8 @@ class UDPCollectorTests(unittest.TestCase):
         self.assertEqual(stderr, [])
 
 if __name__ == '__main__':
+    import logging
+    logging.basicConfig()
     cdir = os.path.join(os.path.dirname(os.path.realpath(sys.argv[0])),
                         'collectors')
     tcollector.setup_python_path(cdir) # pylint: disable=maybe-no-member

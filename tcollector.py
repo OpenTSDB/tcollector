@@ -44,11 +44,11 @@ if PY3:
     import importlib
     from queue import Queue, Empty, Full # pylint: disable=import-error
     from urllib.request import Request, urlopen # pylint: disable=maybe-no-member,no-name-in-module,import-error
-    from urllib.error import HTTPError # pylint: disable=maybe-no-member,no-name-in-module,import-error
+    from urllib.error import HTTPError, URLError # pylint: disable=maybe-no-member,no-name-in-module,import-error
     from http.server import HTTPServer, BaseHTTPRequestHandler # pylint: disable=maybe-no-member,no-name-in-module,import-error
 else:
     from Queue import Queue, Empty, Full # pylint: disable=maybe-no-member,no-name-in-module,import-error
-    from urllib2 import Request, urlopen, HTTPError # pylint: disable=maybe-no-member,no-name-in-module,import-error
+    from urllib2 import Request, urlopen, HTTPError, URLError # pylint: disable=maybe-no-member,no-name-in-module,import-error
     from BaseHTTPServer import HTTPServer, BaseHTTPRequestHandler # pylint: disable=maybe-no-member,no-name-in-module,import-error
 
 # global variables.
@@ -846,7 +846,10 @@ class SenderThread(threading.Thread):
                          % base64.b64encode("%s:%s" % (self.http_username, self.http_password)))
         req.add_header("Content-Type", "application/json")
         try:
-            response = urlopen(req, json.dumps(metrics))
+            body = json.dumps(metrics)
+            if not isinstance(body, bytes):
+                body = body.encode("utf-8")
+            response = urlopen(req, body)
             LOG.debug("Received response %s %s", response.getcode(), response.read().rstrip('\n'))
 
             # clear out the sendq
@@ -857,9 +860,16 @@ class SenderThread(threading.Thread):
             #     print line,
             #     print
         except HTTPError as e:
-            LOG.error("Got error %s %s", e, e.read().rstrip('\n'))
-            # for line in http_error:
-            #   print line,
+            if e.code == 400:
+                LOG.error("Some data was bad, so not going to resend it.")
+                # This means one or more of the data points were bad
+                # (http://opentsdb.net/docs/build/html/api_http/put.html#response).
+                # As such, there's no point resending them.
+                self.sendq = []
+
+            LOG.error("Got error %s %s", e, e.read())
+        except URLError as e:
+            LOG.error("Got error URL %s", e)
 
 
 def setup_logging(logfile=DEFAULT_LOG, max_bytes=None, backup_count=None):
