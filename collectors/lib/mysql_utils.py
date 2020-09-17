@@ -325,16 +325,17 @@ def collect_disk_stats(db):
     ts = now()
 
     disk_stats = get_disk_stats()
-    for path, size in disk_stats.items():
-        try:
-            # get same metric name with different path as tag
-            print_metric(db, ts, "master.path_size",
-                         size, "path={}".format(path))
+    if disk_stats is not None:
+        for path, size in disk_stats.items():
+            try:
+                # get same metric name with different path as tag
+                print_metric(db, ts, "master.path_size",
+                             size, "path={}".format(path))
 
-            # print_metric(db, ts, "slave.path_size.{}".format(path),
-            #              size)
-        except:
-            pass
+                # print_metric(db, ts, "slave.path_size.{}".format(path),
+                #              size)
+            except:
+                pass
 
 
 def print_metric(db, ts, metric, value, tags=""):
