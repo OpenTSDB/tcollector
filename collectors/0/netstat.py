@@ -221,6 +221,10 @@ def main():
         # We received something but had to drop it because the socket's
         # receive queue was full.
         "TCPBacklogDrop": ("receive.queue.full", None),
+        # The number of TCP segments sent containing the RST flag
+        "OutRsts": ("resets", "direction=out"),
+        # The total number of segments received in error (for example, bad TCP checksums).
+        "InErrs": ("errors", "direction=in"),
     }
     known_stats = {
         "tcp": tcp_stats,
