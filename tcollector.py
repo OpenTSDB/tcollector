@@ -407,11 +407,16 @@ class ReaderThread(threading.Thread):
           LOG.warning('%s sent boolean value, converted to int: %s', col.name, line)
           value = int(value)
 
-        if value.lower() == 'true':
+        if PY3:
+          string_types = str
+        else:
+          string_types = basestring
+
+        if isinstance(value, string_types) and value.lower() == 'true':
           LOG.warning('%s sent boolean value, converted to int: %s', col.name, line)
           value = 1
 
-        if value.lower() == 'false':
+        if isinstance(value, string_types) and value.lower() == 'false':
           LOG.warning('%s sent boolean value, converted to int: %s', col.name, line)
           value = 0
 
