@@ -155,6 +155,18 @@ class SenderThreadHTTPTests(unittest.TestCase):
         sender = self.send_query_with_response_code(400)
         self.assertEqual(len(sender.sendq), 0)
 
+class NamespacePrefixTests(unittest.TestCase):
+    """Tests for metric namespace prefix."""
+
+    def test_prefix_added(self):
+        """Namespace prefix gets added to metrics as they are read."""
+        thread = tcollector.ReaderThread(1, 10, True, "my.namespace.")
+        collector = tcollector.Collector("c", 1, "c")
+        line = "mymetric 123 12 a=b"
+        thread.process_line(collector, line)
+        self.assertEqual(thread.readerq.get(), "my.namespace." + line)
+        self.assertEqual(collector.lines_received, 1)
+        self.assertEqual(collector.lines_invalid, 0)
 
 class TSDBlacklistingTests(unittest.TestCase):
     """
