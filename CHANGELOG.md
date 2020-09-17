@@ -11,12 +11,12 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - A namespace prefix can be added to all metrics.
 - An optional status monitoring API, serving JSON over HTTP
 - Command-line options can be configured using an optional `/etc/tcollector.json` configuration file.
+- Boolean values True, true, False, and false, are now converted to 1,1,0 and 0 respectively.
 
 ### Bugfixes
 
 - If response code from OpenTSDB is 400, don't retry sending since this means we
   sent bad data.
-
 
 ## [1.3.1](https://github.com/OpenTSDB/tcollector/issues?utf8=%E2%9C%93&q=milestone%3A1.3.1+)
 ### Collectors Added

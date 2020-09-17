@@ -43,6 +43,38 @@ def always_true():
 
 class ReaderThreadTests(unittest.TestCase):
 
+    def test_bool_false_converted_int(self):
+        """Values that aren't ints/floats aren't sent to OpenTSDB.
+
+        This can happen if a specific collector is buggy.
+        """
+        thread = tcollector.ReaderThread(1, 10, True)
+        collector = tcollector.Collector("c", 1, "c")
+        line= "mymetric 123 False a=b"
+        expected = "mymetric 123 0 a=b"
+        thread.process_line(collector, line)
+        self.assertEqual(thread.readerq.qsize(), 1, line)
+        self.assertEqual(thread.readerq.get(), line)
+        self.assertEqual(collector.lines_received, 1)
+        self.assertEqual(collector.lines_invalid, 0)
+        self.assertEqual(stderr, [])
+
+    def test_bool_true_converted_int(self):
+        """Values that aren't ints/floats aren't sent to OpenTSDB.
+
+        This can happen if a specific collector is buggy.
+        """
+        thread = tcollector.ReaderThread(1, 10, True)
+        collector = tcollector.Collector("c", 1, "c")
+        line= "mymetric 123 True a=b"
+        expected = "mymetric 123 1 a=b"
+        thread.process_line(collector, line)
+        self.assertEqual(thread.readerq.qsize(), 1, line)
+        self.assertEqual(thread.readerq.get(), line)
+        self.assertEqual(collector.lines_received, 1)
+        self.assertEqual(collector.lines_invalid, 0)
+        self.assertEqual(stderr, [])
+
     def test_bad_float(self):
         """Values that aren't ints/floats aren't sent to OpenTSDB.
 
@@ -50,7 +82,7 @@ class ReaderThreadTests(unittest.TestCase):
         """
         thread = tcollector.ReaderThread(1, 10, True)
         collector = tcollector.Collector("c", 1, "c")
-        for line in ["xxx", "mymetric 123 True a=b"]:
+        for line in ["xxx", "mymetric 123 Value a=b"]:
             thread.process_line(collector, line)
         self.assertEqual(thread.readerq.qsize(), 0)
         self.assertEqual(collector.lines_received, 2)

@@ -402,6 +402,19 @@ class ReaderThread(threading.Thread):
             col.lines_invalid += 1
             return
         metric, timestamp, value, tags = parsed.groups()
+
+        if isinstance(value, bool):
+          LOG.warning('%s sent boolean value, converted to int: %s', col.name, line)
+          value = int(value)
+
+        if value.lower() == 'true':
+          LOG.warning('%s sent boolean value, converted to int: %s', col.name, line)
+          value = 1
+
+        if value.lower() == 'false':
+          LOG.warning('%s sent boolean value, converted to int: %s', col.name, line)
+          value = 0
+
         try:
             # The regex above is fairly open, and would leave values like 'True' through
             testvalue = float(value)
