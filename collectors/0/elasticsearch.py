@@ -106,6 +106,9 @@ def printmetric(metric, ts, value, tags):
                           for name, value in tags.items())
   else:
     tags = ""
+  # Convert any bool values to int, as opentsdb only accepts int or float.
+  if isinstance(value, bool):
+      value = int(value)
   print("%s %d %s %s"
          % (metric, ts, value, tags))
 
