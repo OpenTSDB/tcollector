@@ -158,6 +158,7 @@ def main():
                     print_stat(metric, ts, value, tags)
             sock.close()
 
+        sys.stdout.flush()
         time.sleep(COLLECTION_INTERVAL)
 
 if __name__ == "__main__":
