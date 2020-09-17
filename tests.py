@@ -48,8 +48,8 @@ class ReaderThreadTests(unittest.TestCase):
 
         This can happen if a specific collector is buggy.
         """
-        thread = tcollector.ReaderThread(1, 10, True)
-        collector = tcollector.Collector("c", 1, "c")
+        thread = tcollector.ReaderThread(1, 10, True) # pylint:disable=no-member
+        collector = tcollector.Collector("c", 1, "c") # pylint:disable=no-member
         line= "mymetric 123 False a=b"
         expected = "mymetric 123 0 a=b"
         thread.process_line(collector, line)
@@ -57,15 +57,14 @@ class ReaderThreadTests(unittest.TestCase):
         self.assertEqual(thread.readerq.get(), line)
         self.assertEqual(collector.lines_received, 1)
         self.assertEqual(collector.lines_invalid, 0)
-        self.assertEqual(stderr, [])
 
     def test_bool_true_converted_int(self):
         """Values that aren't ints/floats aren't sent to OpenTSDB.
 
         This can happen if a specific collector is buggy.
         """
-        thread = tcollector.ReaderThread(1, 10, True)
-        collector = tcollector.Collector("c", 1, "c")
+        thread = tcollector.ReaderThread(1, 10, True) # pylint:disable=no-member
+        collector = tcollector.Collector("c", 1, "c") # pylint:disable=no-member
         line= "mymetric 123 True a=b"
         expected = "mymetric 123 1 a=b"
         thread.process_line(collector, line)
@@ -73,15 +72,14 @@ class ReaderThreadTests(unittest.TestCase):
         self.assertEqual(thread.readerq.get(), line)
         self.assertEqual(collector.lines_received, 1)
         self.assertEqual(collector.lines_invalid, 0)
-        self.assertEqual(stderr, [])
 
     def test_bad_float(self):
         """Values that aren't ints/floats aren't sent to OpenTSDB.
 
         This can happen if a specific collector is buggy.
         """
-        thread = tcollector.ReaderThread(1, 10, True)
-        collector = tcollector.Collector("c", 1, "c")
+        thread = tcollector.ReaderThread(1, 10, True) # pylint:disable=no-member
+        collector = tcollector.Collector("c", 1, "c") # pylint:disable=no-member
         for line in ["xxx", "mymetric 123 Value a=b"]:
             thread.process_line(collector, line)
         self.assertEqual(thread.readerq.qsize(), 0)
@@ -90,8 +88,8 @@ class ReaderThreadTests(unittest.TestCase):
 
     def test_ok_lines(self):
         """Good lines are passed on to OpenTSDB."""
-        thread = tcollector.ReaderThread(1, 10, True)
-        collector = tcollector.Collector("c", 1, "c")
+        thread = tcollector.ReaderThread(1, 10, True) # pylint:disable=no-member
+        collector = tcollector.Collector("c", 1, "c") # pylint:disable=no-member
         for line in ["mymetric 123.24 12 a=b",
                      "mymetric 124 12.7 a=b",
                      "mymetric 125 12.7"]:
@@ -132,7 +130,7 @@ class CollectorsTests(unittest.TestCase):
 
     def test_json(self):
         """A collector can be serialized to JSON."""
-        collector = tcollector.Collector("myname", 17, "myname.py", mtime=23, lastspawn=15)
+        collector = tcollector.Collector("myname", 17, "myname.py", mtime=23, lastspawn=15) # pylint:disable=no-member
         collector.nextkill += 8
         collector.killstate += 2
         collector.lines_sent += 10
@@ -157,16 +155,16 @@ class StatusServerTests(unittest.TestCase):
     def test_endtoend(self):
         """We can get JSON status of collectors from StatusServer."""
         collectors = {
-            "a": tcollector.Collector("mycollector", 5, "a.py"),
-            "b": tcollector.Collector("second", 3, "b.py"),
+            "a": tcollector.Collector("mycollector", 5, "a.py"), # pylint:disable=no-member
+            "b": tcollector.Collector("second", 3, "b.py"), # pylint:disable=no-member
         }
-        server = tcollector.StatusServer("127.0.0.1", 32025, collectors)
+        server = tcollector.StatusServer("127.0.0.1", 32025, collectors) # pylint:disable=no-member
         # runs in background until test suite exits :( but it works.
         thread = threading.Thread(target=server.serve_forever)
         thread.setDaemon(True)
         thread.start()
 
-        r = tcollector.urlopen("http://127.0.0.1:32025").read()
+        r = tcollector.urlopen("http://127.0.0.1:32025").read() # pylint:disable=no-member
         self.assertEqual(json.loads(r), [c.to_json() for c in collectors.values()])
 
 
@@ -188,8 +186,8 @@ class SenderThreadHTTPTests(unittest.TestCase):
         response code.
         """
         self.run_fake_opentsdb(response_code)
-        reader = tcollector.ReaderThread(1, 10, True)
-        sender = tcollector.SenderThread(
+        reader = tcollector.ReaderThread(1, 10, True) # pylint:disable=no-member
+        sender = tcollector.SenderThread( # pylint:disable=no-member
             reader, False, [("localhost", 4242)], False, {},
             http=True, http_api_path="api/put"
         )
@@ -223,8 +221,8 @@ class NamespacePrefixTests(unittest.TestCase):
 
     def test_prefix_added(self):
         """Namespace prefix gets added to metrics as they are read."""
-        thread = tcollector.ReaderThread(1, 10, True, "my.namespace.")
-        collector = tcollector.Collector("c", 1, "c")
+        thread = tcollector.ReaderThread(1, 10, True, "my.namespace.") # pylint:disable=no-member
+        collector = tcollector.Collector("c", 1, "c") # pylint:disable=no-member
         line = "mymetric 123 12 a=b"
         thread.process_line(collector, line)
         self.assertEqual(thread.readerq.get(), "my.namespace." + line)

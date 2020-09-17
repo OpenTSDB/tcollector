@@ -410,7 +410,7 @@ class ReaderThread(threading.Thread):
         if PY3:
           string_types = str
         else:
-          string_types = basestring
+          string_types = basestring # pylint:disable=undefined-variable
 
         if isinstance(value, string_types) and value.lower() == 'true':
           LOG.warning('%s sent boolean value, converted to int: %s', col.name, line)
