@@ -2,21 +2,54 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
-##[1.3.3](https://github.com/OpenTSDB/tcollector/issues?q=is%3Aopen+is%3Aissue+milestone%3A1.3.3)
+##[1.3.4](https://github.com/OpenTSDB/tcollector/issues?q=is%3Aopen+is%3Aissue+milestone%3A1.3.4)
+
+
+##[1.3.3](https://github.com/OpenTSDB/tcollector/issues?utf8=%E2%9C%93&q=milestone%3A1.3.3)
 
 ### Support
 - Dropped Support for Python 2.x, <=3.4.x
 
 ### Improvements
-- A namespace prefix can be added to all metrics.
-- An optional status monitoring API, serving JSON over HTTP
-- Command-line options can be configured using an optional `/etc/tcollector.json` configuration file.
-- Boolean values True, true, False, and false, are now converted to 1,1,0 and 0 respectively.
+- A namespace prefix can be added to all metrics. [#434](https://github.com/OpenTSDB/tcollector/pull/434)
+- An optional status monitoring API, serving JSON over HTTP [#422](https://github.com/OpenTSDB/tcollector/pull/422)
+- Command-line options can be configured using an optional `/etc/tcollector.json` configuration file. [#433](https://github.com/OpenTSDB/tcollector/pull/433)
+- Boolean values True, true, False, and false, are now converted to 1,1,0 and 0 respectively. [No PR #, I merged it to master directly...sorry....](https://github.com/OpenTSDB/tcollector)
+- collectors/0/nfsstat: correct list of nfs client names [#374](https://github.com/OpenTSDB/tcollector/pull/374)
+- Adding two TCP stats to netstat.py [#419](https://github.com/OpenTSDB/tcollector/pull/419)
+- Add info on the cpu sets to procstats [#432](https://github.com/OpenTSDB/tcollector/pull/432)
+- Ignore kubernetes mounts in dfstat.py [#418](https://github.com/OpenTSDB/tcollector/pull/418)
+- Adding ncat usage option to opentsdb.sh  [#420](https://github.com/OpenTSDB/tcollector/pull/420)
+- updated HBase ports for modern versions of HBase (0.99+ @ 2014/2015) [#394](https://github.com/OpenTSDB/tcollector/pull/394)
+- iostat - Generate write_bytes and read_bytes metrics  enhancement [#326](https://github.com/OpenTSDB/tcollector/pull/326)
+- allow dates past Sept 2020 [#405](https://github.com/OpenTSDB/tcollector/pull/405)
+- additonial Python compatibility [#396](https://github.com/OpenTSDB/tcollector/pull/396) [#411](https://github.com/OpenTSDB/tcollector/pull/411) [#218](https://github.com/OpenTSDB/tcollector/pull/218)
+- Added mysqlclient module [#383](https://github.com/OpenTSDB/tcollector/pull/383)
+
+### Collectors Added
+- Collector for MapR Hadoop node metrics [#281](https://github.com/OpenTSDB/tcollector/pull/281)
+- New Collectors for Hadoop Yarn Resource Manager and Node Manager JMX API Stats [#400](https://github.com/OpenTSDB/tcollector/pull/400)
+- netfilter stats [#354](https://github.com/OpenTSDB/tcollector/pull/354)
+- Added postgresql_replication collector. [#323](https://github.com/OpenTSDB/tcollector/pull/323)
+- Adding buddying memory fragmentation and slab info stats for tcollector [#318](https://github.com/OpenTSDB/tcollector/pull/318)
+- Added mountstats collector [#322](https://github.com/OpenTSDB/tcollector/pull/322)
 
 ### Bugfixes
-
-- If response code from OpenTSDB is 400, don't retry sending since this means we
-  sent bad data.
+- tcollector daemon hangs and becomes unresponsive. [#378](https://github.com/OpenTSDB/tcollector/pull/378)
+- If response code from OpenTSDB is 400, don't retry sending since this means we sent bad data. [#436](https://github.com/OpenTSDB/tcollector/pull/436)
+- Small data collection validation refinements [#431](https://github.com/OpenTSDB/tcollector/pull/431)
+- fix elasticsearch sending booleans to opentsdb  [#429](https://github.com/OpenTSDB/tcollector/pull/429)
+- Fix order of checking if value is bool  [#428](https://github.com/OpenTSDB/tcollector/pull/428)
+- add flush to zookeeper collector agent [#427](https://github.com/OpenTSDB/tcollector/pull/427)
+- correctly dedup timestamps in milleseconds [#440](https://github.com/OpenTSDB/tcollector/pull/440)
+- fix proc status [#425](https://github.com/OpenTSDB/tcollector/pull/425)
+- Hbase metric lost due to coding problems In python2 [#439](https://github.com/OpenTSDB/tcollector/pull/439)
+- hadoop_http.py - Fixed unicode issue [#437](https://github.com/OpenTSDB/tcollector/pull/437)
+- hbase regionserver collector "Error splitting numRegions" [#396](https://github.com/OpenTSDB/tcollector/pull/396)
+- added fix for #398 to flush metrics after each emit_metric [#399](https://github.com/OpenTSDB/tcollector/pull/399)
+- Fix for multithreaded HAProxy (since HAProxy 1.8) [#404](https://github.com/OpenTSDB/tcollector/pull/404)
+- Fix memory leak around timestamp precision adjust [#408](https://github.com/OpenTSDB/tcollector/pull/408)
+- Check counter names exist before referencing. [#377](https://github.com/OpenTSDB/tcollector/pull/377) [#376](https://github.com/OpenTSDB/tcollector/pull/376)
 
 ## [1.3.1](https://github.com/OpenTSDB/tcollector/issues?utf8=%E2%9C%93&q=milestone%3A1.3.1+)
 ### Collectors Added
