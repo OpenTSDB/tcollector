@@ -28,6 +28,7 @@ package will install the tcollector.py along with
 
 %install
 mkdir -p %{buildroot}/%{collectorsdir}/0/
+mkdir -p %{buildroot}/%{collectorsdir}/300/
 mkdir -p %{buildroot}/etc/init.d/
 
 # set homedir in init script
@@ -37,14 +38,17 @@ mkdir -p %{buildroot}/etc/init.d/
 
 # Install Base files
 mkdir -p %{buildroot}%{tcollectordir}/collectors/lib/
+mkdir -p %{buildroot}%{tcollectordir}/collectors/lib/docker_engine/
 mkdir -p %{buildroot}%{tcollectordir}/collectors/etc/
 %{__install} -m 0755 -D %{srccollectors}/__init__.py %{buildroot}%{tcollectordir}/collectors/
-%{__install} -m 0755 -D %{srccollectors}/lib/* %{buildroot}%{tcollectordir}/collectors/lib/
+%{__install} -m 0755 -D %{srccollectors}/lib/*.* %{buildroot}%{tcollectordir}/collectors/lib/
+%{__install} -m 0755 -D %{srccollectors}/lib/docker_engine/* %{buildroot}%{tcollectordir}/collectors/lib/docker_engine/
 %{__install} -m 0755 -D %{srccollectors}/etc/* %{buildroot}%{tcollectordir}/collectors/etc/
 %{__install} -m 0755 -D %{rootdir}/tcollector.py %{buildroot}%{tcollectordir}/
 
 # Install Collectors
 %{__install} -m 0755 -D %{srccollectors}/0/* %{buildroot}%{collectorsdir}/0/
+%{__install} -m 0755 -D %{srccollectors}/300/* %{buildroot}%{collectorsdir}/300/
 
 # Install EOS files
 %{__install} -m 0755 -D %{eosdir}/collectors/agent*.sh %{buildroot}/%{collectorsdir}/0/
@@ -54,6 +58,16 @@ mkdir -p %{buildroot}/usr/bin/
 mkdir -p %{buildroot}/%{py2_sitelib}/
 %{__install} -m 0755 -D %{eosdir}/tcollector_agent.py %{buildroot}/%{py2_sitelib}/
 
+
+# Modern rpmbuild wants either python2 or python3
+%{__perl} -pe "s|/usr/bin/env python|/usr/bin/env python2|;" -i %{buildroot}%{tcollectordir}/*.py
+%{__perl} -pe "s|/usr/bin/env python|/usr/bin/env python2|;" -i %{eosdir}/tcollector_agent.py %{buildroot}/%{py2_sitelib}/*.py
+%{__perl} -pe "s|/usr/bin/env python|/usr/bin/env python2|;" -i %{buildroot}%{tcollectordir}/collectors/etc/*.py
+%{__perl} -pe "s|/usr/bin/env python|/usr/bin/env python2|;" -i %{buildroot}%{tcollectordir}/collectors/0/*.py
+%{__perl} -pe "s|/usr/bin/env python|/usr/bin/env python2|;" -i %{buildroot}%{tcollectordir}/collectors/300/*.py
+%{__perl} -pe "s|/usr/bin/env python|/usr/bin/env python2|;" -i %{buildroot}%{tcollectordir}/collectors/lib/*.py
+%{__perl} -pe "s|/usr/bin/env python|/usr/bin/env python2|;" -i %{buildroot}%{tcollectordir}/collectors/lib/docker_engine/*.py
+%{__perl} -pe "s|/usr/bin/env python|/usr/bin/env python2|;" -i %{buildroot}/usr/bin/tcollector
 
 %files
 %dir %{tcollectordir}

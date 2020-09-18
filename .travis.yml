@@ -1,4 +1,5 @@
 language: python
+sudo: true
 dist: "xenial"
 python:
   - "2.7"
@@ -10,7 +11,9 @@ jobs:
   allow_failures:
     - python: 3.8
 install:
+  - sudo apt-get update && sudo apt-get install -y rpm
   - pip install pylint pylint_runner ordereddict mysqlclient requests feedparser prometheus_client flask
 script:
+  - cd rpm && make all && cd ..
   - pylint_runner --rcfile .pylintrc
   - ./tests.py
