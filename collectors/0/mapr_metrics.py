@@ -78,7 +78,7 @@ class Metrics2TSD:
 
   def get_cluster_name(self):
     cluster_name = None
-    with file('/opt/mapr/conf/mapr-clusters.conf') as clusters_conf:
+    with open('/opt/mapr/conf/mapr-clusters.conf', 'r') as clusters_conf:
       firstline = clusters_conf.readline()
       cluster_name = re.split('\s+', firstline)[0]
     return re.sub('\.', '_', cluster_name)
@@ -179,8 +179,7 @@ class Metrics2TSD:
 
   def print_opentsdb_message(self, metric, timestamp, value, tags):
     tag_string = " ".join(map(lambda x: "%s=%s" % x, tags.items()))
-    message = "%s %i %d %s" % (metric, timestamp, value, tag_string)
-    print "%s\n" % message
+    print("%s %i %d %s" % (metric, timestamp, value, tag_string))
 
   def send_gauge(self, metric, value, timestamp, tags={}):
     self.print_opentsdb_message(metric, timestamp, value, tags)
