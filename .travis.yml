@@ -6,6 +6,9 @@ python:
   - "3.6"
   - "3.7"
   - "3.8"
+jobs:
+  allow_failures:
+    - python: 3.8
 install:
   - pip install pylint pylint_runner ordereddict mysqlclient requests feedparser prometheus_client flask
 script:
