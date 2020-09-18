@@ -97,7 +97,7 @@ class DB(object):
     try:
       self.cursor.execute(sql)
     except MySQLdb.OperationalError as exc:
-      if exc.errno != 2006:  # "MySQL server has gone away"
+      if exc.errno != 2006:  # "MySQL server has gone away" # pylint:disable=no-member
         raise
       self._reconnect()
     return self.cursor.fetchall()
