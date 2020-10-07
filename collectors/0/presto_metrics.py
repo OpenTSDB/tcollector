@@ -138,8 +138,8 @@ def main():
     while True:
         try:
             conn = get_presto_connection()
-            # query_manager_time(conn)
-            # query_memory(conn)
+            query_manager_time(conn)
+            query_memory(conn)
             query_os_stats(conn)
             conn.close()
         except Exception as ex:
