@@ -4,6 +4,7 @@ import time
 import sys
 
 SLEEP_INTERVAL = 60  # 1 mins
+
 QUERY = """
     SELECT 
         %(column)s
@@ -20,14 +21,23 @@ QUERY_COND = """
         %(condition)s
 """
 
+OS_STATS_QUERY = """
+    SELECT 
+        node, %(column)s
+    FROM 
+        %(table_name)s  
+"""
+
 MEM_TABLE = """jmx.current.\"com.facebook.presto.memory:*name=general*\" """
 QUERY_TABLE = """jmx.current.\"com.facebook.presto.execution:*name=querymanager*\" """
+OS_STATS_TABLE = """jmx.current.\"java.lang:type=operatingsystem\" """
 HOST = "presto-alpha-backend.data.houzz.net"
 DB_PORT = 8086
 
 DURATION_METRIC = "presto.duration %d %d job_type=%s"
 COUNT_METRIC = "presto.count %d %d job_type=%s"
 MEMORY_METRIC = "presto.memory %d %d job_type=%s"
+OS_STATS_METRIC = "presto.os %d %f node=%s job_type=%s"
 
 SECONDS_TO_MILLISECONDS = 1000
 GB_TO_BYTES = 1073741824
@@ -35,6 +45,24 @@ GB_TO_BYTES = 1073741824
 
 def get_presto_connection(attemps=3):
     return presto.connect(host=HOST, port=DB_PORT)
+
+
+def query_os_stats(conn):
+    columns = ["systemloadaverage"]
+    params = {
+        'column': ', '.join(columns),
+        'table_name': OS_STATS_TABLE,
+    }
+    cur = conn.cursor()
+    query = OS_STATS_QUERY % params
+    cur.execute(query)
+    rows = cur.fetchall()
+    curr_time = int(time.time() - 1)
+    for row in rows:
+        # add metrics here
+        node = row[0]
+        cpu = row[1]
+        print(OS_STATS_METRIC % (curr_time, cpu, node, "CPU_LOAD"))
 
 
 def query_manager_time(conn):
@@ -110,8 +138,9 @@ def main():
     while True:
         try:
             conn = get_presto_connection()
-            query_manager_time(conn)
-            query_memory(conn)
+            # query_manager_time(conn)
+            # query_memory(conn)
+            query_os_stats(conn)
             conn.close()
         except Exception as ex:
             print(ex)
