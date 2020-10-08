@@ -48,7 +48,7 @@ def get_presto_connection(attemps=3):
 
 
 def query_os_stats(conn):
-    columns = ["systemloadaverage"]
+    columns = ["systemcpuload"]
     params = {
         'column': ', '.join(columns),
         'table_name': OS_STATS_TABLE,
@@ -61,7 +61,7 @@ def query_os_stats(conn):
     for row in rows:
         # add metrics here
         node = row[0]
-        cpu = row[1]
+        cpu = row[1] * 100
         print(OS_STATS_METRIC % (curr_time, cpu, node, "CPU_LOAD"))
 
 
