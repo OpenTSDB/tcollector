@@ -12,7 +12,7 @@ jobs:
     - python: 3.8
 install:
   - sudo apt-get update && sudo apt-get install -y rpm
-  - pip install pylint pylint_runner ordereddict mysqlclient requests feedparser prometheus_client flask
+  - pip install pylint pylint_runner ordereddict mysqlclient requests feedparser prometheus_client flask scheduler
 script:
   - cd rpm && make all && cd ..
   - pylint_runner --rcfile .pylintrc
