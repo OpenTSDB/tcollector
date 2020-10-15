@@ -47,12 +47,12 @@ if PY3:
     from urllib.request import Request, urlopen # pylint: disable=maybe-no-member,no-name-in-module,import-error
     from urllib.error import HTTPError, URLError # pylint: disable=maybe-no-member,no-name-in-module,import-error
     from http.server import HTTPServer, BaseHTTPRequestHandler # pylint: disable=maybe-no-member,no-name-in-module,import-error
-    from collections.abc import Callable
+    from collections.abc import Callable # pylint: disable=maybe-no-member,no-name-in-module,import-error
 else:
     from Queue import Queue, Empty, Full # pylint: disable=maybe-no-member,no-name-in-module,import-error
     from urllib2 import Request, urlopen, HTTPError, URLError # pylint: disable=maybe-no-member,no-name-in-module,import-error
     from BaseHTTPServer import HTTPServer, BaseHTTPRequestHandler # pylint: disable=maybe-no-member,no-name-in-module,import-error
-    from collections import Callable
+    from collections import Callable # pylint: disable=maybe-no-member,no-name-in-module,import-error
 
 # global variables.
 COLLECTORS = {}
