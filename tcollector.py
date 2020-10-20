@@ -37,6 +37,7 @@ import json
 import base64
 from logging.handlers import RotatingFileHandler
 from optparse import OptionParser
+
 import collections
 
 PY3 = sys.version_info[0] > 2
@@ -46,10 +47,12 @@ if PY3:
     from urllib.request import Request, urlopen # pylint: disable=maybe-no-member,no-name-in-module,import-error
     from urllib.error import HTTPError, URLError # pylint: disable=maybe-no-member,no-name-in-module,import-error
     from http.server import HTTPServer, BaseHTTPRequestHandler # pylint: disable=maybe-no-member,no-name-in-module,import-error
+    from collections.abc import Callable # pylint: disable=maybe-no-member,no-name-in-module,import-error
 else:
     from Queue import Queue, Empty, Full # pylint: disable=maybe-no-member,no-name-in-module,import-error
     from urllib2 import Request, urlopen, HTTPError, URLError # pylint: disable=maybe-no-member,no-name-in-module,import-error
     from BaseHTTPServer import HTTPServer, BaseHTTPRequestHandler # pylint: disable=maybe-no-member,no-name-in-module,import-error
+    from collections import Callable # pylint: disable=maybe-no-member,no-name-in-module,import-error
 
 # global variables.
 COLLECTORS = {}
@@ -156,6 +159,9 @@ class Collector(object):
         except IOError as exc:
             if exc.errno != errno.EAGAIN:
                 raise
+        except TypeError as exc:
+            # Sometimes the underlying buffer.read() returns None
+            LOG.debug("Recieved None while trying to read stderr")
         except:
             LOG.exception('uncaught exception in stderr read')
 
@@ -174,6 +180,9 @@ class Collector(object):
             # sometimes the process goes away in another thread and we don't
             # have it anymore, so log an error and bail
             LOG.exception('caught exception, collector process went away while reading stdout')
+        except TypeError as exc:
+            # Sometimes the underlying buffer.read() returns None
+            LOG.debug("Recieved None while trying to read stdout")
         except:
             LOG.exception('uncaught exception in stdout read')
             return
@@ -1306,7 +1315,7 @@ def load_config_module(name, options, tags):
         else:
             module = reload(name) # pylint: disable=undefined-variable
     onload = module.__dict__.get('onload')
-    if isinstance(onload, collections.Callable):
+    if isinstance(onload, Callable):
         try:
             onload(options, tags)
         except:
