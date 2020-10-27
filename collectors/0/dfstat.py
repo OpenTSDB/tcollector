@@ -112,11 +112,11 @@ def main():
       used = r.f_blocks - r.f_bfree
 
       # conditional expression avoided to preserve support of Python 2.4
-      # percent_used = 100 if r.f_blocks == 0 else used * 100.0 / r.f_blocks
+      # percent_used = 100 if r.f_blocks == 0 else used * 100.0 / (used + r.f_bavail)
       if r.f_blocks == 0:
           percent_used = 100
       else:
-          percent_used = used * 100.0 / r.f_blocks
+          percent_used = used * 100.0 / (used + r.f_bavail)
 
       print("df.bytes.total %d %s mount=%s fstype=%s"
             % (ts, r.f_frsize * r.f_blocks, fs_file, fs_vfstype))
@@ -125,7 +125,7 @@ def main():
       print("df.bytes.percentused %d %s mount=%s fstype=%s"
             % (ts, percent_used, fs_file, fs_vfstype))
       print("df.bytes.free %d %s mount=%s fstype=%s"
-            % (ts, r.f_frsize * r.f_bfree, fs_file, fs_vfstype))
+            % (ts, r.f_frsize * r.f_bavail, fs_file, fs_vfstype))
 
       used = r.f_files - r.f_ffree
 
