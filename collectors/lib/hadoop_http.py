@@ -27,9 +27,11 @@ from collectors.lib.utils import is_numeric
 try:
     # noinspection PyCompatibility
     from http.client import HTTPConnection
+    from http.client import NotConnected
 except ImportError:
     # noinspection PyUnresolvedReferences,PyCompatibility
     from httplib import HTTPConnection
+    from httplib import NotConnected
 
 
 EXCLUDED_KEYS = (
@@ -65,7 +67,11 @@ class HadoopHttp(object):
         try:
             self.server.request('GET', self.uri)
             resp = self.server.getresponse().read()
-        except:
+        except ConnectionRefusedError as exc:
+            sys.stderr.write("Could not connect to %s" % (self.uri))
+            sys.exit(1)
+        except Exception as exc:
+            sys.stderr.write("Unexpected error: %s" % (exc))
             resp = '{}'
         finally:
             self.server.close()
