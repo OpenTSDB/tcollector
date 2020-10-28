@@ -35,7 +35,7 @@ import threading
 import time
 import json
 import base64
-from logging.handlers import RotatingFileHandler
+
 from optparse import OptionParser
 
 import collections
@@ -161,7 +161,7 @@ class Collector(object):
                 raise
         except TypeError as exc:
             # Sometimes the underlying buffer.read() returns None
-            LOG.debug("Recieved None while trying to read stderr")
+            pass
         except:
             LOG.exception('uncaught exception in stderr read')
 
@@ -182,7 +182,7 @@ class Collector(object):
             LOG.exception('caught exception, collector process went away while reading stdout')
         except TypeError as exc:
             # Sometimes the underlying buffer.read() returns None
-            LOG.debug("Recieved None while trying to read stdout")
+            pass
         except:
             LOG.exception('uncaught exception in stdout read')
             return
@@ -909,21 +909,18 @@ class SenderThread(threading.Thread):
             LOG.error("Got error URL %s", e)
 
 
-def setup_logging(logfile=DEFAULT_LOG, max_bytes=None, backup_count=None):
+def setup_logging(logfile=DEFAULT_LOG, logstdout=False):
     """Sets up logging and associated handlers."""
-
     LOG.setLevel(logging.INFO)
-    if backup_count is not None and max_bytes is not None:
-        assert backup_count > 0
-        assert max_bytes > 0
-        ch = RotatingFileHandler(logfile, 'a', max_bytes, backup_count)
-    else:  # Setup stream handler.
+
+    if logstdout:
         ch = logging.StreamHandler(sys.stdout)
+    else:
+        ch = logging.FileHandler(logfile)
 
     ch.setFormatter(logging.Formatter('%(asctime)s %(name)s[%(process)d] '
                                       '%(levelname)s: %(message)s'))
     LOG.addHandler(ch)
-
 
 def parse_cmdline(argv):
     """Parses the command-line."""
@@ -943,7 +940,6 @@ def parse_cmdline(argv):
             'allowed_inactivity_time': 600,
             'dryrun': False,
             'maxtags': 8,
-            'max_bytes': 64 * 1024 * 1024,
             'http_password': False,
             'reconnectinterval': 0,
             'http_username': False,
@@ -954,7 +950,6 @@ def parse_cmdline(argv):
             'tags': [],
             'remove_inactive_collectors': False,
             'host': 'localhost',
-            'backup_count': 1,
             'logfile': '/var/log/tcollector.log',
             'cdir': default_cdir,
             'ssl': False,
@@ -1037,11 +1032,8 @@ def parse_cmdline(argv):
     parser.add_option('--remove-inactive-collectors', dest='remove_inactive_collectors', action='store_true',
                         default=defaults['remove_inactive_collectors'], help='Remove collectors not sending data '
                                           'in the max allowed inactivity interval')
-    parser.add_option('--max-bytes', dest='max_bytes', type='int',
-                        default=defaults['max_bytes'],
-                        help='Maximum bytes per a logfile.')
-    parser.add_option('--backup-count', dest='backup_count', type='int',
-                        default=defaults['backup_count'], help='Maximum number of logfiles to backup.')
+    parser.add_option('--log-stdout', dest='logstdout', action='store_true',
+                        help='Send log message to stdout.')
     parser.add_option('--logfile', dest='logfile', type='str',
                         default=DEFAULT_LOG,
                         help='Filename where logs are written to.')
@@ -1071,7 +1063,7 @@ def parse_cmdline(argv):
                            "(e.g. '127.0.0.1, 0.0.0.0). " +
                            "Disabled by default.")
     parser.add_option('--monitoring-port', dest='monitoring_port', action='store',
-                      default=defaults.get("monitoring_port", 13280),
+                      default=defaults.get("monitoring_port", 13280), type='int',
                       help="Port for status API to listen on.")
 
     (options, args) = parser.parse_args(args=argv[1:])
@@ -1083,8 +1075,8 @@ def parse_cmdline(argv):
     if options.reconnectinterval < 0:
         parser.error('--reconnect-interval must be at least 0 seconds')
     # We cannot write to stdout when we're a daemon.
-    if (options.daemonize or options.max_bytes) and not options.backup_count:
-        options.backup_count = 1
+    if options.daemonize and options.logstdout:
+        options.logstdout = False
 
     prefix = options.namespace_prefix
     if prefix and not prefix.endswith('.'):
@@ -1140,13 +1132,12 @@ def main(argv):
     except SystemExit:
         raise
     except:
-        sys.stderr.write("Unexpected error: %s" % sys.exc_info()[0])
+        sys.stderr.write("Unexpected error: %s %s" % (sys.exc_info()[0], sys.exc_info()[1]))
         return 1
 
     if options.daemonize:
         daemonize()
-    setup_logging(options.logfile, options.max_bytes or None,
-                  options.backup_count or None)
+    setup_logging(options.logfile, options.logstdout)
 
     if options.verbose:
         LOG.setLevel(logging.DEBUG)  # up our level
