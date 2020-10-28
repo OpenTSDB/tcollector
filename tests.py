@@ -158,7 +158,8 @@ class StatusServerTests(unittest.TestCase):
             "a": tcollector.Collector("mycollector", 5, "a.py"), # pylint:disable=no-member
             "b": tcollector.Collector("second", 3, "b.py"), # pylint:disable=no-member
         }
-        server = tcollector.StatusServer("127.0.0.1", 32025, collectors) # pylint:disable=no-member
+        reader = {}
+        server = tcollector.StatusServer("127.0.0.1", 32025, collectors, reader) # pylint:disable=no-member
         # runs in background until test suite exits :( but it works.
         thread = threading.Thread(target=server.serve_forever)
         thread.setDaemon(True)
