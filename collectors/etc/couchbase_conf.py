@@ -14,7 +14,7 @@
 
 def get_config():
   config = {
-    'interval': 15,
+    'collection_interval': 15,
     'couchbase_initfile': '/etc/init.d/couchbase-server'
   }
   return config

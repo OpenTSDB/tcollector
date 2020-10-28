@@ -79,7 +79,7 @@ def find_couchbase_pid():
     fd.close()
   except IOError:
     utils.err("Couchbase-server is not running, since no pid file exists")
-    return
+    sys.exit(13)
 
   return pid.split()[0]
 
