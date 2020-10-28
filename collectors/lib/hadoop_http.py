@@ -18,21 +18,30 @@ try:
     import json
 except ImportError:
     json = None
+
 try:
     from collections import OrderedDict  # New in Python 2.7
 except ImportError:
     from ordereddict import OrderedDict  # Can be easy_install'ed for <= 2.6
+
 from collectors.lib.utils import is_numeric
 
 try:
-    # noinspection PyCompatibility
+    # noinspection PyUnresolvedReferences,PyCompatibility
     from http.client import HTTPConnection
+    # noinspection PyUnresolvedReferences,PyCompatibility
     from http.client import NotConnected
 except ImportError:
     # noinspection PyUnresolvedReferences,PyCompatibility
     from httplib import HTTPConnection
+    # noinspection PyUnresolvedReferences,PyCompatibility
     from httplib import NotConnected
 
+if sys.version_info[0] == 2:
+    class ConnectionError(OSError):
+        pass
+    class ConnectionRefusedError(ConnectionError):
+        pass
 
 EXCLUDED_KEYS = (
     "Name",
