@@ -45,12 +45,15 @@ import os
 import sys
 import time
 
+from collectors.etc import riak_conf
 from collectors.lib import utils
 
 try:
     from urllib.request import urlopen
 except ImportError:
     from urllib2 import urlopen
+
+CONFIG = riak_conf.get_default_config()
 
 MAP = {
     'vnode_gets_total': ('vnode.requests', 'type=get'),
@@ -124,7 +127,7 @@ def main():
     while True:
         ts = int(time.time())
 
-        req = urlopen("http://localhost:8098/stats")
+        req = urlopen(CONFIG['stats_endpoint'])
         if req is not None:
             obj = json.loads(req.read())
             for key in obj:
