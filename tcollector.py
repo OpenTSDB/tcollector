@@ -43,6 +43,15 @@ from Queue import Full
 from optparse import OptionParser
 
 
+from prometheus_client import (
+    start_http_server,
+    Gauge,
+)
+from prometheus_client.core import (
+    GaugeMetricFamily,
+    REGISTRY,
+)
+
 # global variables.
 COLLECTORS = {}
 GENERATION = 0
@@ -60,7 +69,25 @@ MAX_REASONABLE_TIMESTAMP = 2209212000  # Good until Tue  3 Jan 14:00:00 GMT 2040
 ALLOWED_INACTIVITY_TIME = 600  # seconds
 MAX_SENDQ_SIZE = 100000
 MAX_READQ_SIZE = 1000000
+PROM_PORT_NUMBER = 6320
+TS_MAX_INTERVAL = 120000
 
+class CustomCollector(object):
+    def __init__(self):
+        self.gauges = []
+
+    def add_metric(self, metric_entry):
+        return self.gauges.append(metric_entry)
+
+    def collect(self):
+        LOG.info("Collecting by Prometheus")
+        self.gauges, gauge_copy = [], self.gauges
+        # Interate thru copy dict to yield data to Prometheus request
+        for metric_entry in gauge_copy:
+            labels, label_values = zip(*metric_entry["tags"].items())
+            gmf = GaugeMetricFamily(metric_entry["metric"], metric_entry["metric"], labels=labels)
+            gmf.add_metric(labels=label_values, value=metric_entry["value"])
+            yield gmf
 
 def register_collector(collector):
     """Register a collector with the COLLECTORS global"""
@@ -420,7 +447,7 @@ class SenderThread(threading.Thread):
     def __init__(self, reader, dryrun, hosts, self_report_stats, tags,
                  reconnectinterval=0, http=False, http_username=None,
                  http_password=None, http_api_path=None, ssl=False, maxtags=8,
-                 namespace=""):
+                 namespace="", enable_prometheus=False):
         """Constructor.
 
         Args:
@@ -461,9 +488,17 @@ class SenderThread(threading.Thread):
         self.self_report_stats = self_report_stats
         self.maxtags = maxtags  # The maximum number of tags TSD will accept.
         self.namespace = namespace
+        self.enable_prometheus = enable_prometheus
         # remove all '.' postfix. It will be automatically added when we send.
         while self.namespace.endswith('.'):
             self.namespace = self.namespace[:-1]
+
+        # Create the prometheus collector
+        self.prometheus_collector = None
+        if self.enable_prometheus:
+            self.prometheus_collector = CustomCollector()
+            REGISTRY.register(self.prometheus_collector)
+            start_http_server(PROM_PORT_NUMBER)
 
     def pick_connection(self):
         """Picks up a random host/port connection."""
@@ -722,6 +757,14 @@ class SenderThread(threading.Thread):
                 print out
             else:
                 self.tsd.sendall(out)
+                if self.enable_prometheus:
+                    metrics = self.generate_metrics()
+                    for metric_entry in metrics:
+                        LOG.debug("time {} {}".format(metric_entry["metric"], (time.time() * 1000 - metric_entry["timestamp"])))
+                        if (time.time() * 1000 - metric_entry["timestamp"]) > TS_MAX_INTERVAL:
+                            continue
+                        metric_entry["metric"] = re.sub(r'[\.|-]', '_', metric_entry["metric"])
+                        self.prometheus_collector.add_metric(metric_entry)
             self.sendq = []
         except socket.error, msg:
             LOG.error('failed to send data: %s', msg)
@@ -731,6 +774,8 @@ class SenderThread(threading.Thread):
                 pass
             self.tsd = None
             self.blacklist_connection()
+        except Exception as e:
+            LOG.error("Got error {}".format(e))
 
         # FIXME: we should be reading the result at some point to drain
         # the packets out of the kernel's queue
@@ -745,7 +790,7 @@ class SenderThread(threading.Thread):
             details = "?details"
         return "%s://%s:%s/%s%s" % (protocol, self.host, self.port, self.http_api_path, details)
 
-    def send_data_via_http(self):
+    def generate_metrics(self):
         """Sends outstanding data in self.sendq to TSD in one HTTP API call."""
         metrics = []
         for line in self.sendq:
@@ -778,7 +823,10 @@ class SenderThread(threading.Thread):
                           str(metric_tags_orig - set(metric_tags)), metric)
             metric_entry["tags"].update(metric_tags)
             metrics.append(metric_entry)
+        return metrics
 
+    def send_data_via_http(self):
+        metrics = generate_metrics()
         if self.dryrun:
             print "Would have sent:\n%s" % json.dumps(metrics,
                                                       sort_keys=True,
@@ -966,6 +1014,8 @@ def parse_cmdline(argv):
                       help='Password to use for HTTP Basic Auth when sending the data via HTTP')
     parser.add_option('--ssl', dest='ssl', action='store_true', default=defaults['ssl'],
                       help='Enable SSL - used in conjunction with http')
+    parser.add_option('--enable-prometheus', dest='enable_prometheus', action='store_true', default=False,
+                      help='Enable Prometheus collector')
     (options, args) = parser.parse_args(args=argv[1:])
     if options.dedupinterval < 0:
         parser.error('--dedup-interval must be at least 0 seconds')
@@ -1094,7 +1144,7 @@ def main(argv):
                           not options.no_tcollector_stats, tags, options.reconnectinterval,
                           options.http, options.http_username,
                           options.http_password, options.http_api_path, options.ssl,
-                          options.maxtags, options.namespace)
+                          options.maxtags, options.namespace, options.enable_prometheus)
     sender.start()
     LOG.info('SenderThread startup complete')
 
