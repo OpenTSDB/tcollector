@@ -238,11 +238,13 @@ def collect(db):
                 stmt_summary['schema_name'], digest_prefix, command
             )
 
+        tags = create_tags(digest)
+
         # accumulate metrics for the all tier
         for metric_name in METRICS:
             # all tier
+            metric_value = stmt_summary[metric_name]
             name = '%s.all' % (metric_name)
-            tags = create_tags(digest)
             all_tier_metrics[(name, tags)] += metric_value
 
     # report metrics
