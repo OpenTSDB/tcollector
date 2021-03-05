@@ -32,9 +32,6 @@ from collectors.lib.mysql_utils import (
 
 COLLECTION_INTERVAL = 60  # seconds
 
-NUM_QUERY_SUMMARY_LIMIT = 10000
-MAX_QUERY_LAST_SEEN_SECONDS = 86400 * 7
-
 def current_ts():
     return datetime.datetime.now().isoformat(sep=' ')[:19]
 
@@ -43,33 +40,6 @@ last_collection_ts = current_ts()
 # Due to bug https://bugs.mysql.com/bug.php?id=79533, we can NOT assume
 # the performance_schema.events_statements_summary_by_digest table
 # has unique (schema_name, digest).
-STMT_BY_DIGEST_QUERY = """
-SELECT
-    ifnull(SCHEMA_NAME, 'NONE') as SCHEMA_NAME,
-    DIGEST,
-    DIGEST_TEXT,
-    SUM(COUNT_STAR) AS COUNT_STAR,
-    SUM(SUM_TIMER_WAIT) AS SUM_TIMER_WAIT,
-    SUM(SUM_ROWS_AFFECTED) AS SUM_ROWS_AFFECTED,
-    SUM(SUM_ROWS_SENT) AS SUM_ROWS_SENT,
-    SUM(SUM_ROWS_EXAMINED) AS SUM_ROWS_EXAMINED
-FROM (
-    SELECT
-        *
-    FROM
-        performance_schema.events_statements_summary_by_digest
-    WHERE
-        SCHEMA_NAME NOT IN ('mysql', 'performance_schema', 'information_schema') AND
-        LAST_SEEN > DATE_SUB(NOW(), INTERVAL %(last_seen_seconds)d SECOND)
-) Q
-GROUP BY
-    Q.SCHEMA_NAME,
-    Q.DIGEST,
-    Q.DIGEST_TEXT
-ORDER BY
-    SUM_TIMER_WAIT DESC
-LIMIT %(limit)d;
-"""
 
 STMT_BY_DIGEST_QUERY_NEW = """
 SELECT
@@ -171,19 +141,11 @@ def collect(db):
     """Collects and prints stats about the given DB instance."""
     global last_collection_ts
 
-    ts = now()
-
     # update master/slave status.
     db.check_set_master()
     db.check_set_slave()
 
-    stmt_by_digest = db.query(
-        STMT_BY_DIGEST_QUERY % {
-            'last_seen_seconds': MAX_QUERY_LAST_SEEN_SECONDS,
-            'limit': NUM_QUERY_SUMMARY_LIMIT,
-        }
-    )
-
+    ts = now()
     collection_ts = current_ts()
     stmt_by_digest_new = db.query(
         STMT_BY_DIGEST_QUERY_NEW % {
@@ -193,36 +155,7 @@ def collect(db):
     last_collection_ts = collection_ts
 
     # (metric_name, tags) => metric_value
-    top_tier_metrics = defaultdict(int)
-    bot_tier_metrics = defaultdict(int)
     all_tier_metrics = defaultdict(int)
-
-    for row in stmt_by_digest:
-        stmt_summary = to_dict(db, row)
-        digest = stmt_summary['digest']
-        command = get_command_from_digest_text(stmt_summary['digest_text'])
-        skip = should_skip_collect(db, command)
-        if skip:
-            continue
-
-        # create tags
-        def create_tags(digest_prefix):
-            return " schema_name=%s digest_prefix=%s cmd=%s" % (
-                stmt_summary['schema_name'], digest_prefix, command
-            )
-
-        # accumulate metrics for different tiers
-        for metric_name in METRICS:
-            # top tier
-            metric_value = stmt_summary[metric_name]
-            name = '%s.%s' % (metric_name, digest[:1])
-            tags = create_tags(digest[:2])
-            top_tier_metrics[(name, tags)] += metric_value
-
-            # bottom tier
-            name = '%s.%s' % (metric_name, digest[:2])
-            tags = create_tags(digest)
-            bot_tier_metrics[(name, tags)] += metric_value
 
     for row in stmt_by_digest_new:
         stmt_summary = to_dict(db, row)
@@ -233,9 +166,9 @@ def collect(db):
             continue
 
         # create tags
-        def create_tags(digest_prefix):
-            return " schema_name=%s digest_prefix=%s cmd=%s" % (
-                stmt_summary['schema_name'], digest_prefix, command
+        def create_tags(digest):
+            return " schema_name=%s digest=%s cmd=%s" % (
+                stmt_summary['schema_name'], digest, command
             )
 
         tags = create_tags(digest)
@@ -248,9 +181,8 @@ def collect(db):
             all_tier_metrics[(name, tags)] += metric_value
 
     # report metrics
-    for metrics in (top_tier_metrics, bot_tier_metrics, all_tier_metrics):
-        for (name, tags), value in metrics.iteritems():
-            print_metric(db, ts, "perf_schema.stmt_by_digest.%s" % name, value, tags)
+    for (name, tags), value in all_tier_metrics.items():
+        print_metric(db, ts, "perf_schema.stmt_by_digest.%s" % name, value, tags)
 
 
 if __name__ == "__main__":
