@@ -352,10 +352,17 @@ def collect_loop(collect_func, collect_interval, args):
         utils.err("error: Python module `MySQLdb' is missing")
         return 1
 
+    if len(args) == 2:
+        total = int(args[1])
+    else:
+        total = None
+
     last_db_refresh = now()
     dbs = find_databases()
     last = 0
-    while True:
+    count = 0
+    while total is None or count < total:
+        count += 1
         ts = now()
         if ts - last_db_refresh >= DB_REFRESH_INTERVAL:
             find_databases(dbs)
