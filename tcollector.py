@@ -769,7 +769,7 @@ class SenderThread(threading.Thread):
                             LOG.debug("time {} {}".format(metric_entry["metric"], (time.time() * 1000 - metric_entry["timestamp"])))
                             if (time.time() * 1000 - metric_entry["timestamp"]) > TS_MAX_INTERVAL:
                                 continue
-                            metric_entry["metric"] = re.sub(r'[\.|-]', '_', metric_entry["metric"])
+                            metric_entry["metric"] = "tcollector_{}".format(re.sub(r'[\.|-]', '_', metric_entry["metric"]))
                             self.prometheus_collector.add_metric(metric_entry)
                     except Exception as e:
                         track = traceback.format_exc()
