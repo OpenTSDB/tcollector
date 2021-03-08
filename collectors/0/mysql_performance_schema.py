@@ -155,7 +155,7 @@ def collect(db):
     last_collection_ts = collection_ts
 
     # (metric_name, tags) => metric_value
-    all_tier_metrics = defaultdict(int)
+    all_tier_metrics = defaultdict(long)
 
     for row in stmt_by_digest_new:
         stmt_summary = to_dict(db, row)
@@ -181,8 +181,13 @@ def collect(db):
             all_tier_metrics[(name, tags)] += metric_value
 
     # report metrics
+    count = 0
     for (name, tags), value in all_tier_metrics.items():
-        print_metric(db, ts, "perf_schema.stmt_by_digest.%s" % name, value, tags)
+        if value > 0:
+            print_metric(db, ts, "perf_schema.stmt_by_digest.%s" % name, value, tags)
+            count += 1
+
+    print >> sys.stderr, collection_ts, "sent", count, "query digest metrics"
 
 
 if __name__ == "__main__":
