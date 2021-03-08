@@ -36,6 +36,7 @@ import time
 import json
 import urllib2
 import base64
+import traceback
 from logging.handlers import RotatingFileHandler
 from Queue import Queue
 from Queue import Empty
@@ -80,14 +81,18 @@ class CustomCollector(object):
         return self.gauges.append(metric_entry)
 
     def collect(self):
-        LOG.info("Collecting by Prometheus")
-        self.gauges, gauge_copy = [], self.gauges
-        # Interate thru copy dict to yield data to Prometheus request
-        for metric_entry in gauge_copy:
-            labels, label_values = zip(*metric_entry["tags"].items())
-            gmf = GaugeMetricFamily(metric_entry["metric"], metric_entry["metric"], labels=labels)
-            gmf.add_metric(labels=label_values, value=metric_entry["value"])
-            yield gmf
+        try:
+            LOG.info("Collecting by Prometheus")
+            self.gauges, gauge_copy = [], self.gauges
+            # Interate thru copy dict to yield data to Prometheus request
+            for metric_entry in gauge_copy:
+                labels, label_values = zip(*metric_entry["tags"].items())
+                gmf = GaugeMetricFamily(metric_entry["metric"], metric_entry["metric"], labels=labels)
+                gmf.add_metric(labels=label_values, value=metric_entry["value"])
+                yield gmf
+        except Exception as e:
+            track = traceback.format_exc()
+            LOG.error("Collect metric errors {}".format(track))
 
 def register_collector(collector):
     """Register a collector with the COLLECTORS global"""
@@ -758,13 +763,17 @@ class SenderThread(threading.Thread):
             else:
                 self.tsd.sendall(out)
                 if self.enable_prometheus:
-                    metrics = self.generate_metrics()
-                    for metric_entry in metrics:
-                        LOG.debug("time {} {}".format(metric_entry["metric"], (time.time() * 1000 - metric_entry["timestamp"])))
-                        if (time.time() * 1000 - metric_entry["timestamp"]) > TS_MAX_INTERVAL:
-                            continue
-                        metric_entry["metric"] = re.sub(r'[\.|-]', '_', metric_entry["metric"])
-                        self.prometheus_collector.add_metric(metric_entry)
+                    try:
+                        metrics = self.generate_metrics(collect_by="Prometheus")
+                        for metric_entry in metrics:
+                            LOG.debug("time {} {}".format(metric_entry["metric"], (time.time() * 1000 - metric_entry["timestamp"])))
+                            if (time.time() * 1000 - metric_entry["timestamp"]) > TS_MAX_INTERVAL:
+                                continue
+                            metric_entry["metric"] = re.sub(r'[\.|-]', '_', metric_entry["metric"])
+                            self.prometheus_collector.add_metric(metric_entry)
+                    except Exception as e:
+                        track = traceback.format_exc()
+                        LOG.error("Send data to Prometheus collector error {}".format(track))
             self.sendq = []
         except socket.error, msg:
             LOG.error('failed to send data: %s', msg)
@@ -775,7 +784,8 @@ class SenderThread(threading.Thread):
             self.tsd = None
             self.blacklist_connection()
         except Exception as e:
-            LOG.error("Got error {}".format(e))
+            track = traceback.format_exc()
+            LOG.error("Got unexpected error {}".format(track))
 
         # FIXME: we should be reading the result at some point to drain
         # the packets out of the kernel's queue
@@ -790,7 +800,7 @@ class SenderThread(threading.Thread):
             details = "?details"
         return "%s://%s:%s/%s%s" % (protocol, self.host, self.port, self.http_api_path, details)
 
-    def generate_metrics(self):
+    def generate_metrics(self, collect_by="TSDB"):
         """Sends outstanding data in self.sendq to TSD in one HTTP API call."""
         metrics = []
         for line in self.sendq:
@@ -812,10 +822,11 @@ class SenderThread(threading.Thread):
             metric_entry["timestamp"] = long(timestamp)
             metric_entry["value"] = float(value)
             metric_entry["tags"] = dict(self.tags).copy()
-            if len(metric_tags) + len(metric_entry["tags"]) > self.maxtags:
+            # Prometheus dose not have the label number limitation, so ignore the tags number check
+            if collect_by == "TSDB" and len(metric_tags) + len(metric_entry["tags"]) > self.maxtags:
                 metric_tags_orig = set(metric_tags)
                 subset_metric_keys = frozenset(
-                    metric_tags[:len(metric_tags[:self.maxtags - len(metric_entry["tags"])])]
+                    list(metric_tags_orig)[:self.maxtags - len(metric_entry["tags"])]
                 )
                 metric_tags = dict((k, v) for k, v in metric_tags.iteritems()
                                    if k in subset_metric_keys)
