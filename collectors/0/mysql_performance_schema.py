@@ -195,10 +195,14 @@ def collect(db):
             all_metrics[name].items())
         deltas = sorted(deltas, key=lambda x: x[1], reverse=True)[:MAX_NUM_METRICS]
         count1 += len(deltas)
+        first = True
         for tags, value in deltas:
             if value > 0 and tags in last_metrics[name]:
                 print_metric(db, ts, "perf_schema.stmt_by_digest.%s" % name, value, tags)
                 count2 += 1
+                if first:
+                    print >> sys.stderr, db, ts, "perf_schema.stmt_by_digest.%s" % name, value, tags
+                    first = False
 
     last_metrics = all_metrics
 
