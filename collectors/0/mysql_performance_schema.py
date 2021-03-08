@@ -31,11 +31,14 @@ from collectors.lib.mysql_utils import (
 )
 
 COLLECTION_INTERVAL = 60  # seconds
+MAX_NUM_METRICS = 200
 
 def current_ts():
     return datetime.datetime.now().isoformat(sep=' ')[:19]
 
+
 last_collection_ts = current_ts()
+last_metrics = defaultdict(dict)
 
 # Due to bug https://bugs.mysql.com/bug.php?id=79533, we can NOT assume
 # the performance_schema.events_statements_summary_by_digest table
@@ -140,6 +143,7 @@ def should_skip_collect(db, command):
 def collect(db):
     """Collects and prints stats about the given DB instance."""
     global last_collection_ts
+    global last_metrics
 
     # update master/slave status.
     db.check_set_master()
@@ -154,9 +158,9 @@ def collect(db):
     )
     last_collection_ts = collection_ts
 
-    # (metric_name, tags) => metric_value
-    all_tier_metrics = defaultdict(long)
-
+    count = 0
+    # {metric_name: {tags: metric_value}}
+    all_metrics = defaultdict(dict)
     for row in stmt_by_digest_new:
         stmt_summary = to_dict(db, row)
         digest = stmt_summary['digest']
@@ -173,21 +177,32 @@ def collect(db):
 
         tags = create_tags(digest)
 
-        # accumulate metrics for the all tier
-        for metric_name in METRICS:
-            # all tier
-            metric_value = stmt_summary[metric_name]
-            name = '%s.all' % (metric_name)
-            all_tier_metrics[(name, tags)] += metric_value
-
-    # report metrics
-    count = 0
-    for (name, tags), value in all_tier_metrics.items():
-        if value > 0:
-            print_metric(db, ts, "perf_schema.stmt_by_digest.%s" % name, value, tags)
+        for name in METRICS:
+            all_metrics[name][tags] = long(stmt_summary[name])
             count += 1
 
-    print >> sys.stderr, collection_ts, "sent", count, "query digest metrics"
+    if len(last_metrics.keys()) == 0:
+        last_metrics = all_metrics
+        print >> sys.stderr, "Initialized", count, "digest metrics"
+        return
+
+    # Sort metrics in descending order of deltas
+    count1 = 0
+    count2 = 0
+    for name in METRICS:
+        deltas = map(
+            lambda x: [x[0], max(0, x[1] - last_metrics[name].get(x[0], 0))],
+            all_metrics[name].items())
+        deltas = sorted(deltas, key=lambda x: x[1], reverse=True)[:MAX_NUM_METRICS]
+        count1 += len(deltas)
+        for tags, value in deltas:
+            if value > 0 and tags in last_metrics[name]:
+                print_metric(db, ts, "perf_schema.stmt_by_digest.%s" % name, value, tags)
+                count2 += 1
+
+    last_metrics = all_metrics
+
+    print >> sys.stderr, count, "collected", count1, "sorted", count2, "sent"
 
 
 if __name__ == "__main__":
