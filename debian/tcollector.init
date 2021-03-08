@@ -71,7 +71,7 @@ case $1 in
             -t host=$HOSTNAME --dedup-interval $DEDUP_INTERVAL\
             --reconnect-interval $RECONNECT_INTERVAL\
             --max-bytes $LOGFILE_MAX_BYTES --backup-count $LOGFILE_BACKUP_COUNT\
-            --evict-interval $EVICT_INTERVAL --enable-prometheus -P "$PIDFILE" -D $EXTRA_TAGS_OPTS
+            --evict-interval $EVICT_INTERVAL -P "$PIDFILE" -D $EXTRA_TAGS_OPTS
 
         log_end_msg $?
         ;;
