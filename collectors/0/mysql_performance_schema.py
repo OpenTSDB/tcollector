@@ -199,7 +199,7 @@ def collect(db):
                 print_metric(db, ts, "perf_schema.stmt_by_digest.%s.all" % name, all_metrics[name][tags], tags)
 
         last_metrics = all_metrics
-        print >> sys.stderr, "Initial batch:", count, "collected", count_keys, "keys", total_storage / MB, "MB"
+        print >> sys.stderr, "Initial batch:", count, "collected", count_keys, "keys", total_storage, "bytes"
         return
 
     # Sort metrics in descending order of deltas
