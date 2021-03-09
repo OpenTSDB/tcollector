@@ -208,7 +208,9 @@ def collect(db):
                 break
 
         for key in all_metrics[name].keys():
-            last_metrics[name].pop(key)
+            if key in last_metrics[name]:
+                last_metrics[name].pop(key)
+
         num_extra = max(0, len(last_metrics[name].keys()) + len(all_metrics[name].keys()) - MAX_STORAGE)
         if num_extra > 0:
             extra_keys = last_metrics[name].keys()[:num_extra]
