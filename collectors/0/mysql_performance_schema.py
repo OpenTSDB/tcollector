@@ -32,7 +32,9 @@ from collectors.lib.mysql_utils import (
 
 COLLECTION_INTERVAL = 60  # seconds
 MAX_NUM_METRICS = 200
-MAX_STORAGE = 100000
+QUERY_LIMIT = 10000
+MAX_STORAGE = 1073741824  # 1 GB
+
 
 def current_ts():
     return datetime.datetime.now().isoformat(sep=' ')[:19]
@@ -78,6 +80,8 @@ METRICS = [
     'sum_rows_sent',
     'sum_rows_examined',
 ]
+
+MAX_STORAGE_PER_METRIC = MAX_STORAGE / len(METRICS)
 
 SUPPORTED_COMMANDS = frozenset([
     'ALTER',
@@ -156,7 +160,7 @@ def collect(db):
     stmt_by_digest_new = db.query(
         STMT_BY_DIGEST_QUERY_NEW % {
             'last_collection_ts': last_collection_ts,
-            'limit': MAX_STORAGE
+            'limit': QUERY_LIMIT
         }
     )
     last_collection_ts = collection_ts
@@ -201,19 +205,18 @@ def collect(db):
 
     # Sort metrics in descending order of deltas
     count2 = 0
+    count_keys = 0
+    total_storage = 0
+    count_evicted = 0
     for name in METRICS:
         deltas = map(
             lambda x: [x[0], max(0, x[1] - last_metrics[name].get(x[0], 0))],
             all_metrics[name].items())
         deltas = sorted(deltas, key=lambda x: x[1], reverse=True)[:MAX_NUM_METRICS]
-        first = True
         for tags, value in deltas:
             if value > 0:
                 print_metric(db, ts, "perf_schema.stmt_by_digest.%s.all" % name, all_metrics[name][tags], tags)
                 count2 += 1
-                if first:
-                    print >> sys.stderr, db, ts, "perf_schema.stmt_by_digest.%s.all" % name, all_metrics[name][tags], tags
-                    first = False
             else:
                 break
 
@@ -221,16 +224,22 @@ def collect(db):
             if key in last_metrics[name]:
                 last_metrics[name].pop(key)
 
-        num_extra = max(0, len(last_metrics[name].keys()) + len(all_metrics[name].keys()) - MAX_STORAGE)
-        if num_extra > 0:
+        metric_storage = sys.getsizeof(last_metrics[name]) + sys.getsizeof(all_metrics[name])
+        total_storage += metric_storage
+        num_keys = len(last_metrics[name].keys()) + len(all_metrics[name].keys())
+        count_keys += num_keys
+        if metric_storage > MAX_STORAGE_PER_METRIC:
+            storage_per_key = metric_storage / num_keys
+            num_extra = (metric_storage - MAX_STORAGE_PER_METRIC) / storage_per_key
             extra_keys = last_metrics[name].keys()[:num_extra]
             for key in extra_keys:
                 last_metrics[name].pop(key)
-            num_extra = len(extra_keys)
+            count_evicted += len(extra_keys)
 
         last_metrics[name].update(all_metrics[name])
 
-    print >> sys.stderr, count, "collected", count2, "sent", num_extra, "evicted"
+    print >> sys.stderr, count, "collected", count2, "sent", count_evicted, "evicted", \
+    count_keys, "keys", total_storage, "bytes"
 
 
 if __name__ == "__main__":
