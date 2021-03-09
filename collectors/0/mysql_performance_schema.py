@@ -185,6 +185,16 @@ def collect(db):
             count += 1
 
     if len(last_metrics.keys()) == 0:
+        # Print all metrics
+        for name in METRICS:
+            first = True
+            for tags, value in all_metrics[name].items():
+                print_metric(db, ts, "perf_schema.stmt_by_digest.%s.all" % name, all_metrics[name][tags], tags)
+                if first:
+                    print >> sys.stderr, db, ts, "perf_schema.stmt_by_digest.%s.all" % name, all_metrics[name][
+                        tags], tags
+                    first = False
+
         last_metrics = all_metrics
         print >> sys.stderr, "Initialized", count, "digest metrics"
         return
@@ -198,13 +208,13 @@ def collect(db):
         deltas = sorted(deltas, key=lambda x: x[1], reverse=True)[:MAX_NUM_METRICS]
         first = True
         for tags, value in deltas:
-            if value > 0 and tags in last_metrics[name]:
+            if value > 0:
                 print_metric(db, ts, "perf_schema.stmt_by_digest.%s.all" % name, all_metrics[name][tags], tags)
                 count2 += 1
                 if first:
                     print >> sys.stderr, db, ts, "perf_schema.stmt_by_digest.%s.all" % name, all_metrics[name][tags], tags
                     first = False
-            elif value <= 0:
+            else:
                 break
 
         for key in all_metrics[name].keys():
