@@ -767,7 +767,11 @@ class SenderThread(threading.Thread):
                         metrics = self.generate_metrics(collect_by="Prometheus")
                         for metric_entry in metrics:
                             LOG.debug("time {} {}".format(metric_entry["metric"], (time.time() * 1000 - metric_entry["timestamp"])))
-                            if (time.time() * 1000 - metric_entry["timestamp"]) > TS_MAX_INTERVAL:
+                            cur_time = time.time()
+                            if cur_time > metric_entry["timestamp"]:
+                                if cur_time - metric_entry["timestamp"] > TS_MAX_INTERVAL / 1000:
+                                    continue
+                            elif (cur_time * 1000 - metric_entry["timestamp"]) > TS_MAX_INTERVAL:
                                 continue
                             metric_entry["metric"] = "tcollector_{}".format(re.sub(r'[\.|-]', '_', metric_entry["metric"]))
                             self.prometheus_collector.add_metric(metric_entry)
