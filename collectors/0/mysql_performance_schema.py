@@ -189,18 +189,17 @@ def collect(db):
             count += 1
 
     if len(last_metrics.keys()) == 0:
+        count_keys = 0
+        total_storage = 0
         # Print all metrics
         for name in METRICS:
-            first = True
+            count_keys += len(all_metrics[name].keys())
+            total_storage += sys.getsizeof(all_metrics[name])
             for tags, value in all_metrics[name].items():
                 print_metric(db, ts, "perf_schema.stmt_by_digest.%s.all" % name, all_metrics[name][tags], tags)
-                if first:
-                    print >> sys.stderr, db, ts, "perf_schema.stmt_by_digest.%s.all" % name, all_metrics[name][
-                        tags], tags
-                    first = False
 
         last_metrics = all_metrics
-        print >> sys.stderr, "Initialized", count, "digest metrics"
+        print >> sys.stderr, "Initial batch:", count, "collected", count_keys, "keys", total_storage / MB, "MB"
         return
 
     # Sort metrics in descending order of deltas
@@ -224,19 +223,23 @@ def collect(db):
             if key in last_metrics[name]:
                 last_metrics[name].pop(key)
 
-        metric_storage = sys.getsizeof(last_metrics[name]) + sys.getsizeof(all_metrics[name])
-        total_storage += metric_storage
-        num_keys = len(last_metrics[name].keys()) + len(all_metrics[name].keys())
-        count_keys += num_keys
+        last_storage = sys.getsizeof(last_metrics[name])
+        metric_storage = last_storage + sys.getsizeof(all_metrics[name])
+        last_keys = len(last_metrics[name].keys())
+        num_keys = last_keys + len(all_metrics[name].keys())
         if metric_storage > MAX_STORAGE_PER_METRIC:
-            storage_per_key = metric_storage / num_keys
+            storage_per_key = last_storage / last_keys
             num_extra = (metric_storage - MAX_STORAGE_PER_METRIC) / storage_per_key
             extra_keys = last_metrics[name].keys()[:num_extra]
             for key in extra_keys:
                 last_metrics[name].pop(key)
             count_evicted += len(extra_keys)
+            num_keys -= len(extra_keys)
+            metric_storage -= last_storage - sys.getsizeof(last_metrics[name])
 
         last_metrics[name].update(all_metrics[name])
+        total_storage += metric_storage
+        count_keys += num_keys
 
     print >> sys.stderr, count, "collected", count2, "sent", count_evicted, "evicted", \
     count_keys, "keys", total_storage, "bytes"
