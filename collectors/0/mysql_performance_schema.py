@@ -31,7 +31,7 @@ from collectors.lib.mysql_utils import (
 )
 
 COLLECTION_INTERVAL = 60  # seconds
-MAX_NUM_METRICS = 200
+MAX_NUM_METRICS = 50
 QUERY_LIMIT = 10000
 MAX_STORAGE = 1073741824  # 1 GB
 
@@ -216,30 +216,30 @@ def collect(db):
             if value > 0:
                 print_metric(db, ts, "perf_schema.stmt_by_digest.%s.all" % name, all_metrics[name][tags], tags)
                 count2 += 1
+                # Remove the existing metric to reset the "age" of the metric
+                if tags in last_metrics[name]:
+                    last_metrics[name].pop(tags)
+                # Update the metric in last_metrics
+                last_metrics[name][tags] = all_metrics[name][tags]
             else:
+                # Metrics that are not logged will not be updated in last_metrics so that their deltas will increase
+                # in the next interval
                 break
 
-        for key in all_metrics[name].keys():
-            if key in last_metrics[name]:
-                last_metrics[name].pop(key)
-
         last_storage = sys.getsizeof(last_metrics[name])
-        metric_storage = last_storage + sys.getsizeof(all_metrics[name])
         last_keys = len(last_metrics[name].keys())
-        num_keys = last_keys + len(all_metrics[name].keys())
-        if metric_storage > MAX_STORAGE_PER_METRIC:
+        if last_storage > MAX_STORAGE_PER_METRIC:
             storage_per_key = last_storage / last_keys
-            num_extra = (metric_storage - MAX_STORAGE_PER_METRIC) / storage_per_key
+            num_extra = (last_storage - MAX_STORAGE_PER_METRIC) / storage_per_key
             extra_keys = last_metrics[name].keys()[:num_extra]
             for key in extra_keys:
                 last_metrics[name].pop(key)
             count_evicted += len(extra_keys)
-            num_keys -= len(extra_keys)
-            metric_storage -= last_storage - sys.getsizeof(last_metrics[name])
+            last_keys -= len(extra_keys)
+            last_storage = sys.getsizeof(last_metrics[name])
 
-        last_metrics[name].update(all_metrics[name])
-        total_storage += metric_storage
-        count_keys += num_keys
+        total_storage += last_storage
+        count_keys += last_keys
 
     print >> sys.stderr, count, "collected", count2, "sent", count_evicted, "evicted", \
     count_keys, "keys", total_storage, "bytes"
