@@ -31,9 +31,9 @@ from collectors.lib.mysql_utils import (
 )
 
 COLLECTION_INTERVAL = 60  # seconds
-MAX_NUM_METRICS = 200
+MAX_NUM_METRICS = 50
 QUERY_LIMIT = 10000
-MAX_STORAGE = 1073741824  # 1 GB
+MAX_STORAGE = 100000
 
 
 def current_ts():
@@ -42,6 +42,7 @@ def current_ts():
 
 last_collection_ts = current_ts()
 last_metrics = defaultdict(dict)
+last_keys = []
 
 # Due to bug https://bugs.mysql.com/bug.php?id=79533, we can NOT assume
 # the performance_schema.events_statements_summary_by_digest table
@@ -80,8 +81,6 @@ METRICS = [
     'sum_rows_sent',
     'sum_rows_examined',
 ]
-
-MAX_STORAGE_PER_METRIC = MAX_STORAGE / len(METRICS)
 
 SUPPORTED_COMMANDS = frozenset([
     'ALTER',
@@ -150,6 +149,7 @@ def collect(db):
     """Collects and prints stats about the given DB instance."""
     global last_collection_ts
     global last_metrics
+    global last_keys
 
     # update master/slave status.
     db.check_set_master()
@@ -188,7 +188,7 @@ def collect(db):
             all_metrics[name][tags] = long(stmt_summary[name])
             count += 1
 
-    if len(last_metrics.keys()) == 0:
+    if len(last_keys) == 0:
         count_keys = 0
         total_storage = 0
         # Print all metrics
@@ -199,6 +199,7 @@ def collect(db):
                 print_metric(db, ts, "perf_schema.stmt_by_digest.%s.all" % name, all_metrics[name][tags], tags)
 
         last_metrics = all_metrics
+        last_keys = last_metrics.keys()
         print >> sys.stderr, "Initial batch:", count, "collected", count_keys, "keys", total_storage, "bytes"
         return
 
@@ -216,33 +217,35 @@ def collect(db):
             if value > 0:
                 print_metric(db, ts, "perf_schema.stmt_by_digest.%s.all" % name, all_metrics[name][tags], tags)
                 count2 += 1
+                # Update the value in last_metrics
+                last_metrics[name][tags] = all_metrics[name][tags]
             else:
                 break
 
+        # Add new keys to last_metrics. Leave values of existing keys unchanged.
         for key in all_metrics[name].keys():
-            if key in last_metrics[name]:
-                last_metrics[name].pop(key)
+            if key not in last_metrics[name]:
+                last_metrics[name][key] = all_metrics[name][key]
 
-        last_storage = sys.getsizeof(last_metrics[name])
-        metric_storage = last_storage + sys.getsizeof(all_metrics[name])
-        last_keys = len(last_metrics[name].keys())
-        num_keys = last_keys + len(all_metrics[name].keys())
-        if metric_storage > MAX_STORAGE_PER_METRIC:
-            storage_per_key = last_storage / last_keys
-            num_extra = (metric_storage - MAX_STORAGE_PER_METRIC) / storage_per_key
-            extra_keys = last_metrics[name].keys()[:num_extra]
-            for key in extra_keys:
-                last_metrics[name].pop(key)
-            count_evicted += len(extra_keys)
-            num_keys -= len(extra_keys)
-            metric_storage -= last_storage - sys.getsizeof(last_metrics[name])
+    # Add new keys to last_keys. Refresh the age of repeated keys by removing and re-adding them to last_keys.
+    for key in all_metrics['count_star'].keys():
+        if key in last_keys:
+            last_keys.remove(key)
+            last_keys.append(key)
+        else:
+            last_keys.append(key)
 
-        last_metrics[name].update(all_metrics[name])
-        total_storage += metric_storage
-        count_keys += num_keys
+    num_extra = len(last_keys) - MAX_STORAGE
+    if num_extra > 0:
+        extra_keys = last_keys[:num_extra]
+        for key in extra_keys:
+            for name in METRICS:
+                last_metrics[name].pop(key)
+        count_evicted = len(extra_keys)
+        del last_keys[0:num_extra]
 
     print >> sys.stderr, count, "collected", count2, "sent", count_evicted, "evicted", \
-    count_keys, "keys", total_storage, "bytes"
+    len(last_metrics['sum_timer_wait'].keys()), "keys"
 
 
 if __name__ == "__main__":
