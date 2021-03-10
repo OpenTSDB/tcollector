@@ -205,9 +205,6 @@ def collect(db):
 
     # Sort metrics in descending order of deltas
     count2 = 0
-    count_keys = 0
-    total_storage = 0
-    count_evicted = 0
     for name in METRICS:
         deltas = map(
             lambda x: [x[0], max(0, x[1] - last_metrics[name].get(x[0], 0))],
@@ -235,17 +232,22 @@ def collect(db):
         else:
             last_keys.append(key)
 
+    count_evicted = 0
     num_extra = len(last_keys) - MAX_STORAGE
     if num_extra > 0:
         extra_keys = last_keys[:num_extra]
         for key in extra_keys:
             for name in METRICS:
                 last_metrics[name].pop(key)
-        count_evicted = len(extra_keys)
+                count_evicted += 1
         del last_keys[0:num_extra]
 
+    num_keys = 0
+    for name in METRICS:
+        num_keys += len(last_metrics[name].keys())
+
     print >> sys.stderr, count, "collected", count2, "sent", count_evicted, "evicted", \
-    len(last_metrics['sum_timer_wait'].keys()), "keys"
+    num_keys, "keys"
 
 
 if __name__ == "__main__":
