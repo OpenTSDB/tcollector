@@ -32,8 +32,8 @@ from collectors.lib.mysql_utils import (
 
 COLLECTION_INTERVAL = 60  # seconds
 MAX_NUM_METRICS = 50
-QUERY_LIMIT = 10000
-MAX_STORAGE = 100000
+QUERY_LIMIT = 5000
+MAX_STORAGE = 5000
 
 
 def current_ts():
