@@ -103,7 +103,13 @@ class DB(object):
         NOTE: A DB can be both master and slave, in a multi-tiered setup.
         """
         attached_slaves = self.query("SHOW SLAVE HOSTS")
-        if attached_slaves:
+        tuple_list = self.query("show variables like \'read_only\'")
+        if 'OFF' in ''.join(map(str, tuple_list)):
+            read_only=False
+        else:
+            read_only=True
+
+        if attached_slaves and not read_only:
             self.is_master = True
             self.attached_slaves = attached_slaves
         else:
