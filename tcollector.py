@@ -42,6 +42,7 @@ from Queue import Queue
 from Queue import Empty
 from Queue import Full
 from optparse import OptionParser
+from collections import defaultdict
 
 
 from prometheus_client import (
@@ -72,23 +73,82 @@ MAX_SENDQ_SIZE = 100000
 MAX_READQ_SIZE = 1000000
 PROM_PORT_NUMBER = 6320
 TS_MAX_INTERVAL = 120000
+MAX_GAUGE_BUFFER_SIZE = (1024 ** 2) * 100 # The max size bytes of the Prometheus buffer
+
+class GaugeWapper(object):
+    def __init__(self, metric_entry):
+        self.metric_entry = metric_entry
+        self.count = 1.0
+        tags_dict = metric_entry.get("tags", {})
+        self.labels = sorted(tags_dict.keys())
+        self.label_values = [tags_dict[key] for key in self.labels]
+
+    def get_unique_key(self):
+        """ Unique key for the metric. The pattern is "metric_name labels label_values" """
+        return "{} {} {}".format(self.metric_entry["metric"], self.labels, self.label_values)
+
+    def add_entry(self, gauge):
+        self.metric_entry["value"] += gauge.metric_entry["value"]
+        self.count += 1
 
 class CustomCollector(object):
     def __init__(self):
-        self.gauges = []
+        self.gauges = {}
+        self.buffer_size = 0
+        self.last_add_time = 0
 
-    def add_metric(self, metric_entry):
-        return self.gauges.append(metric_entry)
+    def check_entries(self):
+        cur_buffer_size = sys.getsizeof(self.gauges)
+        if cur_buffer_size > 0.7 * MAX_GAUGE_BUFFER_SIZE:
+            LOG.warn('The Prometheus buffer has used {} percent. Please check the '
+                     'Consul and Prometheus config.'.format((float(cur_buffer_size)/ MAX_GAUGE_BUFFER_SIZE)))
+
+        # Remove the first half metrics in the dict
+        if cur_buffer_size > MAX_GAUGE_BUFFER_SIZE:
+            self.gauges.clear()
+            LOG.error("The buffer size has reached the threshold. Remove all of the metrics.")
+        self.buffer_size = sys.getsizeof(self.gauges)
+
+    def add_metric(self, metric_entry, check_entry=True):
+        gauge = GaugeWapper(metric_entry)
+        gauge_unique_key = gauge.get_unique_key()
+        if gauge_unique_key in self.gauges:
+            self.gauges[gauge_unique_key].add_entry(gauge)
+        else:
+            self.gauges[gauge_unique_key] = gauge
+        if check_entry:
+            self.check_entries()
+        self.last_add_time = int(time.time())
+
+    def add_tcollector_metrics(self):
+        # Also push the buffer_size, entry num and last add time to Prometheus.
+
+        self.add_metric({
+            "metric": "tcollecor_buffer_size",
+            "value": self.buffer_size
+        }, check_entry=False)
+        self.add_metric({
+            "metric": "tcollecor_last_add_time",
+            "value": self.last_add_time
+        }, check_entry=False)
+        self.add_metric({
+            "metric": "tcollecor_entry_num",
+            "value": len(self.gauges)
+        }, check_entry=False)
 
     def collect(self):
         try:
             LOG.info("Collecting by Prometheus")
-            self.gauges, gauge_copy = [], self.gauges
+            self.add_tcollector_metrics()
+            self.gauges, gauge_copy = {}, self.gauges
+            self.buffer_size = 0
+
             # Interate thru copy dict to yield data to Prometheus request
-            for metric_entry in gauge_copy:
-                labels, label_values = zip(*metric_entry["tags"].items())
-                gmf = GaugeMetricFamily(metric_entry["metric"], metric_entry["metric"], labels=labels)
-                gmf.add_metric(labels=label_values, value=metric_entry["value"])
+            for gauge in gauge_copy.values():
+                gmf = GaugeMetricFamily(gauge.metric_entry["metric"],
+                                        gauge.metric_entry["metric"],
+                                        labels=gauge.labels)
+                gmf.add_metric(labels=gauge.label_values, value=gauge.metric_entry["value"] / gauge.count)
                 yield gmf
         except Exception as e:
             track = traceback.format_exc()
