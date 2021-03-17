@@ -96,6 +96,7 @@ class CustomCollector(object):
         self.gauges = {}
         self.buffer_size = 0
         self.last_add_time = 0
+        self.first_add_time = 0
 
     def check_entries(self):
         cur_buffer_size = sys.getsizeof(self.gauges)
@@ -119,6 +120,8 @@ class CustomCollector(object):
         if check_entry:
             self.check_entries()
         self.last_add_time = int(time.time())
+        if not self.first_add_time:
+            self.first_add_time = self.last_add_time
 
     def add_tcollector_metrics(self):
         # Also push the buffer_size, entry num and last add time to Prometheus.
@@ -132,6 +135,10 @@ class CustomCollector(object):
             "value": self.last_add_time
         }, check_entry=False)
         self.add_metric({
+            "metric": "tcollector_first_add_time",
+            "value": self.first_add_time
+        }, check_entry=False)
+        self.add_metric({
             "metric": "tcollector_entry_num",
             "value": len(self.gauges)
         }, check_entry=False)
@@ -142,6 +149,7 @@ class CustomCollector(object):
             self.add_tcollector_metrics()
             self.gauges, gauge_copy = {}, self.gauges
             self.buffer_size = 0
+            self.first_add_time = 0
 
             # Interate thru copy dict to yield data to Prometheus request
             for gauge in gauge_copy.values():
