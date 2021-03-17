@@ -169,9 +169,9 @@ def collect(db):
         print value
         try:
             if "." in value:
-                value = float(value)
+                value = float(value[0])
             else:
-                value = int(value)
+                value = int(value[0])
         except ValueError:
             print_metric(db, ts, "key_buffer_size", value)
             continue
