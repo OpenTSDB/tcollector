@@ -124,15 +124,15 @@ class CustomCollector(object):
         # Also push the buffer_size, entry num and last add time to Prometheus.
 
         self.add_metric({
-            "metric": "tcollecor_buffer_size",
+            "metric": "tcollector_buffer_size",
             "value": self.buffer_size
         }, check_entry=False)
         self.add_metric({
-            "metric": "tcollecor_last_add_time",
+            "metric": "tcollector_last_add_time",
             "value": self.last_add_time
         }, check_entry=False)
         self.add_metric({
-            "metric": "tcollecor_entry_num",
+            "metric": "tcollector_entry_num",
             "value": len(self.gauges)
         }, check_entry=False)
 
