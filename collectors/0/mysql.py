@@ -165,7 +165,7 @@ def collect(db):
             has_innodb = has_innodb or metric.startswith("innodb")
             print_metric(db, ts, metric, value)
     # OUTPUT memory related metrics
-    for value in db.query("select @@key_buffer_size"):
+    for m, value in db.query("select @@key_buffer_size"):
         try:
             if "." in value:
                 value = float(value)
