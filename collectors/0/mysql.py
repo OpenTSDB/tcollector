@@ -166,16 +166,54 @@ def collect(db):
             print_metric(db, ts, metric, value)
     # OUTPUT memory related metrics
     for value in db.query("select @@key_buffer_size"):
-        print value
         try:
             if "." in value:
                 value = float(value[0])
             else:
                 value = int(value[0])
         except ValueError:
-            print_metric(db, ts, "key_buffer_size", value)
             continue
         print_metric(db, ts, "key_buffer_size", value)
+
+    for value in db.query("select @@query_cache_size"):
+        try:
+            if "." in value:
+                value = float(value[0])
+            else:
+                value = int(value[0])
+        except ValueError:
+            continue
+        print_metric(db, ts, "query_cache_size", value)
+
+    for value in db.query("select @@innodb_buffer_pool_size"):
+            try:
+                if "." in value:
+                    value = float(value[0])
+                else:
+                    value = int(value[0])
+            except ValueError:
+                continue
+            print_metric(db, ts, "innodb_buffer_pool_size", value)
+
+    for value in db.query("select @@innodb_additional_mem_pool_size"):
+            try:
+                if "." in value:
+                    value = float(value[0])
+                else:
+                    value = int(value[0])
+            except ValueError:
+                continue
+            print_metric(db, ts, "innodb_additional_mem_pool_size", value)
+
+    for value in db.query("select @@innodb_log_buffer_size"):
+            try:
+                if "." in value:
+                    value = float(value[0])
+                else:
+                    value = int(value[0])
+            except ValueError:
+                continue
+            print_metric(db, ts, "innodb_log_buffer_size", value)
 
     if has_innodb:
         collectInnodbStatus(db)
