@@ -164,6 +164,7 @@ def collect(db):
             metric = metric.lower()
             has_innodb = has_innodb or metric.startswith("innodb")
             print_metric(db, ts, metric, value)
+
     # OUTPUT memory related metrics
     for value in db.query("select @@key_buffer_size"):
         try:
@@ -173,7 +174,7 @@ def collect(db):
                 value = int(value[0])
         except ValueError:
             continue
-        print_metric(db, ts, "key_buffer_size", value)
+        print_metric(db, ts, "mem.key_buffer_size", value)
 
     for value in db.query("select @@query_cache_size"):
         try:
@@ -183,7 +184,7 @@ def collect(db):
                 value = int(value[0])
         except ValueError:
             continue
-        print_metric(db, ts, "query_cache_size", value)
+        print_metric(db, ts, "mem.query_cache_size", value)
 
     for value in db.query("select @@innodb_buffer_pool_size"):
             try:
@@ -193,7 +194,7 @@ def collect(db):
                     value = int(value[0])
             except ValueError:
                 continue
-            print_metric(db, ts, "innodb_buffer_pool_size", value)
+            print_metric(db, ts, "mem.innodb_buffer_pool_size", value)
 
     for value in db.query("select @@innodb_log_buffer_size"):
             try:
@@ -203,7 +204,7 @@ def collect(db):
                     value = int(value[0])
             except ValueError:
                 continue
-            print_metric(db, ts, "innodb_log_buffer_size", value)
+            print_metric(db, ts, "mem.innodb_log_buffer_size", value)
 
     if has_innodb:
         collectInnodbStatus(db)
