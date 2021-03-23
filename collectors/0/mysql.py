@@ -206,6 +206,76 @@ def collect(db):
                 continue
             print_metric(db, ts, "mem.innodb_log_buffer_size", value)
 
+    for value in db.query("select @@sort_buffer_size"):
+        try:
+            if "." in value:
+                value = float(value[0])
+            else:
+                value = int(value[0])
+        except ValueError:
+            continue
+        print_metric(db, ts, "mem.sort_buffer_size", value)
+
+    for value in db.query("select @@read_buffer_size"):
+        try:
+            if "." in value:
+                value = float(value[0])
+            else:
+                value = int(value[0])
+        except ValueError:
+            continue
+        print_metric(db, ts, "mem.read_buffer_size", value)
+
+    for value in db.query("select @@read_rnd_buffer_size"):
+        try:
+            if "." in value:
+                value = float(value[0])
+            else:
+                value = int(value[0])
+        except ValueError:
+            continue
+        print_metric(db, ts, "mem.read_rnd_buffer_size", value)
+
+    for value in db.query("select @@join_buffer_size"):
+        try:
+            if "." in value:
+                value = float(value[0])
+            else:
+                value = int(value[0])
+        except ValueError:
+            continue
+        print_metric(db, ts, "mem.join_buffer_size", value)
+
+    for value in db.query("select @@thread_stack"):
+        try:
+            if "." in value:
+                value = float(value[0])
+            else:
+                value = int(value[0])
+        except ValueError:
+            continue
+        print_metric(db, ts, "mem.thread_stack", value)
+
+    for value in db.query("select @@binlog_cache_size"):
+        try:
+            if "." in value:
+                value = float(value[0])
+            else:
+                value = int(value[0])
+        except ValueError:
+            continue
+        print_metric(db, ts, "mem.binlog_cache_size", value)
+
+    for value in db.query("select @@tmp_table_size"):
+        try:
+            if "." in value:
+                value = float(value[0])
+            else:
+                value = int(value[0])
+        except ValueError:
+            continue
+        print_metric(db, ts, "mem.tmp_table_size", value)
+
     if has_innodb:
         collectInnodbStatus(db)
 
