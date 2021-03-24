@@ -214,15 +214,10 @@ def collect(db):
             if value > 0:
                 print_metric(db, ts, "perf_schema.stmt_by_digest.%s.all" % name, all_metrics[name][tags], tags)
                 count2 += 1
-                # Update the value in last_metrics
-                last_metrics[name][tags] = all_metrics[name][tags]
             else:
                 break
 
-        # Add new keys to last_metrics. Leave values of existing keys unchanged.
-        for key in all_metrics[name].keys():
-            if key not in last_metrics[name]:
-                last_metrics[name][key] = all_metrics[name][key]
+    last_metrics.update(all_metrics)
 
     # Add new keys to last_keys. Refresh the age of repeated keys by removing and re-adding them to last_keys.
     for key in all_metrics['count_star'].keys():
@@ -238,8 +233,14 @@ def collect(db):
         extra_keys = last_keys[:num_extra]
         for key in extra_keys:
             for name in METRICS:
-                last_metrics[name].pop(key)
-                count_evicted += 1
+                if name in last_metrics:
+                    if key in last_metrics[name]:
+                        last_metrics[name].pop(key)
+                        count_evicted += 1
+                    else:
+                        print >> sys.stderr, key, 'not found in last_metrics', name
+                else:
+                    print >> sys.stderr, name, 'not found in last_metrics'
         del last_keys[0:num_extra]
 
     num_keys = 0
