@@ -33,7 +33,7 @@ from collectors.lib.mysql_utils import (
 COLLECTION_INTERVAL = 60  # seconds
 MAX_NUM_METRICS = 50
 QUERY_LIMIT = 5000
-MAX_STORAGE = 400
+MAX_STORAGE = 5000
 
 
 def current_ts():
@@ -199,7 +199,7 @@ def collect(db):
                 print_metric(db, ts, "perf_schema.stmt_by_digest.%s.all" % name, all_metrics[name][tags], tags)
 
         last_metrics = all_metrics
-        last_keys = last_metrics.keys()
+        last_keys = last_metrics['count_star'].keys()
         print >> sys.stderr, "Initial batch:", count, "collected", count_keys, "keys", total_storage, "bytes"
         return
 
