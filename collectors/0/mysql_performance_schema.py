@@ -33,7 +33,7 @@ from collectors.lib.mysql_utils import (
 COLLECTION_INTERVAL = 60  # seconds
 MAX_NUM_METRICS = 50
 QUERY_LIMIT = 5000
-MAX_STORAGE = 5000
+MAX_STORAGE = 400
 
 
 def current_ts():
@@ -217,7 +217,7 @@ def collect(db):
             else:
                 break
 
-    last_metrics.update(all_metrics)
+        last_metrics[name].update(all_metrics[name])
 
     # Add new keys to last_keys. Refresh the age of repeated keys by removing and re-adding them to last_keys.
     for key in all_metrics['count_star'].keys():
