@@ -662,7 +662,7 @@ class SenderThread(threading.Thread):
         # to respond
         LOG.debug('verifying our TSD connection is alive')
         try:
-            self.tsd.sendall('version\n')
+            self.tsd.sendall(bytearray('version\n', 'utf-8'))
         except socket.error as msg:
             self.tsd = None
             self.blacklist_connection()
@@ -811,7 +811,7 @@ class SenderThread(threading.Thread):
             if self.dryrun:
                 print(out)
             else:
-                self.tsd.sendall(out)
+                self.tsd.sendall(bytearray(out, 'utf-8'))
             self.sendq = []
         except socket.error as msg:
             LOG.error('failed to send data: %s', msg)
