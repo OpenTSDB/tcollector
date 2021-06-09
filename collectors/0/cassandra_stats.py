@@ -279,7 +279,12 @@ def main():
     }
     cas_config = get_stats(cas_config_options)
     print >> sys.stderr, 'Cassandra Configuration:', cas_config
-    tags = "cluster=" + re.sub('\W+', '_', cas_config['cluster_name'])
+    cas_cluster = re.sub('\W+', '_', cas_config['cluster_name'])
+    # When migrating to Prometheus, the tag 'cluster' is already used by the k8s clusters, for example
+    # 'prod-mgmt'. Add an additional label 'cas_cluster' to represent the cassandra clusters.
+    # TODO: once OpenTSDB is fully retired, use 'cas_cluster' to replace 'cluster' tag.
+    tags = "cluster=" + cas_cluster
+    tags += ' cas_cluster={}'.format(cas_cluster)
 
     while True:
         print_once()
