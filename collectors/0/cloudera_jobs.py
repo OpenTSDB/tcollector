@@ -206,9 +206,6 @@ def collect_job_metrics():
     yarn = _get_service(main_api, "YARN")
     impala = _get_service(main_api, "IMPALA")
 
-    alpha_api = _get_cdh_api("cdh_alpha")
-    impala_alpha = _get_service(alpha_api, "IMPALA")
-
     curr_timestamp = time.time()
     from_time = datetime.datetime.fromtimestamp(curr_timestamp - SLEEP_INTERVAL)
     to_time = datetime.datetime.fromtimestamp(curr_timestamp)
@@ -217,8 +214,6 @@ def collect_job_metrics():
         _print_spark_metrics(yarn, from_time, to_time)
     if impala:
         _print_impala_metrics(impala, from_time, to_time, "main")
-    if impala_alpha:
-        _print_impala_metrics(impala_alpha, from_time, to_time, "alpha")
 
 
 def main():
