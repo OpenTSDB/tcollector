@@ -612,7 +612,7 @@ class SenderThread(threading.Thread):
         errors = 0  # How many uncaught exceptions in a row we got.
         while ALIVE:
             try:
-                self.maintain_conn()
+                # self.maintain_conn()
                 try:
                     line = self.reader.readerq.get(True, 5)
                 except Empty:
@@ -829,7 +829,7 @@ class SenderThread(threading.Thread):
             if self.dryrun:
                 print out
             else:
-                self.tsd.sendall(out)
+                # self.tsd.sendall(out)
                 if self.enable_prometheus:
                     try:
                         metrics = self.generate_metrics(collect_by="Prometheus")
