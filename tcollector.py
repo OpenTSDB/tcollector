@@ -240,7 +240,7 @@ class Collector(object):
           cut_off: A UNIX timestamp.  Any value that's older than this will be
             removed from the cache.
         """
-        for key in self.values.keys():
+        for key in tuple(self.values.keys()):
             time = self.values[key][3]
             if time < cut_off:
                 del self.values[key]
