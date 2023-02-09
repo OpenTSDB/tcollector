@@ -28,8 +28,8 @@ OS_STATS_QUERY = """
         %(table_name)s  
 """
 
-MEM_TABLE = """jmx.current.\"com.facebook.presto.memory:*name=general*\" """
-QUERY_TABLE = """jmx.current.\"com.facebook.presto.execution:*name=querymanager*\" """
+MEM_TABLE = """jmx.current.\"trino.memory:*name=general*\" """
+QUERY_TABLE = """jmx.current.\"trino.execution:*name=querymanager*\" """
 OS_STATS_TABLE = """jmx.current.\"java.lang:type=operatingsystem\" """
 HOST = "presto-alpha-backend.data.houzz.net"
 DB_PORT = 8086
