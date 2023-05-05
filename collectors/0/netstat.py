@@ -266,7 +266,7 @@ def main():
 
     def parse_stats(stats, filename):
         statsdikt = {}
-        # /proc/net/{netstat,snmp} have a retarded column-oriented format.  It
+        # /proc/net/{netstat,snmp} have a challenging column-oriented format.  It
         # looks like this:
         #   Header: SomeMetric OtherMetric
         #   Header: 1 2
