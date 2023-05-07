@@ -662,7 +662,10 @@ class SenderThread(threading.Thread):
         # to respond
         LOG.debug('verifying our TSD connection is alive')
         try:
-            self.tsd.sendall('version\n')
+            version = 'version\n'
+            if PY3:
+                version = bytearray(version, 'utf-8')
+            self.tsd.sendall(version)
         except socket.error as msg:
             self.tsd = None
             self.blacklist_connection()
@@ -811,6 +814,8 @@ class SenderThread(threading.Thread):
             if self.dryrun:
                 print(out)
             else:
+                if PY3:
+                    out = bytearray(out, 'utf-8')
                 self.tsd.sendall(out)
             self.sendq = []
         except socket.error as msg:
