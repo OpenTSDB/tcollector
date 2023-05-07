@@ -142,14 +142,17 @@ def cpus_csets(cpuset_path):
 
 def main():
     """procstats main loop"""
-
-    f_uptime = open("/proc/uptime", "r")
-    f_meminfo = open("/proc/meminfo", "r")
-    f_vmstat = open("/proc/vmstat", "r")
-    f_stat = open("/proc/stat", "r")
-    f_loadavg = open("/proc/loadavg", "r")
-    f_entropy_avail = open("/proc/sys/kernel/random/entropy_avail", "r")
-    f_interrupts = open("/proc/interrupts", "r")
+    try:
+        f_uptime = open("/proc/uptime", "r")
+        f_meminfo = open("/proc/meminfo", "r")
+        f_vmstat = open("/proc/vmstat", "r")
+        f_stat = open("/proc/stat", "r")
+        f_loadavg = open("/proc/loadavg", "r")
+        f_entropy_avail = open("/proc/sys/kernel/random/entropy_avail", "r")
+        f_interrupts = open("/proc/interrupts", "r")
+    except FileNotFoundError as exc:
+        utils.err('FileNotFoundError: %s' % (sys.exc_info()[1]))
+        sys.exit(1)
 
     f_scaling = "/sys/devices/system/cpu/cpu%s/cpufreq/%s_freq"
     f_scaling_min  = dict([])
