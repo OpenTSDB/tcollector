@@ -41,7 +41,7 @@ class HadoopDataNode(HadoopHttp):
     """
 
     def __init__(self):
-        super(HadoopDataNode, self).__init__('hadoop', 'datanode', 'localhost', 50075)
+        super(HadoopDataNode, self).__init__('hadoop', 'datanode', 'localhost', 50075, https_port=50475)
 
     def emit(self):
         current_time = int(time.time())
