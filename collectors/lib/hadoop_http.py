@@ -18,19 +18,30 @@ try:
     import json
 except ImportError:
     json = None
+
 try:
     from collections import OrderedDict  # New in Python 2.7
 except ImportError:
     from ordereddict import OrderedDict  # Can be easy_install'ed for <= 2.6
+
 from collectors.lib.utils import is_numeric
 
 try:
-    # noinspection PyCompatibility
+    # noinspection PyUnresolvedReferences,PyCompatibility
     from http.client import HTTPConnection
+    # noinspection PyUnresolvedReferences,PyCompatibility
+    from http.client import NotConnected
 except ImportError:
     # noinspection PyUnresolvedReferences,PyCompatibility
     from httplib import HTTPConnection
+    # noinspection PyUnresolvedReferences,PyCompatibility
+    from httplib import NotConnected
 
+if sys.version_info[0] == 2:
+    class ConnectionError(OSError):
+        pass
+    class ConnectionRefusedError(ConnectionError):
+        pass
 
 EXCLUDED_KEYS = (
     "Name",
@@ -65,7 +76,11 @@ class HadoopHttp(object):
         try:
             self.server.request('GET', self.uri)
             resp = self.server.getresponse().read()
-        except:
+        except ConnectionRefusedError as exc:
+            sys.stderr.write("Could not connect to %s" % (self.uri))
+            sys.exit(1)
+        except Exception as exc:
+            sys.stderr.write("Unexpected error: %s" % (exc))
             resp = '{}'
         finally:
             self.server.close()
