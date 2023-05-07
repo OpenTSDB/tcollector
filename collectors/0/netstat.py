@@ -78,6 +78,8 @@ def main():
         sockstat = open("/proc/net/sockstat")
         netstat = open("/proc/net/netstat")
         snmp = open("/proc/net/snmp")
+        tcp = open('/proc/net/tcp')
+        tcp6 = open('/proc/net/tcp6')
     except IOError as e:
         print("open failed: %s" % e, file=sys.stderr)
         return 13  # Ask tcollector to not re-start us.
@@ -119,6 +121,23 @@ def main():
         "UdpLite:": "udplite",  # We don't collect anything from here for now.
         "Arista:": "arista",  # We don't collect anything from here for now.
         }
+
+    # This dict lists TCP socket state values that are used in /proc/net/{tcp,tcp6}
+    tcp_states = {
+        '01': 'established',
+        '02': 'syn_sent',
+        '03': 'syn_recv',
+        '04': 'fin_wait1',
+        '05': 'fin_wait2',
+        '06': 'time_wait',
+        '07': 'close',
+        '08': 'close_wait',
+        '09': 'last_ack',
+        '0A': 'listen',
+        '0B': 'closing',
+        '0C': 'new_syn_recv',
+        '0D': 'max_states',
+    }
 
     # Any stat in /proc/net/{netstat,snmp} that doesn't appear in this dict will
     # be ignored.  If we find a match, we'll use the (metricname, tags).
@@ -255,6 +274,29 @@ def main():
         },
     }
 
+    def print_tcp_states(tcp_fh, tcp_state_type):
+        tcp_states_dict = {}
+        tcp_lines = tcp_fh.splitlines()
+
+        # initialize tcp states dict
+        for state in tcp_states.values():
+            tcp_states_dict[state] = 0
+
+        # fill out tcp states dict
+        for line in tcp_lines:
+            cols = line.split()
+            if cols:
+                state = cols[3]
+                if state in tcp_states:
+                    tcp_state_flag = tcp_states.get(state)
+                    if tcp_state_flag in tcp_states_dict:
+                        tcp_states_dict[tcp_state_flag] += 1
+                    else:
+                        tcp_states_dict[tcp_state_flag] = 1
+
+        for state, count in tcp_states_dict.items():
+            print("net.tcp_state.%s %d %d type=%s" % (state, ts, count,
+                                                 tcp_state_type))
 
     def print_netstat(statstype, metric, value, tags=""):
         if tags:
@@ -307,9 +349,13 @@ def main():
         sockstat.seek(0)
         netstat.seek(0)
         snmp.seek(0)
+        tcp.seek(0)
+        tcp6.seek(0)
         data = sockstat.read()
         netstats = netstat.read()
         snmpstats = snmp.read()
+        tcp_state = tcp.read()
+        tcp6_state = tcp6.read()
         m = re.match(regexp, data)
         if not m:
             print("Cannot parse sockstat: %r" % data, file=sys.stderr)
@@ -335,6 +381,9 @@ def main():
 
         parse_stats(netstats, netstat.name)
         parse_stats(snmpstats, snmp.name)
+
+        print_tcp_states(tcp_state, 'tcp')
+        print_tcp_states(tcp6_state, 'tcp6')
 
         sys.stdout.flush()
         time.sleep(interval)
