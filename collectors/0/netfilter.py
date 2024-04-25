@@ -19,25 +19,24 @@
 
 import sys
 import time
-import re
 import os
 
 from collectors.lib import utils
 
 interval = 15  # seconds
 
-STATS = ("ip_conntrack_buckets", "ip_conntrack_checksum", "ip_conntrack_count", 
-         "ip_conntrack_generic_timeout", "ip_conntrack_icmp_timeout", 
-         "ip_conntrack_log_invalid", "ip_conntrack_max", "ip_conntrack_tcp_be_liberal", 
-         "ip_conntrack_tcp_loose", "ip_conntrack_tcp_max_retrans", 
-         "ip_conntrack_tcp_timeout_close", "ip_conntrack_tcp_timeout_close_wait", 
-         "ip_conntrack_tcp_timeout_established", "ip_conntrack_tcp_timeout_fin_wait", 
-         "ip_conntrack_tcp_timeout_last_ack", "ip_conntrack_tcp_timeout_max_retrans", 
-         "ip_conntrack_tcp_timeout_syn_recv", "ip_conntrack_tcp_timeout_syn_sent", 
-         "ip_conntrack_tcp_timeout_time_wait", "ip_conntrack_udp_timeout", 
-         "ip_conntrack_udp_timeout_stream") 
+STATS = ("nf_conntrack_buckets", "nf_conntrack_checksum", "nf_conntrack_count",
+         "nf_conntrack_generic_timeout", "nf_conntrack_icmp_timeout",
+         "nf_conntrack_log_invalid", "nf_conntrack_max", "nf_conntrack_tcp_be_liberal",
+         "nf_conntrack_tcp_loose", "nf_conntrack_tcp_max_retrans",
+         "nf_conntrack_tcp_timeout_close", "nf_conntrack_tcp_timeout_close_wait",
+         "nf_conntrack_tcp_timeout_established", "nf_conntrack_tcp_timeout_fin_wait",
+         "nf_conntrack_tcp_timeout_last_ack", "nf_conntrack_tcp_timeout_max_retrans",
+         "nf_conntrack_tcp_timeout_syn_recv", "nf_conntrack_tcp_timeout_syn_sent",
+         "nf_conntrack_tcp_timeout_time_wait", "nf_conntrack_udp_timeout",
+         "nf_conntrack_udp_timeout_stream")
 
-basedir = "/proc/sys/net/ipv4/netfilter"
+basedir = "/proc/sys/net/netfilter"
 
 def main():
     """netfilter main loop"""
@@ -52,7 +51,7 @@ def main():
                 try: 
                    f = open(basedir + "/" + s, 'r')
                    value = f.readline().rstrip()
-                   print("proc.sys.net.ipv4.netfilter.%s %d %s" % (s, ts, value))
+                   print("proc.sys.net.netfilter.%s %d %s" % (s, ts, value))
                    f.close() 
                 except:
                    # brute'ish, but should keep the collector reasonably future 
