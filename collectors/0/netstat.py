@@ -112,6 +112,7 @@ def main():
     # dict, we'll ignore it.  We use the value to build the metric name.
     known_statstypes = {
         "TcpExt:": "tcp",
+        "MPTcpExt:": "mptcp", # We don't collect anything from here for now.
         "IpExt:": "ip",  # We don't collect anything from here for now.
         "Ip:": "ip",  # We don't collect anything from here for now.
         "Icmp:": "icmp",  # We don't collect anything from here for now.
@@ -136,7 +137,6 @@ def main():
         '0A': 'listen',
         '0B': 'closing',
         '0C': 'new_syn_recv',
-        '0D': 'max_states',
     }
 
     # Any stat in /proc/net/{netstat,snmp} that doesn't appear in this dict will
@@ -247,6 +247,8 @@ def main():
     }
     known_stats = {
         "tcp": tcp_stats,
+        "mptcp": {
+        },
         "ip": {
         },
         "icmp": {
