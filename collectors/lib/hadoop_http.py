@@ -12,6 +12,7 @@
 # of the GNU Lesser General Public License along with this program.  If not,
 # see <http://www.gnu.org/licenses/>.
 
+import ssl
 import sys
 
 try:
@@ -26,10 +27,10 @@ from collectors.lib.utils import is_numeric
 
 try:
     # noinspection PyCompatibility
-    from http.client import HTTPConnection
+    from http.client import HTTPConnection, HTTPSConnection
 except ImportError:
     # noinspection PyUnresolvedReferences,PyCompatibility
-    from httplib import HTTPConnection
+    from httplib import HTTPConnection, HTTPSConnection
 
 
 EXCLUDED_KEYS = (
@@ -52,14 +53,22 @@ def recurse(key,value):
         yield (key,value)
 
 class HadoopHttp(object):
-    def __init__(self, service, daemon, host, port, uri="/jmx"):
+    def __init__(self, service, daemon, host, port, https_port=None, uri="/jmx"):
         self.service = service
         self.daemon = daemon
         self.port = port
+        self.https_port = https_port
         self.host = host
         self.uri = uri
         self.server = HTTPConnection(self.host, self.port)
         self.server.auto_open = True
+        if self.https_port:
+            self.https_server = HTTPSConnection(
+                self.host,
+                self.https_port,
+                context=ssl._create_unverified_context(),
+                timeout=10)
+            self.https_server.auto_open = True
 
     def request(self):
         try:
@@ -67,6 +76,14 @@ class HadoopHttp(object):
             resp = self.server.getresponse().read()
         except:
             resp = '{}'
+            if self.https_port:
+                try:
+                    self.https_server.request('GET', self.uri)
+                    resp = self.https_server.getresponse().read()
+                except:
+                    resp = '{}'
+                finally:
+                    self.https_server.close()
         finally:
             self.server.close()
         return json.loads(resp)
