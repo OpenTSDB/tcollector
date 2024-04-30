@@ -18,20 +18,10 @@ try:
     import json
 except ImportError:
     json = None
-try:
-    from collections import OrderedDict  # New in Python 2.7
-except ImportError:
-    from ordereddict import OrderedDict  # Can be easy_install'ed for <= 2.6
-from collectors.lib.utils import is_numeric
 
-try:
-    # noinspection PyCompatibility
-    from http.client import HTTPConnection
-    from http.client import NotConnected
-except ImportError:
-    # noinspection PyUnresolvedReferences,PyCompatibility
-    from httplib import HTTPConnection
-    from httplib import NotConnected
+from collections import OrderedDict
+from collectors.lib.utils import is_numeric
+from http.client import HTTPConnection
 
 
 EXCLUDED_KEYS = (
@@ -39,7 +29,8 @@ EXCLUDED_KEYS = (
     "name"
 )
 
-def recurse(key,value):
+
+def recurse(key, value):
     if type(value) == dict:
         for k,v in value.items():
             newkey = '_'.join([key,k])
@@ -51,7 +42,8 @@ def recurse(key,value):
             for j in recurse(newi,x):
                 yield j
     else:
-        yield (key,value)
+        yield key, value
+
 
 class HadoopHttp(object):
     def __init__(self, service, daemon, host, port, uri="/jmx"):
@@ -68,10 +60,10 @@ class HadoopHttp(object):
             self.server.request('GET', self.uri)
             resp = self.server.getresponse().read()
         except ConnectionRefusedError as exc:
-            sys.stderr.write("Could not connect to %s" % (self.uri))
+            sys.stderr.write("Could not connect to %s" % self.uri)
             sys.exit(1)
         except Exception as exc:
-            sys.stderr.write("Unexpected error: %s" % (exc))
+            sys.stderr.write("Unexpected error: %s" % exc)
             resp = '{}'
         finally:
             self.server.close()
@@ -88,7 +80,7 @@ class HadoopHttp(object):
         for bean in json_arr:
             if (not bean['name']) or (not "name=" in bean['name']):
                 continue
-            #split the name string
+            # split the name string
             context = bean['name'].split("name=")[1].split(",sub=")
             # Create a set that keeps the first occurrence
             context = list(OrderedDict.fromkeys(context).keys())
@@ -98,7 +90,7 @@ class HadoopHttp(object):
             context = [c for c in context if c != self.service and c != self.daemon]
 
             for key, value in bean.items():
-               for m, n in recurse(key, value):
+                for m, n in recurse(key, value):
                     if m in EXCLUDED_KEYS:
                         continue
                     if not is_numeric(n):
@@ -111,8 +103,8 @@ class HadoopHttp(object):
             print("%s.%s.%s.%s %d %d" % (self.service, self.daemon, ".".join(context), metric_name, current_time, float(value)))
         else:
             tag_string = " ".join([k + "=" + v for k, v in tag_dict.items()])
-            print ("%s.%s.%s.%s %d %d %s" % \
-                  (self.service, self.daemon, ".".join(context), metric_name, current_time, float(value), tag_string))
+            print("%s.%s.%s.%s %d %d %s" %
+                (self.service, self.daemon, ".".join(context), metric_name, current_time, float(value), tag_string))
         # flush to protect against subclassed collectors that output few metrics not having enough output to trigger
         # buffer flush within 10 mins, which then get killed by TCollector due to "inactivity"
         sys.stdout.flush()
