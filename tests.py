@@ -18,17 +18,16 @@ import time
 from stat import S_ISDIR, S_ISREG, ST_MODE
 import unittest
 import subprocess
-import time
 import signal
-
-import mocks
-import tcollector
 import json
 import threading
 try:
     import flask
 except ImportError:
     flask = None
+import mocks
+import tcollector
+
 
 PY3 = sys.version_info[0] > 2
 
@@ -48,10 +47,9 @@ class ReaderThreadTests(unittest.TestCase):
 
         This can happen if a specific collector is buggy.
         """
-        thread = tcollector.ReaderThread(1, 10, True) # pylint:disable=no-member
-        collector = tcollector.Collector("c", 1, "c") # pylint:disable=no-member
-        line= "mymetric 123 False a=b"
-        expected = "mymetric 123 0 a=b"
+        thread = tcollector.ReaderThread(1, 10, True)  # pylint:disable=no-member
+        collector = tcollector.Collector("c", 1, "c")  # pylint:disable=no-member
+        line = "mymetric 123 False a=b"
         thread.process_line(collector, line)
         self.assertEqual(thread.readerq.qsize(), 1, line)
         self.assertEqual(thread.readerq.get(), line)
@@ -63,10 +61,9 @@ class ReaderThreadTests(unittest.TestCase):
 
         This can happen if a specific collector is buggy.
         """
-        thread = tcollector.ReaderThread(1, 10, True) # pylint:disable=no-member
-        collector = tcollector.Collector("c", 1, "c") # pylint:disable=no-member
-        line= "mymetric 123 True a=b"
-        expected = "mymetric 123 1 a=b"
+        thread = tcollector.ReaderThread(1, 10, True)  # pylint:disable=no-member
+        collector = tcollector.Collector("c", 1, "c")  # pylint:disable=no-member
+        line = "mymetric 123 True a=b"
         thread.process_line(collector, line)
         self.assertEqual(thread.readerq.qsize(), 1, line)
         self.assertEqual(thread.readerq.get(), line)
@@ -103,7 +100,7 @@ class ReaderThreadTests(unittest.TestCase):
 class CollectorsTests(unittest.TestCase):
 
     def test_collectorsAccessRights(self):
-        """Test of collectors access rights, permissions should be 0100775."""
+        """Test of collectors access rights, permissions should be 0100755."""
 
         def check_access_rights(top):
             for f in os.listdir(top):
@@ -117,9 +114,9 @@ class CollectorsTests(unittest.TestCase):
                     # file, check permissions
                     permissions = oct(os.stat(pathname)[ST_MODE])
                     if PY3:
-                        self.assertEqual("0o100775", permissions)
+                        self.assertEqual("0o100755", permissions)
                     else:
-                        self.assertEqual("0100775", permissions)
+                        self.assertEqual("0100755", permissions)
                 else:
                     # unknown file type
                     pass
@@ -216,6 +213,7 @@ class SenderThreadHTTPTests(unittest.TestCase):
         sender = self.send_query_with_response_code(400)
         self.assertEqual(len(sender.sendq), 0)
 
+
 class NamespacePrefixTests(unittest.TestCase):
     """Tests for metric namespace prefix."""
 
@@ -228,6 +226,7 @@ class NamespacePrefixTests(unittest.TestCase):
         self.assertEqual(thread.readerq.get(), "my.namespace." + line)
         self.assertEqual(collector.lines_received, 1)
         self.assertEqual(collector.lines_invalid, 0)
+
 
 class TSDBlacklistingTests(unittest.TestCase):
     """
@@ -287,10 +286,11 @@ class TSDBlacklistingTests(unittest.TestCase):
         sender.pick_connection()
         self.assertEqual(tsd1, (sender.host, sender.port))
 
+
 class UDPCollectorTests(unittest.TestCase):
 
     def setUp(self):
-        if ('udp_bridge.py' not in tcollector.COLLECTORS): # pylint: disable=maybe-no-member
+        if 'udp_bridge.py' not in tcollector.COLLECTORS:  # pylint: disable=maybe-no-member
             raise unittest.SkipTest("udp_bridge unavailable")
 
         self.saved_exit = sys.exit
@@ -332,7 +332,8 @@ class UDPCollectorTests(unittest.TestCase):
 
     def test_populated(self):
         # assertIsInstance, assertIn, assertIsNone do not exist in Python 2.6
-        self.assertTrue(isinstance(self.udp_bridge, tcollector.Collector), msg="self.udp_bridge not instance of tcollector.Collector") # pylint: disable=maybe-no-member
+        self.assertTrue(isinstance(self.udp_bridge, tcollector.Collector),
+                        msg="self.udp_bridge not instance of tcollector.Collector")  # pylint: disable=maybe-no-member
         self.assertEqual(self.udp_bridge.proc, None)
         self.assertTrue('main' in self.udp_globals, msg="'main' not in self.udp_globals")
 
@@ -518,6 +519,6 @@ if __name__ == '__main__':
     logging.basicConfig()
     cdir = os.path.join(os.path.dirname(os.path.realpath(sys.argv[0])),
                         'collectors')
-    tcollector.setup_python_path(cdir) # pylint: disable=maybe-no-member
-    tcollector.populate_collectors(cdir) # pylint: disable=maybe-no-member
+    tcollector.setup_python_path(cdir)  # pylint: disable=maybe-no-member
+    tcollector.populate_collectors(cdir)  # pylint: disable=maybe-no-member
     sys.exit(unittest.main())
