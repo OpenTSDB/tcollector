@@ -4,4 +4,4 @@ handles the communication with the TSDs.
 
 For more info, see the [TCollector Documentation](http://www.opentsdb.net/tcollector.html)
 
-[![Build Status](https://travis-ci.org/OpenTSDB/tcollector.svg?branch=master)](https://travis-ci.org/OpenTSDB/tcollector)
+[![unittest and pylint](https://github.com/OpenTSDB/tcollector/actions/workflows/tests-push.yml/badge.svg)](https://github.com/OpenTSDB/tcollector/actions/workflows/tests-push.yml)
