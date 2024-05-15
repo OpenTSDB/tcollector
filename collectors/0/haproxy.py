@@ -36,9 +36,11 @@ COLLECTION_INTERVAL = 15
 # for information:
 # http://haproxy.1wt.eu/download/1.4/doc/configuration.txt
 METRICS_TO_REPORT = {
-    "FRONTEND": ["scur", "stot", "rate", "req_tot", "req_rate"],
-    "BACKEND": ["scur", "stot", "rate", "req_tot", "req_rate"],
-    "servers": ["scur", "stot", "rate", "req_tot", "req_rate"]
+    "FRONTEND": ["scur", "req_rate", "bin", "bout", "ereq", "dreq"],
+    "BACKEND": ["qcur", "scur", "rate", "req_rate", "bin", "bout", "econ", "eresp", "ttime", "ctime", "rtime", "act", 
+"chkfail" ],
+    "servers": ["scur", "stot", "rate", "req_tot", "req_rate"],
+    "PROCESS": ["SslFrontendKeyRate", "SslFrontendSessionReuse_pct", "SslCacheLookups", "SslCacheMisses"]
 }
 
 METRIC_NAMES = {
@@ -87,13 +89,16 @@ METRIC_NAMES = {
     "req_rate_max": "max_observed_http_requests",
     "req_tot": "http_requests_received",
     "cli_abrt": "client_aborted_data_transfers",
-    "srv_abrt": "server_aborted_data_transfers"
+    "srv_abrt": "server_aborted_data_transfers",
+    "rtime": "response_time_ms_rate",
+    "ctime": "connect_time_ms_rate",
+    "ttime": "avg_sess_time_ms_rate"
 }
 
 def haproxy_pid():
   """Finds out the pid of haproxy process"""
   try:
-     pid = subprocess.check_output(["pidof", "-s", "haproxy"])
+     pid = subprocess.check_output(["pidof", "haproxy"])
   except subprocess.CalledProcessError:
      return None
   return pid.rstrip()
@@ -101,72 +106,97 @@ def haproxy_pid():
 def find_conf_file(pid):
   """Returns the conf file of haproxy."""
   try:
-     output = subprocess.check_output(["ps", "--no-headers", "-o", "cmd", pid])
-  except subprocess.CalledProcessError as e:
+     output = subprocess.check_output(["ps", "--no-headers", "-o", "cmd", pid.split(' ', 1)[0]])
+  except subprocess.CalledProcessError, e:
      utils.err("HAProxy (pid %s) went away? %s" % (pid, e))
      return None
   return output.split("-f")[1].split()[0]
 
 def find_sock_file(conf_file):
   """Returns the unix socket file of haproxy."""
+  s_files = []
   try:
     fd = open(conf_file)
-  except IOError as e:
+  except IOError, e:
     utils.err("Error: %s. Config file path is relative: %s" % (e, conf_file))
     return None
   try:
     for line in fd:
       if line.lstrip(" \t").startswith("stats socket"):
         sock_file = line.split()[2]
+
         if utils.is_sockfile(sock_file):
-          return sock_file
+    s_files.append(sock_file)
   finally:
     fd.close()
+  return s_files
 
+def collect_info(sock_file):
+    """Collects info from haproxy unix domain socket"""
+    stats_socket = 0
+    ts = time.time()
+    for s_file in sock_file:
+        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        try:
+            sock.settimeout(2)
+            sock.connect(s_file)
+            sock.send("show info\n")
+            infolines = sock.recv(10240).split('\n')
+        finally:
+            sock.close()
+        infolines = [line for line in infolines if line != ""]
+        metrics = {}
+        for line in infolines:
+            metrics[line.split(": ")[0]] = line.split(": ")[1]
+        for key in METRICS_TO_REPORT["PROCESS"]:
+            print "haproxy.%s %i %s socket=%s" % (key, ts, metrics[key], stats_socket)
+        stats_socket += 1
+    sys.stdout.flush()
 
 def collect_stats(sock_file):
     """Collects stats from haproxy unix domain socket"""
-    sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)  
-    try:
-      sock.settimeout(COLLECTION_INTERVAL)
-      sock.connect(sock_file)
-      sock.send("show stat\n")
-      statlines = sock.recv(10240).split('\n')
-    finally:
-      sock.close()
-
+    stats_socket = 0
     ts = time.time()
-    # eat up any empty lines that may be present
-    statlines = [line for line in statlines if line != ""]
+    for s_file in sock_file:
+      sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+      try:
+        sock.settimeout(2)
+        sock.connect(s_file)
+        sock.send("show stat -1 3 -1\n")
+        statlines = sock.recv(10240).split('\n')
+      finally:
+        sock.close()
 
-    # headers are given first, with or without the prompt present
-    headers = None
-    if statlines[0].startswith("> # "):
-        headers = statlines[0][4:].split(',')
-    elif statlines[0].startswith("# "):
-        headers = statlines[0][2:].split(',')
-    else:
-        utils.err("No headers found in HAProxy output: %s" % (statlines[0],))
-        return
+      # eat up any empty lines that may be present
+      statlines = [line for line in statlines if line != ""]
 
-    reader = csv.DictReader(statlines[1:], fieldnames=headers)
+      # headers are given first, with or without the prompt present
+      headers = None
+      if statlines[0].startswith("> # "):
+          headers = statlines[0][4:].split(',')
+      elif statlines[0].startswith("# "):
+          headers = statlines[0][2:].split(',')
+      else:
+          utils.err("No headers found in HAProxy output: %s" % (statlines[0],))
+          return
 
-    # each line is a dict, due to the use of DictReader
-    for line in reader:
-        if "svname" not in line:
-            continue  # skip output from non-expected lines
-        if line["svname"] in ["FRONTEND", "BACKEND"]:
-            for key in METRICS_TO_REPORT[line["svname"]]:
-                print_metric(line, key, ts)
-        else:  # svname apparently points to individual server
-            for key in METRICS_TO_REPORT["servers"]:
-                print_metric(line, key, ts)
-
-    # make sure that we get our output quickly
+      reader = csv.DictReader(statlines[1:], fieldnames=headers)
+      # each line is a dict, due to the use of DictReader
+      for line in reader:
+          if "svname" not in line:
+              continue  # skip output from non-expected lines
+          if line["svname"] in ["FRONTEND", "BACKEND"]:
+              for key in METRICS_TO_REPORT[line["svname"]]:
+                  print_metric(line, key, str(stats_socket), ts)
+          else:  # svname apparently points to individual server
+              for key in METRICS_TO_REPORT["servers"]:
+                  print_metric(line, key, str(stats_socket), ts)
+      stats_socket += 1
+      # make sure that we get our output quickly
     sys.stdout.flush()
 
 
-def print_metric(line, metric, timestamp):
+def print_metric(line, metric, tag, timestamp):
     """Print metric to stdout in tcollector format.
 
     :param line: The HAProxy output line, as a dict.
@@ -182,12 +212,12 @@ def print_metric(line, metric, timestamp):
     value = line[metric]
     if not value:
         value = 0
-    print("haproxy.%s %i %s source=%s cluster=%s"
+    print ("haproxy.%s %i %s source=%s cluster=%s socket=%s"
            % (METRIC_NAMES[metric],
               timestamp,
               value,
               line["svname"],
-              line["pxname"]))
+              line["pxname"], tag))
 
 
 def main():
@@ -208,6 +238,7 @@ def main():
 
   while True:
     collect_stats(sock_file)
+    collect_info(sock_file)
     time.sleep(COLLECTION_INTERVAL)
 
 if __name__ == "__main__":
