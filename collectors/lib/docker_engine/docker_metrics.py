@@ -15,8 +15,9 @@
 from __future__ import print_function
 import time
 import requests
-from prometheus_client.parser import text_string_to_metric_families
+from prometheus_client.parser import text_string_to_metric_families  # pylint: disable=import-error
 from collectors.lib.docker_engine.metric import Metric
+
 
 class DockerMetrics(object):
     def __init__(self, url):

@@ -27,7 +27,7 @@ jobs:
           #if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
       - name: Lint with pyLint
         run: |
-          pylint $(git ls-files '*.py') --fail-under 4
+          pylint $(git ls-files '*.py') --fail-under 6
       - name: Check with Unitest
         run: |
           ./tests.py

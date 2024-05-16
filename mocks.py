@@ -17,8 +17,10 @@ import traceback
 # for debugging
 real_stderr = sys.stderr
 
+
 class SocketDone(Exception):
     pass
+
 
 class Socket():
     def __init__(self):
@@ -42,13 +44,14 @@ class Socket():
             return None
 
         def recvfrom(self, inBytes):
-            if (len(self.state['udp_in']) > 0):
+            if len(self.state['udp_in']) > 0:
                 line = self.state['udp_in'].pop(0)
                 return (line, None)
             else:
                 raise SocketDone('stop reading from socket')
 
-class Sys():
+
+class Sys:
     def __init__(self):
         self.stderr = self.Stderr()
         self.stdout = self.Stdout()
@@ -59,21 +62,22 @@ class Sys():
         msg = 'exit called with code %s\n  stderr: %s\n  trace: %s'
         raise Exception(msg % (exitCode, err, trace))
 
-    class Stderr():
+    class Stderr:
         def __init__(self):
             self.lines = []
 
         def write(self, outString):
             self.lines.append(outString)
 
-    class Stdout():
+    class Stdout:
         def __init__(self):
             self.lines = []
 
         def write(self, outString):
             self.lines.append(outString)
 
-class Utils():
+
+class Utils:
     def __init__(self):
         self.drop_privileges = lambda: None
 

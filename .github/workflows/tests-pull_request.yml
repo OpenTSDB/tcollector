@@ -25,7 +25,7 @@ jobs:
           python -m pip install pylint==2.17.7 pylint_runner flask
       - name: Lint with pyLint
         run: |
-          pylint $(git ls-files '*.py') --fail-under 4
+          pylint $(git ls-files '*.py') --fail-under 6
       - name: Check with Unitests
         run: |
           ./tests.py

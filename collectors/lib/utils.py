@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # This file is part of tcollector.
-# Copyright (C) 2013  The tcollector Authors.
+# Copyright (C) 2013-2024  The tcollector Authors.
 #
 # This program is free software: you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published by
@@ -21,8 +21,6 @@ import stat
 import pwd
 import errno
 import sys
-
-PY3 = sys.version_info[0] > 2
 
 # If we're running as root and this user exists, we'll drop privileges.
 USER = "nobody"
@@ -58,14 +56,5 @@ def err(msg):
     print(msg, file=sys.stderr)
 
 
-if PY3:
-    def is_numeric(value):
-        return isinstance(value, (int, float))
-else:
-    def is_numeric(value):
-        try:
-            float(str(value))
-            return True
-        except ValueError:
-            pass
-        return False
+def is_numeric(value):
+    return isinstance(value, (int, float))

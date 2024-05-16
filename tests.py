@@ -29,9 +29,6 @@ import mocks
 import tcollector
 
 
-PY3 = sys.version_info[0] > 2
-
-
 def return_none(x):
     return None
 
@@ -113,10 +110,7 @@ class CollectorsTests(unittest.TestCase):
                 elif S_ISREG(mode):
                     # file, check permissions
                     permissions = oct(os.stat(pathname)[ST_MODE])
-                    if PY3:
-                        self.assertEqual("0o100755", permissions)
-                    else:
-                        self.assertEqual("0100755", permissions)
+                    self.assertEqual("0o100755", permissions)
                 else:
                     # unknown file type
                     pass
