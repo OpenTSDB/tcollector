@@ -33,6 +33,7 @@ This plugin tracks kernel memory for both:
 # and the allocation sizes for the slabs
 # /proc/spl/kstat/zfs/arcstats is a table.  we only care about the data column
 
+
 def main():
     """zfsstat main loop"""
     interval = 15
@@ -83,6 +84,6 @@ def main():
         sys.stdout.flush()
         time.sleep(interval)
 
-if __name__ == "__main__":
-    main()
 
+if __name__ == "__main__":
+    sys.exit(main())

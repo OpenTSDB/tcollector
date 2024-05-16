@@ -13,7 +13,7 @@
 # see <http://www.gnu.org/licenses/>.
 #
 
-'''
+"""
 CPU detailed statistics for TSDB
 
 This plugin tracks, for all CPUs:
@@ -34,7 +34,7 @@ In addition, for FreeBSD, it reports :
 - memory statistics (bytes) (active, inact, wired, cache, buf, free)
 - arc statistics (bytes) (total, mru, mfu, anon, header, other)
 - swap statistics (bytes) (total, free, inuse, in/s, out/s)
-'''
+"""
 
 import errno
 import sys
@@ -47,16 +47,15 @@ import platform
 
 from collectors.lib import utils
 
-PY3 = sys.version_info[0] > 2
-if PY3:
-    long = int
+long = int
 
 try:
     from collectors.etc import sysload_conf
 except ImportError:
     sysload_conf = None
 
-DEFAULT_COLLECTION_INTERVAL=15
+DEFAULT_COLLECTION_INTERVAL = 15
+
 
 def convert_to_bytes(string):
     """Take a string in the form 1234K, and convert to bytes"""
@@ -75,17 +74,19 @@ def convert_to_bytes(string):
             return long(number)
     return long(string)
 
+
 signal_received = None
 def handlesignal(signum, stack):
     global signal_received
     signal_received = signum
 
+
 def main():
     """top main loop"""
 
-    collection_interval=DEFAULT_COLLECTION_INTERVAL
-    collect_every_cpu=True
-    if(sysload_conf):
+    collection_interval = DEFAULT_COLLECTION_INTERVAL
+    collect_every_cpu = True
+    if sysload_conf:
         config = sysload_conf.get_config()
         collection_interval=config['collection_interval']
         collect_every_cpu=config['collect_every_cpu']
@@ -97,7 +98,7 @@ def main():
 
     try:
         if platform.system() == "FreeBSD":
-            if(collect_every_cpu):
+            if collect_every_cpu:
                 p_top = subprocess.Popen(
                     ["top", "-S", "-P", "-n", "-s"+str(collection_interval), "-dinfinity", "0"],
                     stdout=subprocess.PIPE,
@@ -108,7 +109,7 @@ def main():
                     stdout=subprocess.PIPE,
                 )            
         else:
-            if(collect_every_cpu):
+            if collect_every_cpu:
                 p_top = subprocess.Popen(
                     ["mpstat", "-P", "ALL", str(collection_interval)],
                     stdout=subprocess.PIPE,
@@ -121,7 +122,7 @@ def main():
     except OSError as e:
         if e.errno == errno.ENOENT:
             # it makes no sense to run this collector here
-            sys.exit(13) # we signal tcollector to not run us
+            sys.exit(13)  # we signal tcollector to not run us
         raise
 
     timestamp = 0
@@ -292,5 +293,6 @@ def main():
         pass
     p_top.wait()
 
+
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

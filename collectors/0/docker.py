@@ -17,13 +17,13 @@ from collectors.lib import utils
 CONFIG = docker_conf.get_config()
 
 COLLECTION_INTERVAL = CONFIG['interval']
-CGROUP_PATH =CONFIG['cgroup_path']
+CGROUP_PATH = CONFIG['cgroup_path']
 ENABLED = docker_conf.enabled()
 DOCKER_SOCK = CONFIG['socket_path']
 
 if not ENABLED:
-  sys.stderr.write("Docker collector is not enabled")
-  sys.exit(13)
+    utils.err("Docker collector is not enabled")
+    sys.exit(13)
 
 # proc_names example:
 # $ cat cpuacct.stat
@@ -54,6 +54,7 @@ proc_names_to_agg = {
     ),
 }
 
+
 def getnameandimage(containerid):
 
     # Retrieve container json configuration file
@@ -61,7 +62,7 @@ def getnameandimage(containerid):
     sock.settimeout(5)
     try:
         r = sock.connect_ex(DOCKER_SOCK)
-        if (r != 0):
+        if r != 0:
             print("Can not connect to %s" % (DOCKER_SOCK), file=sys.stderr)
         else:
             message = 'GET /containers/' + containerid + '/json HTTP/1.1\r\nHost: http\n\n'
@@ -92,6 +93,7 @@ def getnameandimage(containerid):
     except socket.timeout as e:
         print("Socket: %s" % (e,), file=sys.stderr)
 
+
 def senddata(datatosend, containerid):
     if datatosend:
         datatosend += " containerid="+containerid
@@ -101,6 +103,7 @@ def senddata(datatosend, containerid):
             datatosend += " containerimage="+containerimages[containerid]
         print("docker.%s" % datatosend)
     sys.stdout.flush()
+
 
 def readdockerstats(path, containerid):
 
@@ -164,20 +167,21 @@ def readdockerstats(path, containerid):
                             senddata("%s %d %s" % (datatosend, ts, count), containerid)
             f_stat.close()
 
+
 def main():
     """docker_cpu main loop"""
     global containernames
     global containerimages
     utils.drop_privileges()
-    cache=0
+    cache = 0
     while True:
 
         # Connect to Docker socket to get informations about containers every 4 times
-        if (cache == 0):
+        if cache == 0:
             containernames={}
             containerimages={}
         cache += 1
-        if (cache == 4):
+        if cache == 4:
             cache = 0
 
         if os.path.isdir(CGROUP_PATH):
@@ -206,6 +210,7 @@ def main():
                 if os.path.isdir(CGROUP_PATH + "/lxc/"+level1):
                     readdockerstats(CGROUP_PATH + "/lxc/"+level1, level1)
         time.sleep(COLLECTION_INTERVAL)
+
 
 if __name__ == "__main__":
     sys.exit(main())

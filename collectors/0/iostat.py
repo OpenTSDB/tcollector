@@ -261,7 +261,7 @@ def main():
                           % (metric, FIELDS_PART[i], ts, values[i + 3], device))
             else:
                 print("Cannot parse /proc/diskstats line: ", line, file=sys.stderr)
-                exit(13)  # tcollector does not restart collectors with return code 13
+                return 13  # tcollector does not restart collectors with return code 13
 
         sys.stdout.flush()
         time.sleep(COLLECTION_INTERVAL)

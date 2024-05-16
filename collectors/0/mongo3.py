@@ -18,7 +18,6 @@ from __future__ import print_function
 
 import sys
 import time
-import os
 try:
     import pymongo
 except ImportError:
@@ -205,6 +204,7 @@ def runServerStatus(c):
         for k, v in cur.items():
             print('mongo.%s %d %s mode=%s' % (metric, ts, v, k))
 
+
 def runDbStats(c):
     for db_name in DB_NAMES:
         res = c[db_name].command('dbStats')
@@ -233,6 +233,7 @@ def runDbStats(c):
                     continue
                 print('mongo.rs.%s %d %s replica=%s db=%s' % (metric, ts, cur, replica_name, db_name))
 
+
 def runReplSetGetStatus(c):
     res = c.admin.command('replSetGetStatus')
     ts = int(time.time())
@@ -258,6 +259,7 @@ def runReplSetGetStatus(c):
                 continue
             print('mongo.replica.%s %d %s replica_set=%s replica=%s replica_state=%s replica_health=%s' % (metric, ts, cur, replica_set_name, replica_name, replica_state, replica_health))
 
+
 def loadEnv():
     global USER, PASS, INTERVAL, DB_NAMES, CONFIG_CONN, MONGOS_CONN, REPLICA_CONN
     for item in mongodb3_conf.get_settings()['db'].split(','):
@@ -281,13 +283,14 @@ def loadEnv():
     PASS = mongodb3_conf.get_settings()['password']
     INTERVAL = mongodb3_conf.get_settings()['interval']
 
+
 def main():
     loadEnv()
 
     utils.drop_privileges()
     if pymongo is None:
         print("error: Python module `pymongo' is missing", file=sys.stderr)
-        return 13
+        return 13  # ask tcollector to not respawn us
 
     for index, item in enumerate(CONFIG_CONN, start=0):
         conn = pymongo.MongoClient(host=item['host'], port=item['port'])
@@ -319,6 +322,7 @@ def main():
 
         sys.stdout.flush()
         time.sleep(INTERVAL)
+
 
 if __name__ == '__main__':
     sys.exit(main())

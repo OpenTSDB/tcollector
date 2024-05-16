@@ -38,33 +38,34 @@ STATS = ("nf_conntrack_buckets", "nf_conntrack_checksum", "nf_conntrack_count",
 
 basedir = "/proc/sys/net/netfilter"
 
+
 def main():
     """netfilter main loop"""
 
     utils.drop_privileges()
 
-    if (os.path.isdir(basedir)): 
+    if os.path.isdir(basedir):
         while True:
             ts = int(time.time())
-        
-            for s in STATS: 
-                try: 
-                   f = open(basedir + "/" + s, 'r')
-                   value = f.readline().rstrip()
-                   print("proc.sys.net.netfilter.%s %d %s" % (s, ts, value))
-                   f.close() 
+
+            for s in STATS:
+                try:
+                    f = open(basedir + "/" + s, 'r')
+                    value = f.readline().rstrip()
+                    print("proc.sys.net.netfilter.%s %d %s" % (s, ts, value))
+                    f.close()
                 except:
-                   # brute'ish, but should keep the collector reasonably future 
-                   # proof if some of the stats disappear between kernel module 
-                   # versions
-                   continue
+                    # brute'ish, but should keep the collector reasonably future
+                    # proof if some of the stats disappear between kernel module
+                    # versions
+                    continue
 
             sys.stdout.flush()
             time.sleep(interval)
-    else: 
-        print ("%s does not exist - ip_conntrack probably missing")
-        sys.exit(13) # we signal tcollector to not run us
-        
+    else:
+        print("%s does not exist - ip_conntrack probably missing")
+        return 13  # we signal tcollector to not run us
+
 
 if __name__ == "__main__":
     sys.exit(main())

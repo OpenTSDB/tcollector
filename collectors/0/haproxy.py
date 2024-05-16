@@ -90,50 +90,53 @@ METRIC_NAMES = {
     "srv_abrt": "server_aborted_data_transfers"
 }
 
+
 def haproxy_pid():
-  """Finds out the pid of haproxy process"""
-  try:
-     pid = subprocess.check_output(["pidof", "-s", "haproxy"])
-  except subprocess.CalledProcessError:
-     return None
-  return pid.rstrip()
+    """Finds out the pid of haproxy process"""
+    try:
+        pid = subprocess.check_output(["pidof", "-s", "haproxy"])
+    except subprocess.CalledProcessError:
+        return None
+    return pid.rstrip()
+
 
 def find_conf_file(pid):
-  """Returns the conf file of haproxy."""
-  try:
-     output = subprocess.check_output(["ps", "--no-headers", "-o", "cmd", pid])
-  except subprocess.CalledProcessError as e:
-     utils.err("HAProxy (pid %s) went away? %s" % (pid, e))
-     return None
-  return output.split("-f")[1].split()[0]
+    """Returns the conf file of haproxy."""
+    try:
+        output = subprocess.check_output(["ps", "--no-headers", "-o", "cmd", pid])
+    except subprocess.CalledProcessError as e:
+        utils.err("HAProxy (pid %s) went away? %s" % (pid, e))
+        return None
+    return output.split("-f")[1].split()[0]
+
 
 def find_sock_file(conf_file):
-  """Returns the unix socket file of haproxy."""
-  try:
-    fd = open(conf_file)
-  except IOError as e:
-    utils.err("Error: %s. Config file path is relative: %s" % (e, conf_file))
-    return None
-  try:
-    for line in fd:
-      if line.lstrip(" \t").startswith("stats socket"):
-        sock_file = line.split()[2]
-        if utils.is_sockfile(sock_file):
-          return sock_file
-  finally:
-    fd.close()
+    """Returns the unix socket file of haproxy."""
+    try:
+        fd = open(conf_file)
+    except IOError as e:
+        utils.err("Error: %s. Config file path is relative: %s" % (e, conf_file))
+        return None
+    try:
+        for line in fd:
+            if line.lstrip(" \t").startswith("stats socket"):
+                sock_file = line.split()[2]
+                if utils.is_sockfile(sock_file):
+                    return sock_file
+    finally:
+        fd.close()
 
 
 def collect_stats(sock_file):
     """Collects stats from haproxy unix domain socket"""
-    sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)  
+    sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     try:
-      sock.settimeout(COLLECTION_INTERVAL)
-      sock.connect(sock_file)
-      sock.send("show stat\n")
-      statlines = sock.recv(10240).split('\n')
+        sock.settimeout(COLLECTION_INTERVAL)
+        sock.connect(sock_file)
+        sock.send("show stat\n")
+        statlines = sock.recv(10240).split('\n')
     finally:
-      sock.close()
+        sock.close()
 
     ts = time.time()
     # eat up any empty lines that may be present
@@ -183,32 +186,32 @@ def print_metric(line, metric, timestamp):
     if not value:
         value = 0
     print("haproxy.%s %i %s source=%s cluster=%s"
-           % (METRIC_NAMES[metric],
-              timestamp,
-              value,
-              line["svname"],
-              line["pxname"]))
+          % (METRIC_NAMES[metric],
+             timestamp,
+             value,
+             line["svname"],
+             line["pxname"]))
 
 
 def main():
-  pid = haproxy_pid()
-  if not pid:
-    utils.err("Error: HAProxy is not running")
-    return 13  # Ask tcollector to not respawn us.
+    pid = haproxy_pid()
+    if not pid:
+        utils.err("Error: HAProxy is not running")
+        return 13  # ask tcollector to not respawn us.
 
-  conf_file = find_conf_file(pid)
-  if not conf_file:
-    return 13
+    conf_file = find_conf_file(pid)
+    if not conf_file:
+        return 13
 
-  sock_file = find_sock_file(conf_file)
-  if sock_file is None:
-    utils.err("Error: HAProxy is not listening on any unix domain socket")
-    return 13
+    sock_file = find_sock_file(conf_file)
+    if sock_file is None:
+        utils.err("Error: HAProxy is not listening on any unix domain socket")
+        return 13
 
+    while True:
+        collect_stats(sock_file)
+        time.sleep(COLLECTION_INTERVAL)
 
-  while True:
-    collect_stats(sock_file)
-    time.sleep(COLLECTION_INTERVAL)
 
 if __name__ == "__main__":
-  sys.exit(main())
+    sys.exit(main())

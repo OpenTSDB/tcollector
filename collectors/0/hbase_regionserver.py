@@ -14,19 +14,17 @@
 
 import time
 import re
-
-try:
-    import json
-except ImportError:
-    json = None
+import sys
 
 from collectors.lib import utils
 from collectors.lib.hadoop_http import HadoopHttp
 
+COLLECTION_INTERVAL = 15
 EMIT_REGION = True
 
 EXCLUDED_CONTEXTS = ("master")
 REGION_METRIC_PATTERN = re.compile(r"[N|n]amespace_(.*)_table_(.*)_region_(.*)_metric_(.*)")
+
 
 class HBaseRegionserver(HadoopHttp):
     def __init__(self):
@@ -70,16 +68,12 @@ class HBaseRegionserver(HadoopHttp):
 
 def main(args):
     utils.drop_privileges()
-    if json is None:
-        utils.err("This collector requires the `json' Python module.")
-        return 13  # Ask tcollector not to respawn us
     hbase_service = HBaseRegionserver()
 
     while True:
         hbase_service.emit()
-        time.sleep(15)
+        time.sleep(COLLECTION_INTERVAL)
+
 
 if __name__ == "__main__":
-    import sys
     sys.exit(main(sys.argv))
-

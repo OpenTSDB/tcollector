@@ -90,5 +90,6 @@ def main():
         sys.stdout.flush()
         time.sleep(COLLECTION_INTERVAL)
 
+
 if __name__ == "__main__":
     sys.exit(main())

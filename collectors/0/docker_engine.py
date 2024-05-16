@@ -16,6 +16,7 @@
 from __future__ import print_function
 import sys
 
+from collectors.lib import utils
 from collectors.etc import docker_engine_conf
 from collectors.lib.docker_engine.docker_metrics import DockerMetrics
 
@@ -26,8 +27,8 @@ METRICS_PATH = CONFIG['metrics_path']
 
 def main():
     if not ENABLED:
-        sys.stderr.write("Docker-engine collector is not enabled")
-        sys.exit(13)
+        utils.err("Docker-engine collector is not enabled")
+        return 13  # ask tcollector to not respawn us
 
     """docker_cpu main loop"""
     cli = DockerMetrics(METRICS_PATH)

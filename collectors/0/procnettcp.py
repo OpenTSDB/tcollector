@@ -174,7 +174,7 @@ def main(unused_args):
                 raise
     except IOError as e:
         print("Failed to open input file: %s" % (e,), file=sys.stderr)
-        return 13  # Ask tcollector to not re-start us immediately.
+        return 13  # ask tcollector to not re-start us immediately.
 
     utils.drop_privileges()
     while True:
@@ -232,6 +232,7 @@ def main(unused_args):
 
         sys.stdout.flush()
         time.sleep(interval)
+
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv))

@@ -5,7 +5,6 @@ import time
 import datetime
 import re
 import json
-from collections import OrderedDict
 import threading
 from time import mktime
 from collectors.lib import utils

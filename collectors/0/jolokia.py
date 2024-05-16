@@ -176,7 +176,7 @@ class JolokiaCollector():
 def main():
     if not (jolokia_conf and jolokia_conf.enabled()):
         utils.err("Jolokia collector disable by config")
-        sys.exit(13)
+        return 13  # ask tcollector to not respawn us
     utils.drop_privileges()
 
     CONFIG = jolokia_conf.get_config()
@@ -217,7 +217,6 @@ def main():
             break
     # End while True
 
-if __name__ == "__main__":
-    main()
 
-sys.exit(0)
+if __name__ == "__main__":
+    sys.exit(main())

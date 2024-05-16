@@ -19,17 +19,18 @@ import time
 from collectors.lib import utils
 
 try:
-  from collectors.etc import udp_bridge_conf
+    from collectors.etc import udp_bridge_conf
 except ImportError:
-  udp_bridge_conf = None
+    udp_bridge_conf = None
 
 HOST = '127.0.0.1'
 PORT = 8953
 SIZE = 8192
 
+
 def main():
     if not (udp_bridge_conf and udp_bridge_conf.enabled()):
-      sys.exit(13)
+        sys.exit(13)
     utils.drop_privileges()
 
     def removePut(line):
@@ -40,9 +41,9 @@ def main():
 
     try:
         if (udp_bridge_conf and udp_bridge_conf.usetcp()):
-          sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         else:
-          sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.bind((HOST, PORT))
     except socket.error as msg:
         utils.err('could not open socket: %s' % msg)
@@ -75,7 +76,6 @@ def main():
     finally:
         sock.close()
 
-if __name__ == "__main__":
-    main()
 
-sys.exit(0)
+if __name__ == "__main__":
+    sys.exit(main())

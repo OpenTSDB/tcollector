@@ -390,5 +390,6 @@ def main():
         sys.stdout.flush()
         time.sleep(interval)
 
+
 if __name__ == "__main__":
     sys.exit(main())

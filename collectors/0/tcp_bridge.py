@@ -21,15 +21,12 @@ import sys
 import time
 from collectors.lib import utils
 
-try:
-    from _thread import *
-except ImportError:
-    from thread import *
+from _thread import *
 
 try:
     from collectors.etc import tcp_bridge_conf
 except ImportError:
-    print('unable to import tcp_bridge_conf', file=sys.stderr)
+    utils.err('unable to import tcp_bridge_conf', file=sys.stderr)
     tcp_bridge_conf = None
 
 HOST = '127.0.0.1'
@@ -45,6 +42,7 @@ m_ptime = 0
 
 # buffered stdout seems to break metrics
 out = os.fdopen(sys.stdout.fileno(), 'w', 0)
+
 
 def main():
     if not (tcp_bridge_conf and tcp_bridge_conf.enabled()):
@@ -130,7 +128,6 @@ def main():
     finally:
         sock.close()
 
-if __name__ == "__main__":
-    main()
 
-sys.exit(0)
+if __name__ == "__main__":
+    sys.exit(main())

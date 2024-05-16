@@ -31,7 +31,7 @@ try:
 except ImportError:
     smart_stats_conf = None
 
-DEFAULT_COLLECTION_INTERVAL=120
+DEFAULT_COLLECTION_INTERVAL = 120
 
 TWCLI = "/usr/sbin/tw_cli"
 ARCCONF = "/usr/local/bin/arcconf"
@@ -45,199 +45,201 @@ COMMAND_TIMEOUT = 10
 # Common smart attributes, add more to this list if you start seeing
 # numbers instead of attribute names in TSD results.
 ATTRIBUTE_MAP = {
-  "1": "raw_read_error_rate",
-  "2": "throughput_performance",
-  "3": "spin_up_time",
-  "4": "start_stop_count",
-  "5": "reallocated_sector_ct",
-  "7": "seek_error_rate",
-  "8": "seek_time_performance",
-  "9": "power_on_hours",
-  "10": "spin_retry_count",
-  "11": "recalibration_retries",
-  "12": "power_cycle_count",
-  "13": "soft_read_error_rate",
-  "175": "program_fail_count_chip",
-  "176": "erase_fail_count_chip",
-  "177": "wear_leveling_count",
-  "178": "used_rsvd_blk_cnt_chip",
-  "179": "used_rsvd_blk_cnt_tot",
-  "180": "unused_rsvd_blk_cnt_tot",
-  "181": "program_fail_cnt_total",
-  "182": "erase_fail_count_total",
-  "183": "runtime_bad_block",
-  "184": "end_to_end_error",
-  "187": "reported_uncorrect",
-  "188": "command_timeout",
-  "189": "high_fly_writes",
-  "190": "airflow_temperature_celsius",
-  "191": "g_sense_error_rate",
-  "192": "power-off_retract_count",
-  "193": "load_cycle_count",
-  "194": "temperature_celsius",
-  "195": "hardware_ecc_recovered",
-  "196": "reallocated_event_count",
-  "197": "current_pending_sector",
-  "198": "offline_uncorrectable",
-  "199": "udma_crc_error_count",
-  "200": "write_error_rate",
-  "233": "media_wearout_indicator",
-  "240": "transfer_error_rate",
-  "241": "total_lba_writes",
-  "242": "total_lba_read",
-  }
+    "1": "raw_read_error_rate",
+    "2": "throughput_performance",
+    "3": "spin_up_time",
+    "4": "start_stop_count",
+    "5": "reallocated_sector_ct",
+    "7": "seek_error_rate",
+    "8": "seek_time_performance",
+    "9": "power_on_hours",
+    "10": "spin_retry_count",
+    "11": "recalibration_retries",
+    "12": "power_cycle_count",
+    "13": "soft_read_error_rate",
+    "175": "program_fail_count_chip",
+    "176": "erase_fail_count_chip",
+    "177": "wear_leveling_count",
+    "178": "used_rsvd_blk_cnt_chip",
+    "179": "used_rsvd_blk_cnt_tot",
+    "180": "unused_rsvd_blk_cnt_tot",
+    "181": "program_fail_cnt_total",
+    "182": "erase_fail_count_total",
+    "183": "runtime_bad_block",
+    "184": "end_to_end_error",
+    "187": "reported_uncorrect",
+    "188": "command_timeout",
+    "189": "high_fly_writes",
+    "190": "airflow_temperature_celsius",
+    "191": "g_sense_error_rate",
+    "192": "power-off_retract_count",
+    "193": "load_cycle_count",
+    "194": "temperature_celsius",
+    "195": "hardware_ecc_recovered",
+    "196": "reallocated_event_count",
+    "197": "current_pending_sector",
+    "198": "offline_uncorrectable",
+    "199": "udma_crc_error_count",
+    "200": "write_error_rate",
+    "233": "media_wearout_indicator",
+    "240": "transfer_error_rate",
+    "241": "total_lba_writes",
+    "242": "total_lba_read",
+}
 
 
 class Alarm(RuntimeError):
-  pass
+    pass
 
 
 def alarm_handler(signum, frame):
-  print("Program took too long to run, "
-                       "consider increasing its timeout.", file=sys.stderr)
-  raise Alarm()
+    print("Program took too long to run, "
+          "consider increasing its timeout.", file=sys.stderr)
+    raise Alarm()
 
 
 def smart_is_broken(drives):
-  """Determines whether SMART can be used.
+    """Determines whether SMART can be used.
 
-  Args:
-    drives: A list of device names on which we intend to use SMART.
+    Args:
+      drives: A list of device names on which we intend to use SMART.
 
-  Returns:
-    True if SMART is available, False otherwise.
-  """
-  if os.path.exists(ARCCONF):
-    return is_adaptec_driver_broken()
-  if os.path.exists(TWCLI):
-    return is_3ware_driver_broken(drives)
-  return False
+    Returns:
+      True if SMART is available, False otherwise.
+    """
+    if os.path.exists(ARCCONF):
+        return is_adaptec_driver_broken()
+    if os.path.exists(TWCLI):
+        return is_3ware_driver_broken(drives)
+    return False
 
 
 def is_adaptec_driver_broken():
-  signal.alarm(COMMAND_TIMEOUT)
-  arcconf = subprocess.Popen("%s %s" % (ARCCONF, ARCCONF_ARGS),
-                             shell=True,
-                             stdout=subprocess.PIPE)
-  arcconf_output = arcconf.communicate()[0]
-  signal.alarm(0)
-  if arcconf.returncode != 0:
-    if arcconf_output and arcconf_output.startswith(NO_CONTROLLER):
-      # No controller => no problem.
-      return False
-    if arcconf.returncode == 127:
-      # arcconf doesn't even work on this system, so assume we're safe
-      return False
-    print("arcconf unexpected error %s" % arcconf.returncode, file=sys.stderr)
-    return True
-  for line in arcconf_output.split("\n"):
-    fields = [x for x in line.split(" ") if x]
-    if fields[0] == "Driver" and fields[2] in BROKEN_DRIVER_VERSIONS:
-      print("arcconf indicates broken driver version %s"
-                           % fields[2], file=sys.stderr)
-      return True
-  return False
+    signal.alarm(COMMAND_TIMEOUT)
+    arcconf = subprocess.Popen("%s %s" % (ARCCONF, ARCCONF_ARGS),
+                               shell=True,
+                               stdout=subprocess.PIPE)
+    arcconf_output = arcconf.communicate()[0]
+    signal.alarm(0)
+    if arcconf.returncode != 0:
+        if arcconf_output and arcconf_output.startswith(NO_CONTROLLER):
+            # No controller => no problem.
+            return False
+        if arcconf.returncode == 127:
+            # arcconf doesn't even work on this system, so assume we're safe
+            return False
+        print("arcconf unexpected error %s" % arcconf.returncode, file=sys.stderr)
+        return True
+    for line in arcconf_output.split("\n"):
+        fields = [x for x in line.split(" ") if x]
+        if fields[0] == "Driver" and fields[2] in BROKEN_DRIVER_VERSIONS:
+            print("arcconf indicates broken driver version %s"
+                  % fields[2], file=sys.stderr)
+            return True
+    return False
+
 
 def is_3ware_driver_broken(drives):
-  # Apparently 3ware controllers can't report SMART stats from SAS drives. WTF.
-  # See also http://sourceforge.net/apps/trac/smartmontools/ticket/161
-  for i in reversed(range(len(drives))):
-    drive = drives[i]
-    signal.alarm(COMMAND_TIMEOUT)
-    smart_ctl = subprocess.Popen(SMART_CTL + " -i /dev/" + drive,
-                                 shell=True, stdout=subprocess.PIPE)
-    smart_output = smart_ctl.communicate()[0]
-    if "supports SMART and is Disabled" in smart_output:
-      print("SMART is disabled for %s" % drive, file=sys.stderr)
-      del drives[i]  # We're iterating from the end of the list so this is OK.
-    signal.alarm(0)
-  if not drives:
-    print("None of the drives support SMART. Are they SAS drives?", file=sys.stderr)
-    return True
-  return False
+    # Apparently 3ware controllers can't report SMART stats from SAS drives. WTF.
+    # See also http://sourceforge.net/apps/trac/smartmontools/ticket/161
+    for i in reversed(range(len(drives))):
+        drive = drives[i]
+        signal.alarm(COMMAND_TIMEOUT)
+        smart_ctl = subprocess.Popen(SMART_CTL + " -i /dev/" + drive,
+                                     shell=True, stdout=subprocess.PIPE)
+        smart_output = smart_ctl.communicate()[0]
+        if "supports SMART and is Disabled" in smart_output:
+            print("SMART is disabled for %s" % drive, file=sys.stderr)
+            del drives[i]  # We're iterating from the end of the list so this is OK.
+        signal.alarm(0)
+    if not drives:
+        print("None of the drives support SMART. Are they SAS drives?", file=sys.stderr)
+        return True
+    return False
 
 
 def process_output(drive, smart_output):
-  """Print formatted SMART output for the drive"""
-  ts = int(time.time())
-  smart_output = smart_output.split("\n")
-  # Set data_marker to 0, so we skip stuff until we see a line
-  # beginning with ID# in the output.  Start processing rows after
-  # that point.
-  data_marker = False
-  is_seagate = False
+    """Print formatted SMART output for the drive"""
+    ts = int(time.time())
+    smart_output = smart_output.split("\n")
+    # Set data_marker to 0, so we skip stuff until we see a line
+    # beginning with ID# in the output.  Start processing rows after
+    # that point.
+    data_marker = False
+    is_seagate = False
 
-  for line in smart_output:
-    if data_marker:
-      fields = line.split()
-      if len(fields) < 2:
-        continue
-      field = fields[0]
-      if len(fields) > 2 and field in ATTRIBUTE_MAP:
-        metric = ATTRIBUTE_MAP[field]
-        value = fields[9].split()[0]
-        print("smart.%s %d %s disk=%s" % (metric, ts, value, drive))
-        if is_seagate and metric in ("seek_error_rate", "raw_read_error_rate"):
-          # It appears that some Seagate drives (and possibly some Western
-          # Digital ones too) use the first 16 bits to store error counts,
-          # and the low 32 bits to store operation counts, out of these 48
-          # bit values.  So try to be helpful and extract these here.
-          value = int(value)
-          print("smart.%s %d %d disk=%s"
-                 % (metric.replace("error_rate", "count"), ts,
-                    value & 0xFFFFFFFF, drive))
-          print("smart.%s %d %d disk=%s"
-                 % (metric.replace("error_rate", "errors"), ts,
-                    (value & 0xFFFF00000000) >> 32, drive))
-    elif line.startswith("ID#"):
-      data_marker = True
-    elif line.startswith("Device Model:"):
-      model = line.split(None, 2)[2]
-      # Rough approximation to detect Seagate drives.
-      is_seagate = model.startswith("ST")
+    for line in smart_output:
+        if data_marker:
+            fields = line.split()
+            if len(fields) < 2:
+                continue
+            field = fields[0]
+            if len(fields) > 2 and field in ATTRIBUTE_MAP:
+                metric = ATTRIBUTE_MAP[field]
+                value = fields[9].split()[0]
+                print("smart.%s %d %s disk=%s" % (metric, ts, value, drive))
+                if is_seagate and metric in ("seek_error_rate", "raw_read_error_rate"):
+                    # It appears that some Seagate drives (and possibly some Western
+                    # Digital ones too) use the first 16 bits to store error counts,
+                    # and the low 32 bits to store operation counts, out of these 48
+                    # bit values.  So try to be helpful and extract these here.
+                    value = int(value)
+                    print("smart.%s %d %d disk=%s"
+                          % (metric.replace("error_rate", "count"), ts,
+                             value & 0xFFFFFFFF, drive))
+                    print("smart.%s %d %d disk=%s"
+                          % (metric.replace("error_rate", "errors"), ts,
+                             (value & 0xFFFF00000000) >> 32, drive))
+        elif line.startswith("ID#"):
+            data_marker = True
+        elif line.startswith("Device Model:"):
+            model = line.split(None, 2)[2]
+            # Rough approximation to detect Seagate drives.
+            is_seagate = model.startswith("ST")
 
 
 def main():
-  """main loop for SMART collector"""
+    """main loop for SMART collector"""
 
-  collection_interval=DEFAULT_COLLECTION_INTERVAL
-  if(smart_stats_conf):
-    config = smart_stats_conf.get_config()
-    collection_interval=config['collection_interval']
+    collection_interval = DEFAULT_COLLECTION_INTERVAL
+    if smart_stats_conf:
+        config = smart_stats_conf.get_config()
+        collection_interval = config['collection_interval']
 
-  # Get the list of block devices.
-  drives = [dev[5:] for dev in glob.glob("/dev/[hs]d[a-z]")]
-  # Try FreeBSD drives if no block devices found
-  if not drives:
-    drives = [dev[5:] for dev in glob.glob("/dev/da[0-9]")+glob.glob("/dev/da[0-9][0-9]")+glob.glob("/dev/ada[0-9]")+glob.glob("/dev/ada[0-9][0-9]")]
-  # Exit gracefully if no block devices found
-  if not drives:
-    sys.exit(13)
+    # Get the list of block devices.
+    drives = [dev[5:] for dev in glob.glob("/dev/[hs]d[a-z]")]
+    # Try FreeBSD drives if no block devices found
+    if not drives:
+        drives = [dev[5:] for dev in
+                  glob.glob("/dev/da[0-9]") + glob.glob("/dev/da[0-9][0-9]") + glob.glob("/dev/ada[0-9]") + glob.glob(
+                      "/dev/ada[0-9][0-9]")]
+    # Exit gracefully if no block devices found
+    if not drives:
+        return 13
 
+    # to make sure we are done with smartctl in COMMAND_TIMEOUT seconds
+    signal.signal(signal.SIGALRM, alarm_handler)
 
-  # to make sure we are done with smartctl in COMMAND_TIMEOUT seconds
-  signal.signal(signal.SIGALRM, alarm_handler)
+    if smart_is_broken(drives):
+        return 13
 
-  if smart_is_broken(drives):
-    sys.exit(13)
+    while True:
+        for drive in drives:
+            signal.alarm(COMMAND_TIMEOUT)
+            smart_ctl = subprocess.Popen(SMART_CTL + " -i -A /dev/" + drive,
+                                         shell=True, stdout=subprocess.PIPE)
+            smart_output = smart_ctl.communicate()[0]
+            signal.alarm(0)
+            if smart_ctl.returncode != 0:
+                if smart_ctl.returncode == 127:
+                    return 13
+                else:
+                    print("Command exited with: %d" % smart_ctl.returncode, file=sys.stderr)
+            process_output(drive, smart_output)
 
-  while True:
-    for drive in drives:
-      signal.alarm(COMMAND_TIMEOUT)
-      smart_ctl = subprocess.Popen(SMART_CTL + " -i -A /dev/" + drive,
-                                   shell=True, stdout=subprocess.PIPE)
-      smart_output = smart_ctl.communicate()[0]
-      signal.alarm(0)
-      if smart_ctl.returncode != 0:
-        if smart_ctl.returncode == 127:
-          sys.exit(13)
-        else:
-          print("Command exited with: %d" % smart_ctl.returncode, file=sys.stderr)
-      process_output(drive, smart_output)
-
-    sys.stdout.flush()
-    time.sleep(collection_interval)
+        sys.stdout.flush()
+        time.sleep(collection_interval)
 
 
 if __name__ == "__main__":
-  main()
+    sys.exit(main())

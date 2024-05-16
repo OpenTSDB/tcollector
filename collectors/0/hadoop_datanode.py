@@ -23,6 +23,7 @@ except ImportError:
 from collectors.lib import utils
 from collectors.lib.hadoop_http import HadoopHttp
 
+COLLECTION_INTERVAL = 15
 
 REPLACEMENTS = {
     "datanodeactivity-": ["activity"],
@@ -57,14 +58,13 @@ def main(args):
     utils.drop_privileges()
     if json is None:
         utils.err("This collector requires the `json' Python module.")
-        return 13  # Ask tcollector not to respawn us
+        return 13  # ask tcollector not to respawn us
     datanode_service = HadoopDataNode()
     while True:
         datanode_service.emit()
-        time.sleep(15)
+        time.sleep(COLLECTION_INTERVAL)
     return 0
 
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv))
-

@@ -58,19 +58,21 @@ try:
 except ImportError:
     gstat_conf = None
 
-DEFAULT_COLLECTION_INTERVAL=15
-
+DEFAULT_COLLECTION_INTERVAL = 15
 signal_received = None
+
+
 def handlesignal(signum, stack):
     global signal_received
     signal_received = signum
 
+
 def main():
     """top main loop"""
 
-    collection_interval=DEFAULT_COLLECTION_INTERVAL
-    collection_filter=".*"
-    if(gstat_conf):
+    collection_interval = DEFAULT_COLLECTION_INTERVAL
+    collection_filter = ".*"
+    if gstat_conf:
         config = gstat_conf.get_config()
         collection_interval=config['collection_interval']
         collection_filter=config['collection_filter']
@@ -88,7 +90,7 @@ def main():
     except OSError as e:
         if e.errno == errno.ENOENT:
             # it makes no sense to run this collector here
-            sys.exit(13) # we signal tcollector to not run us
+            return 13  # ask tcollector to not respawn us
         raise
 
     timestamp = 0
@@ -138,5 +140,6 @@ def main():
         pass
     p_gstat.wait()
 
+
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

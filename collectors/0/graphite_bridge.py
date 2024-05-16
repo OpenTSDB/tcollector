@@ -19,24 +19,23 @@ import sys
 from collectors.lib import utils
 import threading
 
-try:
-    from socketserver import ThreadingTCPServer, BaseRequestHandler
-except ImportError:
-    from SocketServer import ThreadingTCPServer, BaseRequestHandler
+from socketserver import ThreadingTCPServer, BaseRequestHandler
 
 try:
-  from collectors.etc import graphite_bridge_conf
+    from collectors.etc import graphite_bridge_conf
 except ImportError:
-  graphite_bridge_conf = None
+    graphite_bridge_conf = None
 
 HOST = '127.0.0.1'
 PORT = 2003
 SIZE = 8192
 
+
 class GraphiteServer(ThreadingTCPServer):
     allow_reuse_address = True
 
     print_lock = threading.Lock()
+
 
 class GraphiteHandler(BaseRequestHandler):
 
@@ -47,7 +46,6 @@ class GraphiteHandler(BaseRequestHandler):
                 print("Bad data:", line, file=sys.stderr)
             else:
                 print(line_parts[0], line_parts[2], line_parts[1])
-
 
     def handle(self):
         data = ''
@@ -69,7 +67,7 @@ class GraphiteHandler(BaseRequestHandler):
 
 def main():
     if not (graphite_bridge_conf and graphite_bridge_conf.enabled()):
-      sys.exit(13)
+        return 13  # ask tcollector to not respawn us
     utils.drop_privileges()
 
     server = GraphiteServer((HOST, PORT), GraphiteHandler)
@@ -80,7 +78,6 @@ def main():
         server.shutdown()
         server.server_close()
 
-if __name__ == "__main__":
-    main()
 
-sys.exit(0)
+if __name__ == "__main__":
+    sys.exit(main())

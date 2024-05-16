@@ -48,23 +48,25 @@ try:
 except ImportError:
     ifrate_conf = None
 
-DEFAULT_COLLECTION_INTERVAL=15
-
+DEFAULT_COLLECTION_INTERVAL = 15
 signal_received = None
+
+
 def handlesignal(signum, stack):
     global signal_received
     signal_received = signum
+
 
 def main():
     """top main loop"""
 
     collection_interval=DEFAULT_COLLECTION_INTERVAL
-    if(ifrate_conf):
+    if ifrate_conf:
         config = ifrate_conf.get_config()
-        collection_interval=config['collection_interval']
-        interfaces=config['interfaces']
-        report_packets=config['report_packets']
-        merge_err_in_out=config['merge_err_in_out']
+        collection_interval = config['collection_interval']
+        interfaces = config['interfaces']
+        report_packets = config['report_packets']
+        merge_err_in_out = config['merge_err_in_out']
 
     global signal_received
 
@@ -80,20 +82,20 @@ def main():
                     ["netstat", "-I", intname, "-d", "-w", str(collection_interval)],
                     stdout=subprocess.PIPE,
                 ))
-                intnum+=1
+                intnum += 1
         else:
-            sys.exit(13) # we signal tcollector to not run us
+            return 13  # we signal tcollector to not run us
     except OSError as e:
         if e.errno == errno.ENOENT:
             # it makes no sense to run this collector here
-            sys.exit(13) # we signal tcollector to not run us
+            return 13  # we signal tcollector to not run us
         raise
 
     timestamp = 0
     procnum = 0
 
     while signal_received is None:
-        if (procnum >= intnum):
+        if procnum >= intnum:
             procnum=0
         try:
             line = p_net[procnum].stdout.readline()
@@ -109,14 +111,14 @@ def main():
         if (re.match("^[0-9 ]+$",line)):
             fields = line.split()
             if len(fields) == 9:
-                if(procnum == 0):
+                if procnum == 0:
                     timestamp = int(time.time())
                 print("ifrate.byt.in %s %s int=%s" % (timestamp, int(fields[3])/collection_interval, interfaces[procnum]))
                 print("ifrate.byt.out %s %s int=%s" % (timestamp, int(fields[6])/collection_interval, interfaces[procnum]))
-                if(report_packets):
+                if report_packets:
                     print("ifrate.pkt.in %s %s int=%s" % (timestamp, int(fields[0])/collection_interval, interfaces[procnum]))
                     print("ifrate.pkt.out %s %s int=%s" % (timestamp, int(fields[4])/collection_interval, interfaces[procnum]))
-                if(merge_err_in_out):
+                if merge_err_in_out:
                     print("ifrate.err %s %s int=%s" % (timestamp, (int(fields[1])+int(fields[5]))/collection_interval, interfaces[procnum]))
                     print("ifrate.drp %s %s int=%s" % (timestamp, (int(fields[2])+int(fields[8]))/collection_interval, interfaces[procnum]))
                 else:
@@ -127,7 +129,7 @@ def main():
                 print("ifrate.col %s %s int=%s" % (timestamp, int(fields[7])/collection_interval, interfaces[procnum]))
 
         # analyze next process
-        procnum+=1
+        procnum += 1
 
         sys.stdout.flush()
 
@@ -142,8 +144,9 @@ def main():
         p_net[procnum].wait()
 
     # If no line at all has been proceeded (wrong interface name ?), we signal tcollector to not run us
-    if(timestamp == 0):
-        exit(13)
+    if timestamp == 0:
+        return 13
+
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

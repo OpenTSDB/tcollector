@@ -50,6 +50,7 @@ KEYS = frozenset([
     "zk_open_file_descriptor_count",
     ])
 
+
 def scan_zk_instances():
     """ 
     Finding out all the running instances of zookeeper
@@ -106,9 +107,11 @@ def scan_zk_instances():
             fd.close()
     return instances 
 
+
 def print_stat(metric, ts, value, tags=""):
     if value is not None:
         print("zookeeper.%s %i %s %s" % (metric, ts, value, tags))
+
 
 def connect_socket(tcp_version, port):
     sock = None
@@ -123,6 +126,7 @@ def connect_socket(tcp_version, port):
     except Exception as err:
         utils.err(err)
     return sock
+
 
 def main():
     if USER != "root":
@@ -139,7 +143,7 @@ def main():
             last_scan = ts
 
         if not instances:
-            return 13  # Ask tcollector not to respawn us
+            return 13  # ask tcollector not to respawn us
 
         # Iterate over every zookeeper instance and get statistics
         for ip, port, tcp_version in instances:
@@ -160,6 +164,7 @@ def main():
 
         sys.stdout.flush()
         time.sleep(COLLECTION_INTERVAL)
+
 
 if __name__ == "__main__":
     sys.exit(main())	

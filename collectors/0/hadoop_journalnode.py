@@ -23,6 +23,7 @@ except ImportError:
 from collectors.lib import utils
 from collectors.lib.hadoop_http import HadoopHttp
 
+COLLECTION_INTERVAL = 90
 
 REPLACEMENTS = {
     "rpcdetailedactivityforport": ["rpc_activity"],
@@ -59,10 +60,9 @@ def main(args):
     journalnode_service = HadoopJournalNode()
     while True:
         journalnode_service.emit()
-        time.sleep(90)
+        time.sleep(COLLECTION_INTERVAL)
     return 0
 
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv))
-

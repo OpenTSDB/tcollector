@@ -20,7 +20,7 @@ import re
 
 from collectors.lib import utils
 
-interval = 15  # seconds
+COLLECTION_INTERVAL = 15  # seconds
 
 # /proc/net/dev has 16 fields, 8 for receive and 8 for transmit,
 # defined below.
@@ -89,7 +89,8 @@ def main():
                       % (FIELDS[i], ts, stats[i], intf, direction(i)))
 
         sys.stdout.flush()
-        time.sleep(interval)
+        time.sleep(COLLECTION_INTERVAL)
+
 
 if __name__ == "__main__":
     sys.exit(main())

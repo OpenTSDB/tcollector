@@ -15,19 +15,22 @@
 
 import sys
 import time
+from http.client import HTTPConnection
+import json
 
-import schedule
-from prometheus_client.parser import text_string_to_metric_families
-
-try:
-    import json
-except ImportError:
-    json = None
+from collectors.lib import utils
 
 try:
-    from http.client import HTTPConnection
+    import schedule
 except ImportError:
-    from httplib import HTTPConnection
+    utils.err("schedule library is not installed")
+    sys.exit(13)  # ask tcollector to not re-start us
+
+try:
+    from prometheus_client.parser import text_string_to_metric_families
+except ImportError:
+    utils.err("prometheus_client.parser is not installed")
+    sys.exit(13)  # ask tcollector to not re-start us
 
 try:
     from collectors.etc import prometheus_conf
@@ -40,6 +43,7 @@ TARGET_HOST = "localhost"
 TARGET_PORT = 8080
 BASE_LABELS = ""
 SETTINGS = {}
+
 
 class PrometheusCollector(object):
     def __init__(self, service, daemon, host, port, uri="/metrics"):

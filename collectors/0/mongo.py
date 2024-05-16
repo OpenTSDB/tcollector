@@ -62,11 +62,12 @@ TAG_METRICS = (
     ('opcounters',  ('command', 'delete', 'getmore', 'insert', 'query', 'update')),
 )
 
+
 def main():
     utils.drop_privileges()
     if pymongo is None:
-       print("error: Python module `pymongo' is missing", file=sys.stderr)
-       return 13
+        print("error: Python module `pymongo' is missing", file=sys.stderr)
+        return 13  # ask tcollector to not respawn us
 
     c = pymongo.Connection(host=HOST, port=PORT)
 
@@ -89,6 +90,7 @@ def main():
 
         sys.stdout.flush()
         time.sleep(INTERVAL)
+
 
 if __name__ == '__main__':
     sys.exit(main())

@@ -79,22 +79,11 @@
 # proc.mountstats.bytes.writepages 1464196613 2477054 nfshost=fls1.sys.lab1.syseng.tmcs nfsvol=/vol/vol0
 """
 
-import os
-import socket
 import sys
 import time
 
-PY3 = sys.version_info[0] > 2
-if PY3:
-    from hashlib import md5
+from hashlib import md5
 
-    def md5_digest(line):
-        return md5(line.encode("utf8")).digest()
-else:
-    import md5 # pylint: disable=import-error
-
-    def md5_digest(line):
-        return md5.new(line).digest()
 
 COLLECTION_INTERVAL = 10  # seconds
 
@@ -107,12 +96,17 @@ OTHER_METRICS = ['SETATTR', 'LOOKUP', 'READLINK', 'CREATE', 'MKDIR', 'SYMLINK', 
 # RPC_FIELDS is the individual metric fields on the RPC metric lines
 RPC_FIELDS = ['ops', 'txs', 'timeouts', 'txbytes', 'rxbytes', 'qtime', 'rttime', 'totaltime']
 
+
+def md5_digest(line):
+    return md5(line.encode("utf8")).digest()
+
+
 def main():
     """nfsstats main loop."""
     try:
         f_nfsstats = open("/proc/self/mountstats", "r")
     except:
-        sys.exit(13)
+        return 13
 
     while True:
         device = None
@@ -174,7 +168,6 @@ def main():
                 for i in range(1, len(RPC_FIELDS) + 1):
                     rpc_metrics[device]['other'][RPC_FIELDS[i-1]] += int(values[i])
 
-
         for device in rpc_metrics:
             # Skip the duplicates
             if 'dupe' in rpc_metrics[device]:
@@ -195,6 +188,5 @@ def main():
         time.sleep(COLLECTION_INTERVAL)
 
 
-
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

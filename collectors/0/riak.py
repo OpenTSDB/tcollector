@@ -44,14 +44,11 @@ import json
 import os
 import sys
 import time
+from urllib.request import urlopen
 
 from collectors.etc import riak_conf
 from collectors.lib import utils
 
-try:
-    from urllib.request import urlopen
-except ImportError:
-    from urllib2 import urlopen
 
 CONFIG = riak_conf.get_default_config()
 
@@ -113,7 +110,7 @@ def main():
 
     # don't run if we're not a riak node
     if not os.path.exists("/usr/lib/riak"):
-        sys.exit(13)
+        return 13
 
     utils.drop_privileges()
     sys.stdin.close()
