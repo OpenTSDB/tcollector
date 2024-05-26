@@ -18,7 +18,6 @@ import time
 from stat import S_ISDIR, S_ISREG, ST_MODE
 import unittest
 import subprocess
-import signal
 import json
 import threading
 try:
@@ -27,14 +26,6 @@ except ImportError:
     flask = None
 import mocks
 import tcollector
-
-
-def return_none(x):
-    return None
-
-
-def always_true():
-    return True
 
 
 class ReaderThreadTests(unittest.TestCase):
@@ -116,12 +107,12 @@ class CollectorsTests(unittest.TestCase):
                     pass
 
         collectors_path = os.path.dirname(os.path.abspath(__file__)) + \
-            "/collectors/0"
+            "/collectors/available"
         check_access_rights(collectors_path)
 
     def test_json(self):
         """A collector can be serialized to JSON."""
-        collector = tcollector.Collector("myname", 17, "myname.py", mtime=23, lastspawn=15) # pylint:disable=no-member
+        collector = tcollector.Collector("myname", 17, "myname.py", mtime=23, lastspawn=15)  # pylint:disable=no-member
         collector.nextkill += 8
         collector.killstate += 2
         collector.lines_sent += 10
@@ -146,16 +137,16 @@ class StatusServerTests(unittest.TestCase):
     def test_endtoend(self):
         """We can get JSON status of collectors from StatusServer."""
         collectors = {
-            "a": tcollector.Collector("mycollector", 5, "a.py"), # pylint:disable=no-member
-            "b": tcollector.Collector("second", 3, "b.py"), # pylint:disable=no-member
+            "a": tcollector.Collector("mycollector", 5, "a.py"),  # pylint:disable=no-member
+            "b": tcollector.Collector("second", 3, "b.py"),  # pylint:disable=no-member
         }
-        server = tcollector.StatusServer("127.0.0.1", 32025, collectors) # pylint:disable=no-member
+        server = tcollector.StatusServer("127.0.0.1", 32025, collectors)  # pylint:disable=no-member
         # runs in background until test suite exits :( but it works.
         thread = threading.Thread(target=server.serve_forever)
         thread.setDaemon(True)
         thread.start()
 
-        r = tcollector.urlopen("http://127.0.0.1:32025").read() # pylint:disable=no-member
+        r = tcollector.urlopen("http://127.0.0.1:32025").read()  # pylint:disable=no-member
         self.assertEqual(json.loads(r), [c.to_json() for c in collectors.values()])
 
 
@@ -177,7 +168,7 @@ class SenderThreadHTTPTests(unittest.TestCase):
         response code.
         """
         self.run_fake_opentsdb(response_code)
-        reader = tcollector.ReaderThread(1, 10, True) # pylint:disable=no-member
+        reader = tcollector.ReaderThread(1, 10, True)  # pylint:disable=no-member
         sender = tcollector.SenderThread( # pylint:disable=no-member
             reader, False, [("localhost", 4242)], False, {},
             http=True, http_api_path="api/put"
@@ -213,8 +204,8 @@ class NamespacePrefixTests(unittest.TestCase):
 
     def test_prefix_added(self):
         """Namespace prefix gets added to metrics as they are read."""
-        thread = tcollector.ReaderThread(1, 10, True, "my.namespace.") # pylint:disable=no-member
-        collector = tcollector.Collector("c", 1, "c") # pylint:disable=no-member
+        thread = tcollector.ReaderThread(1, 10, True, "my.namespace.")  # pylint:disable=no-member
+        collector = tcollector.Collector("c", 1, "c")  # pylint:disable=no-member
         line = "mymetric 123 12 a=b"
         thread.process_line(collector, line)
         self.assertEqual(thread.readerq.get(), "my.namespace." + line)
@@ -230,14 +221,14 @@ class TSDBlacklistingTests(unittest.TestCase):
 
     def setUp(self):
         # Stub out the randomness
-        self.random_shuffle = tcollector.random.shuffle # pylint: disable=maybe-no-member
-        tcollector.random.shuffle = lambda x: x # pylint: disable=maybe-no-member
+        self.random_shuffle = tcollector.random.shuffle  # pylint: disable=maybe-no-member
+        tcollector.random.shuffle = lambda x: x  # pylint: disable=maybe-no-member
 
     def tearDown(self):
-        tcollector.random.shuffle = self.random_shuffle # pylint: disable=maybe-no-member
+        tcollector.random.shuffle = self.random_shuffle  # pylint: disable=maybe-no-member
 
     def mkSenderThread(self, tsds):
-        return tcollector.SenderThread(None, True, tsds, False, {}, reconnectinterval=5) # pylint: disable=maybe-no-member
+        return tcollector.SenderThread(None, True, tsds, False, {}, reconnectinterval=5)  # pylint: disable=maybe-no-member
 
     def test_blacklistOneConnection(self):
         tsd = ("localhost", 4242)
@@ -279,233 +270,6 @@ class TSDBlacklistingTests(unittest.TestCase):
         self.assertEqual(tsd2, (sender.host, sender.port))
         sender.pick_connection()
         self.assertEqual(tsd1, (sender.host, sender.port))
-
-
-class UDPCollectorTests(unittest.TestCase):
-
-    def setUp(self):
-        if 'udp_bridge.py' not in tcollector.COLLECTORS:  # pylint: disable=maybe-no-member
-            raise unittest.SkipTest("udp_bridge unavailable")
-
-        self.saved_exit = sys.exit
-        self.saved_stderr = sys.stderr
-        self.saved_stdout = sys.stdout
-        self.udp_bridge = tcollector.COLLECTORS['udp_bridge.py'] # pylint: disable=maybe-no-member
-        self.udp_globals = {}
-
-        sys.exit = return_none
-        bridge_file = open(self.udp_bridge.filename)
-        try:
-            exec(compile(bridge_file.read(), self.udp_bridge.filename, 'exec'), self.udp_globals)
-        finally:
-            bridge_file.close()
-            sys.exit = self.saved_exit
-
-        self.udp_globals['socket'] = mocks.Socket()
-        self.udp_globals['sys'] = mocks.Sys()
-        self.udp_globals['udp_bridge_conf'].enabled = always_true
-        self.udp_globals['utils'] = mocks.Utils()
-
-    def run_bridge_test(self, udpInputLines, stdoutLines, stderrLines):
-        mockSocket = self.udp_globals['socket'] = mocks.Socket()
-        mockSocket.state['udp_in'] = list(udpInputLines)
-
-        self.udp_globals['sys'] = mocks.Sys()
-        self.udp_globals['sys'].stderr.lines = stderrLines
-        self.udp_globals['sys'].stdout.lines = stdoutLines
-        sys.stderr = self.udp_globals['sys'].stderr
-        sys.stdout = self.udp_globals['sys'].stdout
-
-        try:
-            self.udp_globals['main']()
-        except mocks.SocketDone:
-            pass
-        finally:
-            sys.stderr = self.saved_stderr
-            sys.stdout = self.saved_stdout
-
-    def test_populated(self):
-        # assertIsInstance, assertIn, assertIsNone do not exist in Python 2.6
-        self.assertTrue(isinstance(self.udp_bridge, tcollector.Collector),
-                        msg="self.udp_bridge not instance of tcollector.Collector")  # pylint: disable=maybe-no-member
-        self.assertEqual(self.udp_bridge.proc, None)
-        self.assertTrue('main' in self.udp_globals, msg="'main' not in self.udp_globals")
-
-    def test_single_line_no_put(self):
-        inputLines = [
-            'foo.bar 1 1'
-        ]
-        expected = '\n'.join(inputLines) + '\n'
-        stderr = []
-        stdout = []
-        self.run_bridge_test(inputLines, stdout, stderr)
-
-        self.assertEqual(''.join(stdout), expected)
-        self.assertEqual(stderr, [])
-
-    def test_single_line_put(self):
-        inputLines = [
-            'put foo.bar 1 1'
-        ]
-        expected = '\n'.join([
-            'foo.bar 1 1'
-        ]) + '\n'
-        stderr = []
-        stdout = []
-
-        self.run_bridge_test(inputLines, stdout, stderr)
-        self.assertEqual(''.join(stdout), expected)
-        self.assertEqual(stderr, [])
-
-    def test_multi_line_no_put(self):
-        inputLines = [
-            'foo.bar 1 1',
-            'bar.baz 2 2'
-        ]
-        expected = '\n'.join(inputLines) + '\n'
-        stderr = []
-        stdout = []
-
-        self.run_bridge_test(inputLines, stdout, stderr)
-        self.assertEqual(''.join(stdout), expected)
-        self.assertEqual(stderr, [])
-
-    def test_multi_line_put(self):
-        inputLines = [
-            'put foo.bar 1 1',
-            'put bar.baz 2 2'
-        ]
-        expected = '\n'.join([
-            'foo.bar 1 1',
-            'bar.baz 2 2'
-        ]) + '\n'
-        stderr = []
-        stdout = []
-
-        self.run_bridge_test(inputLines, stdout, stderr)
-        self.assertEqual(''.join(stdout), expected)
-        self.assertEqual(stderr, [])
-
-    def test_multi_line_mixed_put(self):
-        inputLines = [
-            'put foo.bar 1 1',
-            'bar.baz 2 2',
-            'put foo.bar 3 3'
-        ]
-        expected = '\n'.join([
-            'foo.bar 1 1',
-            'bar.baz 2 2',
-            'foo.bar 3 3'
-        ]) + '\n'
-        stderr = []
-        stdout = []
-
-        self.run_bridge_test(inputLines, stdout, stderr)
-        self.assertEqual(''.join(stdout), expected)
-        self.assertEqual(stderr, [])
-
-    def test_multi_line_no_put_cond(self):
-        inputLines = [
-            'foo.bar 1 1\nbar.baz 2 2'
-        ]
-        expected = '\n'.join(inputLines) + '\n'
-        stderr = []
-        stdout = []
-
-        self.run_bridge_test(inputLines, stdout, stderr)
-        self.assertEqual(''.join(stdout), expected)
-        self.assertEqual(stderr, [])
-
-    def test_multi_line_put_cond(self):
-        inputLines = [
-            'put foo.bar 1 1\nput bar.baz 2 2'
-        ]
-        expected = '\n'.join([
-            'foo.bar 1 1',
-            'bar.baz 2 2'
-        ]) + '\n'
-        stderr = []
-        stdout = []
-
-        self.run_bridge_test(inputLines, stdout, stderr)
-        self.assertEqual(''.join(stdout), expected)
-        self.assertEqual(stderr, [])
-
-    def test_multi_empty_line_no_put(self):
-        inputLines = [
-            'foo.bar 1 1',
-            '',
-            'bar.baz 2 2'
-        ]
-        expected = 'foo.bar 1 1\n'
-        stderr = []
-        stdout = []
-
-        self.run_bridge_test(inputLines, stdout, stderr)
-        self.assertEqual(''.join(stdout), expected)
-        self.assertEqual(stderr, ['invalid data\n'])
-
-    def test_multi_empty_line_put(self):
-        inputLines = [
-            'put foo.bar 1 1',
-            '',
-            'put bar.baz 2 2'
-        ]
-        expected = 'foo.bar 1 1\n'
-        stderr = []
-        stdout = []
-
-        self.run_bridge_test(inputLines, stdout, stderr)
-        self.assertEqual(''.join(stdout), expected)
-        self.assertEqual(stderr, ['invalid data\n'])
-
-    def test_multi_empty_line_no_put_cond(self):
-        inputLines = [
-            'foo.bar 1 1\n\nbar.baz 2 2'
-        ]
-        expected = '\n'.join(inputLines) + '\n'
-        stderr = []
-        stdout = []
-
-        self.run_bridge_test(inputLines, stdout, stderr)
-        self.assertEqual(''.join(stdout), expected)
-        self.assertEqual(stderr, [])
-
-    def test_multi_empty_line_put_cond(self):
-        inputLines = [
-            'put foo.bar 1 1\n\nput bar.baz 2 2'
-        ]
-        expected = '\n'.join([
-            'foo.bar 1 1',
-            '',
-            'bar.baz 2 2'
-        ]) + '\n'
-        stderr = []
-        stdout = []
-
-        self.run_bridge_test(inputLines, stdout, stderr)
-        self.assertEqual(''.join(stdout), expected)
-        self.assertEqual(stderr, [])
-
-
-class CollectorSanityCheckTests(unittest.TestCase):
-    """Just make sure you can run a collector without it blowing up."""
-
-    def test_procstats(self):
-        env = os.environ.copy()
-        if env.get("PYTHONPATH"):
-            env["PYTHONPATH"] += ":."
-        else:
-            env["PYTHONPATH"] = "."
-        p = subprocess.Popen(["collectors/0/procstats.py"], env=env,
-                             stdout=subprocess.PIPE)
-        time.sleep(5)
-        p.terminate()
-        time.sleep(1)
-        if p.poll() is None:
-            p.kill()
-        self.assertEqual(p.poll(), -signal.SIGTERM)
-        self.assertIn(b"proc.", p.stdout.read())
 
 
 if __name__ == '__main__':

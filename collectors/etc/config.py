@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # This file is part of tcollector.
-# Copyright (C) 2010  The tcollector Authors.
+# Copyright (C) 2010-2024  The tcollector Authors.
 #
 # This program is free software: you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published by
@@ -30,14 +30,16 @@
 import os
 import sys
 
+
 def onload(options, tags):
     """Function called by tcollector when it starts up.
 
     Args:
         options: The options as returned by the OptionParser.
-        tags: A dictionnary that maps tag names to tag values.
+        tags: A dictionary that maps tag names to tag values.
     """
     pass
+
 
 def get_defaults():
     """Configuration values to use as defaults in the code
@@ -45,7 +47,7 @@ def get_defaults():
         This is called by the OptionParser.
     """
 
-    default_cdir = os.path.join(os.path.dirname(os.path.realpath(sys.argv[0])), 'collectors')
+    default_cdir = os.path.join(os.path.dirname(os.path.realpath(sys.argv[0])), 'collectors/enabled')
 
     defaults = {
         'verbose': False,

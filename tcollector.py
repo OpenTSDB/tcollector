@@ -94,7 +94,7 @@ class ReaderQueue(Queue):
         return True
 
 
-class Collector(object):
+class Collector:
     """A Collector is a script that is run that gathers some data
        and prints it out in standard TSD format on STDOUT.  This
        class maintains all of the state information for a given
@@ -388,10 +388,10 @@ class ReaderThread(threading.Thread):
 
         line = self.ns_prefix + line
 
-        parsed = re.match('^([-_./a-zA-Z0-9]+)\s+'  # Metric name.
-                          '(\d+\.?\d+)\s+'  # Timestamp.
-                          '(\S+?)'  # Value (int or float).
-                          '((?:\s+[-_./a-zA-Z0-9]+=[-_./a-zA-Z0-9]+)*)$',  # Tags
+        parsed = re.match(r'^([-_./a-zA-Z0-9]+)\s+'  # Metric name.
+                          r'(\d+\.?\d+)\s+'  # Timestamp.
+                          r'(\S+?)'  # Value (int or float).
+                          r'((?:\s+[-_./a-zA-Z0-9]+=[-_./a-zA-Z0-9]+)*)$',  # Tags
                           line)
         if parsed is None:
             LOG.warning('%s sent invalid data: %s', col.name, line)
@@ -451,7 +451,7 @@ class ReaderThread(threading.Thread):
                               col.values[key][3], timestamp, value, col.name)
                     col.lines_invalid += 1
                     return
-                elif timestamp >= max_timestamp:
+                if timestamp >= max_timestamp:
                     LOG.error("Timestamp is too far out in the future: metric=%s%s"
                               " old_ts=%d, new_ts=%d - ignoring data point"
                               " (value=%r, collector=%s)", metric, tags,
@@ -664,7 +664,7 @@ class SenderThread(threading.Thread):
                 self.blacklist_connection()
                 return False
 
-            # If we don't get a response to the `version' request, the TSD
+            # If we don't get a response to the 'version' request, the TSD
             # must be dead or overloaded.
             if not buf:
                 self.tsd = None
@@ -908,7 +908,7 @@ def parse_cmdline(argv):
         defaults = config.get_defaults()
     except ImportError:
         sys.stderr.write("ImportError: Could not load defaults from configuration. Using hardcoded values")
-        default_cdir = os.path.join(os.path.dirname(os.path.realpath(sys.argv[0])), 'collectors')
+        default_cdir = os.path.join(os.path.dirname(os.path.realpath(sys.argv[0])), 'collectors/enabled')
         defaults = {
             'verbose': False,
             'no_tcollector_stats': False,
@@ -1092,15 +1092,24 @@ def daemonize():
 def setup_python_path(collector_dir):
     """Sets up PYTHONPATH so that collectors can easily import common code."""
     mydir = os.path.dirname(collector_dir)
-    libdir = os.path.join(mydir, 'collectors', 'lib')
-    if not os.path.isdir(libdir):
+
+    library_dir = os.path.join(mydir, 'lib')
+    if not os.path.isdir(library_dir):
+        LOG.debug('No directory with tcollector library: %r', library_dir)
         return
-    pythonpath = os.environ.get('PYTHONPATH', '')
-    if pythonpath:
-        pythonpath += ':'
-    pythonpath += mydir
-    os.environ['PYTHONPATH'] = pythonpath
-    LOG.debug('Set PYTHONPATH to %r', pythonpath)
+
+    enabled_collectors_dir = os.path.join(mydir, 'enabled')
+    if not os.path.isdir(enabled_collectors_dir):
+        LOG.debug('No directory with enabled collectors: %r', enabled_collectors_dir)
+        return
+
+    python_path = os.environ.get('PYTHONPATH', '')
+    if python_path:
+        python_path += ':'
+    python_path = f"{python_path}:{library_dir}:{enabled_collectors_dir}"
+
+    os.environ['PYTHONPATH'] = python_path
+    LOG.debug('Set PYTHONPATH to %r', python_path)
 
 
 def main(argv):
@@ -1127,7 +1136,7 @@ def main(argv):
     # validate everything
     tags = {}
     for tag in options.tags:
-        if re.match('^[-_.a-z0-9]+=\S+$', tag, re.IGNORECASE) is None:
+        if re.match(r'^[-_.a-z0-9]+=\S+$', tag, re.IGNORECASE) is None:
             assert False, 'Tag string "%s" is invalid.' % tag
         k, v = tag.split('=', 1)
         if k in tags:
@@ -1568,7 +1577,7 @@ def populate_collectors(coldir):
 
             filename = '%s/%d/%s' % (coldir, interval, colname)
             if os.path.isfile(filename) and os.access(filename, os.X_OK):
-                mtime = os.path.getmtime(filename)
+                mtime = int(os.path.getmtime(filename))
 
                 # if this collector is already 'known', then check if it's
                 # been updated (new mtime) so we can kill off the old one
