@@ -22,8 +22,7 @@ from collectors.lib import utils
 
 COLLECTION_INTERVAL = 15  # seconds
 
-# /proc/net/dev has 16 fields, 8 for receive and 8 for transmit,
-# defined below.
+# /proc/net/dev has 16 fields, 8 for receive and 8 for transmit, defined below.
 # So we can aggregate up the total bytes, packets, etc
 # we tag each metric with direction=in or =out
 # and iface=
@@ -35,58 +34,56 @@ COLLECTION_INTERVAL = 15  # seconds
 # PCI add-in interfaces
 # p<slot number>p<port number>_<virtual function instance / NPAR Index>
 
+FIELDS = ("bytes", "packets", "errs", "drop", "fifo", "frame", "compressed", "multicast",  # receive
+          "bytes", "packets", "errs", "drop", "fifo", "colls", "carrier", "compressed")  # transmit
 
-FIELDS = ("bytes", "packets", "errs", "dropped",
-          "fifo.errs", "frame.errs", "compressed", "multicast",
-          "bytes", "packets", "errs", "dropped",
-          "fifo.errs", "collisions", "carrier.errs", "compressed")
+PATTERN = re.compile(r'''
+     \s*                                     # Leading whitespace
+     (?P<interface>\w+):\s+                  # Network interface name followed by colon and whitespace
+
+     (?P<receive_bytes>\d+)\s+               # Receive bytes
+     (?P<receive_packets>\d+)\s+             # Receive packets
+     (?P<receive_errs>\d+)\s+                # Receive errors
+     (?P<receive_drop>\d+)\s+                # Receive dropped packets
+     (?P<receive_fifo>\d+)\s+                # Receive FIFO errors
+     (?P<receive_frame>\d+)\s+               # Receive frame errors
+     (?P<receive_compressed>\d+)\s+          # Receive compressed packets
+     (?P<receive_multicast>\d+)\s+           # Receive multicast packets
+     (?P<transmit_bytes>\d+)\s+              # Transmit bytes
+     (?P<transmit_packets>\d+)\s+            # Transmit packets
+     (?P<transmit_errs>\d+)\s+               # Transmit errors
+     (?P<transmit_drop>\d+)\s+               # Transmit dropped packets
+     (?P<transmit_fifo>\d+)\s+               # Transmit FIFO errors
+     (?P<transmit_colls>\d+)\s+              # Transmit collisions
+     (?P<transmit_carrier>\d+)\s+            # Transmit carrier errors
+     (?P<transmit_compressed>\d+)\s*         # Transmit compressed packets
+ ''', re.VERBOSE)
 
 
 def main():
     """ifstat main loop"""
 
-    f_netdev = open("/proc/net/dev")
+    f_netdev = open("/proc/net/dev", encoding='utf-8')
     utils.drop_privileges()
 
-    # We just care about ethN and emN interfaces.  We specifically
-    # want to avoid bond interfaces, because interface
-    # stats are still kept on the child interfaces when
-    # you bond.  By skipping bond we avoid double counting.
+    # We just care about ethN and emN interfaces. We specifically want to avoid
+    # bond interfaces, because interface stats are still kept on the child interfaces
+    # when you bond. By skipping bond we avoid double counting.
     while True:
         f_netdev.seek(0)
-        ts = int(time.time())
+        time_stamp = int(time.time())
         for line in f_netdev:
-            m = re.match(r'''
-                \s*
-                (
-                    eth?\d+ |
-                    em\d+_\d+/\d+ | em\d+_\d+ | em\d+ |
-                    p\d+p\d+_\d+/\d+ | p\d+p\d+_\d+ | p\d+p\d+ |
-                    (?:   # Start of 'predictable network interface names'
-                        (?:en|sl|wl|ww)
-                        (?:
-                            b\d+ |           # BCMA bus
-                            c[0-9a-f]+ |     # CCW bus group
-                            o\d+(?:d\d+)? |  # On-board device
-                            s\d+(?:f\d+)?(?:d\d+)? |  # Hotplug slots
-                            x[0-9a-f]+ |     # Raw MAC address
-                            p\d+s\d+(?:f\d+)?(?:d\d+)? | # PCI geographic loc
-                            p\d+s\d+(?:f\d+)?(?:u\d+)*(?:c\d+)?(?:i\d+)? # USB
-                         )
-                    )
-                ):(.*)''', line, re.VERBOSE)
-            if not m:
-                continue
-            intf = m.group(1)
-            stats = m.group(2).split(None)
+            match = PATTERN.match(line)
 
-            def direction(i):
-                if i >= 8:
-                    return "out"
-                return "in"
+            if not match:
+                continue
+
+            if match.group('interface').startswith('bond'):  # avoid bond interface
+                continue
+
             for i in range(16):
-                print("proc.net.%s %d %s iface=%s direction=%s"
-                      % (FIELDS[i], ts, stats[i], intf, direction(i)))
+                print(f"proc.net.{FIELDS[i]} {time_stamp} {match.group(i+2)} "
+                      f"iface={match.group('interface')} direction={'in' if i < 8 else 'out'}")
 
         sys.stdout.flush()
         time.sleep(COLLECTION_INTERVAL)
