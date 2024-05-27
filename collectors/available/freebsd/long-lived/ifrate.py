@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # This file is part of tcollector.
-# Copyright (C) 2012  The tcollector Authors.
+# Copyright (C) 2012-2014  The tcollector Authors.
 #
 # This program is free software: you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published by
@@ -13,7 +13,7 @@
 # see <http://www.gnu.org/licenses/>.
 #
 
-'''
+"""
 Network interfaces detailed statistics for TSDB
 
 This plugin tracks, for interfaces named in configuration file:
@@ -30,7 +30,7 @@ This plugin tracks, for interfaces named in configuration file:
 
 Requirements :
 - FreeBSD : netstat
-'''
+"""
 
 import errno
 import sys
@@ -49,18 +49,18 @@ except ImportError:
     ifrate_conf = None
 
 DEFAULT_COLLECTION_INTERVAL = 15
-signal_received = None
+SIGNAL_RECEIVED = None
 
 
 def handlesignal(signum, stack):
-    global signal_received
-    signal_received = signum
+    global SIGNAL_RECEIVED
+    SIGNAL_RECEIVED = signum
 
 
 def main():
     """top main loop"""
 
-    collection_interval=DEFAULT_COLLECTION_INTERVAL
+    collection_interval = DEFAULT_COLLECTION_INTERVAL
     if ifrate_conf:
         config = ifrate_conf.get_config()
         collection_interval = config['collection_interval']
@@ -68,7 +68,7 @@ def main():
         report_packets = config['report_packets']
         merge_err_in_out = config['merge_err_in_out']
 
-    global signal_received
+    global SIGNAL_RECEIVED
 
     signal.signal(signal.SIGTERM, handlesignal)
     signal.signal(signal.SIGINT, handlesignal)
@@ -94,7 +94,7 @@ def main():
     timestamp = 0
     procnum = 0
 
-    while signal_received is None:
+    while SIGNAL_RECEIVED is None:
         if procnum >= intnum:
             procnum=0
         try:
@@ -108,7 +108,7 @@ def main():
             # end of the program, die
             break
 
-        if (re.match("^[0-9 ]+$",line)):
+        if re.match("^[0-9 ]+$", line):
             fields = line.split()
             if len(fields) == 9:
                 if procnum == 0:
@@ -133,11 +133,11 @@ def main():
 
         sys.stdout.flush()
 
-    if signal_received is None:
-        signal_received = signal.SIGTERM
+    if SIGNAL_RECEIVED is None:
+        SIGNAL_RECEIVED = signal.SIGTERM
     try:
         for procnum in range(0, intnum):
-            os.kill(p_net[procnum].pid, signal_received)
+            os.kill(p_net[procnum].pid, SIGNAL_RECEIVED)
     except Exception:
         pass
     for procnum in range(0, intnum):

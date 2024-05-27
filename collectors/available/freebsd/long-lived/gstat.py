@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # This file is part of tcollector.
-# Copyright (C) 2012  The tcollector Authors.
+# Copyright (C) 2012-2014  The tcollector Authors.
 #
 # This program is free software: you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published by
@@ -13,7 +13,7 @@
 # see <http://www.gnu.org/licenses/>.
 #
 
-'''
+"""
 Disks detailed statistics for TSDB
 
 This plugin tracks, for all FreeBSD disks:
@@ -41,7 +41,7 @@ This plugin tracks, for all FreeBSD disks:
 
 Requirements :
 - FreeBSD : gstat (with the following patch https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=212726)
-'''
+"""
 
 import errno
 import sys
@@ -59,12 +59,12 @@ except ImportError:
     gstat_conf = None
 
 DEFAULT_COLLECTION_INTERVAL = 15
-signal_received = None
+SIGNAL_RECEIVED = None
 
 
 def handlesignal(signum, stack):
-    global signal_received
-    signal_received = signum
+    global SIGNAL_RECEIVED
+    SIGNAL_RECEIVED = signum
 
 
 def main():
@@ -74,10 +74,10 @@ def main():
     collection_filter = ".*"
     if gstat_conf:
         config = gstat_conf.get_config()
-        collection_interval=config['collection_interval']
-        collection_filter=config['collection_filter']
+        collection_interval = config['collection_interval']
+        collection_filter = config['collection_filter']
 
-    global signal_received
+    global SIGNAL_RECEIVED
 
     signal.signal(signal.SIGTERM, handlesignal)
     signal.signal(signal.SIGINT, handlesignal)
@@ -95,7 +95,7 @@ def main():
 
     timestamp = 0
 
-    while signal_received is None:
+    while SIGNAL_RECEIVED is None:
         try:
             line = p_gstat.stdout.readline()
         except (IOError, OSError) as e:
@@ -107,7 +107,7 @@ def main():
             # end of the program, die
             break
 
-        if (not re.match("^ *[0-9]",line)):
+        if not re.match("^ *[0-9]",line):
             timestamp = int(time.time())
             continue
 
@@ -132,10 +132,10 @@ def main():
 
         sys.stdout.flush()
         
-    if signal_received is None:
-        signal_received = signal.SIGTERM
+    if SIGNAL_RECEIVED is None:
+        SIGNAL_RECEIVED = signal.SIGTERM
     try:
-        os.kill(p_gstat.pid, signal_received)
+        os.kill(p_gstat.pid, SIGNAL_RECEIVED)
     except Exception:
         pass
     p_gstat.wait()
