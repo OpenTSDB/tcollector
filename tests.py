@@ -24,7 +24,6 @@ try:
     import flask
 except ImportError:
     flask = None
-import mocks
 import tcollector
 
 
@@ -63,8 +62,8 @@ class ReaderThreadTests(unittest.TestCase):
 
         This can happen if a specific collector is buggy.
         """
-        thread = tcollector.ReaderThread(1, 10, True) # pylint:disable=no-member
-        collector = tcollector.Collector("c", 1, "c") # pylint:disable=no-member
+        thread = tcollector.ReaderThread(1, 10, True)  # pylint:disable=no-member
+        collector = tcollector.Collector("c", 1, "c")  # pylint:disable=no-member
         for line in ["xxx", "mymetric 123 Value a=b"]:
             thread.process_line(collector, line)
         self.assertEqual(thread.readerq.qsize(), 0)
@@ -73,8 +72,8 @@ class ReaderThreadTests(unittest.TestCase):
 
     def test_ok_lines(self):
         """Good lines are passed on to OpenTSDB."""
-        thread = tcollector.ReaderThread(1, 10, True) # pylint:disable=no-member
-        collector = tcollector.Collector("c", 1, "c") # pylint:disable=no-member
+        thread = tcollector.ReaderThread(1, 10, True)  # pylint:disable=no-member
+        collector = tcollector.Collector("c", 1, "c")  # pylint:disable=no-member
         for line in ["mymetric 123.24 12 a=b",
                      "mymetric 124 12.7 a=b",
                      "mymetric 125 12.7"]:
@@ -91,17 +90,21 @@ class CollectorsTests(unittest.TestCase):
         """Test of collectors access rights, permissions should be 0100755."""
 
         def check_access_rights(top):
-            for f in os.listdir(top):
-                pathname = os.path.join(top, f)
+            for file in os.listdir(top):
+                pathname = os.path.join(top, file)
                 mode = os.stat(pathname).st_mode
 
                 if S_ISDIR(mode):
                     # directory, recurse into it
                     check_access_rights(pathname)
                 elif S_ISREG(mode):
+                    # file, skip .gitkeep files that keep empty dirs in git
+                    if file == '.gitkeep':
+                        continue
+
                     # file, check permissions
                     permissions = oct(os.stat(pathname)[ST_MODE])
-                    self.assertEqual("0o100755", permissions)
+                    self.assertEqual("0o100755", permissions, f'file: {pathname}')
                 else:
                     # unknown file type
                     pass
@@ -146,8 +149,8 @@ class StatusServerTests(unittest.TestCase):
         thread.setDaemon(True)
         thread.start()
 
-        r = tcollector.urlopen("http://127.0.0.1:32025").read()  # pylint:disable=no-member
-        self.assertEqual(json.loads(r), [c.to_json() for c in collectors.values()])
+        result = tcollector.urlopen("http://127.0.0.1:32025").read()  # pylint:disable=no-member
+        self.assertEqual(json.loads(result), [c.to_json() for c in collectors.values()])
 
 
 @unittest.skipUnless(flask, "Flask not installed")
@@ -169,7 +172,7 @@ class SenderThreadHTTPTests(unittest.TestCase):
         """
         self.run_fake_opentsdb(response_code)
         reader = tcollector.ReaderThread(1, 10, True)  # pylint:disable=no-member
-        sender = tcollector.SenderThread( # pylint:disable=no-member
+        sender = tcollector.SenderThread(  # pylint:disable=no-member
             reader, False, [("localhost", 4242)], False, {},
             http=True, http_api_path="api/put"
         )
@@ -279,4 +282,5 @@ if __name__ == '__main__':
                         'collectors')
     tcollector.setup_python_path(cdir)  # pylint: disable=maybe-no-member
     tcollector.populate_collectors(cdir)  # pylint: disable=maybe-no-member
-    sys.exit(unittest.main())
+
+    unittest.main()
