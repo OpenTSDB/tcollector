@@ -145,11 +145,11 @@ class StatusServerTests(unittest.TestCase):
         }
         server = tcollector.StatusServer("127.0.0.1", 32025, collectors)  # pylint:disable=no-member
         # runs in background until test suite exits :( but it works.
-        thread = threading.Thread(target=server.serve_forever)
-        thread.setDaemon(True)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
 
-        result = tcollector.urlopen("http://127.0.0.1:32025").read()  # pylint:disable=no-member
+        with tcollector.urlopen("http://127.0.0.1:32025") as resource:
+            result = resource.read()
         self.assertEqual(json.loads(result), [c.to_json() for c in collectors.values()])
 
 
@@ -283,4 +283,4 @@ if __name__ == '__main__':
     tcollector.setup_python_path(cdir)  # pylint: disable=maybe-no-member
     tcollector.populate_collectors(cdir)  # pylint: disable=maybe-no-member
 
-    unittest.main()
+    unittest.main(verbosity=2)
