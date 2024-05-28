@@ -169,5 +169,6 @@ def main():
 
         time.sleep(COLLECTION_INTERVAL)
 
+
 if __name__ == "__main__":
     main()

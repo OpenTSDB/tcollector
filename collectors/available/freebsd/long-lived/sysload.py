@@ -35,8 +35,7 @@ In addition, for FreeBSD, it reports :
 - arc statistics (bytes) (total, mru, mfu, anon, header, other)
 - swap statistics (bytes) (total, free, inuse, in/s, out/s)
 """
-
-# TODO: refactor - remove freebsd specific code
+# TODO: refactor - remove linux specific code
 
 import errno
 import sys
@@ -45,7 +44,6 @@ import subprocess
 import re
 import signal
 import os
-import platform
 
 from collectors.lib import utils
 
@@ -89,8 +87,8 @@ def main():
     collect_every_cpu = True
     if sysload_conf:
         config = sysload_conf.get_config()
-        collection_interval=config['collection_interval']
-        collect_every_cpu=config['collect_every_cpu']
+        collection_interval = config['collection_interval']
+        collect_every_cpu = config['collect_every_cpu']
 
     global signal_received
 
@@ -98,28 +96,16 @@ def main():
     signal.signal(signal.SIGINT, handlesignal)
 
     try:
-        if platform.system() == "FreeBSD":
-            if collect_every_cpu:
-                p_top = subprocess.Popen(
-                    ["top", "-S", "-P", "-n", "-s"+str(collection_interval), "-dinfinity", "0"],
-                    stdout=subprocess.PIPE,
-                )
-            else:
-                p_top = subprocess.Popen(
-                    ["top", "-S", "-n", "-s"+str(collection_interval), "-dinfinity", "0"],
-                    stdout=subprocess.PIPE,
-                )            
+        if collect_every_cpu:
+            p_top = subprocess.Popen(
+                ["mpstat", "-P", "ALL", str(collection_interval)],
+                stdout=subprocess.PIPE,
+            )
         else:
-            if collect_every_cpu:
-                p_top = subprocess.Popen(
-                    ["mpstat", "-P", "ALL", str(collection_interval)],
-                    stdout=subprocess.PIPE,
-                )
-            else:
-                p_top = subprocess.Popen(
-                    ["mpstat", str(collection_interval)],
-                    stdout=subprocess.PIPE,
-                )
+            p_top = subprocess.Popen(
+                ["mpstat", str(collection_interval)],
+                stdout=subprocess.PIPE,
+            )
     except OSError as e:
         if e.errno == errno.ENOENT:
             # it makes no sense to run this collector here
@@ -153,47 +139,47 @@ def main():
         if (((fields[0] == "CPU") or (re.match("[0-9][0-9]:[0-9][0-9]:[0-9][0-9]",fields[0]))) and ((collect_every_cpu and re.match("[0-9]+:?",fields[1])) or ((not collect_every_cpu) and re.match("all:?",fields[1])))):
             if((fields[1] == "all") or (fields[1] == "0")):
                 timestamp = int(time.time())
-            cpuid=fields[1].replace(":","")
-            cpuuser=fields[2]
-            cpunice=fields[3]
-            cpusystem=fields[4]
-            cpuinterrupt=fields[6]
-            cpuidle=fields[-1]
+            cpuid = fields[1].replace(":","")
+            cpuuser = fields[2]
+            cpunice = fields[3]
+            cpusystem = fields[4]
+            cpuinterrupt = fields[6]
+            cpuidle = fields[-1]
             print("cpu.usr %s %s cpu=%s" % (timestamp, float(cpuuser), cpuid))
             print("cpu.nice %s %s cpu=%s" % (timestamp, float(cpunice), cpuid))
             print("cpu.sys %s %s cpu=%s" % (timestamp, float(cpusystem), cpuid))
             print("cpu.irq %s %s cpu=%s" % (timestamp, float(cpuinterrupt), cpuid))
             print("cpu.idle %s %s cpu=%s" % (timestamp, float(cpuidle), cpuid))
-        
-        elif(fields[0] == "averages:"):
+
+        elif fields[0] == "averages:":
             timestamp = int(time.time())
             print("load.1m %s %s" % (timestamp, fields[1]))
             print("load.5m %s %s" % (timestamp, fields[2]))
             print("load.15m %s %s" % (timestamp, fields[3]))
 
-        elif (re.match("[0-9]+ processes:",line)):
-            starting=0
-            running=0
-            sleeping=0
-            stopped=0
-            zombie=0
-            waiting=0
-            lock=0
+        elif re.match("[0-9]+ processes:",line):
+            starting = 0
+            running = 0
+            sleeping = 0
+            stopped = 0
+            zombie = 0
+            waiting = 0
+            lock = 0
             for i in range(len(fields)):
-                if(fields[i] == "starting"):
-                    starting=fields[i-1]
-                if(fields[i] == "running"):
-                    running=fields[i-1]
-                if(fields[i] == "sleeping"):
-                    sleeping=fields[i-1]
-                if(fields[i] == "stopped"):
-                    stopped=fields[i-1]
-                if(fields[i] == "zombie"):
-                    zombie=fields[i-1]
-                if(fields[i] == "waiting"):
-                    waiting=fields[i-1]
-                if(fields[i] == "lock"):
-                    lock=fields[i-1]
+                if fields[i] == "starting":
+                    starting = fields[i-1]
+                if fields[i] == "running":
+                    running = fields[i-1]
+                if fields[i] == "sleeping":
+                    sleeping = fields[i-1]
+                if fields[i] == "stopped":
+                    stopped = fields[i-1]
+                if fields[i] == "zombie":
+                    zombie = fields[i-1]
+                if fields[i] == "waiting":
+                    waiting = fields[i-1]
+                if fields[i] == "lock":
+                    lock = fields[i-1]
             print("ps.all %s %s" % (timestamp, fields[0]))
             print("ps.start %s %s" % (timestamp, starting))
             print("ps.run %s %s" % (timestamp, running))
@@ -203,26 +189,26 @@ def main():
             print("ps.wait %s %s" % (timestamp, waiting))
             print("ps.lock %s %s" % (timestamp, lock))
 
-        elif(fields[0] == "Mem:"):
-            active=0
-            inact=0
-            wired=0
-            cache=0
-            buf=0
-            free=0
+        elif fields[0] == "Mem:":
+            active = 0
+            inact = 0
+            wired = 0
+            cache = 0
+            buf = 0
+            free = 0
             for i in range(len(fields)):
-                if(fields[i] == "Active"):
-                    active=convert_to_bytes(fields[i-1])
-                if(fields[i] == "Inact"):
-                    inact=convert_to_bytes(fields[i-1])
-                if(fields[i] == "Wired"):
-                    wired=convert_to_bytes(fields[i-1])
-                if(fields[i] == "Cache"):
-                    cache=convert_to_bytes(fields[i-1])
-                if(fields[i] == "Buf"):
-                    buf=convert_to_bytes(fields[i-1])
-                if(fields[i] == "Free"):
-                    free=convert_to_bytes(fields[i-1])
+                if fields[i] == "Active":
+                    active = convert_to_bytes(fields[i-1])
+                if fields[i] == "Inact":
+                    inact = convert_to_bytes(fields[i-1])
+                if fields[i] == "Wired":
+                    wired = convert_to_bytes(fields[i-1])
+                if fields[i] == "Cache":
+                    cache = convert_to_bytes(fields[i-1])
+                if fields[i] == "Buf":
+                    buf = convert_to_bytes(fields[i-1])
+                if fields[i] == "Free":
+                    free = convert_to_bytes(fields[i-1])
             print("mem.active %s %s" % (timestamp, active))
             print("mem.inact %s %s" % (timestamp, inact))
             print("mem.wired %s %s" % (timestamp, wired))
@@ -230,15 +216,15 @@ def main():
             print("mem.buf %s %s" % (timestamp, buf))
             print("mem.free %s %s" % (timestamp, free))
 
-        elif(fields[0] == "ARC:"):
-            total=0
-            mru=0
-            mfu=0
-            anon=0
-            header=0
-            other=0
+        elif fields[0] == "ARC:":
+            total = 0
+            mru = 0
+            mfu = 0
+            anon = 0
+            header = 0
+            other = 0
             for i in range(len(fields)):
-                if(fields[i] == "Total"):
+                if (fields[i] == "Total"):
                     total=convert_to_bytes(fields[i-1])
                 if(fields[i] == "MRU"):
                     mru=convert_to_bytes(fields[i-1])
