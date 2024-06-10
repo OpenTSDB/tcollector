@@ -26,7 +26,6 @@ This plugin tracks, for all CPUs:
 
 Requirements :
 - FreeBSD : top
-- Linux : mpstat
 
 In addition, for FreeBSD, it reports :
 - load average (1m, 5m, 15m)
@@ -96,16 +95,10 @@ def main():
     signal.signal(signal.SIGINT, handlesignal)
 
     try:
-        if collect_every_cpu:
-            p_top = subprocess.Popen(
-                ["mpstat", "-P", "ALL", str(collection_interval)],
-                stdout=subprocess.PIPE,
-            )
-        else:
-            p_top = subprocess.Popen(
-                ["mpstat", str(collection_interval)],
-                stdout=subprocess.PIPE,
-            )
+        p_top = subprocess.Popen(
+            ["top", "-b", "-d", str(collection_interval)],
+            stdout=subprocess.PIPE,
+        )
     except OSError as e:
         if e.errno == errno.ENOENT:
             # it makes no sense to run this collector here
@@ -128,18 +121,16 @@ def main():
 
         # CPU: --> CPU all:  : FreeBSD, to match the all CPU
         # %( [uni][a-z]+,?)? : FreeBSD, so that top output matches mpstat output
-        # AM                 : Linux, mpstat output depending on locale
-        # PM                 : Linux, mpstat output depending on locale
         # .* load            : FreeBSD, to correctly match load averages
         # ,                  : FreeBSD, to correctly match processes: Mem: ARC: and Swap:
-        fields = re.sub("CPU:", "CPU all:", re.sub(r"%( [uni][a-z]+,?)?| AM | PM |.* load |,", "", line)).split()
+        fields = re.sub("CPU:", "CPU all:", re.sub(r"%( [uni][a-z]+,?)?|.* load |,", "", line)).split()
         if len(fields) <= 0:
             continue
 
-        if (((fields[0] == "CPU") or (re.match("[0-9][0-9]:[0-9][0-9]:[0-9][0-9]",fields[0]))) and ((collect_every_cpu and re.match("[0-9]+:?",fields[1])) or ((not collect_every_cpu) and re.match("all:?",fields[1])))):
-            if((fields[1] == "all") or (fields[1] == "0")):
+        if fields[0] == "CPU":
+            if fields[1] == "all":
                 timestamp = int(time.time())
-            cpuid = fields[1].replace(":","")
+            cpuid = fields[1].replace(":", "")
             cpuuser = fields[2]
             cpunice = fields[3]
             cpusystem = fields[4]
@@ -157,7 +148,7 @@ def main():
             print("load.5m %s %s" % (timestamp, fields[2]))
             print("load.15m %s %s" % (timestamp, fields[3]))
 
-        elif re.match("[0-9]+ processes:",line):
+        elif re.match("[0-9]+ processes:", line):
             starting = 0
             running = 0
             sleeping = 0
@@ -225,17 +216,17 @@ def main():
             other = 0
             for i in range(len(fields)):
                 if (fields[i] == "Total"):
-                    total=convert_to_bytes(fields[i-1])
+                    total = convert_to_bytes(fields[i-1])
                 if(fields[i] == "MRU"):
-                    mru=convert_to_bytes(fields[i-1])
+                    mru = convert_to_bytes(fields[i-1])
                 if(fields[i] == "MFU"):
-                    mfu=convert_to_bytes(fields[i-1])
+                    mfu = convert_to_bytes(fields[i-1])
                 if(fields[i] == "Anon"):
-                    anon=convert_to_bytes(fields[i-1])
+                    anon = convert_to_bytes(fields[i-1])
                 if(fields[i] == "Header"):
-                    header=convert_to_bytes(fields[i-1])
+                    header = convert_to_bytes(fields[i-1])
                 if(fields[i] == "Other"):
-                    other=convert_to_bytes(fields[i-1])
+                    other = convert_to_bytes(fields[i-1])
             print("arc.total %s %s" % (timestamp, total))
             print("arc.mru %s %s" % (timestamp, mru))
             print("arc.mfu %s %s" % (timestamp, mfu))
@@ -244,25 +235,25 @@ def main():
             print("arc.other %s %s" % (timestamp, other))
 
         elif(fields[0] == "Swap:"):
-            total=0
-            used=0
-            free=0
-            inuse=0
-            inps=0
-            outps=0
+            total = 0
+            used = 0
+            free = 0
+            inuse = 0
+            inps = 0
+            outps = 0
             for i in range(len(fields)):
                 if(fields[i] == "Total"):
-                    total=convert_to_bytes(fields[i-1])
+                    total = convert_to_bytes(fields[i-1])
                 if(fields[i] == "Used"):
-                    used=convert_to_bytes(fields[i-1])
+                    used = convert_to_bytes(fields[i-1])
                 if(fields[i] == "Free"):
-                    free=convert_to_bytes(fields[i-1])
+                    free = convert_to_bytes(fields[i-1])
                 if(fields[i] == "Inuse"):
-                    inuse=convert_to_bytes(fields[i-1])
+                    inuse = convert_to_bytes(fields[i-1])
                 if(fields[i] == "In"):
-                    inps=convert_to_bytes(fields[i-1])/collection_interval
+                    inps = convert_to_bytes(fields[i-1]) / collection_interval
                 if(fields[i] == "Out"):
-                    outps=convert_to_bytes(fields[i-1])/collection_interval
+                    outps = convert_to_bytes(fields[i-1]) / collection_interval
             print("swap.total %s %s" % (timestamp, total))
             print("swap.used %s %s" % (timestamp, used))
             print("swap.free %s %s" % (timestamp, free))
